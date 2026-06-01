@@ -1,0 +1,468 @@
+@extends('layouts.app')
+
+@section('title', 'Petty Cash')
+
+@section('styles')
+<style>
+  .balance-card { border-left: 4px solid #940000; }
+  .balance-card.profit { border-left-color: #28a745; }
+  .fund-badge-circulation { background: #e3f2fd; color: #1565c0; }
+  .fund-badge-profit { background: #e8f5e9; color: #2e7d32; }
+  .balance-date-label { font-size: 0.75rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.04em; }
+  .balance-preview {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-left: 4px solid #940000;
+    border-radius: 4px;
+    padding: 12px 14px;
+  }
+  .balance-preview.is-finalized { border-left-color: #ffc107; background: #fffdf5; }
+  .fund-option-card {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .fund-option-card.active {
+    border-color: #940000;
+    background: #fff5f5;
+  }
+  .fund-option-card .available-amount {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: 700;
+  }
+  .issue-form-disabled { opacity: 0.65; pointer-events: none; }
+  .btn.is-loading { pointer-events: none; }
+</style>
+@endsection
+
+@section('content')
+<div class="app-title">
+  <div>
+    <h1><i class="fa fa-money"></i> Petty Cash</h1>
+    <p>Issue cash for restock, payments, or salaries — choose profit or circulation, and see available balances before you issue.</p>
+  </div>
+  <ul class="app-breadcrumb breadcrumb">
+    <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+    <li class="breadcrumb-item"><a href="{{ url('/home') }}">Dashboard</a></li>
+    <li class="breadcrumb-item">Finance</li>
+    <li class="breadcrumb-item active">Petty Cash</li>
+  </ul>
+</div>
+
+@if(session('success'))
+  <div class="alert alert-success">{{ session('success') }}</div>
+@endif
+@if(session('error'))
+  <div class="alert alert-danger">{{ session('error') }}</div>
+@endif
+
+<div class="row mb-3">
+  <div class="col-md-6">
+    <div class="widget-small primary coloured-icon balance-card">
+      <i class="icon fa fa-refresh fa-3x"></i>
+      <div class="info">
+        <div class="balance-date-label">Available for <span id="balance-date-label-circulation">{{ \Carbon\Carbon::parse($selectedDate)->format('d M, Y') }}</span></div>
+        <h4>Money in Circulation</h4>
+        <p><strong id="available-circulation">TZS {{ number_format($balances['available_circulation'], 0) }}</strong></p>
+        <small class="text-muted" id="circulation-meta">
+          Opening: TZS {{ number_format($balances['opening_circulation'], 0) }}
+          @if($balances['owner_circulation_spent'] > 0)
+            · Issued: TZS {{ number_format($balances['owner_circulation_spent'], 0) }}
+          @endif
+        </small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="widget-small info coloured-icon balance-card profit">
+      <i class="icon fa fa-line-chart fa-3x"></i>
+      <div class="info">
+        <div class="balance-date-label">Available for <span id="balance-date-label-profit">{{ \Carbon\Carbon::parse($selectedDate)->format('d M, Y') }}</span></div>
+        <h4>Profit Available</h4>
+        <p><strong id="available-profit">TZS {{ number_format($balances['available_profit'], 0) }}</strong></p>
+        <small class="text-muted" id="profit-meta">
+          Opening profit: TZS {{ number_format($balances['opening_profit'], 0) }}
+          · Day net: TZS {{ number_format($balances['daily_net_profit'], 0) }}
+          @if($balances['owner_profit_spent'] > 0)
+            · Issued: TZS {{ number_format($balances['owner_profit_spent'], 0) }}
+          @endif
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-5">
+    <div class="tile">
+      <h3 class="tile-title"><i class="fa fa-plus-circle"></i> Issue Petty Cash</h3>
+      <div class="tile-body">
+        <form method="POST" action="{{ route('petty-cash.store') }}" id="issuePettyCashForm">
+          @csrf
+
+          <div class="form-group">
+            <label class="control-label font-weight-bold">Issue Date</label>
+            <input type="date" name="expense_date" id="expense_date" class="form-control" value="{{ old('expense_date', $selectedDate) }}" required>
+            <small class="form-text text-muted">Balances below update automatically when you change the date.</small>
+          </div>
+
+          <div class="balance-preview mb-3 {{ $balances['is_finalized'] ? 'is-finalized' : '' }}" id="balancePreview">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <strong><i class="fa fa-info-circle"></i> Balances on <span id="preview-date-label">{{ \Carbon\Carbon::parse($selectedDate)->format('d M, Y') }}</span></strong>
+              <span class="badge badge-{{ $balances['is_finalized'] ? 'warning' : 'success' }}" id="preview-status-badge">
+                {{ $balances['is_finalized'] ? 'Finalized' : 'Open' }}
+              </span>
+            </div>
+            <div class="row small">
+              <div class="col-6">
+                <span class="text-muted d-block">Circulation</span>
+                <span class="font-weight-bold text-primary" id="preview-circulation">TZS {{ number_format($balances['available_circulation'], 0) }}</span>
+              </div>
+              <div class="col-6">
+                <span class="text-muted d-block">Profit</span>
+                <span class="font-weight-bold text-success" id="preview-profit">TZS {{ number_format($balances['available_profit'], 0) }}</span>
+              </div>
+            </div>
+            <div class="alert alert-warning py-2 px-2 mt-2 mb-0 small {{ $balances['is_finalized'] ? '' : 'd-none' }}" id="finalizedNotice">
+              <i class="fa fa-lock"></i> This date is finalized. Choose another date to issue petty cash.
+            </div>
+          </div>
+
+          <div id="issueFormFields" class="{{ $balances['is_finalized'] ? 'issue-form-disabled' : '' }}">
+            <div class="form-group">
+              <label class="control-label font-weight-bold">Amount (TZS)</label>
+              <input type="number" name="amount" id="issue_amount" class="form-control" min="0.01" step="0.01" max="{{ old('fund_source', 'circulation') === 'profit' ? $balances['available_profit'] : $balances['available_circulation'] }}" value="{{ old('amount') }}" required>
+              <small class="form-text text-muted">Maximum for selected source: <strong id="amount-max-label">TZS {{ number_format(old('fund_source', 'circulation') === 'profit' ? $balances['available_profit'] : $balances['available_circulation'], 0) }}</strong></small>
+              <div class="invalid-feedback d-block d-none" id="amount-error">Amount exceeds available balance for the selected source.</div>
+            </div>
+
+            <div class="form-group">
+              <label class="control-label font-weight-bold">Purpose</label>
+              <select name="category" class="form-control" required>
+                @foreach(\App\Models\BusinessOwnerExpense::CATEGORIES as $value => $label)
+                  <option value="{{ $value }}" {{ old('category') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                @endforeach
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="control-label font-weight-bold">Issue To Staff <span class="text-muted font-weight-normal">(optional)</span></label>
+              <select name="issued_to_user_id" class="form-control">
+                <option value="">— Not linked to a staff member —</option>
+                @foreach($staffMembers as $member)
+                  <option value="{{ $member->id }}" {{ (string) old('issued_to_user_id') === (string) $member->id ? 'selected' : '' }}>
+                    {{ $member->name }}
+                  </option>
+                @endforeach
+              </select>
+              <small class="form-text text-muted">Useful when issuing salary, float, or staff-specific payments.</small>
+            </div>
+
+            <div class="form-group">
+              <label class="control-label font-weight-bold">Description</label>
+              <textarea name="description" class="form-control" rows="4" maxlength="1000" placeholder="Describe what this petty cash is for — supplier, items, reason for payment, etc." required>{{ old('description') }}</textarea>
+            </div>
+
+            <div class="form-group mb-3">
+              <label class="control-label font-weight-bold d-block mb-2">Issue From</label>
+              <input type="hidden" name="fund_source" id="fund_source" value="{{ old('fund_source', 'circulation') }}">
+
+              <div class="fund-option-card mb-2 {{ old('fund_source', 'circulation') === 'circulation' ? 'active' : '' }}" data-fund="circulation">
+                <div class="custom-control custom-radio">
+                  <input type="radio" id="fund_circulation" class="custom-control-input fund-source-radio" value="circulation" {{ old('fund_source', 'circulation') === 'circulation' ? 'checked' : '' }}>
+                  <label class="custom-control-label w-100" for="fund_circulation">
+                    <strong>Money in Circulation</strong>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                      <small class="text-muted">Working capital for restock &amp; operations</small>
+                      <span class="available-amount text-primary" id="fund-circulation-amount">TZS {{ number_format($balances['available_circulation'], 0) }}</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div class="fund-option-card {{ old('fund_source') === 'profit' ? 'active' : '' }}" data-fund="profit">
+                <div class="custom-control custom-radio">
+                  <input type="radio" id="fund_profit" class="custom-control-input fund-source-radio" value="profit" {{ old('fund_source') === 'profit' ? 'checked' : '' }}>
+                  <label class="custom-control-label w-100" for="fund_profit">
+                    <strong>Profit</strong>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                      <small class="text-muted">Deduct from profit rollover</small>
+                      <span class="available-amount text-success" id="fund-profit-amount">TZS {{ number_format($balances['available_profit'], 0) }}</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block" id="issueSubmitBtn" style="background-color:#940000;border-color:#940000;">
+              <i class="fa fa-check"></i> Issue Petty Cash
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="tile">
+      <h3 class="tile-title"><i class="fa fa-list"></i> Petty Cash History</h3>
+      <div class="tile-body">
+        <form method="GET" action="{{ route('petty-cash.index') }}" class="row mb-3" id="historyFilterForm">
+          <input type="hidden" name="date" value="{{ $selectedDate }}">
+          <div class="col-md-3 mb-2 mb-md-0">
+            <label class="small font-weight-bold mb-1">From</label>
+            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
+          </div>
+          <div class="col-md-3 mb-2 mb-md-0">
+            <label class="small font-weight-bold mb-1">To</label>
+            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
+          </div>
+          <div class="col-md-3 mb-2 mb-md-0">
+            <label class="small font-weight-bold mb-1">Source</label>
+            <select name="fund_source" class="form-control form-control-sm">
+              <option value="">All sources</option>
+              <option value="circulation" {{ request('fund_source') === 'circulation' ? 'selected' : '' }}>Circulation</option>
+              <option value="profit" {{ request('fund_source') === 'profit' ? 'selected' : '' }}>Profit</option>
+            </select>
+          </div>
+          <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-sm btn-primary btn-block" id="filterHistoryBtn"><i class="fa fa-filter"></i> Filter</button>
+          </div>
+        </form>
+
+        <div class="table-responsive">
+          <table class="table table-hover table-bordered table-sm">
+            <thead class="thead-dark">
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Purpose</th>
+                <th>Issued To</th>
+                <th>Source</th>
+                <th class="text-right">Amount</th>
+                <th>Recorded By</th>
+                <th class="text-center" style="width:60px;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @forelse($expenses as $expense)
+                @php $isLocked = $expense->report && $expense->report->status === 'finalized'; @endphp
+                <tr>
+                  <td nowrap>{{ $expense->expense_date->format('d M, Y') }}</td>
+                  <td style="max-width:220px;">{{ Str::limit($expense->description, 80) }}</td>
+                  <td><span class="badge badge-light border">{{ $expense->categoryLabel() }}</span></td>
+                  <td>{{ $expense->issuedTo->name ?? '—' }}</td>
+                  <td>
+                    <span class="badge fund-badge-{{ $expense->fund_source ?? 'circulation' }}">
+                      {{ $expense->fundSourceLabel() }}
+                    </span>
+                  </td>
+                  <td class="text-right font-weight-bold text-danger" nowrap>TZS {{ number_format($expense->amount, 0) }}</td>
+                  <td>{{ $expense->recorder->name ?? '—' }}</td>
+                  <td class="text-center">
+                    @if(! $isLocked)
+                      <form action="{{ route('petty-cash.destroy', $expense) }}" method="POST" class="delete-petty-cash-form">
+                        @csrf @method('DELETE')
+                        <button type="button" class="btn btn-xs btn-danger delete-petty-cash-btn" title="Remove"><i class="fa fa-trash"></i></button>
+                      </form>
+                    @else
+                      <span class="text-muted" title="Finalized"><i class="fa fa-lock"></i></span>
+                    @endif
+                  </td>
+                </tr>
+              @empty
+                <tr><td colspan="8" class="text-center py-4 text-muted">No petty cash issued yet.</td></tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-center mt-3">
+          {{ $expenses->links() }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+@endsection
+
+@section('scripts')
+<script>
+jQuery(function($) {
+  const balancesUrl = @json(route('petty-cash.balances'));
+  let currentBalances = {
+    available_circulation: {{ $balances['available_circulation'] }},
+    available_profit: {{ $balances['available_profit'] }},
+    is_finalized: {{ $balances['is_finalized'] ? 'true' : 'false' }}
+  };
+
+  function formatMoney(value) {
+    return 'TZS ' + Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  function setButtonLoading($btn, isLoading, loadingText) {
+    if (!$btn.length) return;
+
+    if (isLoading) {
+      if (!$btn.data('original-html')) {
+        $btn.data('original-html', $btn.html());
+      }
+      $btn.prop('disabled', true).addClass('is-loading');
+      if (loadingText === false) {
+        $btn.html('<i class="fa fa-spinner fa-spin"></i>');
+      } else {
+        $btn.html('<i class="fa fa-spinner fa-spin mr-1"></i> ' + (loadingText || 'Loading...'));
+      }
+    } else {
+      $btn.prop('disabled', false).removeClass('is-loading');
+      if ($btn.data('original-html')) {
+        $btn.html($btn.data('original-html'));
+      }
+    }
+  }
+
+  function selectedFundSource() {
+    return $('input.fund-source-radio:checked').val() || 'circulation';
+  }
+
+  function maxForSelectedSource() {
+    return selectedFundSource() === 'profit'
+      ? currentBalances.available_profit
+      : currentBalances.available_circulation;
+  }
+
+  function updateAmountConstraints() {
+    const max = maxForSelectedSource();
+    const $amount = $('#issue_amount');
+    $amount.attr('max', max);
+    $('#amount-max-label').text(formatMoney(max));
+    $('#fund-circulation-amount').text(formatMoney(currentBalances.available_circulation));
+    $('#fund-profit-amount').text(formatMoney(currentBalances.available_profit));
+
+    const amount = parseFloat($amount.val());
+    if (amount && amount > max) {
+      $('#amount-error').removeClass('d-none');
+      $('#issueSubmitBtn').prop('disabled', true);
+    } else {
+      $('#amount-error').addClass('d-none');
+      $('#issueSubmitBtn').prop('disabled', currentBalances.is_finalized);
+    }
+  }
+
+  function applyBalances(data) {
+    currentBalances = data;
+    const circulationMeta = 'Opening: ' + formatMoney(data.opening_circulation)
+      + (data.owner_circulation_spent > 0 ? ' · Issued: ' + formatMoney(data.owner_circulation_spent) : '');
+    const profitMeta = 'Opening profit: ' + formatMoney(data.opening_profit)
+      + ' · Day net: ' + formatMoney(data.daily_net_profit)
+      + (data.owner_profit_spent > 0 ? ' · Issued: ' + formatMoney(data.owner_profit_spent) : '');
+
+    $('#balance-date-label-circulation, #balance-date-label-profit, #preview-date-label').text(data.date_label);
+    $('#available-circulation, #preview-circulation').text(formatMoney(data.available_circulation));
+    $('#available-profit, #preview-profit').text(formatMoney(data.available_profit));
+    $('#circulation-meta').text(circulationMeta);
+    $('#profit-meta').text(profitMeta);
+
+    const $preview = $('#balancePreview');
+    if (data.is_finalized) {
+      $preview.addClass('is-finalized');
+      $('#preview-status-badge').removeClass('badge-success').addClass('badge-warning').text('Finalized');
+      $('#finalizedNotice').removeClass('d-none');
+      $('#issueFormFields').addClass('issue-form-disabled');
+      $('#issueSubmitBtn').prop('disabled', true);
+    } else {
+      $preview.removeClass('is-finalized');
+      $('#preview-status-badge').removeClass('badge-warning').addClass('badge-success').text('Open');
+      $('#finalizedNotice').addClass('d-none');
+      $('#issueFormFields').removeClass('issue-form-disabled');
+      $('#issueSubmitBtn').prop('disabled', false);
+    }
+
+    updateAmountConstraints();
+  }
+
+  function fetchBalances(date) {
+    const $dateInput = $('#expense_date');
+    $dateInput.prop('disabled', true);
+    $('#balancePreview').css('opacity', '0.6');
+
+    $.get(balancesUrl, { date: date })
+      .done(applyBalances)
+      .fail(function() {
+        Swal.fire('Error', 'Could not load balances for the selected date.', 'error');
+      })
+      .always(function() {
+        $dateInput.prop('disabled', false);
+        $('#balancePreview').css('opacity', '1');
+      });
+  }
+
+  $('#expense_date').on('change', function() {
+    fetchBalances($(this).val());
+  });
+
+  $('input.fund-source-radio').on('change', function() {
+    const value = $(this).val();
+    $('#fund_source').val(value);
+    $('.fund-option-card').removeClass('active');
+    $('.fund-option-card[data-fund="' + value + '"]').addClass('active');
+    updateAmountConstraints();
+  });
+
+  $('.fund-option-card').on('click', function(e) {
+    if ($(e.target).is('input, label')) return;
+    $(this).find('input.fund-source-radio').prop('checked', true).trigger('change');
+  });
+
+  $('#issue_amount').on('input', updateAmountConstraints);
+
+  $('#issuePettyCashForm').on('submit', function(e) {
+    const amount = parseFloat($('#issue_amount').val());
+    const max = maxForSelectedSource();
+    if (currentBalances.is_finalized) {
+      e.preventDefault();
+      Swal.fire('Day Finalized', 'You cannot issue petty cash on a finalized date.', 'warning');
+      return;
+    }
+    if (!amount || amount <= 0) {
+      e.preventDefault();
+      Swal.fire('Invalid Amount', 'Enter a valid amount greater than zero.', 'warning');
+      return;
+    }
+    if (amount > max) {
+      e.preventDefault();
+      Swal.fire('Insufficient Balance', 'Amount exceeds available ' + (selectedFundSource() === 'profit' ? 'profit' : 'circulation') + ' (' + formatMoney(max) + ').', 'warning');
+      return;
+    }
+
+    setButtonLoading($('#issueSubmitBtn'), true, 'Issuing...');
+  });
+
+  $('#historyFilterForm').on('submit', function() {
+    setButtonLoading($('#filterHistoryBtn'), true, 'Filtering...');
+  });
+
+  $('.delete-petty-cash-btn').on('click', function() {
+    const form = $(this).closest('form');
+    const $btn = $(this);
+    Swal.fire({
+      title: 'Remove this petty cash entry?',
+      text: 'This will restore the issued amount to the selected fund.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#940000',
+      confirmButtonText: 'Yes, remove it'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setButtonLoading($btn, true, false);
+        form.submit();
+      }
+    });
+  });
+
+  updateAmountConstraints();
+});
+</script>
+@endsection
