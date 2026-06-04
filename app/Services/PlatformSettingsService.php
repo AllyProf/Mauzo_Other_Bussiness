@@ -95,7 +95,11 @@ class PlatformSettingsService
 
     public function all(): array
     {
-        if (! database_is_ready() || ! Schema::hasTable('platform_settings')) {
+        try {
+            if (! database_is_ready() || ! Schema::hasTable('platform_settings')) {
+                return $this->defaults();
+            }
+        } catch (\Throwable) {
             return $this->defaults();
         }
 

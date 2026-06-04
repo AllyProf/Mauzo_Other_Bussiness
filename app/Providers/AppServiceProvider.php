@@ -21,8 +21,12 @@ class AppServiceProvider extends ServiceProvider
     {
         require_once app_path('helpers.php');
 
-        if (database_is_ready() && \Illuminate\Support\Facades\Schema::hasTable('platform_settings')) {
-            app(\App\Services\PlatformSettingsService::class)->applyMailConfig();
+        try {
+            if (database_is_ready() && \Illuminate\Support\Facades\Schema::hasTable('platform_settings')) {
+                app(\App\Services\PlatformSettingsService::class)->applyMailConfig();
+            }
+        } catch (\Throwable) {
+            // Fresh deploy, wrong .env, or DB not migrated yet — safe for composer install / key:generate
         }
 
         \Illuminate\Support\Facades\View::composer(

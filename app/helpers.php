@@ -82,7 +82,9 @@ if (! function_exists('database_is_ready')) {
                 }
             }
 
-            \Illuminate\Support\Facades\DB::connection()->getPdo();
+            $connection = \Illuminate\Support\Facades\DB::connection();
+            $connection->getPdo();
+            $connection->select('SELECT 1');
 
             return true;
         } catch (\Throwable) {
