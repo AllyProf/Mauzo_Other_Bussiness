@@ -78,7 +78,7 @@
                 <th>Business Name</th>
                 <th>Current Plan</th>
                 <th>Status</th>
-                <th class="text-center" style="min-width: 180px;">Actions</th>
+                <th class="text-center" style="min-width: 220px;">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -148,8 +148,16 @@
                   @if(!$business->pending_approval)
                   <form action="{{ route('admin.impersonate', $business->id) }}" method="POST" class="d-inline">
                     @csrf
-                    <button type="submit" class="btn btn-primary btn-sm" title="Login As Business" onclick="confirmAction(event, 'Impersonate Business?', 'You will be logged in as the owner of this business.')">
+                    <button type="submit" class="btn btn-primary btn-sm mr-1" title="Login As Business" onclick="confirmAction(event, 'Impersonate Business?', 'You will be logged in as the owner of this business.')">
                       <i class="fa fa-user-secret"></i>
+                    </button>
+                  </form>
+                  <form action="{{ route('admin.businesses.destroy', $business->id) }}" method="POST" class="d-inline business-delete-form" data-business-name="{{ $business->name }}">
+                    @csrf
+                    @method('DELETE')
+                    <input type="hidden" name="confirm_business_name" value="">
+                    <button type="button" class="btn btn-outline-danger btn-sm btn-delete-business" title="Delete business permanently">
+                      <i class="fa fa-trash"></i>
                     </button>
                   </form>
                   @endif
@@ -241,6 +249,36 @@
   var table = $('#businessTable').DataTable({
     order: [[0, 'asc']],
     columnDefs: [{ orderable: false, targets: 3 }]
+  });
+
+  $('#businessTable tbody').on('click', '.btn-delete-business', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    var form = $(this).closest('form');
+    var expectedName = form.data('business-name');
+
+    Swal.fire({
+      title: 'Delete business permanently?',
+      html: 'This removes <strong>all</strong> data, staff accounts, and branches for this tenant. Type the exact business name to confirm:<br><strong>' + $('<div>').text(expectedName).html() + '</strong>',
+      input: 'text',
+      inputPlaceholder: 'Business name',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'Yes, delete forever',
+      cancelButtonText: 'Cancel',
+      preConfirm: function (value) {
+        if ((value || '').trim() !== expectedName) {
+          Swal.showValidationMessage('Name must match exactly.');
+        }
+      }
+    }).then(function (result) {
+      if (result.isConfirmed) {
+        form.find('input[name="confirm_business_name"]').val(result.value.trim());
+        form[0].submit();
+      }
+    });
   });
 
   $('#businessTable tbody').on('click', '.btn-view-more', function (e) {

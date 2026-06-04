@@ -288,6 +288,37 @@ class BusinessController extends Controller
         ]);
     }
 
+    public function destroy(Request $request, Business $business)
+    {
+        if ($business->isPendingApproval()) {
+            return redirect()->back()->with('error', 'Reject pending registrations from the pending list, or use Reject on this row.');
+        }
+
+        $request->validate([
+            'confirm_business_name' => 'required|string',
+        ]);
+
+        if (strcasecmp(trim($request->confirm_business_name), trim($business->name)) !== 0) {
+            return redirect()
+                ->back()
+                ->with('error', 'Confirmation name did not match the business name. Nothing was deleted.');
+        }
+
+        $name = $business->name;
+
+        try {
+            app(BusinessDataPurgeService::class)->destroyBusiness($business, $request->user());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()->back()->with('error', 'Could not delete business: '.$e->getMessage());
+        }
+
+        return redirect()
+            ->route('admin.businesses.index')
+            ->with('success', "Business \"{$name}\" and all of its data were permanently deleted.");
+    }
+
     public function purgeData(Request $request, Business $business)
     {
         $allowedScopes = array_merge(BusinessDataPurgeService::allScopeKeys(), ['all']);

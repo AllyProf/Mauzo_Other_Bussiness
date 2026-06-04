@@ -123,7 +123,11 @@ class PlatformSettingsService
 
     public function update(array $partial): void
     {
-        if (! database_is_ready() || ! Schema::hasTable('platform_settings')) {
+        try {
+            if (! database_is_ready() || ! Schema::hasTable('platform_settings')) {
+                return;
+            }
+        } catch (\Throwable) {
             return;
         }
 

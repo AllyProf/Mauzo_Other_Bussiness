@@ -22,6 +22,10 @@ Route::get('/register', fn () => redirect()->route('register.business'))->name('
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->middleware(['auth', 'check.user.active']);
 
 Route::middleware(['auth', 'check.user.active'])->group(function () {
+    Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
+    Route::post('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.update-password');
+
     Route::post('/support/quick', [App\Http\Controllers\SupportTicketController::class, 'quickStore'])->name('tickets.quick-store');
     Route::get('/activity-log', [App\Http\Controllers\BusinessAuditLogController::class, 'index'])->name('business.activity-log');
 });
@@ -41,6 +45,7 @@ Route::middleware(['auth', 'check.user.active', 'check.platform.admin'])->prefix
     Route::post('/businesses/{business}/reject', [App\Http\Controllers\Admin\BusinessController::class, 'rejectRegistration'])->name('businesses.reject');
     Route::post('/businesses/{business}/reset-owner-password', [App\Http\Controllers\Admin\BusinessController::class, 'resetOwnerPassword'])->name('businesses.reset-owner-password');
     Route::post('/businesses/{business}/purge-data', [App\Http\Controllers\Admin\BusinessController::class, 'purgeData'])->name('businesses.purge-data');
+    Route::delete('/businesses/{business}', [App\Http\Controllers\Admin\BusinessController::class, 'destroy'])->name('businesses.destroy');
     
     Route::get('/plans', [App\Http\Controllers\Admin\PlanController::class, 'index'])->name('plans.index');
     Route::get('/plans/{plan}/edit', [App\Http\Controllers\Admin\PlanController::class, 'edit'])->name('plans.edit');
@@ -177,6 +182,8 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::get('/invoices/create', [App\Http\Controllers\InvoiceController::class, 'create'])->name('invoices.create');
     Route::post('/invoices', [App\Http\Controllers\InvoiceController::class, 'store'])->name('invoices.store');
     Route::get('/invoices/{invoice}', [App\Http\Controllers\InvoiceController::class, 'show'])->name('invoices.show');
+    Route::get('/live-sales', [App\Http\Controllers\LiveSalesController::class, 'index'])->name('live-sales.index');
+
     Route::middleware('check.business.retail')->group(function () {
     Route::resource('/sales', App\Http\Controllers\SaleController::class);
     Route::post('/sales/{sale}/pay', [App\Http\Controllers\SaleController::class, 'pay'])->name('sales.pay');

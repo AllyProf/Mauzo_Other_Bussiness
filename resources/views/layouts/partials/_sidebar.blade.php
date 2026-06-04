@@ -12,7 +12,7 @@
   <ul class="app-menu">
     <li><a class="app-menu__item {{ Request::is('home') || Request::is('admin') || Request::is('admin/dashboard*') ? 'active' : '' }}" href="{{ Auth::user()->isPlatformAdmin() ? route('admin.dashboard') : url('/home') }}"><i class="app-menu__icon fa fa-dashboard"></i><span class="app-menu__label">Dashboard</span></a></li>
     
-    @if(!Auth::user()->isPlatformAdmin())
+    @if(!Auth::user()->isPlatformAdmin() && plan_feature('notes_reminders'))
         <li><a class="app-menu__item {{ Request::is('notes*') ? 'active' : '' }}" href="{{ route('notes.index') }}"><i class="app-menu__icon fa fa-sticky-note"></i><span class="app-menu__label">Notes & Reminders</span></a></li>
     @endif
 
@@ -118,6 +118,11 @@
 
         @canany(['open_shift', 'process_sales', 'view_all_shifts'])
         <li><a class="app-menu__item {{ Request::is('shifts*') ? 'active' : '' }}" href="{{ route('shifts.index') }}"><i class="app-menu__icon fa fa-clock-o"></i><span class="app-menu__label">Sales Shifts</span></a></li>
+        @endcanany
+        @canany(['view_reports', 'view_sales_history', 'process_sales'])
+        @if(plan_feature('live_sales_pulse'))
+        <li><a class="app-menu__item {{ Request::is('live-sales*') ? 'active' : '' }}" href="{{ route('live-sales.index') }}"><i class="app-menu__icon fa fa-bolt"></i><span class="app-menu__label">Live Sales Pulse</span></a></li>
+        @endif
         @endcanany
         
         @canany(['process_sales', 'view_sales_history'])

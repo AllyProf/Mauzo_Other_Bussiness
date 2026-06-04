@@ -7,6 +7,7 @@ return [
             'debts' => 'Debt Management',
             'invoices' => 'Invoices',
             'services' => 'Services (catalog, service POS & service invoices)',
+            'live_sales_pulse' => 'Live Sales Pulse',
         ],
         'Finance & Targets' => [
             'petty_cash' => 'Petty Cash Management',
@@ -14,6 +15,7 @@ return [
         ],
         'Operations' => [
             'branches' => 'Branches',
+            'notes_reminders' => 'Notes & Reminders',
             'automation_reminders' => 'Automated Reminders (Settings)',
         ],
         'Reports' => [
@@ -40,6 +42,8 @@ return [
             'service-pos.*',
             'service-invoices.*',
         ],
+        'live_sales_pulse' => ['live-sales.*'],
+        'notes_reminders' => ['notes.*'],
         'petty_cash' => ['petty-cash.*'],
         'sales_targets' => ['sales-targets.*'],
         'branches' => ['branches.*'],
@@ -57,7 +61,6 @@ return [
 
     'exempt_routes' => [
         'home',
-        'notes.*',
         'tickets.*',
         'subscription.upgrade',
         'subscription.expired',

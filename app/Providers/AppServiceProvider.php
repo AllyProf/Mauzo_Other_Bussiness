@@ -73,7 +73,7 @@ class AppServiceProvider extends ServiceProvider
                 if ($user && $user->role !== 'super_admin' && $user->role !== 'platform_staff') {
                     $notesBusinessId = $businessService->activeBusinessId() ?? $user->business_id;
 
-                    if ($notesBusinessId) {
+                    if ($notesBusinessId && plan_feature('notes_reminders')) {
                     $dueReminders = \App\Models\BusinessNote::where('business_id', $notesBusinessId)
                         ->where('user_id', $user->id)
                         ->due()

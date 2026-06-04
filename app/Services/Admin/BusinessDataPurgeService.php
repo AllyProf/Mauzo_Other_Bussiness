@@ -31,6 +31,8 @@ use App\Models\Shift;
 use App\Models\ShiftStockCheck;
 use App\Models\StockLoss;
 use App\Models\StockLossItem;
+use App\Models\Branch;
+use App\Models\Role;
 use App\Models\Supplier;
 use App\Models\Ticket;
 use App\Models\User;
@@ -154,7 +156,7 @@ class BusinessDataPurgeService
      * @param  list<string>  $scopes
      * @return array<string, int>
      */
-    public function purge(Business $business, array $scopes, User $actor, bool $purgeAll = false): array
+    public function purge(Business $business, array $scopes, User $actor, bool $purgeAll = false, bool $logAudit = true): array
     {
         $scopes = self::resolveScopes($scopes, $purgeAll);
         if ($scopes === []) {
@@ -198,18 +200,65 @@ class BusinessDataPurgeService
             }
         });
 
-        $scopeLabels = collect($scopes)->map(fn ($s) => self::scopes()[$s]['label'] ?? $s)->implode(', ');
-        $summary = $purgeAll ? "Platform admin cleared ALL operational data for {$business->name}" : "Platform admin cleared data for {$business->name}: {$scopeLabels}";
+        if ($logAudit) {
+            $scopeLabels = collect($scopes)->map(fn ($s) => self::scopes()[$s]['label'] ?? $s)->implode(', ');
+            $summary = $purgeAll ? "Platform admin cleared ALL operational data for {$business->name}" : "Platform admin cleared data for {$business->name}: {$scopeLabels}";
+            AuditLog::create([
+                'user_id' => $actor->id,
+                'business_id' => $id,
+                'action' => $purgeAll ? 'business_data_purge_all' : 'business_data_purge',
+                'description' => $summary,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        }
+
+        return $deleted;
+    }
+
+    public function destroyBusiness(Business $business, User $actor): void
+    {
+        $name = $business->name;
+        $id = (int) $business->id;
+
+        DB::transaction(function () use ($business, $actor, $id) {
+            $this->purge($business, [], $actor, true, false);
+
+            $ownerId = $business->owner_user_id;
+            if ($ownerId) {
+                $otherBusiness = Business::query()
+                    ->where('owner_user_id', $ownerId)
+                    ->where('id', '!=', $business->id)
+                    ->first();
+
+                if ($otherBusiness) {
+                    User::where('id', $ownerId)->update(['business_id' => $otherBusiness->id]);
+                }
+            }
+
+            User::where('business_id', $business->id)->delete();
+
+            Branch::query()
+                ->where('business_id', $business->id)
+                ->each(function (Branch $branch) {
+                    $branch->businesses()->detach();
+                    $branch->delete();
+                });
+
+            $business->branches()->detach();
+            Role::where('business_id', $business->id)->delete();
+            AuditLog::where('business_id', $business->id)->delete();
+            $business->delete();
+        });
+
         AuditLog::create([
             'user_id' => $actor->id,
-            'business_id' => $id,
-            'action' => $purgeAll ? 'business_data_purge_all' : 'business_data_purge',
-            'description' => $summary,
+            'business_id' => null,
+            'action' => 'DELETE_BUSINESS',
+            'description' => "Platform admin permanently deleted business: {$name} (ID {$id})",
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
         ]);
-
-        return $deleted;
     }
 
     private function purgeSales(int $businessId): int
