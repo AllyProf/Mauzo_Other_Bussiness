@@ -21,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
     {
         require_once app_path('helpers.php');
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('platform_settings')) {
+        if (database_is_ready() && \Illuminate\Support\Facades\Schema::hasTable('platform_settings')) {
             app(\App\Services\PlatformSettingsService::class)->applyMailConfig();
         }
 

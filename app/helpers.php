@@ -61,6 +61,36 @@ if (! function_exists('active_branch')) {
     }
 }
 
+if (! function_exists('database_is_ready')) {
+    /**
+     * True when the default DB connection can be used (file exists, server reachable, etc.).
+     * Safe during composer install / key:generate before migrate.
+     */
+    function database_is_ready(): bool
+    {
+        try {
+            $default = config('database.default');
+            if (! $default) {
+                return false;
+            }
+
+            $connection = config("database.connections.{$default}");
+            if (($connection['driver'] ?? '') === 'sqlite') {
+                $database = $connection['database'] ?? '';
+                if ($database !== '' && $database !== ':memory:' && ! is_file($database)) {
+                    return false;
+                }
+            }
+
+            \Illuminate\Support\Facades\DB::connection()->getPdo();
+
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+}
+
 if (! function_exists('platform_settings')) {
     function platform_settings(?string $key = null, mixed $default = null): mixed
     {

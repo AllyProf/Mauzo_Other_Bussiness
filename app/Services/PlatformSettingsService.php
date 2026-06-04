@@ -95,7 +95,7 @@ class PlatformSettingsService
 
     public function all(): array
     {
-        if (! Schema::hasTable('platform_settings')) {
+        if (! database_is_ready() || ! Schema::hasTable('platform_settings')) {
             return $this->defaults();
         }
 
@@ -119,7 +119,7 @@ class PlatformSettingsService
 
     public function update(array $partial): void
     {
-        if (! Schema::hasTable('platform_settings')) {
+        if (! database_is_ready() || ! Schema::hasTable('platform_settings')) {
             return;
         }
 
