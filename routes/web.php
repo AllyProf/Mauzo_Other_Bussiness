@@ -156,6 +156,11 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
 
     Route::middleware('check.business.services')->group(function () {
     Route::get('/services', [App\Http\Controllers\ServiceCatalogController::class, 'index'])->name('services.index');
+    Route::get('/services/register', [App\Http\Controllers\ServiceCatalogController::class, 'register'])->name('services.register');
+    Route::get('/services/categories', [App\Http\Controllers\ServiceCatalogController::class, 'categories'])->name('services.categories');
+    Route::post('/services/categories', [App\Http\Controllers\ServiceCatalogController::class, 'storeCategory'])->name('services.categories.store');
+    Route::get('/services/sales', [App\Http\Controllers\ServiceSaleController::class, 'index'])->name('services.sales.index');
+    Route::get('/services/handover', [App\Http\Controllers\DayClosingController::class, 'index'])->name('services.handover');
     Route::post('/services/import-templates', [App\Http\Controllers\ServiceCatalogController::class, 'importTemplates'])->name('services.import-templates');
     Route::post('/services/catalog', [App\Http\Controllers\ServiceCatalogController::class, 'storeService'])->name('services.store');
     Route::put('/services/{service}', [App\Http\Controllers\ServiceCatalogController::class, 'updateService'])->name('services.update');

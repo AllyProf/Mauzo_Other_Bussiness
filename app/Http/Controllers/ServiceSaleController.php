@@ -14,6 +14,67 @@ use Illuminate\Validation\Rule;
 
 class ServiceSaleController extends Controller
 {
+    public function index()
+    {
+        $this->authorizeAny(['view_sales_history', 'process_sales']);
+
+        $businessId = Auth::user()->business_id;
+        $requiresOpenShift = Auth::user()->requiresOpenShift();
+        $openShift = Shift::openForUser(Auth::id(), $businessId);
+
+        $branchFilterId = null;
+        if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
+            $branchFilterId = (int) Auth::user()->branch_id;
+        } elseif ($branchId = active_branch_id()) {
+            $branchFilterId = $branchId;
+        }
+
+        $salesQuery = Sale::query()
+            ->where('business_id', $businessId)
+            ->whereHas('items', fn ($q) => $q->whereNotNull('service_id'));
+
+        if ($requiresOpenShift) {
+            if ($openShift) {
+                $salesQuery->where('shift_id', $openShift->id);
+            } else {
+                $salesQuery->whereRaw('1 = 0');
+            }
+        } elseif ($this->actsAsBusinessWideViewer()) {
+            if ($branchFilterId) {
+                $salesQuery->whereHas('items.service', fn ($q) => $q->where('branch_id', $branchFilterId));
+            }
+        } else {
+            $salesQuery->where('user_id', Auth::id());
+        }
+
+        $activeSales = (clone $salesQuery)->where('payment_status', '!=', 'cancelled');
+
+        $stats = [
+            'total_sales' => (clone $activeSales)->count(),
+            'gross_sales' => (float) (clone $activeSales)->sum('total_amount'),
+            'collected' => (float) (clone $activeSales)->sum('amount_paid'),
+        ];
+
+        $sales = (clone $salesQuery)
+            ->with(['user', 'items.service'])
+            ->latest()
+            ->paginate(15);
+
+        $scopedToSelf = $requiresOpenShift || ! $this->actsAsBusinessWideViewer();
+        $shiftContext = $requiresOpenShift
+            ? ($openShift ? 'current' : 'none')
+            : ($scopedToSelf ? 'self' : 'all');
+
+        return view('services.sales', compact(
+            'sales',
+            'stats',
+            'scopedToSelf',
+            'shiftContext',
+            'openShift',
+            'requiresOpenShift',
+        ));
+    }
+
     public function create()
     {
         $this->authorizeAny(['process_sales']);
@@ -39,7 +100,7 @@ class ServiceSaleController extends Controller
         }
 
         if (empty($businessTypes)) {
-            return redirect()->route('services.index')
+            return redirect()->route('services.register')
                 ->with('warning', 'Import a service template and configure your services before using Service POS.');
         }
 
@@ -174,8 +235,8 @@ class ServiceSaleController extends Controller
             $openShift?->refreshTotals();
             app(\App\Services\ServiceConsumableService::class)->deductForSale($sale->fresh());
 
-            return redirect()->route('sales.index')
-                ->with('success', "Service order {$ref} placed. Collect payment from Sales.");
+            return redirect()->route('services.sales.index')
+                ->with('success', "Service order {$ref} placed. Collect payment from Service Sales.");
         } catch (\Throwable $e) {
             DB::rollBack();
 

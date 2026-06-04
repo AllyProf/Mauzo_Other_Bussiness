@@ -45,8 +45,8 @@
     <p>Sell printing, scanning, salon, and other services — quantity = units (pages, hours, jobs)</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
-    <li class="breadcrumb-item"><a href="{{ route('services.index') }}">Services</a></li>
-    <li class="breadcrumb-item">POS</li>
+    <li class="breadcrumb-item"><a href="{{ route('services.categories') }}">Services</a></li>
+    <li class="breadcrumb-item">Sales (POS)</li>
   </ul>
 </div>
 
@@ -164,7 +164,7 @@
         '<div class="item-meta">' + s.unit_label + '</div>' +
         '<div class="item-price">' + money(s.price) + '</div>' +
         '<div class="add-btn"><i class="fa fa-plus"></i> Add</div></div>';
-    }).join('') : '<p class="text-muted p-3">No active services. <a href="{{ route('services.index') }}">Configure services</a>.</p>';
+    }).join('') : '<p class="text-muted p-3">No active services. <a href="{{ route('services.categories') }}">Configure services</a>.</p>';
 
     grid.querySelectorAll('.service-card').forEach(function (el) {
       el.addEventListener('click', function () {

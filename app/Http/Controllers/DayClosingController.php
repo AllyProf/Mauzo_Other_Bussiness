@@ -183,6 +183,8 @@ class DayClosingController extends Controller
                 && ($ownerDirectSummary['sales_count'] ?? 0) > 0;
         }
 
+        $serviceMenuContext = $request->routeIs('services.handover');
+
         return view('day-closing.index', compact(
             'date',
             'summary',
@@ -207,6 +209,7 @@ class DayClosingController extends Controller
             'ownerDirectClosing',
             'ownerDirectSummary',
             'canPostOwnerDirectSales',
+            'serviceMenuContext',
         ));
     }
 

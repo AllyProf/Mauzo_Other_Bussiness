@@ -29,7 +29,7 @@ class CheckBusinessOperationMode
             }
 
             return redirect()
-                ->route('services.index')
+                ->route('services.categories')
                 ->with('warning', 'This account is set up for services only. Use the Services menu for sales.');
         }
 

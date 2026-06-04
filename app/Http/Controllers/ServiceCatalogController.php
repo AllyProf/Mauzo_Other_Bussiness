@@ -15,8 +15,28 @@ class ServiceCatalogController extends Controller
 {
     public function index()
     {
+        return redirect()->route('services.categories');
+    }
+
+    public function register()
+    {
+        $this->authorizeAny(['manage_categories', 'view_inventory', 'process_sales', 'add_items']);
+
+        return view('services.register', $this->buildPageContext());
+    }
+
+    public function categories()
+    {
         $this->authorizeAny(['manage_categories', 'view_inventory', 'process_sales']);
 
+        return view('services.categories', $this->buildPageContext());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPageContext(): array
+    {
         $businessId = $this->currentBusinessId();
         $branchFilterId = $this->branchFilterId();
         $business = $this->currentBusinessForWrite();
@@ -54,7 +74,7 @@ class ServiceCatalogController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'sku']);
 
-        return view('services.index', compact(
+        return compact(
             'categories',
             'services',
             'serviceTemplates',
@@ -66,7 +86,12 @@ class ServiceCatalogController extends Controller
             'writableBranches',
             'canPickBranch',
             'consumableItems',
-        ));
+        );
+    }
+
+    private function redirectAfterWrite(string $route = 'services.categories')
+    {
+        return redirect()->route($route);
     }
 
     public function storeCategory(Request $request)
@@ -100,7 +125,7 @@ class ServiceCatalogController extends Controller
         $business->syncServiceBusinessTypesFromCategories();
         $this->focusActiveBranchAfterWrite($branchId);
 
-        return redirect()->back()->with('success', 'Service category added.');
+        return $this->redirectAfterWrite()->with('success', 'Service category added.');
     }
 
     public function storeService(Request $request)
@@ -137,7 +162,7 @@ class ServiceCatalogController extends Controller
             'is_active' => true,
         ]);
 
-        return redirect()->back()->with('success', 'Service added with price configured.');
+        return $this->redirectAfterWrite()->with('success', 'Service added with price configured.');
     }
 
     public function updateService(Request $request, Service $service)
@@ -169,7 +194,7 @@ class ServiceCatalogController extends Controller
             'consumable_units_per_unit' => (float) ($request->consumable_units_per_unit ?? 0),
         ]);
 
-        return redirect()->back()->with('success', 'Service updated.');
+        return $this->redirectAfterWrite()->with('success', 'Service updated.');
     }
 
     public function destroyService(Service $service)
@@ -251,7 +276,7 @@ class ServiceCatalogController extends Controller
                 DB::commit();
                 $this->focusActiveBranchAfterWrite($branchId);
 
-                return redirect()->back()->with('success', 'Custom service template "'.$request->custom_business_name.'" imported.');
+                return $this->redirectAfterWrite('services.register')->with('success', 'Custom service template "'.$request->custom_business_name.'" imported.');
             } catch (\Throwable $e) {
                 DB::rollBack();
 
@@ -321,9 +346,9 @@ class ServiceCatalogController extends Controller
             DB::commit();
             $this->focusActiveBranchAfterWrite($branchId);
 
-            return redirect()->back()->with(
+            return $this->redirectAfterWrite('services.register')->with(
                 'success',
-                'Imported service templates: '.implode(', ', $importedLabels).'. Configure prices below if needed.'
+                'Imported service templates: '.implode(', ', $importedLabels).'. Configure categories and prices next.'
             );
         } catch (\Throwable $e) {
             DB::rollBack();

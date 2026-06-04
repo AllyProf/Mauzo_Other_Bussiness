@@ -26,9 +26,17 @@
 @section('content')
 <div class="app-title">
   <div>
-    <h1><i class="fa fa-balance-scale"></i> Daily Reconciliation</h1>
+    <h1><i class="fa fa-balance-scale"></i> {{ ($serviceMenuContext ?? false) ? 'Service Handover' : 'Daily Reconciliation' }}</h1>
     <p>
-      @if($isBossReview ?? false)
+      @if($serviceMenuContext ?? false)
+        @if($isBossReview ?? false)
+          Review and verify service shift handovers for the selected date
+        @elseif($shift ?? null)
+          Submit your service shift handover — your shift closes when handover is submitted
+        @else
+          Review service staff collections and verify handovers
+        @endif
+      @elseif($isBossReview ?? false)
         Review staff sales and verify shift handovers for the selected date
       @elseif($shift ?? null)
         Review your shift collections and submit handover — your shift closes when handover is submitted
@@ -39,9 +47,14 @@
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+    @if($serviceMenuContext ?? false)
+    <li class="breadcrumb-item"><a href="{{ route('services.categories') }}">Services</a></li>
+    <li class="breadcrumb-item">Handover</li>
+    @else
     <li class="breadcrumb-item"><a href="{{ url('/home') }}">Dashboard</a></li>
     <li class="breadcrumb-item">Finance</li>
     <li class="breadcrumb-item">Reconciliation</li>
+    @endif
   </ul>
 </div>
 

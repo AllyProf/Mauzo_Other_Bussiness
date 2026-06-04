@@ -66,7 +66,7 @@ class ServiceInvoiceController extends Controller
         }
 
         if (empty($businessTypes)) {
-            return redirect()->route('services.index')
+            return redirect()->route('services.register')
                 ->with('warning', 'Import service templates before creating service invoices.');
         }
 
