@@ -114,6 +114,7 @@
         @canany(['record_stock_loss', 'view_stock_history', 'open_shift', 'process_sales'])
         <li><a class="app-menu__item {{ Request::is('stock-losses*') ? 'active' : '' }}" href="{{ route('stock-losses.index') }}"><i class="app-menu__icon fa fa-minus-circle"></i><span class="app-menu__label">Stock Losses</span></a></li>
         @endcanany
+        @endif
 
         @canany(['open_shift', 'process_sales', 'view_all_shifts'])
         <li><a class="app-menu__item {{ Request::is('shifts*') ? 'active' : '' }}" href="{{ route('shifts.index') }}"><i class="app-menu__icon fa fa-clock-o"></i><span class="app-menu__label">Sales Shifts</span></a></li>
