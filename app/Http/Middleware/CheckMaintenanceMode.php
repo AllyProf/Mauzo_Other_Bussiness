@@ -22,7 +22,7 @@ class CheckMaintenanceMode
 
         $user = Auth::user();
 
-        if ($user && $user->role === 'super_admin') {
+        if ($user && $user->isPlatformAdmin()) {
             return $next($request);
         }
 

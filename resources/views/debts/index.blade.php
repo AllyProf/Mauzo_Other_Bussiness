@@ -2,6 +2,20 @@
 
 @section('title', 'Debt Management - SpareParts POS')
 
+@section('styles')
+<style>
+  .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; flex: 1; min-width: 0; }
+  .business-type-tab {
+    cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
+    font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
+    transition: all .15s ease; line-height: 1.5; text-decoration: none !important;
+  }
+  .business-type-tab.active { background: #940000; color: #fff !important; border-color: #940000; }
+  .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000 !important; }
+  .business-type-tab i { margin-right: 5px; }
+</style>
+@endsection
+
 @section('content')
 <div class="app-title">
   <div>
@@ -9,7 +23,20 @@
     <p>{{ ($scopedToSelf ?? false) ? 'Your customer debts only' : 'Track customer balances and collect outstanding payments' }}</p>
   </div>
   <a href="{{ route('sales.index') }}" class="btn btn-secondary"><i class="fa fa-shopping-cart"></i> Sales History</a>
+  <a href="{{ route('debts.history') }}" class="btn btn-outline-primary ml-2"><i class="fa fa-history"></i> Debt History</a>
 </div>
+
+@if(!empty($activeBranchName))
+<div class="alert alert-info mb-3 py-2">
+  <i class="fa fa-map-marker"></i>
+  Showing debts for sales from <strong>{{ $activeBranchName }}</strong> categories.
+</div>
+@elseif($viewingAllBranches ?? false)
+<div class="alert alert-light border mb-3 py-2">
+  <i class="fa fa-building"></i>
+  Viewing debts from <strong>all branches</strong>. Switch branch in the header to filter.
+</div>
+@endif
 
 <div class="row mb-3">
   <div class="col-md-3">
@@ -85,9 +112,29 @@
 <div class="row">
   <div class="col-md-12">
     <div class="tile">
+      @if($multiBusiness ?? false)
+      @php
+        $tabQuery = request()->only(['search', 'status', 'filter']);
+      @endphp
+      <div class="business-type-tabs mb-3">
+        <a href="{{ route('debts.index', $tabQuery) }}"
+           class="business-type-tab {{ ($activeBusinessType ?? 'all') === 'all' ? 'active' : '' }}">
+          <i class="fa fa-th-large"></i> All
+        </a>
+        @foreach($businessTypes as $type)
+        <a href="{{ route('debts.index', array_merge($tabQuery, ['business_type' => $type['key']])) }}"
+           class="business-type-tab {{ ($activeBusinessType ?? 'all') === $type['key'] ? 'active' : '' }}">
+          <i class="fa {{ $type['icon'] }}"></i> {{ $type['label'] }}
+        </a>
+        @endforeach
+      </div>
+      @endif
       <div class="tile-title-w-btn">
         <h3 class="title">Outstanding Debts</h3>
         <form method="GET" action="{{ route('debts.index') }}" class="form-inline">
+          @if(($activeBusinessType ?? 'all') !== 'all')
+            <input type="hidden" name="business_type" value="{{ $activeBusinessType }}">
+          @endif
           <input type="text" name="search" class="form-control form-control-sm mr-2 mb-2" placeholder="Search customer, phone, ref..." value="{{ request('search') }}">
           <select name="status" class="form-control form-control-sm mr-2 mb-2">
             <option value="">All Types</option>

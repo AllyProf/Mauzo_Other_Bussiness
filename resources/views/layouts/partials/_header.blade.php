@@ -2,6 +2,29 @@
   <!-- Sidebar toggle button--><a class="app-sidebar__toggle" href="#" data-toggle="sidebar" aria-label="Hide Sidebar"></a>
   <!-- Navbar Right Menu-->
   <ul class="app-nav">
+    @if(!empty($canSwitchBusiness) && ($ownerBusinesses ?? collect())->count() > 1)
+    <li class="dropdown">
+      <a class="app-nav__item d-flex align-items-center" href="#" data-toggle="dropdown" aria-label="Switch business" title="Switch business">
+        <i class="fa fa-briefcase fa-lg"></i>
+        <span class="d-none d-md-inline ml-2">{{ $activeBusinessLabel ?? 'Business' }}</span>
+        <i class="fa fa-caret-down ml-1 d-none d-md-inline"></i>
+      </a>
+      <ul class="dropdown-menu dropdown-menu-right">
+        <li class="dropdown-header">Switch Business</li>
+        @foreach($ownerBusinesses as $ownerBusiness)
+        <li>
+          <form action="{{ route('businesses.switch') }}" method="POST">
+            @csrf
+            <input type="hidden" name="business_id" value="{{ $ownerBusiness->id }}">
+            <button type="submit" class="dropdown-item {{ (int) ($activeBusinessId ?? 0) === (int) $ownerBusiness->id ? 'active font-weight-bold' : '' }}">
+              <i class="fa fa-building mr-2"></i> {{ $ownerBusiness->name }}
+            </button>
+          </form>
+        </li>
+        @endforeach
+      </ul>
+    </li>
+    @endif
     @if(!empty($canSwitchBranch) && ($ownerBranches ?? collect())->isNotEmpty())
     <li class="dropdown">
       <a class="app-nav__item d-flex align-items-center" href="#" data-toggle="dropdown" aria-label="Switch branch" title="Switch branch">

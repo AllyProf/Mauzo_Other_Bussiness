@@ -7,6 +7,7 @@ use App\Models\ReceivingItem;
 use App\Models\Item;
 use App\Models\Supplier;
 use App\Models\Branch;
+use App\Models\Business;
 use App\Services\ItemPackagingNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,23 +19,64 @@ class ReceivingController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('receive_stock');
 
-        $businessId = Auth::user()->business_id;
+        $business = Auth::user()->business;
+        $businessId = $business->id;
+
+        $branchFilterId = null;
+        if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
+            $branchFilterId = (int) Auth::user()->branch_id;
+        } elseif ($branchId = active_branch_id()) {
+            $branchFilterId = $branchId;
+        }
+
+        $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
+        $templates = config('category_templates', []);
+
+        if ($branchFilterId) {
+            $businessTypes = collect($business->importedTypesForBranch($branchFilterId))
+                ->map(function ($type) use ($templates) {
+                    $key = (string) ($type['key'] ?? '');
+
+                    return [
+                        'key' => $key,
+                        'label' => (string) ($type['label'] ?? $key),
+                        'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
+                    ];
+                })
+                ->values()
+                ->all();
+        } else {
+            $businessTypes = $business->posBusinessTypesMeta();
+        }
+
+        $multiBusiness = count($businessTypes) > 1;
+
+        $activeBranchName = $branchFilterId
+            ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? 'Branch')
+            : null;
 
         $query = Receiving::query()
             ->where('business_id', $businessId)
-            ->with(['supplier', 'user', 'branch']);
+            ->with(['supplier', 'user', 'branch', 'items.item.category']);
 
         if (! $this->actsAsBusinessWideViewer()) {
             if (Auth::user()->branch_id) {
                 $query->where('branch_id', Auth::user()->branch_id);
             }
-        } elseif ($branchId = active_branch_id()) {
-            $query->where('branch_id', $branchId);
+        } elseif ($branchFilterId) {
+            $query->where('branch_id', $branchFilterId);
         }
 
         $receivings = $query->latest()->get();
 
-        return view('receivings.index', compact('receivings'));
+        return view('receivings.index', compact(
+            'receivings',
+            'businessTypes',
+            'multiBusiness',
+            'activeBranchName',
+            'branchFilterId',
+            'viewingAllBranches',
+        ));
     }
 
     public function create()
@@ -42,9 +84,33 @@ class ReceivingController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('receive_stock');
 
         $business = Auth::user()->business;
-        $businessTypes = $business->posBusinessTypesMeta();
         $suppliers = Supplier::where('business_id', $business->id)->get();
-        $categories = \App\Models\Category::where('business_id', $business->id)->has('items')->get();
+
+        $branches = Branch::query()
+            ->where('business_id', $business->id)
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
+        $defaultBranchId = active_branch_id()
+            ?? Auth::user()->branch_id
+            ?? $branches->firstWhere('is_default', true)?->id
+            ?? $branches->first()?->id;
+
+        $selectedBranchId = (int) old('branch_id', $defaultBranchId);
+        $importedTypesByBranch = $this->importedTypesByBranch($business, $branches);
+        $businessTypes = $importedTypesByBranch[$selectedBranchId] ?? [];
+        $multiBusiness = count($businessTypes) > 1;
+
+        $categories = \App\Models\Category::where('business_id', $business->id)
+            ->has('items')
+            ->orderBy('name')
+            ->get();
+
+        $categoryBranchMap = $categories->mapWithKeys(fn ($cat) => [
+            (int) $cat->id => (int) $cat->branch_id,
+        ])->all();
 
         // Build items grouped by category for the JS selector
         $itemsByCategory = \App\Models\Category::where('business_id', $business->id)
@@ -77,19 +143,18 @@ class ReceivingController extends Controller
                 })];
             });
 
-        $branches = Branch::query()
-            ->where('business_id', $business->id)
-            ->where('is_active', true)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $defaultBranchId = active_branch_id()
-            ?? Auth::user()->branch_id
-            ?? $branches->firstWhere('is_default', true)?->id
-            ?? $branches->first()?->id;
-
-        return view('receivings.create', compact('suppliers', 'categories', 'itemsByCategory', 'businessTypes', 'branches', 'defaultBranchId'));
+        return view('receivings.create', compact(
+            'suppliers',
+            'categories',
+            'itemsByCategory',
+            'businessTypes',
+            'branches',
+            'defaultBranchId',
+            'selectedBranchId',
+            'importedTypesByBranch',
+            'categoryBranchMap',
+            'multiBusiness'
+        ));
     }
 
     public function store(Request $request)
@@ -517,5 +582,23 @@ class ReceivingController extends Controller
             'expected_revenue' => $expectedRevenue,
             'expected_profit' => $expectedProfit,
         ];
+    }
+
+    /**
+     * @return array<int, list<array{key: string, label: string, categories: list<string>}>>
+     */
+    private function importedTypesByBranch(?Business $business, $branches): array
+    {
+        if (! $business) {
+            return [];
+        }
+
+        $map = [];
+
+        foreach ($branches as $branch) {
+            $map[(int) $branch->id] = $business->importedTypesForBranch((int) $branch->id);
+        }
+
+        return $map;
     }
 }

@@ -21,14 +21,14 @@ class OwnerDailyReportController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('view_reports');
 
-        $business = Auth::user()->business;
-        $businessId = $business->id;
+        $business = $this->currentBusiness() ?? Auth::user()->business;
+        $businessId = $this->currentBusinessId();
 
         $query = DayClosing::where('business_id', $businessId)
             ->where('status', 'verified')
             ->with(['user', 'verifier', 'expenses']);
 
-        $this->scopeToActiveBranchUsers($query);
+        $this->scopeDayClosingsForActiveBranch($query);
 
         if ($request->filled('start_date')) {
             $query->whereDate('closing_date', '>=', $request->start_date);
@@ -46,10 +46,25 @@ class OwnerDailyReportController extends Controller
             fn (DayClosing $closing) => $this->reportService->buildMasterSheetRow($business, $closing)
         );
 
+        $businessTypes = $this->reportService->businessTypesForMasterSheet($business);
+        $multiBusiness = count($businessTypes) > 1;
+        $ledgers = $this->reportService->expandMasterSheetLedgersByBusinessType($ledgers, $businessTypes);
+
+        $activeBusinessType = $request->get('business_type');
+        if ($activeBusinessType) {
+            $ledgers = $ledgers->filter(function ($ledger) use ($activeBusinessType) {
+                if ($ledger['is_placeholder'] ?? false) {
+                    return false;
+                }
+
+                return ($ledger['business_type_key'] ?? null) === $activeBusinessType;
+            })->values();
+        }
+
         if ($closings->currentPage() === 1 && ! $request->filled('start_date') && ! $request->filled('end_date')) {
             $openingDayRow = $this->reportService->buildOpeningDayRow($business);
             if ($openingDayRow) {
-                $ledgers = $ledgers->push($openingDayRow);
+                $ledgers = $ledgers->prepend($openingDayRow);
             }
         }
 
@@ -57,30 +72,38 @@ class OwnerDailyReportController extends Controller
             ->where('status', 'submitted')
             ->with('user');
 
-        $this->scopeToActiveBranchUsers($pendingClosings);
+        $this->scopeDayClosingsForActiveBranch($pendingClosings);
 
         $pendingClosings = $pendingClosings->latest('closing_date')->get();
 
-        return view('owner-reports.index', compact('closings', 'ledgers', 'business', 'pendingClosings'));
+        return view('owner-reports.index', compact(
+            'closings',
+            'ledgers',
+            'business',
+            'pendingClosings',
+            'businessTypes',
+            'multiBusiness',
+            'activeBusinessType',
+        ));
     }
 
     public function show(Request $request, string $date)
     {
         \Illuminate\Support\Facades\Gate::authorize('view_reports');
 
-        $business = Auth::user()->business;
+        $business = $this->currentBusiness() ?? Auth::user()->business;
         $parsedDate = Carbon::parse($date)->toDateString();
 
         $dayClosingQuery = DayClosing::where('business_id', $business->id)
             ->whereDate('closing_date', $parsedDate);
 
-        $this->scopeToActiveBranchUsers($dayClosingQuery);
+        $this->scopeDayClosingsForActiveBranch($dayClosingQuery);
 
         $dayClosing = $dayClosingQuery->with(['expenses', 'user', 'verifier'])->first();
 
         if (! $dayClosing) {
             return redirect()->route('owner-reports.index')
-                ->with('error', 'No staff reconciliation submitted for this date.');
+                ->with('error', 'No reconciliation submitted for this date.');
         }
 
         if ($dayClosing->status !== 'verified') {
@@ -114,7 +137,7 @@ class OwnerDailyReportController extends Controller
             'fund_source' => 'nullable|in:circulation,profit',
         ]);
 
-        $business = Auth::user()->business;
+        $business = $this->currentBusiness() ?? Auth::user()->business;
         $parsedDate = Carbon::parse($date)->toDateString();
 
         $report = OwnerDailyReport::where('business_id', $business->id)
@@ -161,7 +184,7 @@ class OwnerDailyReportController extends Controller
             abort(403);
         }
 
-        if ($expense->business_id != Auth::user()->business_id) {
+        if ($expense->business_id != $this->currentBusinessId()) {
             abort(403);
         }
 
@@ -172,8 +195,9 @@ class OwnerDailyReportController extends Controller
         }
 
         $expense->delete();
-        $dayClosing = DayClosing::where('business_id', Auth::user()->business_id)->whereDate('closing_date', $parsedDate)->first();
-        $this->reportService->syncReport(Auth::user()->business, $parsedDate, $dayClosing);
+        $business = $this->currentBusiness() ?? Auth::user()->business;
+        $dayClosing = DayClosing::where('business_id', $business->id)->whereDate('closing_date', $parsedDate)->first();
+        $this->reportService->syncReport($business, $parsedDate, $dayClosing);
 
         return redirect()->route('owner-reports.show', $parsedDate)->with('success', 'Expense removed.');
     }
@@ -186,7 +210,7 @@ class OwnerDailyReportController extends Controller
             abort(403, 'Only the business owner can finalize the daily report.');
         }
 
-        $business = Auth::user()->business;
+        $business = $this->currentBusiness() ?? Auth::user()->business;
         $parsedDate = Carbon::parse($date)->toDateString();
 
         $dayClosing = DayClosing::where('business_id', $business->id)

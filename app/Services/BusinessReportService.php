@@ -45,14 +45,14 @@ class BusinessReportService
         ];
     }
 
-    public function resolveBusinessTypeFilter(Request $request, Business $business): ?string
+    public function resolveBusinessTypeFilter(Request $request, Business $business, ?array $businessTypes = null): ?string
     {
         $requested = $request->query('business_type');
         if (! $requested || $requested === 'all') {
             return null;
         }
 
-        $allowed = collect($business->posBusinessTypesMeta())->pluck('key')->push('other')->unique()->all();
+        $allowed = collect($businessTypes ?? $business->posBusinessTypesMeta())->pluck('key')->push('other')->unique()->all();
 
         return in_array($requested, $allowed, true) ? $requested : null;
     }
@@ -578,7 +578,22 @@ class BusinessReportService
     {
         $query = Sale::where('business_id', $businessId);
 
-        return $this->scopeBranchUsers($query);
+        $this->scopeBranchUsers($query);
+        $this->scopeBranchSales($query);
+
+        return $query;
+    }
+
+    private function scopeBranchSales(Builder $query): Builder
+    {
+        $branchId = active_branch_id();
+        if (! $branchId || ! active_branch_service()->canSwitch()) {
+            return $query;
+        }
+
+        return $query->whereHas('items.item.category', function ($categoryQuery) use ($branchId) {
+            $categoryQuery->where('branch_id', $branchId);
+        });
     }
 
     private function scopeBranchUsers(Builder $query, string $column = 'user_id'): Builder
@@ -594,6 +609,7 @@ class BusinessReportService
                     ->whereBetween('sale_date', [$from, $to])
                     ->where('payment_status', '!=', 'cancelled');
                 $this->scopeBranchUsers($q);
+                $this->scopeBranchSales($q);
             });
 
         return $this->applyBusinessTypeToSaleItemQuery($query, $businessTypeKey);

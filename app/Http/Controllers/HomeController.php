@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Models\Item;
 use App\Models\Sale;
 use App\Models\Shift;
+use App\Models\ShiftStockCheck;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\ActiveBranchService;
@@ -14,6 +15,7 @@ use App\Services\DashboardService;
 use App\Services\ItemStockDisplayService;
 use App\Services\SalesTargetService;
 use App\Services\ShiftPolicyService;
+use App\Services\StockShortageImpactService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -22,6 +24,10 @@ class HomeController extends Controller
     public function index(Request $request, ActiveBranchService $branchService, BusinessSettingsService $settingsService)
     {
         $user = $request->user();
+
+        if ($user->isPlatformAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
 
         if ($user->needsShiftOpened()) {
             return redirect()->route('shifts.create');
@@ -44,7 +50,7 @@ class HomeController extends Controller
                     ->whereDate('expiry_date', '<=', Carbon::now()->addDays(7))
                     ->whereDate('expiry_date', '>=', Carbon::now())
                     ->get(),
-                'pendingRegistrations' => Business::with(['plan', 'owner'])
+                'pendingRegistrations' => Business::with(['plan', 'ownerUser'])
                     ->where('pending_approval', true)
                     ->latest()
                     ->get(),
@@ -60,6 +66,16 @@ class HomeController extends Controller
                 $this->salesOfficerDashboardData($user, $businessId, $branchService),
                 $this->staffTargetProgress($user),
             ));
+        }
+
+        if ($user->role === 'staff' && ! $user->hasRolePermissions()) {
+            $user->loadMissing(['role_relation', 'branch', 'business']);
+
+            return view('home', [
+                'isUnassignedStaffDashboard' => true,
+                'missingRole' => ! $user->role_id,
+                'activeBranchLabel' => $branchService->activeBranchLabel(),
+            ]);
         }
 
         if ($user->role === 'owner' && $user->business) {
@@ -173,6 +189,11 @@ class HomeController extends Controller
                 ->limit(10)
                 ->get(['id', 'name', 'current_stock']);
         }
+
+        $shortageService = app(StockShortageImpactService::class);
+        $myStockShortages = $shortageService->staffShortagesForUser($user);
+        $data['myStockShortages'] = $myStockShortages;
+        $data['myShortageStats'] = $shortageService->staffShortageStats($myStockShortages);
 
         return $data;
     }

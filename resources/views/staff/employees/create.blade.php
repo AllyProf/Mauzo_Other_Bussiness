@@ -40,23 +40,26 @@
 @endsection
 
 @section('content')
+
 <div class="app-title">
   <div>
     <h1><i class="fa fa-user-plus"></i> Add New Employee</h1>
-    <p>Register a new staff member for your shop</p>
+    <p>Register a new staff member for {{ $business->name ?? 'your business' }}</p>
   </div>
 </div>
 
 <div class="row justify-content-center">
   <div class="col-md-6">
     <div class="tile">
-      @if($roles->isEmpty())
-        <div class="alert alert-warning">
-            <i class="fa fa-warning"></i> Please <a href="{{ route('roles.create') }}">create at least one role</a> before adding employees.
+      @if($assignableBranches->isEmpty())
+        <div class="alert alert-warning mb-0">
+            <i class="fa fa-lock"></i> No branches are linked to <strong>{{ $business->name }}</strong> yet.
+            <a href="{{ route('branches.index') }}">Assign this business to a branch</a> before adding employees.
         </div>
-      @elseif($branches->isEmpty())
-        <div class="alert alert-warning">
-            <i class="fa fa-lock"></i> Please <a href="{{ route('branches.index') }}">register at least one branch</a> before adding employees.
+      @elseif($roles->isEmpty())
+        <div class="alert alert-warning mb-0">
+            <i class="fa fa-warning"></i> Please <a href="{{ route('roles.create') }}">create at least one role</a> for <strong>{{ $business->name }}</strong> before adding employees.
+            <p class="small mb-0 mt-2">Go to <strong>Staff → Roles</strong> to define permissions, then return here to register the employee.</p>
         </div>
       @else
         <form action="{{ route('employees.store') }}" method="POST" id="employeeCreateForm">
@@ -74,6 +77,21 @@
             @endif
 
             <div class="form-group">
+                <label class="control-label">Branch <span class="text-danger">*</span></label>
+                <select name="branch_id" id="branchSelect" class="form-control @error('branch_id') is-invalid @enderror" required>
+                    <option value="">-- Select Branch --</option>
+                    @foreach($assignableBranches as $branch)
+                        <option value="{{ $branch->id }}" {{ (string) old('branch_id', $selectedBranchId) === (string) $branch->id ? 'selected' : '' }}>
+                            {{ $branch->name }}@if($branch->is_default) (Default)@endif
+                        </option>
+                    @endforeach
+                </select>
+                @error('branch_id')<small class="text-danger">{{ $message }}</small>@enderror
+            </div>
+
+            @include('staff.employees.partials.branch-business-type-fields')
+
+            <div class="form-group">
                 <label class="control-label">Full Name</label>
                 <input class="form-control @error('name') is-invalid @enderror" type="text" name="name" placeholder="Enter full name" value="{{ old('name') }}" required>
                 @error('name')<small class="text-danger">{{ $message }}</small>@enderror
@@ -83,27 +101,16 @@
                 <input class="form-control @error('email') is-invalid @enderror" type="email" name="email" placeholder="Enter email address" value="{{ old('email') }}" required>
                 @error('email')<small class="text-danger">{{ $message }}</small>@enderror
             </div>
+            @include('staff.employees.partials.phone-field')
             <div class="form-group">
                 <label class="control-label">Assign Role</label>
-                <select name="role_id" class="form-control @error('role_id') is-invalid @enderror" required>
+                <select name="role_id" id="roleSelect" class="form-control @error('role_id') is-invalid @enderror" required>
                     <option value="">-- Select Role --</option>
                     @foreach($roles as $role)
                         <option value="{{ $role->id }}" {{ (string) old('role_id') === (string) $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
                     @endforeach
                 </select>
                 @error('role_id')<small class="text-danger">{{ $message }}</small>@enderror
-            </div>
-            <div class="form-group">
-                <label class="control-label">Branch <span class="text-danger">*</span></label>
-                <select name="branch_id" class="form-control @error('branch_id') is-invalid @enderror" required>
-                    <option value="">-- Select Branch --</option>
-                    @foreach($branches as $branch)
-                        <option value="{{ $branch->id }}" {{ (string) old('branch_id') === (string) $branch->id ? 'selected' : '' }}>
-                            {{ $branch->name }}@if($branch->is_default) (Default)@endif
-                        </option>
-                    @endforeach
-                </select>
-                @error('branch_id')<small class="text-danger">{{ $message }}</small>@enderror
             </div>
             <div class="row">
                 <div class="col-md-6">

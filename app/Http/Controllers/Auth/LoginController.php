@@ -3,17 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
+use App\Models\AuditLog;
+use App\Models\FailedLoginAttempt;
 use App\Models\User;
-use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller
 {
-    public function __construct(private SmsService $smsService)
-    {
-    }
 
     public function showLoginForm()
     {
@@ -25,13 +22,15 @@ class LoginController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'email' => ['required', 'string'],
+            'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
 
-        $loginEmail = $this->resolveLoginEmail($credentials['email']);
+        $loginEmail = strtolower(trim($credentials['email']));
 
-        if (! $loginEmail || ! Auth::attempt(['email' => $loginEmail, 'password' => $credentials['password']])) {
+        if (! Auth::attempt(['email' => $loginEmail, 'password' => $credentials['password']])) {
+            FailedLoginAttempt::record($credentials['email'], $request->ip(), $request->userAgent());
+
             return $this->failedLoginResponse($request, $credentials['email']);
         }
 
@@ -69,70 +68,43 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
 
+        AuditLog::logLogin($user);
+
         return redirect()->intended($user->defaultLandingUrl());
     }
 
     public function logout(Request $request)
     {
+        $user = Auth::user();
+        AuditLog::logLogout($user);
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/');
-    }
-
-    private function resolveLoginEmail(string $login): ?string
-    {
-        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
-            return strtolower(trim($login));
-        }
-
-        $phone255 = $this->smsService->formatPhoneNumber($login);
-        $normalizedPhone = Customer::normalizePhone($phone255);
-
-        $owner = User::query()
-            ->where('role', 'owner')
-            ->whereHas('business', fn ($query) => $query->where('phone', $normalizedPhone))
-            ->first();
-
-        return $owner?->email;
+        return redirect()->route('login');
     }
 
     private function failedLoginResponse(Request $request, string $login): \Illuminate\Http\RedirectResponse
     {
-        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
-            $inactive = User::where('email', strtolower(trim($login)))->where('is_active', false)->exists();
-            if ($inactive) {
-                return back()->withErrors([
-                    'email' => 'Your account has been deactivated. Contact your administrator.',
-                ])->onlyInput('email');
-            }
+        $email = strtolower(trim($login));
 
-            $pending = User::query()
-                ->where('email', strtolower(trim($login)))
-                ->whereHas('business', fn ($query) => $query->where('pending_approval', true))
-                ->exists();
+        $inactive = User::where('email', $email)->where('is_active', false)->exists();
+        if ($inactive) {
+            return back()->withErrors([
+                'email' => 'Your account has been deactivated. Contact your administrator.',
+            ])->onlyInput('email');
+        }
 
-            if ($pending) {
-                return back()->withErrors([
-                    'email' => 'Your registration is pending approval. We will notify you once your account is activated.',
-                ])->onlyInput('email');
-            }
-        } else {
-            $loginEmail = $this->resolveLoginEmail($login);
+        $pending = User::query()
+            ->where('email', $email)
+            ->whereHas('business', fn ($query) => $query->where('pending_approval', true))
+            ->exists();
 
-            if ($loginEmail) {
-                $pending = User::query()
-                    ->where('email', $loginEmail)
-                    ->whereHas('business', fn ($query) => $query->where('pending_approval', true))
-                    ->exists();
-
-                if ($pending) {
-                    return back()->withErrors([
-                        'email' => 'Your registration is pending approval. We will notify you once your account is activated.',
-                    ])->onlyInput('email');
-                }
-            }
+        if ($pending) {
+            return back()->withErrors([
+                'email' => 'Your registration is pending approval. We will notify you once your account is activated.',
+            ])->onlyInput('email');
         }
 
         return back()->withErrors([

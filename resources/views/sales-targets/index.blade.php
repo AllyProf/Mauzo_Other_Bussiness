@@ -38,6 +38,8 @@
   </ul>
 </div>
 
+@include('partials.branch-business-filters', ['filterHint' => 'Targets list respects the active branch and business tab.'])
+
 <div class="row">
   <div class="col-lg-4">
     <div class="tile">

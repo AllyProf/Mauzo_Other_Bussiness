@@ -1,13 +1,15 @@
 @extends('layouts.app')
 
-@section('title', ($isSalesOfficerDashboard ?? false) ? 'Sales Dashboard - SpareParts POS' : (($isOwnerDashboard ?? false) ? 'Business Dashboard - SpareParts POS' : 'Dashboard - SpareParts POS'))
+@section('title', ($isUnassignedStaffDashboard ?? false) ? 'Account Setup Required - SpareParts POS' : (($isSalesOfficerDashboard ?? false) ? 'Sales Dashboard - SpareParts POS' : (($isOwnerDashboard ?? false) ? 'Business Dashboard - SpareParts POS' : 'Dashboard - SpareParts POS')))
 
 @section('content')
 <div class="app-title">
   <div>
       <h1>
         <i class="fa fa-{{ ($isSalesOfficerDashboard ?? false) || ($isOwnerDashboard ?? false) ? 'tachometer' : 'dashboard' }}"></i>
-        @if($isSalesOfficerDashboard ?? false)
+        @if($isUnassignedStaffDashboard ?? false)
+          Account Setup Required
+        @elseif($isSalesOfficerDashboard ?? false)
           Sales Dashboard
         @elseif($isOwnerDashboard ?? false)
           Business Dashboard
@@ -18,6 +20,8 @@
     <p>
         @if(Auth::user()->role == 'super_admin')
             Platform Overview (Software Owner)
+        @elseif($isUnassignedStaffDashboard ?? false)
+            Hi {{ Auth::user()->name }} — your account needs a role before you can use the system.
         @elseif($isSalesOfficerDashboard ?? false)
             Welcome back, {{ Auth::user()->name }}!
             @if(!empty($activeBranchLabel))
@@ -47,7 +51,9 @@
   </ul>
 </div>
 
-@if($isSalesOfficerDashboard ?? false)
+@if($isUnassignedStaffDashboard ?? false)
+  @include('home.unassigned-staff')
+@elseif($isSalesOfficerDashboard ?? false)
   @include('home.sales-officer')
 @elseif($isOwnerDashboard ?? false)
   @include('home.owner')
@@ -161,7 +167,7 @@
                         @foreach($pendingRegistrations as $biz)
                         <tr>
                             <td><strong>{{ $biz->name }}</strong></td>
-                            <td>{{ $biz->contact_person ?? $biz->owner?->name ?? '—' }}</td>
+                            <td>{{ $biz->contact_person ?? $biz->ownerUser?->name ?? '—' }}</td>
                             <td>{{ $biz->phone ?? '—' }}</td>
                             <td>{{ $biz->region ?? '—' }}<br><small class="text-muted">{{ $biz->district ?? '' }}</small></td>
                             <td>{{ collect($biz->categoryBusinessTypesList())->first()['label'] ?? '—' }}</td>
@@ -352,8 +358,8 @@
 @endsection
 
 @section('scripts')
-    @if(!($isSalesOfficerDashboard ?? false) && !($isOwnerDashboard ?? false) && Auth::user()->role != 'super_admin')
-    <script type="text/javascript" src="{{ asset('admin/js/plugins/chart.js') }}"></script>
+    @if(!($isUnassignedStaffDashboard ?? false) && !($isSalesOfficerDashboard ?? false) && !($isOwnerDashboard ?? false) && Auth::user()->role != 'super_admin')
+    <script type="text/javascript" src="{{ asset('panel-assets/js/plugins/chart.js') }}"></script>
     <script type="text/javascript">
       var data = {
       	labels: ["Jan", "Feb", "Mar", "Apr", "May"],

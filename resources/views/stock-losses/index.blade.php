@@ -109,15 +109,30 @@
 <div class="app-title">
   <div>
     <h1><i class="fa fa-minus-circle"></i> Stock Losses</h1>
-    <p>Record items that were lost, damaged, destroyed, or expired</p>
+    <p>
+      @if($showStaffShortages ?? false)
+        View your shift stock shortages and record manual stock write-offs
+      @else
+        Record items that were lost, damaged, destroyed, or expired
+      @endif
+    </p>
   </div>
+  @if($canViewManualLosses ?? false)
   @can('record_stock_loss')
   <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#recordLossModal">
     <i class="fa fa-plus"></i> Record Loss
   </button>
   @endcan
+  @endif
 </div>
 
+@include('partials.branch-business-filters', ['filterHint' => 'Select a business tab to filter stock loss records by department.'])
+
+@if($showStaffShortages ?? false)
+  @include('home.partials.my-stock-shortages', ['alwaysShowShortageSection' => true])
+@endif
+
+@if($canViewManualLosses ?? false)
 <div class="row mb-3">
   <div class="col-md-4">
     <div class="widget-small danger coloured-icon">
@@ -209,8 +224,11 @@
     </div>
   </div>
 </div>
+@endif
 
+@if($form ?? null)
 @include('stock-losses.partials.record-modal')
+@endif
 @endsection
 
 @section('scripts')

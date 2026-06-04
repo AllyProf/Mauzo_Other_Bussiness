@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Branch;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 
 class ActiveBranchService
 {
@@ -17,7 +16,7 @@ class ActiveBranchService
 
         return $user
             && $user->role === 'owner'
-            && $user->business_id;
+            && $this->currentBusinessId();
     }
 
     protected function sessionKey(): string
@@ -25,15 +24,29 @@ class ActiveBranchService
         return self::SESSION_KEY.'_'.auth()->id();
     }
 
-    public function branches(): Collection
+    protected function currentBusinessId(): ?int
+    {
+        return active_business_id();
+    }
+
+    public function branches()
     {
         if (! $this->canSwitch()) {
             return collect();
         }
 
+        $businessId = $this->currentBusinessId();
+
+        if (! $businessId) {
+            return collect();
+        }
+
         return Branch::query()
-            ->where('business_id', auth()->user()->business_id)
             ->where('is_active', true)
+            ->where(function (Builder $query) use ($businessId) {
+                $query->whereHas('businesses', fn (Builder $businessQuery) => $businessQuery->where('businesses.id', $businessId))
+                    ->orWhere('business_id', $businessId);
+            })
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get();
@@ -47,7 +60,12 @@ class ActiveBranchService
 
         if (! session()->has($this->sessionKey())) {
             $defaultId = Branch::query()
-                ->where('business_id', auth()->user()->business_id)
+                ->where('is_active', true)
+                ->where(function (Builder $query) {
+                    $businessId = $this->currentBusinessId();
+                    $query->whereHas('businesses', fn (Builder $businessQuery) => $businessQuery->where('businesses.id', $businessId))
+                        ->orWhere('business_id', $businessId);
+                })
                 ->where('is_default', true)
                 ->value('id');
 
@@ -61,11 +79,15 @@ class ActiveBranchService
         }
 
         $branchId = (int) $value;
+        $businessId = $this->currentBusinessId();
 
         $isValid = Branch::query()
-            ->where('business_id', auth()->user()->business_id)
             ->where('id', $branchId)
             ->where('is_active', true)
+            ->where(function (Builder $query) use ($businessId) {
+                $query->whereHas('businesses', fn (Builder $businessQuery) => $businessQuery->where('businesses.id', $businessId))
+                    ->orWhere('business_id', $businessId);
+            })
             ->exists();
 
         if (! $isValid) {
@@ -85,11 +107,7 @@ class ActiveBranchService
             return null;
         }
 
-        return Branch::query()
-            ->where('business_id', auth()->user()->business_id)
-            ->where('id', $branchId)
-            ->where('is_active', true)
-            ->first();
+        return Branch::find($branchId);
     }
 
     public function activeBranchLabel(): string
@@ -115,10 +133,15 @@ class ActiveBranchService
         if ($branchId === null) {
             session()->put($this->sessionKey(), 'all');
         } else {
+            $businessId = $this->currentBusinessId();
+
             Branch::query()
-                ->where('business_id', auth()->user()->business_id)
                 ->where('id', $branchId)
                 ->where('is_active', true)
+                ->where(function (Builder $query) use ($businessId) {
+                    $query->whereHas('businesses', fn (Builder $businessQuery) => $businessQuery->where('businesses.id', $businessId))
+                        ->orWhere('business_id', $businessId);
+                })
                 ->firstOrFail();
 
             session()->put($this->sessionKey(), $branchId);
@@ -141,15 +164,15 @@ class ActiveBranchService
     public function scopeRecordsByBranchUsers(Builder $query, string $userIdColumn = 'user_id'): Builder
     {
         $branchId = $this->activeBranchId();
+        $businessId = $this->currentBusinessId() ?? auth()->user()?->business_id;
 
-        if (! $branchId || ! $this->canSwitch()) {
-            return $query;
+        $usersQuery = User::query()->where('business_id', $businessId);
+
+        if ($branchId && $this->canSwitch()) {
+            $usersQuery->where('branch_id', $branchId);
         }
 
-        return $query->whereIn($userIdColumn, User::query()
-            ->where('business_id', auth()->user()->business_id)
-            ->where('branch_id', $branchId)
-            ->select('id'));
+        return $query->whereIn($userIdColumn, $usersQuery->select('id'));
     }
 
     public function branchUserIds(): ?array
@@ -160,8 +183,10 @@ class ActiveBranchService
             return null;
         }
 
+        $businessId = $this->currentBusinessId() ?? auth()->user()?->business_id;
+
         return User::query()
-            ->where('business_id', auth()->user()->business_id)
+            ->where('business_id', $businessId)
             ->where('branch_id', $branchId)
             ->pluck('id')
             ->all();

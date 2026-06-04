@@ -13,9 +13,26 @@
 <div class="row justify-content-center">
   <div class="col-md-6">
     <div class="tile">
-        <form action="{{ route('employees.update', $employee->id) }}" method="POST">
+        <form action="{{ route('employees.update', $employee->id) }}" method="POST" id="employeeEditForm">
             @csrf
             @method('PUT')
+
+            @if($employee->role === 'staff')
+            <div class="form-group">
+                <label class="control-label">Branch <span class="text-danger">*</span></label>
+                <select name="branch_id" id="branchSelect" class="form-control" required>
+                    <option value="">-- Select Branch --</option>
+                    @foreach($assignableBranches as $branch)
+                        <option value="{{ $branch->id }}" {{ (string) old('branch_id', $selectedBranchId) === (string) $branch->id ? 'selected' : '' }}>
+                            {{ $branch->name }}@if($branch->is_default) (Default)@endif
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            @include('staff.employees.partials.branch-business-type-fields')
+            @endif
+
             <div class="form-group">
                 <label class="control-label">Full Name</label>
                 <input class="form-control" type="text" name="name" value="{{ old('name', $employee->name) }}" required>
@@ -24,28 +41,16 @@
                 <label class="control-label">Email Address</label>
                 <input class="form-control" type="email" name="email" value="{{ old('email', $employee->email) }}" required>
             </div>
+            @include('staff.employees.partials.phone-field', ['employee' => $employee])
             <div class="form-group">
                 <label class="control-label">Assign Role</label>
-                <select name="role_id" class="form-control" required>
+                <select name="role_id" id="roleSelect" class="form-control" required>
                     <option value="">-- Select Role --</option>
                     @foreach($roles as $role)
-                        <option value="{{ $role->id }}" {{ $employee->role_id == $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
+                        <option value="{{ $role->id }}" {{ (string) old('role_id', $employee->role_id) === (string) $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
                     @endforeach
                 </select>
             </div>
-            @if($employee->role === 'staff')
-            <div class="form-group">
-                <label class="control-label">Branch <span class="text-danger">*</span></label>
-                <select name="branch_id" class="form-control" required>
-                    <option value="">-- Select Branch --</option>
-                    @foreach($branches as $branch)
-                        <option value="{{ $branch->id }}" {{ (string) old('branch_id', $employee->branch_id) === (string) $branch->id ? 'selected' : '' }}>
-                            {{ $branch->name }}@if($branch->is_default) (Default)@endif
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            @endif
             
             <hr>
             <p class="text-muted"><i class="fa fa-info-circle"></i> Leave password fields blank if you don't want to change it.</p>

@@ -13,12 +13,18 @@ class SaleStockService
     public function deductForSale(Sale $sale): void
     {
         if ($sale->stock_deducted) {
+            app(ServiceConsumableService::class)->deductForSale($sale);
+
             return;
         }
 
         $sale->load(['items.item', 'items.itemPackaging']);
 
         foreach ($sale->items as $saleItem) {
+            if ($saleItem->service_id) {
+                continue;
+            }
+
             $item = $saleItem->item;
             if (! $item) {
                 continue;
@@ -34,6 +40,7 @@ class SaleStockService
         }
 
         $sale->update(['stock_deducted' => true]);
+        app(ServiceConsumableService::class)->deductForSale($sale->fresh());
         $this->refreshShiftTotals($sale);
     }
 
@@ -46,6 +53,10 @@ class SaleStockService
         $sale->load(['items.item', 'items.itemPackaging']);
 
         foreach ($sale->items as $saleItem) {
+            if ($saleItem->service_id) {
+                continue;
+            }
+
             $item = $saleItem->item;
             if (! $item) {
                 continue;
@@ -61,12 +72,14 @@ class SaleStockService
         }
 
         $sale->update(['stock_deducted' => false]);
+        app(ServiceConsumableService::class)->restoreForSale($sale->fresh());
         $this->refreshShiftTotals($sale);
     }
 
     public function deductInvoiceIfPaid(Sale $sale): void
     {
-        if (($sale->sale_source ?? 'pos') !== 'invoice') {
+        $source = $sale->sale_source ?? 'pos';
+        if (! in_array($source, ['invoice', 'service_invoice'], true)) {
             return;
         }
 
@@ -76,6 +89,7 @@ class SaleStockService
 
         if ((float) $sale->amount_paid > 0 || $sale->payment_status === 'paid') {
             $this->deductForSale($sale);
+            app(ServiceConsumableService::class)->deductForSale($sale->fresh());
         }
     }
 
@@ -89,6 +103,10 @@ class SaleStockService
         $stockContext = $this->shiftStockContext($shift);
 
         foreach ($sale->items as $saleItem) {
+            if ($saleItem->service_id) {
+                continue;
+            }
+
             $item = $saleItem->item;
             if (! $item) {
                 continue;

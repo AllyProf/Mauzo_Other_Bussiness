@@ -12,6 +12,34 @@ if (! function_exists('money')) {
     }
 }
 
+if (! function_exists('active_business_service')) {
+    function active_business_service(): \App\Services\ActiveBusinessService
+    {
+        return app(\App\Services\ActiveBusinessService::class);
+    }
+}
+
+if (! function_exists('active_business_id')) {
+    function active_business_id(): ?int
+    {
+        return active_business_service()->activeBusinessId();
+    }
+}
+
+if (! function_exists('active_business')) {
+    function active_business(): ?\App\Models\Business
+    {
+        return active_business_service()->activeBusiness();
+    }
+}
+
+if (! function_exists('current_business_id')) {
+    function current_business_id(): int
+    {
+        return (int) (active_business_id() ?? auth()->user()?->business_id);
+    }
+}
+
 if (! function_exists('active_branch_service')) {
     function active_branch_service(): \App\Services\ActiveBranchService
     {
@@ -63,5 +91,44 @@ if (! function_exists('tanzania_districts')) {
         }
 
         return $regions[$region] ?? [];
+    }
+}
+
+if (! function_exists('plan_feature')) {
+    function plan_feature(string $key): bool
+    {
+        return app(\App\Services\PlanFeatureService::class)->userHasFeature(auth()->user(), $key);
+    }
+}
+
+if (! function_exists('plan_feature_any')) {
+    function plan_feature_any(array $keys): bool
+    {
+        return app(\App\Services\PlanFeatureService::class)->userHasAnyFeature(auth()->user(), $keys);
+    }
+}
+
+if (! function_exists('business_retail_enabled')) {
+    function business_retail_enabled(): bool
+    {
+        $business = auth()->user()?->business;
+
+        return $business ? $business->isRetailEnabled() : true;
+    }
+}
+
+if (! function_exists('business_services_menu_visible')) {
+    function business_services_menu_visible(): bool
+    {
+        $business = auth()->user()?->business;
+
+        return $business ? $business->servicesMenuVisible() : false;
+    }
+}
+
+if (! function_exists('platform_admin_can')) {
+    function platform_admin_can(string $permission): bool
+    {
+        return app(\App\Services\PlatformAdminService::class)->canAccess(auth()->user(), $permission);
     }
 }

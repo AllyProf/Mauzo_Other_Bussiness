@@ -32,6 +32,15 @@
     font-family: 'Courier New', Courier, monospace;
     font-weight: 700;
   }
+  .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; }
+  .business-type-tab {
+    cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
+    font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
+    transition: all .15s ease; line-height: 1.5; text-decoration: none !important;
+  }
+  .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
+  .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
+  .business-type-tab i { margin-right: 5px; }
   .issue-form-disabled { opacity: 0.65; pointer-events: none; }
   .btn.is-loading { pointer-events: none; }
 </style>
@@ -56,6 +65,43 @@
 @endif
 @if(session('error'))
   <div class="alert alert-danger">{{ session('error') }}</div>
+@endif
+
+@if($viewingAllBranches ?? false)
+<div class="alert alert-light border py-2 mb-3">
+  <i class="fa fa-building"></i>
+  Viewing petty cash from <strong>all branches</strong>. Switch branch in the header to filter by location.
+</div>
+@elseif(!empty($activeBranchName))
+<div class="alert alert-info py-2 mb-3">
+  <i class="fa fa-map-marker"></i>
+  Petty cash for branch <strong>{{ $activeBranchName }}</strong> — switch branch in the header to change location.
+</div>
+@endif
+
+@if($multiBusiness ?? false)
+<div class="tile mb-3 py-2">
+  <div class="d-flex align-items-center flex-wrap">
+    <span class="small font-weight-bold mr-2 mb-2">Business:</span>
+    <div class="business-type-tabs mb-2">
+      <a href="{{ route('petty-cash.index', request()->except('business_type')) }}"
+         class="business-type-tab {{ empty($activeBusinessType) ? 'active' : '' }}">
+        <i class="fa fa-th-list"></i> All
+      </a>
+      @foreach($businessTypes as $type)
+        <a href="{{ route('petty-cash.index', array_merge(request()->except('business_type'), ['business_type' => $type['key']])) }}"
+           class="business-type-tab {{ ($activeBusinessType ?? '') === $type['key'] ? 'active' : '' }}">
+          <i class="fa {{ $type['icon'] ?? 'fa-store' }}"></i> {{ $type['label'] }}
+        </a>
+      @endforeach
+    </div>
+  </div>
+  @if($activeBusinessType ?? false)
+    <p class="small text-muted mb-0">Balances and history show <strong>{{ $balances['business_type_label'] ?? $activeBusinessType }}</strong> only — from today&apos;s sales for this business.</p>
+  @else
+    <p class="small text-muted mb-0">Select a business tab or choose one when issuing petty cash so amounts deduct from the correct department.</p>
+  @endif
+</div>
 @endif
 
 <div class="row mb-3">
@@ -131,6 +177,21 @@
           </div>
 
           <div id="issueFormFields" class="{{ $balances['is_finalized'] ? 'issue-form-disabled' : '' }}">
+            @if($multiBusiness ?? false)
+            <div class="form-group">
+              <label class="control-label font-weight-bold">Business / Department</label>
+              <select name="business_type_key" id="business_type_key" class="form-control" required>
+                <option value="">— Select business —</option>
+                @foreach($businessTypes as $type)
+                  <option value="{{ $type['key'] }}" {{ old('business_type_key', $activeBusinessType) === $type['key'] ? 'selected' : '' }}>
+                    {{ $type['label'] }}
+                  </option>
+                @endforeach
+              </select>
+              <small class="form-text text-muted">Issue is deducted from this business type&apos;s circulation or profit.</small>
+            </div>
+            @endif
+
             <div class="form-group">
               <label class="control-label font-weight-bold">Amount (TZS)</label>
               <input type="number" name="amount" id="issue_amount" class="form-control" min="0.01" step="0.01" max="{{ old('fund_source', 'circulation') === 'profit' ? $balances['available_profit'] : $balances['available_circulation'] }}" value="{{ old('amount') }}" required>
@@ -211,6 +272,9 @@
       <div class="tile-body">
         <form method="GET" action="{{ route('petty-cash.index') }}" class="row mb-3" id="historyFilterForm">
           <input type="hidden" name="date" value="{{ $selectedDate }}">
+          @if($activeBusinessType ?? false)
+            <input type="hidden" name="business_type" value="{{ $activeBusinessType }}">
+          @endif
           <div class="col-md-3 mb-2 mb-md-0">
             <label class="small font-weight-bold mb-1">From</label>
             <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
@@ -237,6 +301,9 @@
             <thead class="thead-dark">
               <tr>
                 <th>Date</th>
+                @if($multiBusiness ?? false)
+                <th>Business</th>
+                @endif
                 <th>Description</th>
                 <th>Purpose</th>
                 <th>Issued To</th>
@@ -251,6 +318,9 @@
                 @php $isLocked = $expense->report && $expense->report->status === 'finalized'; @endphp
                 <tr>
                   <td nowrap>{{ $expense->expense_date->format('d M, Y') }}</td>
+                  @if($multiBusiness ?? false)
+                  <td nowrap>{{ $expense->business_type_key ? $expense->businessTypeLabel($business) : '—' }}</td>
+                  @endif
                   <td style="max-width:220px;">{{ Str::limit($expense->description, 80) }}</td>
                   <td><span class="badge badge-light border">{{ $expense->categoryLabel() }}</span></td>
                   <td>{{ $expense->issuedTo->name ?? '—' }}</td>
@@ -273,7 +343,7 @@
                   </td>
                 </tr>
               @empty
-                <tr><td colspan="8" class="text-center py-4 text-muted">No petty cash issued yet.</td></tr>
+                <tr><td colspan="{{ ($multiBusiness ?? false) ? 9 : 8 }}" class="text-center py-4 text-muted">No petty cash issued yet{{ ($activeBusinessType ?? false) ? ' for this business' : '' }}.</td></tr>
               @endforelse
             </tbody>
           </table>
@@ -292,6 +362,7 @@
 <script>
 jQuery(function($) {
   const balancesUrl = @json(route('petty-cash.balances'));
+  const activeBusinessType = @json($activeBusinessType ?? null);
   let currentBalances = {
     available_circulation: {{ $balances['available_circulation'] }},
     available_profit: {{ $balances['available_profit'] }},
@@ -388,7 +459,13 @@ jQuery(function($) {
     $dateInput.prop('disabled', true);
     $('#balancePreview').css('opacity', '0.6');
 
-    $.get(balancesUrl, { date: date })
+    const businessType = $('#business_type_key').val() || activeBusinessType || null;
+    const params = { date: date };
+    if (businessType) {
+      params.business_type = businessType;
+    }
+
+    $.get(balancesUrl, params)
       .done(applyBalances)
       .fail(function() {
         Swal.fire('Error', 'Could not load balances for the selected date.', 'error');
@@ -401,6 +478,10 @@ jQuery(function($) {
 
   $('#expense_date').on('change', function() {
     fetchBalances($(this).val());
+  });
+
+  $('#business_type_key').on('change', function() {
+    fetchBalances($('#expense_date').val());
   });
 
   $('input.fund-source-radio').on('change', function() {

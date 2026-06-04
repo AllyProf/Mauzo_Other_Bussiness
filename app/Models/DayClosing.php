@@ -24,6 +24,10 @@ class DayClosing extends Model
         'cancelled_sales',
         'total_expenses',
         'net_amount',
+        'expected_handover',
+        'actual_received',
+        'money_short',
+        'shortage_note',
         'report_notes',
         'submitted_at',
         'verified_by',
@@ -61,5 +65,29 @@ class DayClosing extends Model
     public function expenses()
     {
         return $this->hasMany(DayClosingExpense::class);
+    }
+
+    public function settlements()
+    {
+        return $this->hasMany(MoneyShortSettlement::class);
+    }
+
+    public function expectedHandoverAmount(): float
+    {
+        return (float) ($this->expected_handover ?? $this->net_amount ?? 0);
+    }
+
+    public function resolvedHandoverAmount(): float
+    {
+        if ($this->actual_received !== null) {
+            return (float) $this->actual_received;
+        }
+
+        return (float) ($this->net_amount ?? 0);
+    }
+
+    public function hasMoneyShort(): bool
+    {
+        return (float) ($this->money_short ?? 0) > 0;
     }
 }

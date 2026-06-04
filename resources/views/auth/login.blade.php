@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Main CSS-->
-    <link rel="stylesheet" type="text/css" href="{{ asset('admin/css/main.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ asset('panel-assets/css/main.css') }}">
     <!-- Font-icon css-->
     <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <title>Login - {{ $platformSettings['platform_name'] ?? 'SpareParts POS' }}</title>
@@ -91,8 +91,8 @@
           @endif
 
           <div class="form-group">
-            <label class="control-label">EMAIL OR PHONE</label>
-            <input class="form-control" type="text" name="email" placeholder="Email or phone number (712345678)" value="{{ old('email') }}" required autofocus>
+            <label class="control-label">EMAIL</label>
+            <input class="form-control" type="email" name="email" placeholder="Enter your email address" value="{{ old('email') }}" required autofocus>
           </div>
           <div class="form-group">
             <label class="control-label">PASSWORD</label>
@@ -113,18 +113,23 @@
             </div>
           </div>
           <div class="form-group btn-container">
-            <button class="btn btn-primary btn-block"><i class="fa fa-sign-in fa-lg fa-fw"></i>SIGN IN</button>
+            <button type="submit" class="btn btn-primary btn-block" id="loginSubmitBtn"><i class="fa fa-sign-in fa-lg fa-fw"></i>SIGN IN</button>
           </div>
 
         </form>
       </div>
     </section>
     <!-- Essential javascripts for application to work-->
-    <script src="{{ asset('admin/js/jquery-3.2.1.min.js') }}"></script>
-    <script src="{{ asset('admin/js/popper.min.js') }}"></script>
-    <script src="{{ asset('admin/js/bootstrap.min.js') }}"></script>
-    <script src="{{ asset('admin/js/main.js') }}"></script>
+    <script src="{{ asset('panel-assets/js/jquery-3.2.1.min.js') }}"></script>
+    <script src="{{ asset('panel-assets/js/popper.min.js') }}"></script>
+    <script src="{{ asset('panel-assets/js/bootstrap.min.js') }}"></script>
+    <script src="{{ asset('panel-assets/js/main.js') }}"></script>
     <script type="text/javascript">
+      $('.login-form').on('submit', function() {
+        var $btn = $('#loginSubmitBtn');
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin fa-lg fa-fw"></i> Signing in...');
+      });
+
       $('#passwordToggle').on('click', function() {
         var input = $('#loginPassword');
         var icon = $('#passwordToggleIcon');

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Item;
+use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Packaging;
 use App\Models\ItemPackaging;
@@ -20,11 +21,60 @@ class ItemController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('view_inventory');
 
-        $items = Item::where('business_id', Auth::user()->business_id)
-            ->with(['category', 'packagings.packagingType'])
-            ->get();
-            
-        return view('items.index', compact('items'));
+        $business = Auth::user()->business;
+        $businessId = $business->id;
+
+        $branchFilterId = null;
+        if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
+            $branchFilterId = (int) Auth::user()->branch_id;
+        } elseif ($branchId = active_branch_id()) {
+            $branchFilterId = $branchId;
+        }
+
+        $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
+        $templates = config('category_templates', []);
+
+        if ($branchFilterId) {
+            $businessTypes = collect($business->importedTypesForBranch($branchFilterId))
+                ->map(function ($type) use ($templates) {
+                    $key = (string) ($type['key'] ?? '');
+
+                    return [
+                        'key' => $key,
+                        'label' => (string) ($type['label'] ?? $key),
+                        'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
+                    ];
+                })
+                ->values()
+                ->all();
+        } else {
+            $businessTypes = $business->posBusinessTypesMeta();
+        }
+
+        $multiBusiness = count($businessTypes) > 1;
+
+        $activeBranchName = $branchFilterId
+            ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? 'Branch')
+            : null;
+
+        $itemsQuery = Item::where('business_id', $businessId)
+            ->with(['category', 'packagings.packagingType']);
+
+        if ($branchFilterId) {
+            $itemsQuery->whereHas('category', fn ($query) => $query->where('branch_id', $branchFilterId));
+        }
+
+        $items = $itemsQuery->orderBy('name')->get();
+
+        return view('items.index', compact(
+            'items',
+            'business',
+            'businessTypes',
+            'multiBusiness',
+            'activeBranchName',
+            'branchFilterId',
+            'viewingAllBranches',
+        ));
     }
 
     public function stock(Request $request)
@@ -36,15 +86,34 @@ class ItemController extends Controller
         $automation = $business->automationSettings();
         $lowStockThreshold = (int) ($automation['low_stock_threshold'] ?? 5);
 
-        $businessTypes = $business->posBusinessTypesMeta();
-        $multiBusiness = count($businessTypes) > 1;
-
         $branchFilterId = null;
         if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
             $branchFilterId = (int) Auth::user()->branch_id;
         } elseif ($branchId = active_branch_id()) {
             $branchFilterId = $branchId;
         }
+
+        $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
+        $templates = config('category_templates', []);
+
+        if ($branchFilterId) {
+            $businessTypes = collect($business->importedTypesForBranch($branchFilterId))
+                ->map(function ($type) use ($templates) {
+                    $key = (string) ($type['key'] ?? '');
+
+                    return [
+                        'key' => $key,
+                        'label' => (string) ($type['label'] ?? $key),
+                        'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
+                    ];
+                })
+                ->values()
+                ->all();
+        } else {
+            $businessTypes = $business->posBusinessTypesMeta();
+        }
+
+        $multiBusiness = count($businessTypes) > 1;
 
         $branchReceivedPieces = $branchFilterId
             ? $this->branchReceivedPiecesMap($businessId, $branchFilterId)
@@ -57,14 +126,13 @@ class ItemController extends Controller
             ->orderBy('name');
 
         if ($branchFilterId) {
-            $itemIds = array_keys($branchReceivedPieces->all());
-            $itemsQuery->whereIn('id', $itemIds ?: [0]);
+            $itemsQuery->whereHas('category', fn ($query) => $query->where('branch_id', $branchFilterId));
         }
 
         $items = $itemsQuery->get();
 
         $activeBranchName = $branchFilterId
-            ? (active_branch()?->name ?? Auth::user()->branch?->name ?? 'Branch')
+            ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? Auth::user()->branch?->name ?? 'Branch')
             : null;
 
         $stockItems = $items->map(function ($item) use ($lowStockThreshold, $business, $branchFilterId, $branchReceivedPieces) {
@@ -117,6 +185,7 @@ class ItemController extends Controller
                 'formatted_quantity' => $stockInfo['formatted_pieces'],
                 'stock_display' => $stockInfo['stock_display'],
                 'has_bulk_stock' => $stockInfo['has_bulk_stock'],
+                'packaging_breakdown' => $stockInfo['packaging_breakdown'] ?? [],
                 'selling_price' => $sellingPrice,
                 'packaging_prices' => $packagingPrices,
                 'has_multi_packaging' => count($packagingPrices) > 1,
@@ -161,6 +230,7 @@ class ItemController extends Controller
             'canViewValue',
             'activeBranchName',
             'branchFilterId',
+            'viewingAllBranches',
         ));
     }
 
@@ -309,17 +379,17 @@ class ItemController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('add_items');
 
-        $categories = Category::where('business_id', Auth::user()->business_id)->get();
-        $packagingTypes = Packaging::where('business_id', Auth::user()->business_id)->get();
-        
-        return view('items.create', compact('categories', 'packagingTypes'));
+        $business = $this->currentBusiness() ?? Auth::user()->business;
+        $formContext = $this->itemFormContext($business);
+
+        return view('items.create', $formContext);
     }
 
     public function store(Request $request)
     {
         \Illuminate\Support\Facades\Gate::authorize('add_items');
 
-        $business = Auth::user()->business;
+        $business = $this->currentBusiness() ?? Auth::user()->business;
         $maxItems = $business->plan->max_items ?? 0;
         
         if ($maxItems > 0) {
@@ -329,15 +399,28 @@ class ItemController extends Controller
             }
         }
 
-        $request->validate([
+        $typeKeys = $this->branchBusinessTypeKeys($business);
+
+        $rules = [
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
             'brand' => 'nullable|string|max:255',
             'receiving_packaging_id' => 'required|exists:packagings,id',
+            'units_per_receiving_pack' => 'required|integer|min:1',
             'selling_packagings' => 'required|array|min:1',
             'selling_packagings.*.packaging_id' => 'required|exists:packagings,id',
-            'selling_packagings.*.quantity_per_unit' => 'nullable|integer|min:1',
-        ]);
+            'selling_packagings.*.quantity_per_unit' => 'required|integer|min:1',
+        ];
+
+        if (count($typeKeys) > 1) {
+            $rules['business_type_key'] = 'required|string|in:'.implode(',', $typeKeys);
+        }
+
+        $request->validate($rules);
+
+        if ($scopeError = $this->validateItemBusinessTypeScope($request, $business)) {
+            return redirect()->back()->withInput()->with('error', $scopeError);
+        }
 
         $sellingRows = $request->input('selling_packagings', []);
         $packagingTypes = Packaging::where('business_id', Auth::user()->business_id)->get();
@@ -347,11 +430,7 @@ class ItemController extends Controller
             $sellingRows,
             $packagingTypes
         );
-        $unitsPerReceiving = $normalizer->resolveUnitsPerReceivingPack(
-            (int) $request->receiving_packaging_id,
-            $sellingRows,
-            $packagingTypes
-        );
+        $unitsPerReceiving = max(1, (int) $request->input('units_per_receiving_pack', 1));
         $sku = 'SP-' . strtoupper(bin2hex(random_bytes(4)));
 
         $item = Item::create([
@@ -388,13 +467,11 @@ class ItemController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('edit_items');
         if ($item->business_id != Auth::user()->business_id) abort(403);
 
-        $categories = Category::where('business_id', Auth::user()->business_id)->get();
-        $packagingTypes = Packaging::where('business_id', Auth::user()->business_id)->get();
-        
-        $item->load('packagings');
+        $item->load(['category', 'packagings']);
         $primaryPackaging = $item->packagings->first();
+        $formContext = $this->itemFormContext($this->currentBusiness() ?? Auth::user()->business, $item);
 
-        return view('items.edit', compact('item', 'categories', 'packagingTypes', 'primaryPackaging'));
+        return view('items.edit', array_merge($formContext, compact('item', 'primaryPackaging')));
     }
 
     public function update(Request $request, Item $item)
@@ -402,18 +479,32 @@ class ItemController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('edit_items');
         if ($item->business_id != Auth::user()->business_id) abort(403);
 
-        $request->validate([
+        $business = $this->currentBusiness() ?? Auth::user()->business;
+        $typeKeys = $this->branchBusinessTypeKeys($business);
+
+        $rules = [
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
             'brand' => 'nullable|string|max:255',
             'receiving_packaging_id' => 'required|exists:packagings,id',
+            'units_per_receiving_pack' => 'required|integer|min:1',
             'description' => 'nullable|string',
             'selling_packagings' => 'required|array|min:1',
             'selling_packagings.*.packaging_id' => 'required|exists:packagings,id',
-            'selling_packagings.*.quantity_per_unit' => 'nullable|integer|min:1',
+            'selling_packagings.*.quantity_per_unit' => 'required|integer|min:1',
             'cost_price' => 'nullable|numeric|min:0',
             'selling_price' => 'nullable|numeric|min:0',
-        ]);
+        ];
+
+        if (count($typeKeys) > 1) {
+            $rules['business_type_key'] = 'required|string|in:'.implode(',', $typeKeys);
+        }
+
+        $request->validate($rules);
+
+        if ($scopeError = $this->validateItemBusinessTypeScope($request, $business)) {
+            return redirect()->back()->withInput()->with('error', $scopeError);
+        }
 
         $sellingRows = $request->input('selling_packagings', []);
         $packagingTypes = Packaging::where('business_id', Auth::user()->business_id)->get();
@@ -423,11 +514,7 @@ class ItemController extends Controller
             $sellingRows,
             $packagingTypes
         );
-        $unitsPerReceiving = $normalizer->resolveUnitsPerReceivingPack(
-            (int) $request->receiving_packaging_id,
-            $sellingRows,
-            $packagingTypes
-        );
+        $unitsPerReceiving = max(1, (int) $request->input('units_per_receiving_pack', 1));
 
         $oldUnitsPerReceiving = max(1, (int) ($item->units_per_receiving_pack ?? 1));
         $stockScale = ($unitsPerReceiving > $oldUnitsPerReceiving && $oldUnitsPerReceiving === 1)
@@ -491,5 +578,170 @@ class ItemController extends Controller
 
             $isFirst = false;
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function itemFormContext($business, ?Item $item = null): array
+    {
+        $branchFilterId = $this->itemFormBranchFilterId();
+        $templates = config('category_templates', []);
+
+        $categoriesQuery = Category::where('business_id', $business->id)->orderBy('name');
+        if ($branchFilterId) {
+            $categoriesQuery->where('branch_id', $branchFilterId);
+        }
+        $categories = $categoriesQuery->get();
+
+        if ($branchFilterId) {
+            $businessTypes = collect($business->importedTypesForBranch($branchFilterId))
+                ->map(function ($type) use ($templates) {
+                    $key = (string) ($type['key'] ?? '');
+
+                    return [
+                        'key' => $key,
+                        'label' => (string) ($type['label'] ?? $key),
+                        'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
+                    ];
+                })
+                ->values()
+                ->all();
+        } else {
+            $businessTypes = $business->posBusinessTypesMeta();
+        }
+
+        $multiBusiness = count($businessTypes) > 1;
+        $branchTypeKeys = collect($businessTypes)->pluck('key')->filter()->values()->all();
+
+        $packagingQuery = Packaging::where('business_id', $business->id)->orderBy('name');
+        if ($branchFilterId && ! empty($branchTypeKeys)) {
+            $packagingQuery->where(function ($query) use ($branchTypeKeys) {
+                $query->whereIn('source_business_type_key', $branchTypeKeys)
+                    ->orWhereNull('source_business_type_key')
+                    ->orWhere('source_business_type_key', 'other')
+                    ->orWhere('source_business_type_key', '');
+            });
+        }
+        $packagingTypes = $packagingQuery->get();
+
+        $defaultBusinessTypeKey = old('business_type_key');
+
+        if (! $defaultBusinessTypeKey && $item?->category?->source_business_type_key) {
+            $defaultBusinessTypeKey = $item->category->source_business_type_key;
+        }
+
+        if (! $defaultBusinessTypeKey && count($businessTypes) === 1) {
+            $defaultBusinessTypeKey = $businessTypes[0]['key'];
+        }
+
+        $categoriesPayload = $categories->map(fn (Category $category) => [
+            'id' => $category->id,
+            'name' => $category->name,
+            'business_type_key' => $category->source_business_type_key ?: 'other',
+        ])->values()->all();
+
+        $packagingsPayload = $packagingTypes->map(fn (Packaging $packaging) => [
+            'id' => $packaging->id,
+            'name' => $packaging->name,
+            'business_type_key' => $packaging->source_business_type_key ?: 'other',
+        ])->values()->all();
+
+        return compact(
+            'categories',
+            'packagingTypes',
+            'businessTypes',
+            'multiBusiness',
+            'defaultBusinessTypeKey',
+            'categoriesPayload',
+            'packagingsPayload',
+            'branchFilterId'
+        );
+    }
+
+    private function itemFormBranchFilterId(): ?int
+    {
+        if (! $this->actsAsBusinessWideViewer()) {
+            $branchId = auth()->user()?->branch_id;
+
+            return $branchId ? (int) $branchId : null;
+        }
+
+        return active_branch_id();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function branchBusinessTypeKeys($business): array
+    {
+        $branchFilterId = $this->itemFormBranchFilterId();
+
+        if ($branchFilterId) {
+            return collect($business->importedTypesForBranch($branchFilterId))
+                ->pluck('key')
+                ->filter()
+                ->values()
+                ->all();
+        }
+
+        return collect($business->posBusinessTypesMeta())->pluck('key')->filter()->values()->all();
+    }
+
+    private function validateItemBusinessTypeScope(Request $request, $business): ?string
+    {
+        $businessTypes = $this->branchBusinessTypeKeys($business);
+
+        if (count($businessTypes) <= 1) {
+            return null;
+        }
+
+        $typeKey = (string) $request->input('business_type_key');
+
+        if ($typeKey === '') {
+            return 'Please select which business type this item belongs to.';
+        }
+
+        if (! in_array($typeKey, $businessTypes, true)) {
+            return 'The selected business type is not available for the active branch.';
+        }
+
+        if ($request->filled('category_id')) {
+            $categoryQuery = Category::where('business_id', $business->id)
+                ->where('id', $request->category_id);
+
+            if ($branchFilterId = $this->itemFormBranchFilterId()) {
+                $categoryQuery->where('branch_id', $branchFilterId);
+            }
+
+            $category = $categoryQuery->first();
+            $categoryType = $category?->source_business_type_key ?: 'other';
+
+            if (! $category || $categoryType !== $typeKey) {
+                return 'The selected category does not belong to the chosen business type.';
+            }
+        }
+
+        $packagingIds = collect($request->input('selling_packagings', []))
+            ->pluck('packaging_id')
+            ->filter()
+            ->push($request->receiving_packaging_id)
+            ->unique()
+            ->all();
+
+        $invalidPackaging = Packaging::where('business_id', $business->id)
+            ->whereIn('id', $packagingIds)
+            ->get()
+            ->first(function (Packaging $packaging) use ($typeKey) {
+                $packagingType = $packaging->source_business_type_key ?: 'other';
+
+                return $packagingType !== $typeKey;
+            });
+
+        if ($invalidPackaging) {
+            return 'One or more selected units do not belong to the chosen business type.';
+        }
+
+        return null;
     }
 }

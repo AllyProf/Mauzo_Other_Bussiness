@@ -6,7 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Ticket extends Model
 {
-    protected $fillable = ['business_id', 'user_id', 'subject', 'message', 'admin_reply', 'status'];
+    protected $fillable = ['business_id', 'user_id', 'subject', 'message', 'admin_reply', 'status', 'admin_read_at'];
+
+    protected $casts = [
+        'admin_read_at' => 'datetime',
+    ];
 
     public function business()
     {

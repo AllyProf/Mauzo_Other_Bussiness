@@ -13,11 +13,13 @@ class BusinessNote extends Model
         'title',
         'body',
         'remind_at',
+        'reminder_sms_sent_at',
         'completed_at',
     ];
 
     protected $casts = [
         'remind_at' => 'datetime',
+        'reminder_sms_sent_at' => 'datetime',
         'completed_at' => 'datetime',
     ];
 
@@ -51,6 +53,11 @@ class BusinessNote extends Model
         return $query->active()
             ->whereNotNull('remind_at')
             ->where('remind_at', '<=', now());
+    }
+
+    public function scopeDueForSms(Builder $query): Builder
+    {
+        return $query->due()->whereNull('reminder_sms_sent_at');
     }
 
     public function scopeUpcoming(Builder $query): Builder

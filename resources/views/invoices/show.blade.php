@@ -4,6 +4,8 @@
 
 @section('content')
 @php
+  $backRoute = $backRoute ?? route('invoices.index');
+  $backLabel = $backLabel ?? 'All Invoices';
   $balanceDue = max(0, (float) $sale->total_amount - (float) $sale->amount_paid);
   $statusLabel = match($sale->payment_status) {
     'paid' => 'PAID',
@@ -26,7 +28,7 @@
     <p>Tax invoice for customer</p>
   </div>
   <div>
-    <a href="{{ route('invoices.index') }}" class="btn btn-secondary"><i class="fa fa-arrow-left"></i> All Invoices</a>
+    <a href="{{ $backRoute }}" class="btn btn-secondary"><i class="fa fa-arrow-left"></i> {{ $backLabel }}</a>
     <button type="button" class="btn btn-primary" onclick="window.print();"><i class="fa fa-print"></i> Print Invoice</button>
     @if($sale->payment_status === 'paid' || (float) $sale->amount_paid > 0)
       <a href="{{ route('sales.show', $sale) }}" class="btn btn-info"><i class="fa fa-print"></i> Print Receipt</a>
@@ -35,7 +37,9 @@
       @php
         $invoicePayItems = $sale->items->map(fn ($si) => [
           'id' => $si->id,
-          'name' => $si->item->name ?? 'Item',
+          'name' => $si->service_id
+            ? ($si->line_description ?: $si->service?->name ?? 'Service')
+            : ($si->item->name ?? 'Item'),
           'qty' => (float) $si->quantity,
           'unit_price' => (float) ($si->list_unit_price ?? $si->unit_price),
         ])->values();
@@ -147,7 +151,13 @@
             @foreach($sale->items as $index => $line)
               <tr>
                 <td>{{ $index + 1 }}</td>
-                <td>{{ $line->item->name ?? 'Item' }}</td>
+                <td>
+                  @if($line->service_id)
+                    {{ $line->line_description ?: $line->service?->name ?? 'Service' }}
+                  @else
+                    {{ $line->item->name ?? 'Item' }}
+                  @endif
+                </td>
                 <td>{{ $line->item->sku ?? '—' }}</td>
                 <td class="text-right">{{ number_format((float) $line->quantity, 0) }}</td>
                 <td class="text-right">{{ money($line->unit_price) }}</td>

@@ -66,7 +66,9 @@
             <tr>
               <th>Name</th>
               <th>Email</th>
+              <th>Phone</th>
               <th>Branch</th>
+              <th>Business</th>
               <th>Role</th>
               <th>Status</th>
               <th style="min-width: 220px;">Actions</th>
@@ -80,11 +82,19 @@
                 <tr class="{{ !$member->isActiveAccount() ? 'table-secondary' : '' }}">
                     <td><strong>{{ $member->name }}</strong> @if($member->id == Auth::id()) <span class="badge badge-secondary">You</span> @endif</td>
                     <td>{{ $member->email }}</td>
+                    <td>{{ $member->phone ?? '—' }}</td>
                     <td>
                         @if($member->role === 'staff')
                             {{ $member->branch->name ?? '—' }}
                         @else
                             <span class="text-muted">All branches</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if($member->role === 'staff')
+                            {{ $member->displayBusinessTypeLabels() ?: '—' }}
+                        @else
+                            <span class="text-muted">All</span>
                         @endif
                     </td>
                     <td>

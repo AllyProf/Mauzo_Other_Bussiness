@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
+use App\Services\PlanFeatureService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -23,9 +24,15 @@ class PlanController extends Controller
             'max_users' => 'required|integer|min:1',
             'max_business_types' => 'required|integer|min:0',
             'max_branches' => 'required|integer|min:0',
+            'max_storage_value' => 'required|numeric|min:0',
+            'max_storage_unit' => ['required', Rule::in(['gb', 'mb'])],
             'max_sms' => 'required|integer|min:0',
             'max_email_sms' => 'required|integer|min:0',
+            'allow_sms_sending' => 'nullable|boolean',
+            'allow_email_sms' => 'nullable|boolean',
             'features' => 'nullable|string',
+            'enabled_features' => 'nullable|array',
+            'enabled_features.*' => ['string', Rule::in(app(PlanFeatureService::class)->allKeys())],
         ];
     }
 
@@ -50,6 +57,30 @@ class PlanController extends Controller
             $data['price'] = (float) ($data['price'] ?? 0);
             $data['minimum_monthly_fee'] = (float) ($data['minimum_monthly_fee'] ?? 0);
         }
+
+        $storageValue = (float) ($data['max_storage_value'] ?? 0);
+        if ($storageValue <= 0) {
+            $data['max_storage_mb'] = 0;
+        } elseif (($data['max_storage_unit'] ?? 'gb') === 'mb') {
+            $data['max_storage_mb'] = (int) round($storageValue);
+        } else {
+            $data['max_storage_mb'] = (int) round($storageValue * 1024);
+        }
+        unset($data['max_storage_value'], $data['max_storage_unit']);
+
+        $data['allow_sms_sending'] = $request->boolean('allow_sms_sending');
+        $data['allow_email_sms'] = $request->boolean('allow_email_sms');
+
+        if (! $data['allow_sms_sending']) {
+            $data['max_sms'] = 0;
+        }
+        if (! $data['allow_email_sms']) {
+            $data['max_email_sms'] = 0;
+        }
+
+        $data['enabled_features'] = app(PlanFeatureService::class)->normalizeSelection(
+            $data['enabled_features'] ?? []
+        );
 
         return $data;
     }

@@ -25,7 +25,7 @@
 <div class="app-title">
   <div>
     <h1><i class="fa fa-building"></i> Branches</h1>
-    <p>Register your shop locations and branch leader details before assigning employees</p>
+    <p>Register shop locations, assign which businesses operate at each branch, then assign staff to a branch and business</p>
   </div>
 </div>
 
@@ -76,6 +76,17 @@
           <input class="form-control" type="email" name="leader_email" placeholder="leader@example.com" value="{{ old('leader_email') }}">
         </div>
 
+        <div class="form-group">
+          <label class="control-label">Businesses at this branch <span class="text-danger">*</span></label>
+          @foreach($ownerBusinesses as $ownerBusiness)
+            <div class="custom-control custom-checkbox">
+              <input type="checkbox" class="custom-control-input" id="createBusiness{{ $ownerBusiness->id }}" name="business_ids[]" value="{{ $ownerBusiness->id }}" {{ in_array($ownerBusiness->id, old('business_ids', [$business->id])) ? 'checked' : '' }}>
+              <label class="custom-control-label" for="createBusiness{{ $ownerBusiness->id }}">{{ $ownerBusiness->name }}</label>
+            </div>
+          @endforeach
+          <small class="text-muted">Select every business that operates from this branch.</small>
+        </div>
+
         <button class="btn btn-primary btn-block" type="submit"><i class="fa fa-plus"></i> Register Branch</button>
       </form>
       @else
@@ -95,6 +106,7 @@
           <thead>
             <tr>
               <th>Branch</th>
+              <th>Businesses</th>
               <th>Location</th>
               <th>Branch Leader</th>
               <th>Staff</th>
@@ -113,6 +125,13 @@
                   @if($branch->address)
                     <div class="small text-muted">{{ $branch->address }}</div>
                   @endif
+                </td>
+                <td>
+                  @forelse($branch->businesses as $assignedBusiness)
+                    <span class="badge badge-light border">{{ $assignedBusiness->name }}</span>
+                  @empty
+                    <span class="text-muted">{{ $branch->business?->name ?? '—' }}</span>
+                  @endforelse
                 </td>
                 <td>{{ $branch->location ?: '—' }}</td>
                 <td>
@@ -208,6 +227,22 @@
                         </div>
 
                         <div class="form-group mb-0">
+                          <label class="font-weight-bold">Businesses at this branch</label>
+                          @foreach($ownerBusinesses as $ownerBusiness)
+                            @php
+                              $assignedIds = $branch->businesses->pluck('id')->all();
+                              if (empty($assignedIds) && $branch->business_id) {
+                                  $assignedIds = [$branch->business_id];
+                              }
+                            @endphp
+                            <div class="custom-control custom-checkbox">
+                              <input type="checkbox" class="custom-control-input" id="editBusiness{{ $branch->id }}_{{ $ownerBusiness->id }}" name="business_ids[]" value="{{ $ownerBusiness->id }}" {{ in_array($ownerBusiness->id, old('business_ids', $assignedIds)) ? 'checked' : '' }}>
+                              <label class="custom-control-label" for="editBusiness{{ $branch->id }}_{{ $ownerBusiness->id }}">{{ $ownerBusiness->name }}</label>
+                            </div>
+                          @endforeach
+                        </div>
+
+                        <div class="form-group mb-0 mt-3">
                           <div class="custom-control custom-checkbox">
                             <input type="checkbox" class="custom-control-input" id="branchActive{{ $branch->id }}" name="is_active" value="1" {{ $branch->is_active ? 'checked' : '' }}>
                             <label class="custom-control-label" for="branchActive{{ $branch->id }}">Branch is active</label>
@@ -224,7 +259,7 @@
               </div>
             @empty
               <tr>
-                <td colspan="6" class="text-center text-muted py-4">No branches registered yet. Add your first branch on the left.</td>
+                <td colspan="7" class="text-center text-muted py-4">No branches registered yet. Add your first branch on the left.</td>
               </tr>
             @endforelse
           </tbody>

@@ -84,14 +84,14 @@
 
                 <div id="providerFields" style="display: none;">
                     <div class="form-group">
-                        <label class="control-label">Provider Name</label>
+                        <label class="control-label required">Provider Name</label>
                         <select name="payment_provider" id="paymentProvider" class="form-control">
                             <option value="">-- Select Provider --</option>
                         </select>
                     </div>
                     <div class="form-group mb-0">
-                        <label class="control-label">Transaction Reference No.</label>
-                        <input type="text" name="transaction_reference" class="form-control" placeholder="e.g. 7XG12AB9Z">
+                        <label class="control-label required">Transaction Reference No.</label>
+                        <input type="text" name="transaction_reference" id="transactionReference" class="form-control" placeholder="e.g. 7XG12AB9Z">
                     </div>
                 </div>
               </div>

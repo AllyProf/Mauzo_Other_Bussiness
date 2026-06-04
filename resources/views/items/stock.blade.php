@@ -154,9 +154,14 @@
 
       @if(!empty($activeBranchName))
       <div class="alert alert-info py-2 mb-3">
-        <i class="fa fa-info-circle"></i>
-        Showing items received at <strong>{{ $activeBranchName }}</strong>.
-        Current stock quantities are shared across the whole business.
+        <i class="fa fa-map-marker"></i>
+        Showing stock for <strong>{{ $activeBranchName }}</strong> — items in categories assigned to this branch.
+        Business type tabs reflect this branch only.
+      </div>
+      @elseif($viewingAllBranches ?? false)
+      <div class="alert alert-light border py-2 mb-3">
+        <i class="fa fa-building"></i>
+        Viewing <strong>all branches</strong>. Switch branch in the header to filter by branch.
       </div>
       @endif
 
@@ -232,7 +237,27 @@
                 <div class="mb-3">
                   <div class="bg-white border rounded p-2 shadow-xs">
                     <div class="smallest text-muted text-uppercase font-weight-bold mb-1">Available</div>
-                    @if($item['has_bulk_stock'])
+                    @if(!empty($item['packaging_breakdown']))
+                      <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                        <div class="smallest text-muted">Pieces</div>
+                        <div class="font-weight-bold text-{{ $item['status_color'] }}">
+                          {{ $item['formatted_quantity'] }} pcs
+                        </div>
+                      </div>
+                      @foreach($item['packaging_breakdown'] as $pkgStock)
+                        <div class="d-flex justify-content-between align-items-center {{ $loop->last ? '' : 'mb-1' }}">
+                          <div class="smallest text-muted">
+                            {{ $pkgStock['name'] }}
+                            @if(($pkgStock['quantity_per_unit'] ?? 1) > 1)
+                              <span class="text-muted">({{ $pkgStock['quantity_per_unit'] }} pcs)</span>
+                            @endif
+                          </div>
+                          <div class="font-weight-bold text-{{ $item['status_color'] }}">
+                            {{ $pkgStock['formatted_count'] }}
+                          </div>
+                        </div>
+                      @endforeach
+                    @elseif($item['has_bulk_stock'])
                       <div class="d-flex justify-content-between align-items-center">
                         <div>
                           <div class="smallest text-muted">Pieces</div>
@@ -344,7 +369,19 @@
                   </td>
                   <td><span class="badge badge-secondary">{{ $item['unit'] }}</span></td>
                   <td>
-                    @if($item['has_bulk_stock'])
+                    @if(!empty($item['packaging_breakdown']))
+                      <strong class="text-{{ $item['status_color'] }}">{{ $item['formatted_quantity'] }} pcs</strong>
+                      @foreach($item['packaging_breakdown'] as $pkgStock)
+                        <br>
+                        <span class="smallest text-muted">
+                          {{ $pkgStock['name'] }}:
+                          <strong class="text-{{ $item['status_color'] }}">{{ $pkgStock['formatted_count'] }}</strong>
+                          @if(($pkgStock['quantity_per_unit'] ?? 1) > 1)
+                            <span>({{ $pkgStock['quantity_per_unit'] }} pcs each)</span>
+                          @endif
+                        </span>
+                      @endforeach
+                    @elseif($item['has_bulk_stock'])
                       <strong class="text-{{ $item['status_color'] }}">{{ $item['formatted_quantity'] }} pcs</strong>
                       <br>
                       <span class="smallest text-muted">{{ $item['stock_bulk_count'] }} {{ $item['stock_bulk_name'] }}</span>
@@ -406,7 +443,7 @@
             <i class="fa fa-info-circle fa-2x mb-3"></i>
             @if(!empty($activeBranchName))
             <h4>No in-stock items for {{ $activeBranchName }}.</h4>
-            <p class="text-muted mb-0">No items with stock were received at this branch yet, or all received stock has been sold.<br>Try another branch, record a stock-in for this branch, or view all branches.</p>
+            <p class="text-muted mb-0">No items with stock belong to categories assigned to this branch yet.<br>Switch branch in the header, assign categories to this branch, or record a stock-in.</p>
             @else
             <h4>No in-stock items to display.</h4>
             <p class="text-muted mb-0">Items with zero stock or no category assigned are hidden here.<br>Assign categories on the Items page, or record stock-in for empty items.</p>
@@ -455,11 +492,11 @@ $(document).ready(function () {
             }
 
             if (!hasMultipleBusinessTypes || activeBusinessType === 'all') {
-                $pill.toggle(!!$pill.data('business-type'));
+                $pill.show();
                 return;
             }
 
-            $pill.toggle(String($pill.data('business-type')) === String(activeBusinessType));
+            $pill.toggle(String($pill.attr('data-business-type')) === String(activeBusinessType));
         });
 
         const $active = $('#categoryContainer .filter-pill.active:visible');

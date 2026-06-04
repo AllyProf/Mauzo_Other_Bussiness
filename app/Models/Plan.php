@@ -22,9 +22,13 @@ class Plan extends Model
         'max_users',
         'max_business_types',
         'max_branches',
+        'max_storage_mb',
         'max_sms',
         'max_email_sms',
+        'allow_sms_sending',
+        'allow_email_sms',
         'features',
+        'enabled_features',
     ];
 
     protected $casts = [
@@ -36,13 +40,71 @@ class Plan extends Model
         'max_users' => 'integer',
         'max_business_types' => 'integer',
         'max_branches' => 'integer',
+        'max_storage_mb' => 'integer',
         'max_sms' => 'integer',
         'max_email_sms' => 'integer',
+        'allow_sms_sending' => 'boolean',
+        'allow_email_sms' => 'boolean',
+        'enabled_features' => 'array',
     ];
 
     public function formatLimit(?int $value): string
     {
         return ($value ?? 0) === 0 ? 'Unlimited' : number_format($value);
+    }
+
+    public function formatStorageLimit(?int $mb = null): string
+    {
+        $mb = $mb ?? $this->max_storage_mb ?? 0;
+
+        if ($mb === 0) {
+            return 'Unlimited';
+        }
+
+        if ($mb >= 1024) {
+            $gb = $mb / 1024;
+
+            return rtrim(rtrim(number_format($gb, 2), '0'), '.').' GB';
+        }
+
+        return number_format($mb).' MB';
+    }
+
+    public function enabledFeatures(): array
+    {
+        if ($this->enabled_features === null) {
+            return app(\App\Services\PlanFeatureService::class)->allKeys();
+        }
+
+        return is_array($this->enabled_features) ? $this->enabled_features : [];
+    }
+
+    public function hasFeature(string $key): bool
+    {
+        return in_array($key, $this->enabledFeatures(), true);
+    }
+
+    public function allowsSmsSending(): bool
+    {
+        return (bool) ($this->allow_sms_sending ?? true);
+    }
+
+    public function allowsEmailSms(): bool
+    {
+        return (bool) ($this->allow_email_sms ?? true);
+    }
+
+    public function smsChannelLabel(): string
+    {
+        $parts = [];
+        if ($this->allowsSmsSending()) {
+            $parts[] = 'SMS';
+        }
+        if ($this->allowsEmailSms()) {
+            $parts[] = 'Email SMS';
+        }
+
+        return $parts === [] ? 'Disabled' : implode(' + ', $parts);
     }
 
     public function usesProfitShareBilling(): bool

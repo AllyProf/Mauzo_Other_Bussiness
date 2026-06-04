@@ -30,7 +30,7 @@
             <label class="control-label" for="note-remind-at">Remind me on</label>
             <input type="datetime-local" class="form-control" id="note-remind-at" name="remind_at"
               value="{{ old('remind_at', isset($editNote) && $editNote->remind_at ? $editNote->remind_at->format('Y-m-d\TH:i') : '') }}">
-            <small class="form-text text-muted">Leave empty if you only want to save the note without a reminder.</small>
+            <small class="form-text text-muted">When this time is reached, you get an in-app alert and an SMS (if enabled in Settings and your profile has a phone number).</small>
           </div>
         </div>
         <div class="modal-footer">

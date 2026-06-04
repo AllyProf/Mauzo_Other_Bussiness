@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\Concerns\EnsuresPlatformAdmin;
 use App\Models\AuditLog;
 use App\Models\Plan;
 use App\Services\PlatformSettingsService;
@@ -13,13 +14,15 @@ use Illuminate\Validation\Rule;
 
 class SystemSettingsController extends Controller
 {
+    use EnsuresPlatformAdmin;
+
     public function __construct(private PlatformSettingsService $settings)
     {
     }
 
     public function index()
     {
-        $this->ensureSuperAdmin();
+        $this->ensurePlatformAdmin('settings');
 
         $settings = $this->settings->all();
         $plans = Plan::orderBy('price')->get();
@@ -29,7 +32,7 @@ class SystemSettingsController extends Controller
 
     public function updateProfile(Request $request)
     {
-        $this->ensureSuperAdmin();
+        $this->ensurePlatformAdmin('settings');
 
         $data = $request->validate([
             'platform_name' => 'required|string|max:100',
@@ -51,7 +54,7 @@ class SystemSettingsController extends Controller
 
     public function updateRegistration(Request $request)
     {
-        $this->ensureSuperAdmin();
+        $this->ensurePlatformAdmin('settings');
 
         $data = $request->validate([
             'allow_public_registration' => 'nullable|boolean',
@@ -76,13 +79,16 @@ class SystemSettingsController extends Controller
 
     public function updateSubscription(Request $request)
     {
-        $this->ensureSuperAdmin();
+        $this->ensurePlatformAdmin('settings');
 
         $data = $request->validate([
             'grace_period_days' => 'required|integer|min:0|max:90',
             'expiry_warning_days' => 'required|integer|min:1|max:90',
             'auto_suspend_on_expiry' => 'nullable|boolean',
             'auto_email_billing_invoices' => 'nullable|boolean',
+            'payment_reminder_days' => 'required|integer|min:1|max:90',
+            'payment_reminder_channels' => 'nullable|string|max:50',
+            'auto_suspend_unpaid_days' => 'required|integer|min:0|max:90',
             'payment_instructions' => 'nullable|string|max:2000',
             'default_billing_model' => 'required|in:fixed_monthly,profit_share',
             'default_profit_share_percent' => 'required|numeric|min:0|max:100',
@@ -94,6 +100,9 @@ class SystemSettingsController extends Controller
             'expiry_warning_days' => $data['expiry_warning_days'],
             'auto_suspend_on_expiry' => $request->boolean('auto_suspend_on_expiry'),
             'auto_email_billing_invoices' => $request->boolean('auto_email_billing_invoices'),
+            'payment_reminder_days' => $data['payment_reminder_days'],
+            'payment_reminder_channels' => $data['payment_reminder_channels'] ?? 'email,sms',
+            'auto_suspend_unpaid_days' => $data['auto_suspend_unpaid_days'],
             'payment_instructions' => $data['payment_instructions'] ?? '',
             'default_billing_model' => $data['default_billing_model'],
             'default_profit_share_percent' => $data['default_profit_share_percent'],
@@ -107,7 +116,7 @@ class SystemSettingsController extends Controller
 
     public function updateMail(Request $request)
     {
-        $this->ensureSuperAdmin();
+        $this->ensurePlatformAdmin('settings');
 
         $data = $request->validate([
             'mail_host' => 'nullable|string|max:255',
@@ -136,16 +145,80 @@ class SystemSettingsController extends Controller
 
     public function updateSecurity(Request $request)
     {
-        $this->ensureSuperAdmin();
+        $this->ensurePlatformAdmin('settings');
 
         $data = $request->validate([
             'maintenance_mode' => 'nullable|boolean',
             'maintenance_message' => 'nullable|string|max:500',
+            'admin_ip_allowlist' => 'nullable|string|max:2000',
+            'admin_notification_email' => 'nullable|email|max:255',
+            'admin_notification_phone' => 'nullable|string|max:30',
+            'audit_log_retention_days' => 'required|integer|min:30|max:3650',
+            'sms_enabled' => 'nullable|boolean',
+            'sms_registration_verification' => 'nullable|boolean',
+            'sms_registration_approved' => 'nullable|boolean',
+            'sms_registration_rejected' => 'nullable|boolean',
+            'sms_password_reset' => 'nullable|boolean',
+            'sms_account_suspended' => 'nullable|boolean',
+            'sms_account_reactivated' => 'nullable|boolean',
+            'sms_auto_suspend' => 'nullable|boolean',
+            'sms_invoice_issued' => 'nullable|boolean',
+            'sms_payment_confirmed' => 'nullable|boolean',
+            'sms_ticket_new_admin' => 'nullable|boolean',
+            'sms_ticket_reply_business' => 'nullable|boolean',
+            'sms_staff_welcome' => 'nullable|boolean',
+            'sms_demo_lead_admin' => 'nullable|boolean',
+            'email_enabled' => 'nullable|boolean',
+            'email_registration_verification' => 'nullable|boolean',
+            'email_registration_approved' => 'nullable|boolean',
+            'email_registration_rejected' => 'nullable|boolean',
+            'email_password_reset' => 'nullable|boolean',
+            'email_account_suspended' => 'nullable|boolean',
+            'email_account_reactivated' => 'nullable|boolean',
+            'email_auto_suspend' => 'nullable|boolean',
+            'email_invoice_issued' => 'nullable|boolean',
+            'email_payment_confirmed' => 'nullable|boolean',
+            'email_ticket_new_admin' => 'nullable|boolean',
+            'email_ticket_reply_business' => 'nullable|boolean',
+            'email_staff_welcome' => 'nullable|boolean',
+            'email_demo_lead_admin' => 'nullable|boolean',
         ]);
 
         $this->settings->update([
             'maintenance_mode' => $request->boolean('maintenance_mode'),
             'maintenance_message' => $data['maintenance_message'] ?? $this->settings->get('maintenance_message'),
+            'admin_ip_allowlist' => $data['admin_ip_allowlist'] ?? '',
+            'admin_notification_email' => $data['admin_notification_email'] ?? '',
+            'admin_notification_phone' => $data['admin_notification_phone'] ?? '',
+            'audit_log_retention_days' => $data['audit_log_retention_days'],
+            'sms_enabled' => $request->boolean('sms_enabled'),
+            'sms_registration_verification' => $request->boolean('sms_registration_verification'),
+            'sms_registration_approved' => $request->boolean('sms_registration_approved'),
+            'sms_registration_rejected' => $request->boolean('sms_registration_rejected'),
+            'sms_password_reset' => $request->boolean('sms_password_reset'),
+            'sms_account_suspended' => $request->boolean('sms_account_suspended'),
+            'sms_account_reactivated' => $request->boolean('sms_account_reactivated'),
+            'sms_auto_suspend' => $request->boolean('sms_auto_suspend'),
+            'sms_invoice_issued' => $request->boolean('sms_invoice_issued'),
+            'sms_payment_confirmed' => $request->boolean('sms_payment_confirmed'),
+            'sms_ticket_new_admin' => $request->boolean('sms_ticket_new_admin'),
+            'sms_ticket_reply_business' => $request->boolean('sms_ticket_reply_business'),
+            'sms_staff_welcome' => $request->boolean('sms_staff_welcome'),
+            'sms_demo_lead_admin' => $request->boolean('sms_demo_lead_admin'),
+            'email_enabled' => $request->boolean('email_enabled'),
+            'email_registration_verification' => $request->boolean('email_registration_verification'),
+            'email_registration_approved' => $request->boolean('email_registration_approved'),
+            'email_registration_rejected' => $request->boolean('email_registration_rejected'),
+            'email_password_reset' => $request->boolean('email_password_reset'),
+            'email_account_suspended' => $request->boolean('email_account_suspended'),
+            'email_account_reactivated' => $request->boolean('email_account_reactivated'),
+            'email_auto_suspend' => $request->boolean('email_auto_suspend'),
+            'email_invoice_issued' => $request->boolean('email_invoice_issued'),
+            'email_payment_confirmed' => $request->boolean('email_payment_confirmed'),
+            'email_ticket_new_admin' => $request->boolean('email_ticket_new_admin'),
+            'email_ticket_reply_business' => $request->boolean('email_ticket_reply_business'),
+            'email_staff_welcome' => $request->boolean('email_staff_welcome'),
+            'email_demo_lead_admin' => $request->boolean('email_demo_lead_admin'),
         ]);
 
         AuditLog::log('UPDATE_PLATFORM_SETTINGS', 'Updated security settings (maintenance mode)');
@@ -155,7 +228,7 @@ class SystemSettingsController extends Controller
 
     public function updatePassword(Request $request)
     {
-        $this->ensureSuperAdmin();
+        $this->ensurePlatformAdmin('settings');
 
         $request->validate([
             'current_password' => 'required|string',
@@ -174,12 +247,5 @@ class SystemSettingsController extends Controller
         AuditLog::log('UPDATE_PLATFORM_SETTINGS', 'Super admin changed account password');
 
         return redirect()->route('admin.settings.index', ['tab' => 'security'])->with('success', 'Your password was updated.');
-    }
-
-    private function ensureSuperAdmin(): void
-    {
-        if (Auth::user()?->role !== 'super_admin') {
-            abort(403);
-        }
     }
 }

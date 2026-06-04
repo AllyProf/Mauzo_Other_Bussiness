@@ -20,17 +20,36 @@
   .reason-required-label { display: none; color: #dc3545; font-size: 0.75rem; }
   .stock-row.needs-reason .reason-required-label { display: block; }
   .stock-row.needs-reason .item-note { border-color: #dc3545; }
+  .count-pcs-wrap { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; }
+  .count-pcs-label { font-size: 0.75rem; color: #6c757d; font-weight: 600; white-space: nowrap; }
+  .bulk-count-hint { display: block; font-size: 0.72rem; color: #6c757d; margin-top: 4px; }
 </style>
 @endsection
 
 @section('content')
+@php
+  $hasBulkItems = $items->contains(fn ($item) => ($item->stock_info['has_bulk_stock'] ?? false));
+@endphp
 <div class="app-title">
   <div>
     <h1><i class="fa fa-clipboard"></i> Open Shift — Physical Stock Check</h1>
-    <p>Verify stock on hand before selling. Physical count defaults to system — change only where different.</p>
+    <p>Verify stock on hand before selling. Enter physical count in <strong>pieces (pcs)</strong> only — change only where different from system stock.</p>
   </div>
   <a href="{{ route('shifts.index') }}" class="btn btn-secondary"><i class="fa fa-arrow-left"></i> Back</a>
 </div>
+
+@include('home.partials.my-stock-shortages')
+
+@if(!empty($assignedBusinessLabel) || !empty($assignedBranchName))
+<div class="alert alert-info py-2 mb-3">
+  <i class="fa fa-user"></i>
+  Your stock check shows items for
+  @if(!empty($assignedBranchName)) branch <strong>{{ $assignedBranchName }}</strong>@endif
+  @if(!empty($assignedBranchName) && !empty($assignedBusinessLabel)) · @endif
+  @if(!empty($assignedBusinessLabel)) business <strong>{{ $assignedBusinessLabel }}</strong>@endif
+  only.
+</div>
+@endif
 
 <div class="tile">
   <form action="{{ route('shifts.store') }}" method="POST" id="openShiftForm">
@@ -41,6 +60,13 @@
         <i class="fa fa-exclamation-triangle"></i> No items with stock on hand. Receive stock or add items before opening a shift.
       </div>
     @else
+      @if($hasBulkItems)
+        <div class="alert alert-light border small mb-3 py-2">
+          <i class="fa fa-info-circle text-primary"></i>
+          Items sold by <strong>box and piece</strong> (e.g. 74 pcs · 7 Box) need only one count — enter the <strong>total pieces</strong> you physically have. Box totals in System Stock are for reference.
+        </div>
+      @endif
+
       <div class="d-flex flex-wrap align-items-center justify-content-end mb-3">
         <div class="stock-search-wrap">
           <input type="text" id="itemSearch" class="form-control form-control-sm" placeholder="Search by name or SKU...">
@@ -54,7 +80,7 @@
               <th>Item</th>
               <th>Category</th>
               <th class="text-right">System Stock</th>
-              <th class="text-right">Physical Count <small class="text-muted">(pieces)</small></th>
+              <th class="text-right">Physical Count <small class="text-muted">(pcs only)</small></th>
               <th class="text-right">Variance</th>
               <th>Reason / Notes</th>
             </tr>
@@ -62,19 +88,36 @@
           <tbody>
             @foreach($items as $item)
               @php
-                $system = (float) $item->current_stock;
+                $stockInfo = $item->stock_info ?? app(\App\Services\ItemStockDisplayService::class)->format($item);
+                $system = (float) $stockInfo['pieces'];
                 $counted = old('counts.'.$item->id, $system);
                 $variance = (float) $counted - $system;
+                $hasBulk = $stockInfo['has_bulk_stock'] ?? false;
               @endphp
-              <tr class="stock-row" data-search="{{ strtolower($item->name.' '.($item->sku ?? '').' '.($item->category->name ?? '')) }}" data-system="{{ $system }}">
+              <tr class="stock-row"
+                  data-search="{{ strtolower($item->name.' '.($item->sku ?? '').' '.($item->category->name ?? '')) }}"
+                  data-system="{{ $system }}"
+                  @if($hasBulk) data-pack-size="{{ $stockInfo['pack_size'] }}" data-bulk-name="{{ $stockInfo['bulk_name'] }}" @endif>
                 <td>
                   <strong>{{ $item->name }}</strong>
                   @if($item->sku)<br><small class="text-muted">{{ $item->sku }}</small>@endif
                 </td>
                 <td>{{ $item->category->name ?? '—' }}</td>
-                <td class="text-right system-stock">{{ $item->stockDisplay() }}</td>
+                <td class="text-right system-stock">{{ $stockInfo['stock_display'] }}</td>
                 <td class="text-right">
-                  <input type="number" name="counts[{{ $item->id }}]" class="form-control form-control-sm counted-stock ml-auto" min="0" step="0.01" value="{{ $counted }}" required>
+                  <div class="count-pcs-wrap ml-auto">
+                    <input type="number"
+                           name="counts[{{ $item->id }}]"
+                           class="form-control form-control-sm counted-stock"
+                           min="0"
+                           step="{{ $hasBulk ? '1' : '0.01' }}"
+                           value="{{ fmod((float) $counted, 1.0) === 0.0 ? (int) $counted : $counted }}"
+                           required>
+                    <span class="count-pcs-label">pcs</span>
+                  </div>
+                  @if($hasBulk)
+                    <small class="bulk-count-hint"></small>
+                  @endif
                 </td>
                 <td class="text-right variance-cell {{ abs($variance) < 0.001 ? 'variance-ok' : ($variance < 0 ? 'variance-short' : 'variance-bad') }}">{{ number_format($variance, 2) }}</td>
                 <td>
@@ -106,10 +149,36 @@
 @if(!$items->isEmpty())
 <script>
 jQuery(function($) {
+  function formatBulkHint(pieces, packSize, bulkName) {
+    packSize = Math.max(1, parseInt(packSize, 10) || 1);
+    bulkName = bulkName || 'Box';
+    pieces = Math.max(0, parseFloat(pieces) || 0);
+    const fullBoxes = Math.floor(pieces / packSize);
+    const loose = Math.round((pieces - (fullBoxes * packSize)) * 100) / 100;
+
+    if (fullBoxes > 0 && loose > 0.0001) {
+      return '= ' + fullBoxes + ' ' + bulkName + ' + ' + (loose % 1 === 0 ? loose : loose.toFixed(2)) + ' pcs';
+    }
+    if (fullBoxes > 0) {
+      return '= ' + fullBoxes + ' ' + bulkName;
+    }
+    return '= ' + (pieces % 1 === 0 ? pieces : pieces.toFixed(2)) + ' pcs';
+  }
+
   function needsReason($row) {
     const system = parseFloat($row.data('system')) || 0;
     const counted = parseFloat($row.find('.counted-stock').val()) || 0;
     return counted < system - 0.0001;
+  }
+
+  function updateBulkHint($row) {
+    const packSize = $row.data('pack-size');
+    if (!packSize) {
+      return;
+    }
+
+    const counted = parseFloat($row.find('.counted-stock').val()) || 0;
+    $row.find('.bulk-count-hint').text(formatBulkHint(counted, packSize, $row.data('bulk-name')));
   }
 
   function updateVariance($row) {
@@ -131,6 +200,8 @@ jQuery(function($) {
       $cell.addClass('variance-bad');
       $row.removeClass('needs-reason');
     }
+
+    updateBulkHint($row);
   }
 
   $('#itemSearch').on('input', function() {

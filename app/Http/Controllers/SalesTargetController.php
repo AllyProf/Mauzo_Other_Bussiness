@@ -21,13 +21,15 @@ class SalesTargetController extends Controller
         $this->authorizeAny(['manage_business_settings']);
 
         $business = Auth::user()->business;
-        $businessTypes = $business->posBusinessTypesMeta();
+        $filter = $this->branchBusinessFilterContext($request);
+        extract($filter);
         $branches = Branch::where('business_id', $business->id)->where('is_active', true)->orderBy('name')->get();
-        $staff = User::where('business_id', $business->id)
+        $staffQuery = User::where('business_id', $business->id)
             ->where('role', '!=', 'owner')
             ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'branch_id']);
+            ->orderBy('name');
+        $this->scopeStaffToActiveBranch($staffQuery);
+        $staff = $staffQuery->get(['id', 'name', 'branch_id']);
 
         $editTarget = null;
         if ($request->filled('edit')) {
@@ -35,12 +37,24 @@ class SalesTargetController extends Controller
                 ->find($request->integer('edit'));
         }
 
-        $targets = SalesTarget::where('business_id', $business->id)
+        $targetsQuery = SalesTarget::where('business_id', $business->id)
             ->with(['branch', 'user', 'creator'])
             ->orderByDesc('period_start')
-            ->orderBy('period_type')
-            ->paginate(20)
-            ->withQueryString();
+            ->orderBy('period_type');
+
+        if ($branchFilterId) {
+            $targetsQuery->where(function ($query) use ($branchFilterId) {
+                $query->where('branch_id', $branchFilterId)->orWhereNull('branch_id');
+            });
+        }
+
+        if ($activeBusinessType) {
+            $targetsQuery->where(function ($query) use ($activeBusinessType) {
+                $query->where('business_type_key', $activeBusinessType)->orWhereNull('business_type_key');
+            });
+        }
+
+        $targets = $targetsQuery->paginate(20)->withQueryString();
 
         $targets->getCollection()->transform(function (SalesTarget $target) use ($business) {
             $actual = $this->targets->actualRevenue($target);
@@ -56,12 +70,11 @@ class SalesTargetController extends Controller
 
         return view('sales-targets.index', compact(
             'business',
-            'businessTypes',
             'branches',
             'staff',
             'targets',
             'editTarget',
-        ));
+        ) + $filter);
     }
 
     public function store(Request $request)

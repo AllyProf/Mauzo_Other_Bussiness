@@ -36,6 +36,10 @@
         $('#payCustomerPhone').val(formatPhoneForSave($('#payCustomerPhoneLocal').val()));
     }
 
+    function setProviderFieldRequirements(requiresRef) {
+        $('#paymentProvider, #transactionReference').prop('required', requiresRef);
+    }
+
     function setCustomerFieldRequirements(mode) {
         const needsCustomer = mode === 'partial' || mode === 'debt';
         $('#payCustomerName').prop('required', needsCustomer);
@@ -354,7 +358,9 @@
         $('#paymentAmountSection, #providerFields').hide();
         $('#payReceiveDetailsBox').hide();
         $('#paymentProvider').empty().append('<option value="">-- Select Provider --</option>');
+        $('#transactionReference').val('');
         $('#amountPaid').prop('required', false);
+        setProviderFieldRequirements(false);
         $('#paymentSubmitBtn').html('<i class="fa fa-check"></i> Save Payment');
 
         if (method && methodType !== 'credit') {
@@ -363,6 +369,7 @@
 
             if (requiresRef) {
                 $('#providerFields').show();
+                setProviderFieldRequirements(true);
                 providerAccounts.forEach(function (account) {
                     if (!account.name) return;
                     $('#paymentProvider').append(
@@ -429,6 +436,32 @@
                     confirmButtonColor: '#940000'
                 });
                 $('#payDueDate').focus();
+                return false;
+            }
+        }
+
+        if ($('#providerFields').is(':visible')) {
+            if (!$('#paymentProvider').val()) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Provider required',
+                    text: 'Please select the payment provider (e.g. M-Pesa, Tigo Pesa).',
+                    confirmButtonColor: '#940000'
+                });
+                $('#paymentProvider').focus();
+                return false;
+            }
+
+            if (!$('#transactionReference').val().trim()) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Reference required',
+                    text: 'Please enter the transaction reference number from the payment.',
+                    confirmButtonColor: '#940000'
+                });
+                $('#transactionReference').focus();
                 return false;
             }
         }

@@ -37,7 +37,7 @@
             @foreach($pendingRegistrations as $business)
             <tr>
               <td><strong>{{ $business->name }}</strong></td>
-              <td>{{ $business->contact_person ?? $business->owner?->name ?? '—' }}</td>
+              <td>{{ $business->contact_person ?? $business->ownerUser?->name ?? '—' }}</td>
               <td>{{ $business->phone ?? '—' }}</td>
               <td>{{ $business->region ?? '—' }}<br><small class="text-muted">{{ $business->district ?? '' }}</small></td>
               <td>{{ collect($business->categoryBusinessTypesList())->first()['label'] ?? '—' }}</td>
@@ -71,104 +71,198 @@
         <p><a class="btn btn-primary icon-btn" href="{{ route('admin.businesses.create') }}"><i class="fa fa-plus"></i>Register New Business</a></p>
       </div>
       <div class="tile-body">
-        <table class="table table-hover table-bordered" id="businessTable">
-          <thead>
-            <tr>
-              <th>Business Name</th>
-              <th>Email</th>
-              <th>Current Plan</th>
-              <th>Billing Model</th>
-              <th>Billing Details</th>
-              <th>This Month Fee</th>
-              <th>Expiry Date</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @foreach($businesses as $business)
-                <tr>
-                    <td>{{ $business->name }}</td>
-                    <td>{{ $business->email }}</td>
-                    <td><span class="badge badge-info">{{ $business->plan->name ?? 'No Plan' }}</span></td>
-                    <td>{{ $business->billingModelLabel() }}</td>
-                    <td><small class="text-muted">{{ $business->billingSummary() }}</small></td>
-                    <td>
-                      @if(isset($businessFees[$business->id]))
-                        <strong>TZS {{ number_format($businessFees[$business->id]['amount'], 0) }}</strong>
-                        <br><small class="text-muted">{{ $businessFees[$business->id]['label'] }}</small>
-                      @else
-                        —
-                      @endif
-                    </td>
-                    <td>{{ $business->expiry_date ? \Carbon\Carbon::parse($business->expiry_date)->format('M d, Y') : 'N/A' }}</td>
-                    <td>
-                        @if($business->pending_approval)
-                            <span class="badge badge-warning">Pending Approval</span>
-                        @elseif(!$business->is_active)
-                            <span class="badge badge-danger">Suspended</span>
-                        @elseif($business->expiry_date && \Carbon\Carbon::parse($business->expiry_date)->isPast())
-                            <span class="badge badge-danger">Expired</span>
-                        @else
-                            <span class="badge badge-success">Active</span>
-                        @endif
-                    </td>
-                    <td class="text-center">
-                        @if($business->pending_approval)
-                        <form action="{{ route('admin.businesses.approve', $business->id) }}" method="POST" class="d-inline">
-                            @csrf
-                            <button type="submit" class="btn btn-success btn-sm mr-1" title="Approve Registration" onclick="confirmAction(event, 'Approve registration?', 'This will activate the account and start their free trial.')">
-                                <i class="fa fa-check"></i>
-                            </button>
-                        </form>
-                        <form action="{{ route('admin.businesses.reject', $business->id) }}" method="POST" class="d-inline">
-                            @csrf
-                            <button type="submit" class="btn btn-danger btn-sm mr-1" title="Reject Registration" onclick="confirmAction(event, 'Reject registration?', 'This will permanently remove this registration request.')">
-                                <i class="fa fa-times"></i>
-                            </button>
-                        </form>
-                        @else
-                        <a href="{{ route('admin.businesses.edit', $business->id) }}" class="btn btn-info btn-sm mr-1" title="Edit Business Details">
-                            <i class="fa fa-edit"></i>
-                        </a>
-                        @endif
-                        
-                        @if(!$business->pending_approval)
-                        <form action="{{ route('admin.businesses.toggle-status', $business->id) }}" method="POST" class="d-inline">
-                            @csrf
-                            @if($business->is_active)
-                                <button type="submit" class="btn btn-danger btn-sm mr-1" title="Suspend Business" onclick="confirmAction(event, 'Suspend Business?', 'This will lock out all staff from this business immediately!')">
-                                    <i class="fa fa-ban"></i>
-                                </button>
-                            @else
-                                <button type="submit" class="btn btn-success btn-sm mr-1" title="Activate Business" onclick="confirmAction(event, 'Activate Business?', 'This will restore access for all staff members.')">
-                                    <i class="fa fa-check"></i>
-                                </button>
-                            @endif
-                        </form>
-                        @endif
-                        
-                        @if(!$business->pending_approval)
-                        <form action="{{ route('admin.impersonate', $business->id) }}" method="POST" class="d-inline">
-                            @csrf
-                            <button type="submit" class="btn btn-primary btn-sm" title="Login As Business" onclick="confirmAction(event, 'Impersonate Business?', 'You will be logged in as the owner of this business.')">
-                                <i class="fa fa-user-secret"></i>
-                            </button>
-                        </form>
-                        @endif
-                    </td>
-                </tr>
-            @endforeach
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="table table-hover table-bordered mb-0" id="businessTable">
+            <thead>
+              <tr>
+                <th>Business Name</th>
+                <th>Current Plan</th>
+                <th>Status</th>
+                <th class="text-center" style="min-width: 180px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach($businesses as $business)
+              @php
+                $ownerCount = $business->owner_user_id ? ($ownerBusinessCounts[$business->owner_user_id] ?? 0) : 0;
+                $fee = $businessFees[$business->id] ?? null;
+              @endphp
+              <tr data-business-id="{{ $business->id }}">
+                <td>
+                  <strong>{{ $business->name }}</strong>
+                  @if($business->email)
+                  <br><small class="text-muted">{{ $business->email }}</small>
+                  @endif
+                </td>
+                <td><span class="badge badge-info">{{ $business->plan->name ?? 'No Plan' }}</span></td>
+                <td>
+                  @if($business->pending_approval)
+                    <span class="badge badge-warning">Pending Approval</span>
+                  @elseif(!$business->is_active)
+                    <span class="badge badge-danger">Suspended</span>
+                  @elseif($business->expiry_date && \Carbon\Carbon::parse($business->expiry_date)->isPast())
+                    <span class="badge badge-danger">Expired</span>
+                  @else
+                    <span class="badge badge-success">Active</span>
+                  @endif
+                </td>
+                <td class="text-center text-nowrap">
+                  <button type="button" class="btn btn-outline-secondary btn-sm btn-view-more mr-1" title="View more details">
+                    <i class="fa fa-chevron-down"></i> View more
+                  </button>
+
+                  @if($business->pending_approval)
+                  <form action="{{ route('admin.businesses.approve', $business->id) }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-success btn-sm mr-1" title="Approve Registration" onclick="confirmAction(event, 'Approve registration?', 'This will activate the account and start their free trial.')">
+                      <i class="fa fa-check"></i>
+                    </button>
+                  </form>
+                  <form action="{{ route('admin.businesses.reject', $business->id) }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-danger btn-sm mr-1" title="Reject Registration" onclick="confirmAction(event, 'Reject registration?', 'This will permanently remove this registration request.')">
+                      <i class="fa fa-times"></i>
+                    </button>
+                  </form>
+                  @else
+                  <a href="{{ route('admin.businesses.edit', $business->id) }}" class="btn btn-info btn-sm mr-1" title="Edit Business Details">
+                    <i class="fa fa-edit"></i>
+                  </a>
+                  @endif
+
+                  @if(!$business->pending_approval)
+                  <form action="{{ route('admin.businesses.toggle-status', $business->id) }}" method="POST" class="d-inline">
+                    @csrf
+                    @if($business->is_active)
+                      <button type="submit" class="btn btn-danger btn-sm mr-1" title="Suspend Business" onclick="confirmAction(event, 'Suspend Business?', 'This will lock out all staff from this business immediately!')">
+                        <i class="fa fa-ban"></i>
+                      </button>
+                    @else
+                      <button type="submit" class="btn btn-success btn-sm mr-1" title="Activate Business" onclick="confirmAction(event, 'Activate Business?', 'This will restore access for all staff members.')">
+                        <i class="fa fa-check"></i>
+                      </button>
+                    @endif
+                  </form>
+                  @endif
+
+                  @if(!$business->pending_approval)
+                  <form action="{{ route('admin.impersonate', $business->id) }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-primary btn-sm" title="Login As Business" onclick="confirmAction(event, 'Impersonate Business?', 'You will be logged in as the owner of this business.')">
+                      <i class="fa fa-user-secret"></i>
+                    </button>
+                  </form>
+                  @endif
+                </td>
+              </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+
+        @foreach($businesses as $business)
+        @php
+          $ownerCount = $business->owner_user_id ? ($ownerBusinessCounts[$business->owner_user_id] ?? 0) : 0;
+          $fee = $businessFees[$business->id] ?? null;
+        @endphp
+        <div id="business-details-{{ $business->id }}" class="d-none business-details-panel">
+          <div class="row">
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>Owner</strong><br>
+              @if($business->ownerUser)
+                {{ $business->ownerUser->name }}
+                @if($ownerCount > 1)
+                  <span class="badge badge-secondary ml-1">{{ $ownerCount }} businesses</span>
+                @endif
+              @else
+                {{ $business->contact_person ?? '—' }}
+              @endif
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>Email</strong><br>
+              {{ $business->email ?? '—' }}
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>Phone</strong><br>
+              {{ $business->phone ?? '—' }}
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>Billing Model</strong><br>
+              {{ $business->billingModelLabel() }}
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>Billing Details</strong><br>
+              <span class="text-muted">{{ $business->billingSummary() }}</span>
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>This Month Fee</strong><br>
+              @if($fee)
+                TZS {{ number_format($fee['amount'], 0) }}
+                <small class="text-muted d-block">{{ $fee['label'] }}</small>
+              @else
+                —
+              @endif
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>Expiry Date</strong><br>
+              {{ $business->expiry_date ? \Carbon\Carbon::parse($business->expiry_date)->format('M d, Y') : 'N/A' }}
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>Registered</strong><br>
+              {{ $business->created_at->format('M d, Y') }}
+            </div>
+          </div>
+        </div>
+        @endforeach
       </div>
     </div>
   </div>
 </div>
 @endsection
 
+@section('styles')
+<style>
+  .business-details-child {
+    background: #f8f9fa;
+    padding: 14px 16px;
+    border-left: 3px solid #940000;
+  }
+  tr.business-row-expanded td {
+    border-bottom: none;
+  }
+</style>
+@endsection
+
 @section('scripts')
-    <script type="text/javascript" src="{{ asset('admin/js/plugins/jquery.dataTables.min.js') }}"></script>
-    <script type="text/javascript" src="{{ asset('admin/js/plugins/dataTables.bootstrap.min.js') }}"></script>
-    <script type="text/javascript">$('#businessTable').DataTable();</script>
+<script type="text/javascript" src="{{ asset('panel-assets/js/plugins/jquery.dataTables.min.js') }}"></script>
+<script type="text/javascript" src="{{ asset('panel-assets/js/plugins/dataTables.bootstrap.min.js') }}"></script>
+<script type="text/javascript">
+(function () {
+  var table = $('#businessTable').DataTable({
+    order: [[0, 'asc']],
+    columnDefs: [{ orderable: false, targets: 3 }]
+  });
+
+  $('#businessTable tbody').on('click', '.btn-view-more', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    var btn = $(this);
+    var tr = btn.closest('tr');
+    var row = table.row(tr);
+    var businessId = tr.data('business-id');
+    var panel = $('#business-details-' + businessId);
+
+    if (row.child.isShown()) {
+      row.child.hide();
+      tr.removeClass('business-row-expanded');
+      btn.html('<i class="fa fa-chevron-down"></i> View more');
+    } else {
+      row.child('<div class="business-details-child">' + panel.html() + '</div>').show();
+      tr.addClass('business-row-expanded');
+      btn.html('<i class="fa fa-chevron-up"></i> View less');
+    }
+  });
+})();
+</script>
 @endsection

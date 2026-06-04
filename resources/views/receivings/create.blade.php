@@ -176,7 +176,7 @@
 @if($multiBusiness)
 <div class="alert alert-light border mb-3 py-2">
   <i class="fa fa-info-circle text-primary"></i>
-  <strong>Multi-department shop:</strong> choose business first, then pick a category to load items.
+  <strong>Multi-department shop:</strong> choose branch, then business type, then pick a category to load items.
 </div>
 @endif
 
@@ -191,6 +191,9 @@
   <div class="col-md-12">
     <form method="POST" action="{{ route('receivings.store') }}" id="stockReceiptForm">
         @csrf
+        @if(!$multiBranch && $defaultBranchId)
+          <input type="hidden" name="branch_id" id="branch_id" value="{{ $defaultBranchId }}">
+        @endif
       <div class="row">
         {{-- Main column --}}
         <div class="col-md-9">
@@ -233,7 +236,7 @@
                 </div>
               </div>
               @if($multiBusiness)
-              <div class="col-md-3">
+              <div class="col-md-3" id="business-type-field">
             <div class="form-group">
                   <label class="font-weight-bold small text-uppercase">Business *</label>
                   <select class="form-control" id="business-type-selector" required>
@@ -242,16 +245,29 @@
                       <option value="{{ $type['key'] }}">{{ $type['label'] }}</option>
                     @endforeach
                   </select>
+                  <small class="text-muted d-block">Business types for the selected branch.</small>
+            </div>
+          </div>
+              @else
+              <div class="col-md-3 d-none" id="business-type-field">
+            <div class="form-group">
+                  <label class="font-weight-bold small text-uppercase">Business *</label>
+                  <select class="form-control" id="business-type-selector">
+                    <option value="">-- Select Business --</option>
+                  </select>
+                  <small class="text-muted d-block">Business types for the selected branch.</small>
             </div>
           </div>
               @endif
               <div class="col-md-{{ $multiBusiness ? 3 : $receiptCol }}">
             <div class="form-group">
                   <label class="font-weight-bold small text-uppercase text-primary">Load Inventory By Category</label>
-                  <select class="form-control border-primary" id="category_filter" style="border-width: 2px;" {{ $multiBusiness ? 'disabled' : '' }}>
+                  <select class="form-control border-primary" id="category_filter" style="border-width: 2px;">
                     <option value="">-- Choose Category --</option>
                 @foreach($categories as $cat)
-                      <option value="{{ $cat->id }}" data-business-type="{{ $cat->source_business_type_key ?: 'other' }}">{{ $cat->name }}</option>
+                      <option value="{{ $cat->id }}"
+                              data-business-type="{{ $cat->source_business_type_key ?: 'other' }}"
+                              data-branch-id="{{ $cat->branch_id }}">{{ $cat->name }}</option>
                 @endforeach
               </select>
             </div>
@@ -409,14 +425,20 @@
 @section('scripts')
 <script>
   const itemsByCategory = @json($itemsByCategory);
-  const hasMultipleBusinessTypes = @json($multiBusiness);
+  const importedTypesByBranch = @json($importedTypesByBranch ?? []);
+  const categoryBranchMap = @json($categoryBranchMap ?? []);
+  const fixedBranchId = @json($multiBranch ? null : ($defaultBranchId ?? null));
+  let hasMultipleBusinessTypes = @json($multiBusiness);
 
   $(document).ready(function () {
     let receiptItems = [];
     let allFlatItems = [];
 
     Object.keys(itemsByCategory).forEach(catId => {
-      itemsByCategory[catId].forEach(item => allFlatItems.push({ ...item, categoryId: catId }));
+      const branchId = categoryBranchMap[catId] ?? categoryBranchMap[String(catId)] ?? null;
+      itemsByCategory[catId].forEach(item => {
+        allFlatItems.push({ ...item, categoryId: catId, branchId: branchId });
+      });
     });
 
     const categoryFilter = $('#category_filter');
@@ -472,7 +494,56 @@
       </tr>`;
     }
 
+    function getSelectedBranchId() {
+      const branchVal = $('#branch_id').val();
+      if (branchVal) return String(branchVal);
+      if (fixedBranchId) return String(fixedBranchId);
+      return '';
+    }
+
+    function branchBusinessTypes() {
+      const branchId = getSelectedBranchId();
+      if (!branchId) return [];
+      return importedTypesByBranch[branchId] || importedTypesByBranch[Number(branchId)] || [];
+    }
+
+    function rebuildBusinessTypeSelector() {
+      const types = branchBusinessTypes();
+      const $field = $('#business-type-field');
+      const $selector = $('#business-type-selector');
+      const previous = $selector.val();
+
+      hasMultipleBusinessTypes = types.length > 1;
+      $selector.empty().append('<option value="">-- Select Business --</option>');
+
+      types.forEach(function (type) {
+        $selector.append(
+          $('<option></option>').val(type.key).text(type.label || type.key)
+        );
+      });
+
+      if (types.length === 1) {
+        $selector.val(types[0].key);
+      } else if (previous && types.some(function (type) { return String(type.key) === String(previous); })) {
+        $selector.val(previous);
+      } else {
+        $selector.val('');
+      }
+
+      if (types.length === 0) {
+        $field.addClass('d-none');
+        $selector.prop('required', false);
+      } else if (types.length === 1) {
+        $field.addClass('d-none');
+        $selector.prop('required', false);
+      } else {
+        $field.removeClass('d-none');
+        $selector.prop('required', true);
+      }
+    }
+
     function syncCategoryOptions() {
+      const branchId = getSelectedBranchId();
       const businessKey = hasMultipleBusinessTypes ? ($('#business-type-selector').val() || '') : '';
       const $category = categoryFilter;
       const previous = $category.val();
@@ -480,13 +551,24 @@
       $category.find('option').each(function () {
         const $option = $(this);
         if (!$option.val()) { $option.show(); return; }
-        const matches = !hasMultipleBusinessTypes || !businessKey
-          || String($option.data('business-type')) === String(businessKey);
-        $option.toggle(matches);
+
+        const optionBranchId = String($option.attr('data-branch-id') || '');
+        const branchMatches = !branchId || optionBranchId === branchId;
+        const businessMatches = !hasMultipleBusinessTypes || !businessKey
+          || String($option.attr('data-business-type')) === String(businessKey);
+        $option.toggle(branchMatches && businessMatches);
       });
 
-      if (hasMultipleBusinessTypes) $category.prop('disabled', !businessKey);
+      const needsBusinessChoice = hasMultipleBusinessTypes && branchBusinessTypes().length > 1;
+      const hasBranchTypes = branchBusinessTypes().length > 0;
+      $category.prop('disabled', !hasBranchTypes || (needsBusinessChoice && !businessKey));
       if (!$category.find('option[value="' + previous + '"]:visible').length) $category.val('');
+    }
+
+    function syncBranchContext(clearCategory) {
+      rebuildBusinessTypeSelector();
+      if (clearCategory) categoryFilter.val('');
+      syncCategoryOptions();
     }
 
     function lineFigures(item) {
@@ -743,12 +825,35 @@
       categoryFilter.val('');
       syncCategoryOptions();
     });
-    syncCategoryOptions();
+
+    $('#branch_id').on('change', function () {
+      if (receiptItems.length > 0) {
+        Swal.fire({
+          title: 'Branch Changed',
+          text: 'Business types and categories were updated for this branch. Clear the receipt list if needed.',
+          icon: 'info',
+          confirmButtonColor: '#940000',
+        });
+      }
+      syncBranchContext(true);
+    });
+
+    syncBranchContext(false);
 
     itemSearchInput.on('input', function () {
       const query = $(this).val().toLowerCase().trim();
       if (query.length < 2) { searchDropdown.hide(); return; }
-      const filtered = allFlatItems.filter(item => item.name.toLowerCase().includes(query));
+      const branchId = getSelectedBranchId();
+      const businessKey = hasMultipleBusinessTypes ? ($('#business-type-selector').val() || '') : '';
+      const filtered = allFlatItems.filter(function (item) {
+        if (!item.name.toLowerCase().includes(query)) return false;
+        if (branchId && String(item.branchId) !== branchId) return false;
+        if (hasMultipleBusinessTypes && businessKey) {
+          const catOption = categoryFilter.find('option[value="' + item.categoryId + '"]');
+          if (catOption.length && String(catOption.attr('data-business-type')) !== String(businessKey)) return false;
+        }
+        return true;
+      });
       if (!filtered.length) {
         searchDropdown.html('<div class="p-3 text-muted small text-center">No items found.</div>').show();
         return;

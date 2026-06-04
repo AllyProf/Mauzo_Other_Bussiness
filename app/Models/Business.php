@@ -2,11 +2,21 @@
 
 namespace App\Models;
 
+use App\Concerns\ManagesServiceBusinessTypes;
 use Illuminate\Database\Eloquent\Model;
 
 class Business extends Model
 {
+    use ManagesServiceBusinessTypes;
+
+    public const OPERATION_RETAIL = 'retail';
+
+    public const OPERATION_SERVICES = 'services';
+
+    public const OPERATION_BOTH = 'both';
+
     protected $fillable = [
+        'owner_user_id',
         'name',
         'address',
         'region',
@@ -29,6 +39,7 @@ class Business extends Model
         'automation_settings',
         'payment_methods',
         'category_business_types',
+        'service_business_types',
     ];
 
     protected $casts = [
@@ -41,6 +52,7 @@ class Business extends Model
         'automation_settings' => 'array',
         'payment_methods' => 'array',
         'category_business_types' => 'array',
+        'service_business_types' => 'array',
     ];
 
     public static function defaultPaymentMethods(): array
@@ -242,6 +254,9 @@ class Business extends Model
             'notify_debt_overdue' => true,
             'notify_debt_due_soon' => true,
             'debt_due_reminder_days' => 3,
+            'debt_due_reminder_days_second' => 1,
+            'debt_reminder_send_time' => '08:00',
+            'debt_reminder_frequency' => 'once',
             'default_debt_due_days' => 30,
             'notify_low_stock' => true,
             'low_stock_threshold' => 5,
@@ -256,6 +271,120 @@ class Business extends Model
             'shift_max_open_duration' => 1,
             'shift_max_open_unit' => 'days',
             'shift_enforce_max_duration' => true,
+            'sms_staff_enabled' => true,
+            'sms_staff_welcome' => true,
+            'sms_staff_password_reset' => true,
+            'sms_staff_activated' => true,
+            'sms_staff_deactivated' => true,
+            'sms_staff_handover_submitted_owner' => true,
+            'sms_staff_handover_verified_staff' => true,
+            'sms_staff_note_reminder' => true,
+            'sms_debt_enabled' => true,
+            'sms_debt_due_soon_customer' => true,
+            'sms_debt_due_soon_staff' => true,
+            'sms_debt_due_today_customer' => true,
+            'sms_debt_due_today_staff' => true,
+            'sms_debt_overdue_customer' => true,
+            'sms_debt_overdue_staff' => true,
+            'email_staff_enabled' => true,
+            'email_staff_welcome' => true,
+            'email_staff_password_reset' => true,
+            'email_staff_activated' => true,
+            'email_staff_deactivated' => true,
+            'email_staff_handover_submitted_owner' => true,
+            'email_staff_handover_verified_staff' => true,
+            'email_staff_note_reminder' => true,
+            'email_debt_enabled' => true,
+            'email_debt_due_soon_customer' => true,
+            'email_debt_due_soon_staff' => true,
+            'email_debt_due_today_customer' => true,
+            'email_debt_due_today_staff' => true,
+            'email_debt_overdue_customer' => true,
+            'email_debt_overdue_staff' => true,
+            'sms_invoice_created_enabled' => true,
+            'email_invoice_created_enabled' => true,
+            'sms_invoice_created_template' => '{business}: Dear {customer}, invoice {reference} for TZS {amount} dated {date} has been created. Please check your email for the attached invoice.',
+            'email_invoice_created_subject' => '{business} — Invoice {reference}',
+            'email_invoice_created_body' => "Dear {customer},\n\nPlease find invoice {reference} attached.\n\nTotal: TZS {amount}\nDate: {date}\nBalance due: TZS {balance}\n\nThank you for your business.",
+            ...self::defaultDebtSmsTemplates(),
+            ...self::defaultStaffSmsTemplates(),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function defaultStaffSmsTemplates(): array
+    {
+        return [
+            'sms_staff_template_welcome' => '{business}: Your staff account is ready. Email: {email}. Password: {password}',
+            'sms_staff_template_password_reset' => '{business}: Your password was reset. Email: {email}. New password: {password}',
+            'sms_staff_template_activated' => '{business}: Your account is active again. You can sign in with your email and password.',
+            'sms_staff_template_deactivated' => '{business}: Your account has been deactivated. Contact your manager if you need access restored.',
+            'sms_staff_template_handover_submitted_owner' => '{business}: {submitter} submitted daily reconciliation for {date}. Handover TZS {amount}. Please verify in Daily Reconciliation.',
+            'sms_staff_template_handover_verified_staff' => '{business}: Your reconciliation for {date} was verified by {verifier}.{money_short_note}',
+            'sms_staff_template_note_reminder' => '{business} Reminder: {title} ({when}). {preview}',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function staffSmsTemplateLabels(): array
+    {
+        return [
+            'sms_staff_template_welcome' => 'New employee welcome',
+            'sms_staff_template_password_reset' => 'Password reset',
+            'sms_staff_template_activated' => 'Account activated',
+            'sms_staff_template_deactivated' => 'Account deactivated',
+            'sms_staff_template_handover_submitted_owner' => 'Handover submitted (owner)',
+            'sms_staff_template_handover_verified_staff' => 'Handover verified (staff)',
+            'sms_staff_template_note_reminder' => 'Note reminder',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function defaultSmsTemplates(): array
+    {
+        return array_merge(
+            self::defaultDebtSmsTemplates(),
+            self::defaultStaffSmsTemplates(),
+        );
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function defaultDebtSmsTemplates(): array
+    {
+        return [
+            'sms_debt_template_due_soon_customer' => '{business}: Dear {customer}, your balance of TZS {amount} on {reference} is due on {due_date}. Please pay on time.',
+            'sms_debt_template_due_soon_2_customer' => '{business}: Final reminder — Dear {customer}, your balance of TZS {amount} on {reference} is due on {due_date}. Please pay soon.',
+            'sms_debt_template_due_today_customer' => '{business}: Dear {customer}, your payment of TZS {amount} on {reference} is due TODAY ({due_date}). Please settle today.',
+            'sms_debt_template_overdue_customer' => '{business}: Dear {customer}, your payment of TZS {amount} on {reference} was due {due_date}. Please pay as soon as possible.',
+            'sms_debt_template_due_soon_staff' => '{business}: Debt reminder — {customer} owes TZS {amount} on {reference}, due {due_date}.',
+            'sms_debt_template_due_soon_2_staff' => '{business}: Final debt reminder — {customer} owes TZS {amount} on {reference}, due {due_date}.',
+            'sms_debt_template_due_today_staff' => '{business}: Debt due TODAY — {customer} owes TZS {amount} on {reference}. Please follow up.',
+            'sms_debt_template_overdue_staff' => '{business}: Overdue debt — {customer} still owes TZS {amount} on {reference} (was due {due_date}). Follow up urgently.',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function debtSmsTemplateLabels(): array
+    {
+        return [
+            'sms_debt_template_due_soon_customer' => 'Due soon — customer (1st reminder)',
+            'sms_debt_template_due_soon_2_customer' => 'Due soon — customer (2nd reminder)',
+            'sms_debt_template_due_today_customer' => 'Due today — customer',
+            'sms_debt_template_overdue_customer' => 'Overdue — customer',
+            'sms_debt_template_due_soon_staff' => 'Due soon — staff (1st reminder)',
+            'sms_debt_template_due_soon_2_staff' => 'Due soon — staff (2nd reminder)',
+            'sms_debt_template_due_today_staff' => 'Due today — staff',
+            'sms_debt_template_overdue_staff' => 'Overdue — staff',
         ];
     }
 
@@ -272,9 +401,30 @@ class Business extends Model
         return $this->hasMany(User::class);
     }
 
+    public function ownerUser()
+    {
+        return $this->belongsTo(User::class, 'owner_user_id');
+    }
+
+    public function branches()
+    {
+        return $this->belongsToMany(Branch::class, 'branch_business')
+            ->withPivot('is_default')
+            ->withTimestamps();
+    }
+
     public function owner()
     {
-        return $this->hasOne(User::class)->where('role', 'owner');
+        return $this->belongsTo(User::class, 'owner_user_id');
+    }
+
+    public function resolveOwner(): ?User
+    {
+        if ($this->owner_user_id) {
+            return $this->ownerUser;
+        }
+
+        return $this->users()->where('role', 'owner')->first();
     }
 
     public function isPendingApproval(): bool
@@ -297,11 +447,6 @@ class Business extends Model
         }
 
         return 'Active';
-    }
-
-    public function branches()
-    {
-        return $this->hasMany(Branch::class);
     }
 
     public function plan()
@@ -455,6 +600,77 @@ class Business extends Model
         $this->update(['category_business_types' => null]);
     }
 
+    public function importedTypesForBranch(int $branchId): array
+    {
+        $categories = Category::query()
+            ->where('business_id', $this->id)
+            ->where('branch_id', $branchId)
+            ->orderBy('name')
+            ->get(['name', 'source_business_type_key']);
+
+        return $this->importedTypesFromCategories($categories);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Category>|\Illuminate\Database\Eloquent\Collection<int, Category>  $categories
+     * @return list<array{key: string, label: string, categories: list<string>}>
+     */
+    public function importedTypesFromCategories($categories): array
+    {
+        $templates = config('category_templates', []);
+        $registered = collect($this->categoryBusinessTypesList())->keyBy(fn ($type) => (string) ($type['key'] ?? ''));
+
+        return collect($categories)
+            ->groupBy(fn (Category $category) => $category->source_business_type_key ?: 'other')
+            ->filter(fn ($group, $key) => $key !== 'other' && $key !== '')
+            ->map(function ($group, $key) use ($registered, $templates) {
+                $registeredType = $registered->get((string) $key);
+
+                return [
+                    'key' => (string) $key,
+                    'label' => (string) ($registeredType['label'] ?? $templates[$key]['label'] ?? ucfirst(str_replace('_', ' ', (string) $key))),
+                    'categories' => $group->pluck('name')->unique()->values()->all(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    public function syncCategoryBusinessTypesFromCategories(): void
+    {
+        $remainingCategories = Category::query()
+            ->where('business_id', $this->id)
+            ->orderBy('name')
+            ->get(['name', 'source_business_type_key']);
+
+        if ($remainingCategories->isEmpty()) {
+            $this->clearCategoryBusinessTypes();
+
+            return;
+        }
+
+        $templates = config('category_templates', []);
+        $existingTypes = collect($this->categoryBusinessTypesList())->keyBy(fn ($type) => (string) ($type['key'] ?? ''));
+        $types = [];
+
+        foreach ($remainingCategories->groupBy(fn ($category) => $category->source_business_type_key ?: 'other') as $key => $categories) {
+            if ($key === 'other' || $key === '') {
+                continue;
+            }
+
+            $existing = $existingTypes->get($key);
+            $label = (string) ($existing['label'] ?? $templates[$key]['label'] ?? ucfirst(str_replace('_', ' ', $key)));
+
+            $types[] = [
+                'key' => $key,
+                'label' => $label,
+                'categories' => $categories->pluck('name')->unique()->values()->all(),
+            ];
+        }
+
+        $this->update(['category_business_types' => empty($types) ? null : $types]);
+    }
+
     public function businessTypesLimitLabel(): string
     {
         $max = $this->maxBusinessTypesAllowed();
@@ -489,6 +705,29 @@ class Business extends Model
             ->all();
     }
 
+    /**
+     * Branch-scoped business type tabs (key, label, icon) for POS / reports filters.
+     *
+     * @return array<int, array{key: string, label: string, icon: string}>
+     */
+    public function branchPosBusinessTypesMeta(int $branchId): array
+    {
+        $templates = config('category_templates', []);
+
+        return collect($this->importedTypesForBranch($branchId))
+            ->map(function ($type) use ($templates) {
+                $key = (string) ($type['key'] ?? '');
+
+                return [
+                    'key' => $key,
+                    'label' => (string) ($type['label'] ?? $key),
+                    'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
     public function businessTypeLabel(string $key): string
     {
         foreach ($this->categoryBusinessTypesList() as $type) {
@@ -516,5 +755,55 @@ class Business extends Model
         }
 
         return (string) $max;
+    }
+
+    public function hasPlanFeature(string $key): bool
+    {
+        return app(\App\Services\PlanFeatureService::class)->businessHasFeature($this, $key);
+    }
+
+    public function operationMode(): string
+    {
+        $mode = $this->operation_mode ?: self::OPERATION_BOTH;
+
+        return in_array($mode, [self::OPERATION_RETAIL, self::OPERATION_SERVICES, self::OPERATION_BOTH], true)
+            ? $mode
+            : self::OPERATION_BOTH;
+    }
+
+    public function isRetailEnabled(): bool
+    {
+        return in_array($this->operationMode(), [self::OPERATION_RETAIL, self::OPERATION_BOTH], true);
+    }
+
+    public function isServicesOperationEnabled(): bool
+    {
+        return in_array($this->operationMode(), [self::OPERATION_SERVICES, self::OPERATION_BOTH], true);
+    }
+
+    public function servicesMenuVisible(): bool
+    {
+        return $this->hasPlanFeature('services') && $this->isServicesOperationEnabled();
+    }
+
+    public function operationModeLabel(): string
+    {
+        return match ($this->operationMode()) {
+            self::OPERATION_SERVICES => 'Services only',
+            self::OPERATION_RETAIL => 'Retail / inventory only',
+            default => 'Retail & services',
+        };
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function operationModeOptions(): array
+    {
+        return [
+            self::OPERATION_RETAIL => 'Retail / shop (inventory & store POS)',
+            self::OPERATION_SERVICES => 'Services only (no inventory menus)',
+            self::OPERATION_BOTH => 'Both retail and services',
+        ];
     }
 }

@@ -3,11 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\BusinessNote;
+use App\Services\BusinessNoteReminderService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class BusinessNoteController extends Controller
 {
+    public function __construct(private BusinessNoteReminderService $noteReminders)
+    {
+    }
+
     public function index(Request $request)
     {
         $this->ensureBusinessUser();
@@ -58,11 +64,14 @@ class BusinessNoteController extends Controller
 
         $data = $this->validatedData($request);
 
-        BusinessNote::create([
+        $note = BusinessNote::create([
             'business_id' => Auth::user()->business_id,
             'user_id' => Auth::id(),
             ...$data,
+            'reminder_sms_sent_at' => null,
         ]);
+
+        $this->trySendDueReminder($note);
 
         return redirect()->route('notes.index')->with('success', 'Note saved.');
     }
@@ -72,7 +81,19 @@ class BusinessNoteController extends Controller
         $this->ensureBusinessUser();
         $this->ensureOwnsNote($note);
 
-        $note->update($this->validatedData($request));
+        $data = $this->validatedData($request);
+
+        $newRemindAt = filled($data['remind_at'] ?? null) ? Carbon::parse($data['remind_at']) : null;
+        $oldRemindAt = $note->remind_at;
+        $remindAtChanged = ($oldRemindAt?->toDateTimeString() ?? null) !== ($newRemindAt?->toDateTimeString() ?? null);
+
+        if ($remindAtChanged) {
+            $data['reminder_sms_sent_at'] = null;
+        }
+
+        $note->update($data);
+
+        $this->trySendDueReminder($note->fresh());
 
         return redirect()->route('notes.index')->with('success', 'Note updated.');
     }
@@ -139,6 +160,19 @@ class BusinessNoteController extends Controller
 
         if (! $user || $user->role === 'super_admin' || ! $user->business_id) {
             abort(403);
+        }
+    }
+
+    private function trySendDueReminder(BusinessNote $note): void
+    {
+        if ($note->remind_at === null || $note->remind_at->gt(now())) {
+            return;
+        }
+
+        try {
+            $this->noteReminders->sendReminder($note);
+        } catch (\Throwable) {
+            // Non-blocking
         }
     }
 }

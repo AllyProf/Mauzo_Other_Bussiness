@@ -13,8 +13,12 @@ use Illuminate\Support\Facades\Mail;
 
 class PlatformBillingService
 {
-    public function __construct(private OwnerDailyReportService $dailyReports)
-    {
+    public function __construct(
+        private OwnerDailyReportService $dailyReports,
+        private PlatformSmsService $platformSms,
+        private PlatformMailService $platformMail,
+        private PlatformSettingsService $platformSettings,
+    ) {
     }
 
     public function calculateFee(Business $business, ?Carbon $month = null): array
@@ -134,7 +138,7 @@ class PlatformBillingService
             return false;
         }
 
-        if (! trim((string) platform_settings('mail_host'))) {
+        if (! $this->platformSettings->isMailConfigured()) {
             Log::warning('Platform billing invoice email skipped: SMTP not configured.', [
                 'invoice_id' => $invoice->id,
             ]);
@@ -150,6 +154,15 @@ class PlatformBillingService
                 'emailed_at' => now(),
             ]);
 
+            $business = $invoice->business;
+            if ($business) {
+                $this->platformSms->sendInvoiceIssued(
+                    $business,
+                    $invoice->invoice_number,
+                    number_format((float) $invoice->amount, 0)
+                );
+            }
+
             return true;
         } catch (\Throwable $exception) {
             Log::error('Failed to send platform billing invoice email.', [
@@ -159,6 +172,94 @@ class PlatformBillingService
 
             return false;
         }
+    }
+
+    /**
+     * @param  array{payment_reference?: string|null, payment_notes?: string|null, extend_subscription?: bool|null}  $data
+     */
+    public function markInvoicePaid(PlatformBillingInvoice $invoice, array $data, \App\Models\User $admin): PlatformBillingInvoice
+    {
+        $invoice->loadMissing(['business.plan']);
+
+        $invoice->update([
+            'status' => PlatformBillingInvoice::STATUS_PAID,
+            'paid_at' => now(),
+            'payment_reference' => $data['payment_reference'] ?? null,
+            'payment_notes' => $data['payment_notes'] ?? null,
+            'marked_paid_by' => $admin->id,
+        ]);
+
+        if ($data['extend_subscription'] ?? true) {
+            $business = $invoice->business;
+            $plan = $business?->plan;
+
+            if ($business && $plan) {
+                $base = $business->expiry_date && Carbon::parse($business->expiry_date)->isFuture()
+                    ? Carbon::parse($business->expiry_date)
+                    : now();
+
+                $newExpiry = $base->copy()->addMonths(max(1, (int) $plan->duration_months));
+
+                $business->update([
+                    'expiry_date' => $newExpiry->toDateString(),
+                    'is_active' => true,
+                ]);
+
+                $this->platformSms->sendPaymentConfirmed(
+                    $business->fresh(),
+                    $newExpiry->format('d M Y')
+                );
+                $this->platformMail->sendPaymentConfirmed(
+                    $business->fresh(),
+                    $newExpiry->format('d M Y')
+                );
+            }
+        }
+
+        return $invoice->fresh();
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{
+     *     total_invoiced: float,
+     *     total_paid: float,
+     *     total_outstanding: float,
+     *     paid_count: int,
+     *     pending_count: int,
+     *     notified_count: int
+     * }
+     */
+    public function paymentReportSummary(?Carbon $month = null, array $filters = []): array
+    {
+        $query = PlatformBillingInvoice::query()
+            ->when($month, fn ($q) => $q->whereDate('billing_month', $month->toDateString()))
+            ->when(! empty($filters['status']), fn ($q) => $q->where('status', $filters['status']))
+            ->when(! empty($filters['business_id']), fn ($q) => $q->where('business_id', $filters['business_id']))
+            ->when(! empty($filters['search']), function ($q) use ($filters) {
+                $search = trim((string) $filters['search']);
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('invoice_number', 'like', "%{$search}%")
+                        ->orWhereHas('business', fn ($business) => $business->where('name', 'like', "%{$search}%"));
+                });
+            });
+
+        $paidQuery = (clone $query)->where('status', PlatformBillingInvoice::STATUS_PAID);
+        $pendingQuery = (clone $query)->where('status', PlatformBillingInvoice::STATUS_PENDING);
+        $notifiedQuery = (clone $query)->where('status', PlatformBillingInvoice::STATUS_NOTIFIED);
+        $outstandingQuery = (clone $query)->whereIn('status', [
+            PlatformBillingInvoice::STATUS_PENDING,
+            PlatformBillingInvoice::STATUS_NOTIFIED,
+        ]);
+
+        return [
+            'total_invoiced' => (float) (clone $query)->sum('amount'),
+            'total_paid' => (float) $paidQuery->sum('amount'),
+            'total_outstanding' => (float) $outstandingQuery->sum('amount'),
+            'paid_count' => (int) $paidQuery->count(),
+            'pending_count' => (int) $pendingQuery->count(),
+            'notified_count' => (int) $notifiedQuery->count(),
+        ];
     }
 
     public function generateInvoiceNumber(Business $business, Carbon $month): string

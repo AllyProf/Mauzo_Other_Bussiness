@@ -340,6 +340,8 @@
 </div>
 @endif
 
+@include('home.partials.my-stock-shortages')
+
 @push('scripts')
 <script>
 $(document).ready(function () {

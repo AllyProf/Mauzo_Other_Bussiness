@@ -43,7 +43,9 @@
           <a class="nav-link {{ $activeTab === 'payments' ? 'active' : '' }}" data-toggle="tab" href="#tab-payments"><i class="fa fa-credit-card"></i> Payment Methods</a>
         </li>
         <li class="nav-item">
+          @if(plan_feature('automation_reminders'))
           <a class="nav-link {{ $activeTab === 'automation' ? 'active' : '' }}" data-toggle="tab" href="#tab-automation"><i class="fa fa-bell"></i> Automation</a>
+          @endif
         </li>
         <li class="nav-item">
           <a class="nav-link {{ $activeTab === 'shifts' ? 'active' : '' }}" data-toggle="tab" href="#tab-shifts"><i class="fa fa-clock-o"></i> Sales Shifts</a>
@@ -227,6 +229,7 @@
         </div>
 
         {{-- AUTOMATION --}}
+        @if(plan_feature('automation_reminders'))
         <div class="tab-pane fade {{ $activeTab === 'automation' ? 'show active' : '' }}" id="tab-automation">
           <h5 class="mb-1 text-muted"><i class="fa fa-bell"></i> Automation &amp; Notifications</h5>
           <p class="small text-muted mb-4">Control which reminders appear on your dashboard. Staff do not see owner-only alerts.</p>
@@ -254,14 +257,97 @@
               </div>
             </div>
             <div class="row mb-3">
-              <div class="col-md-4">
-                <label class="small font-weight-bold">Remind how many days before due?</label>
+              <div class="col-md-3">
+                <label class="small font-weight-bold">1st reminder (days before due)</label>
                 <input type="number" name="debt_due_reminder_days" class="form-control form-control-sm" min="1" max="30" value="{{ old('debt_due_reminder_days', $automation['debt_due_reminder_days']) }}">
               </div>
+              <div class="col-md-3">
+                <label class="small font-weight-bold">Reminder frequency</label>
+                @php $debtFrequency = old('debt_reminder_frequency', $automation['debt_reminder_frequency'] ?? 'once'); @endphp
+                <select name="debt_reminder_frequency" id="debt_reminder_frequency" class="form-control form-control-sm">
+                  <option value="once" {{ $debtFrequency === 'once' ? 'selected' : '' }}>Once (1st reminder only)</option>
+                  <option value="twice" {{ $debtFrequency === 'twice' ? 'selected' : '' }}>Twice (1st + 2nd reminder)</option>
+                </select>
+              </div>
+              <div class="col-md-3" id="debtSecondReminderField" style="{{ $debtFrequency === 'twice' ? '' : 'display:none;' }}">
+                <label class="small font-weight-bold">2nd reminder (days before due)</label>
+                <input type="number" name="debt_due_reminder_days_second" class="form-control form-control-sm" min="1" max="29" value="{{ old('debt_due_reminder_days_second', $automation['debt_due_reminder_days_second'] ?? 1) }}">
+                <small class="text-muted">Must be fewer days than the 1st reminder.</small>
+              </div>
+              <div class="col-md-3">
+                <label class="small font-weight-bold">Send SMS at</label>
+                <input type="time" name="debt_reminder_send_time" class="form-control form-control-sm" value="{{ old('debt_reminder_send_time', $automation['debt_reminder_send_time'] ?? '08:00') }}">
+                <small class="text-muted">Daily time for due-soon, due-today, and overdue SMS.</small>
+              </div>
+            </div>
+            <div class="row mb-3">
               <div class="col-md-4">
                 <label class="small font-weight-bold">Default credit term (days)</label>
                 <input type="number" name="default_debt_due_days" class="form-control form-control-sm" min="1" max="365" value="{{ old('default_debt_due_days', $automation['default_debt_due_days']) }}">
                 <small class="text-muted">Suggested due period for new credit sales.</small>
+              </div>
+            </div>
+
+            <h6 class="font-weight-bold text-dark mt-3"><i class="fa fa-comment text-success"></i> Debt SMS Reminders</h6>
+            <p class="small text-muted mb-2">Automatic SMS to debtors and the staff who recorded the sale. Uses your plan SMS quota.</p>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="sms_debt_enabled" name="sms_debt_enabled" value="1" {{ old('sms_debt_enabled', $automation['sms_debt_enabled'] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="sms_debt_enabled">
+                  <strong>Enable debt SMS</strong>
+                </label>
+              </div>
+            </div>
+            <div class="setting-switch-row mb-2">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="email_debt_enabled" name="email_debt_enabled" value="1" {{ old('email_debt_enabled', $automation['email_debt_enabled'] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="email_debt_enabled">
+                  <strong>Enable debt email</strong>
+                  <br><small class="text-muted">Send the same debt reminder text by email when the customer or staff member has an email address.</small>
+                </label>
+              </div>
+            </div>
+            @php
+              $debtSmsToggles = [
+                'sms_debt_due_soon_customer' => ['Due soon — customer', 'SMS debtor on each scheduled day before the due date.'],
+                'sms_debt_due_soon_staff' => ['Due soon — staff', 'SMS the staff member who recorded the credit sale on each pre-due reminder.'],
+                'sms_debt_due_today_customer' => ['Due today — customer', 'SMS debtor on the due date.'],
+                'sms_debt_due_today_staff' => ['Due today — staff', 'SMS staff on the due date to follow up.'],
+                'sms_debt_overdue_customer' => ['Overdue — customer', 'SMS debtor once when payment becomes overdue.'],
+                'sms_debt_overdue_staff' => ['Overdue — staff', 'SMS staff once when a debt becomes overdue.'],
+              ];
+            @endphp
+            @foreach($debtSmsToggles as $key => [$label, $help])
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="{{ $key }}" name="{{ $key }}" value="1" {{ old($key, $automation[$key] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="{{ $key }}">
+                  <strong>{{ $label }}</strong>
+                  <br><small class="text-muted">{{ $help }}</small>
+                </label>
+              </div>
+            </div>
+            @endforeach
+
+            <div class="mt-3 mb-4">
+              <a class="btn btn-sm btn-outline-secondary" data-toggle="collapse" href="#debtSmsTemplates" role="button" aria-expanded="false" aria-controls="debtSmsTemplates">
+                <i class="fa fa-pencil mr-1"></i> Customize SMS message templates
+              </a>
+              <div class="collapse mt-3" id="debtSmsTemplates">
+                <p class="small text-muted mb-3">
+                  Edit the text sent for each debt reminder. Use placeholders:
+                  <code>{business}</code>, <code>{customer}</code>, <code>{amount}</code>, <code>{reference}</code>, <code>{due_date}</code>, <code>{days_before}</code>
+                </p>
+                @php
+                  $debtTemplateDefaults = \App\Models\Business::defaultDebtSmsTemplates();
+                  $debtTemplateLabels = \App\Models\Business::debtSmsTemplateLabels();
+                @endphp
+                @foreach($debtTemplateLabels as $templateKey => $templateLabel)
+                <div class="form-group mb-3">
+                  <label class="small font-weight-bold">{{ $templateLabel }}</label>
+                  <textarea name="{{ $templateKey }}" class="form-control form-control-sm" rows="2" maxlength="480">{{ old($templateKey, $automation[$templateKey] ?? $debtTemplateDefaults[$templateKey]) }}</textarea>
+                </div>
+                @endforeach
               </div>
             </div>
 
@@ -318,11 +404,80 @@
               </div>
             </div>
 
+            <h6 class="font-weight-bold text-dark mt-4"><i class="fa fa-comment text-success"></i> Staff SMS Notifications</h6>
+            <p class="small text-muted mb-3">Send SMS to employees when you manage their accounts. Uses your plan SMS quota. Staff must have a phone number on their profile.</p>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="sms_staff_enabled" name="sms_staff_enabled" value="1" {{ old('sms_staff_enabled', $automation['sms_staff_enabled'] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="sms_staff_enabled">
+                  <strong>Enable staff SMS</strong>
+                  <br><small class="text-muted">Master switch for all staff account SMS below.</small>
+                </label>
+              </div>
+            </div>
+            <div class="setting-switch-row mb-2">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="email_staff_enabled" name="email_staff_enabled" value="1" {{ old('email_staff_enabled', $automation['email_staff_enabled'] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="email_staff_enabled">
+                  <strong>Enable staff email</strong>
+                  <br><small class="text-muted">Send the same staff notification text by email when the employee has an email address.</small>
+                </label>
+              </div>
+            </div>
+            @php
+              $staffSmsToggles = [
+                'sms_staff_welcome' => ['New employee welcome', 'Login email and password when you register a staff member.'],
+                'sms_staff_password_reset' => ['Password reset', 'New password when you reset or change a staff login password.'],
+                'sms_staff_activated' => ['Account activated', 'Notice when a deactivated employee is turned back on.'],
+                'sms_staff_deactivated' => ['Account deactivated', 'Notice when an employee account is suspended.'],
+                'sms_staff_handover_submitted_owner' => ['Handover submitted (owner)', 'Alert owner when staff submits daily reconciliation.'],
+                'sms_staff_handover_verified_staff' => ['Handover verified (staff)', 'Notify staff when owner verifies their reconciliation.'],
+                'sms_staff_note_reminder' => ['Note reminders', 'SMS when a note reminder time is reached on Notes & Reminders.'],
+              ];
+            @endphp
+            @foreach($staffSmsToggles as $key => [$label, $help])
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="{{ $key }}" name="{{ $key }}" value="1" {{ old($key, $automation[$key] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="{{ $key }}">
+                  <strong>{{ $label }}</strong>
+                  <br><small class="text-muted">{{ $help }}</small>
+                </label>
+              </div>
+            </div>
+            @endforeach
+
+            <div class="mt-3 mb-4">
+              <a class="btn btn-sm btn-outline-secondary" data-toggle="collapse" href="#staffSmsTemplates" role="button" aria-expanded="false" aria-controls="staffSmsTemplates">
+                <i class="fa fa-pencil mr-1"></i> Customize staff SMS message templates
+              </a>
+              <div class="collapse mt-3" id="staffSmsTemplates">
+                <p class="small text-muted mb-3">
+                  Edit the text sent for each staff notification. Common placeholders:
+                  <code>{business}</code>, <code>{staff_name}</code>, <code>{email}</code>, <code>{password}</code>,
+                  <code>{submitter}</code>, <code>{verifier}</code>, <code>{owner}</code>, <code>{date}</code>,
+                  <code>{amount}</code>, <code>{money_short}</code>, <code>{money_short_note}</code>,
+                  <code>{title}</code>, <code>{when}</code>, <code>{preview}</code>
+                </p>
+                @php
+                  $staffTemplateDefaults = \App\Models\Business::defaultStaffSmsTemplates();
+                  $staffTemplateLabels = \App\Models\Business::staffSmsTemplateLabels();
+                @endphp
+                @foreach($staffTemplateLabels as $templateKey => $templateLabel)
+                <div class="form-group mb-3">
+                  <label class="small font-weight-bold">{{ $templateLabel }}</label>
+                  <textarea name="{{ $templateKey }}" class="form-control form-control-sm" rows="2" maxlength="480">{{ old($templateKey, $automation[$templateKey] ?? $staffTemplateDefaults[$templateKey]) }}</textarea>
+                </div>
+                @endforeach
+              </div>
+            </div>
+
             <button type="submit" class="btn btn-primary settings-save-btn" style="background-color:#940000;border-color:#940000;">
               <i class="fa fa-save"></i> Save Automation Settings
             </button>
           </form>
         </div>
+        @endif
 
         {{-- SALES SHIFTS --}}
         @php
@@ -479,6 +634,10 @@ jQuery(function($) {
   $('.shift-open-mode').on('change', function () {
     const scheduled = $('#shift_open_scheduled').is(':checked');
     $('#shiftScheduledFields').toggle(scheduled);
+  });
+
+  $('#debt_reminder_frequency').on('change', function () {
+    $('#debtSecondReminderField').toggle($(this).val() === 'twice');
   });
 
   let providerRowIndex = 1000;

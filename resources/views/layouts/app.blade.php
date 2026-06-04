@@ -7,7 +7,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Main CSS-->
-    <link rel="stylesheet" type="text/css" href="{{ asset('admin/css/main.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ asset('panel-assets/css/main.css') }}">
     <!-- Font-icon css-->
     <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <style>
@@ -117,13 +117,15 @@
       @yield('content')
     </main>
 
+    @include('layouts.partials._support-fab')
+
     <!-- Essential javascripts for application to work-->
-    <script src="{{ asset('admin/js/jquery-3.2.1.min.js') }}"></script>
-    <script src="{{ asset('admin/js/popper.min.js') }}"></script>
-    <script src="{{ asset('admin/js/bootstrap.min.js') }}"></script>
-    <script src="{{ asset('admin/js/main.js') }}"></script>
+    <script src="{{ asset('panel-assets/js/jquery-3.2.1.min.js') }}"></script>
+    <script src="{{ asset('panel-assets/js/popper.min.js') }}"></script>
+    <script src="{{ asset('panel-assets/js/bootstrap.min.js') }}"></script>
+    <script src="{{ asset('panel-assets/js/main.js') }}"></script>
     <!-- The javascript plugin to display page loading on top-->
-    <script src="{{ asset('admin/js/plugins/pace.min.js') }}"></script>
+    <script src="{{ asset('panel-assets/js/plugins/pace.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script type="text/javascript">
@@ -224,6 +226,12 @@
         if (!(form instanceof HTMLFormElement)) return;
         if (e.defaultPrevented) return;
         if (form.dataset.noSubmitLoader !== undefined) return;
+        if (typeof form.checkValidity === 'function' && !form.checkValidity()) {
+          if (typeof form.reportValidity === 'function') {
+            form.reportValidity();
+          }
+          return;
+        }
 
         const clicked = lastSubmitButton && lastSubmitButton.form === form ? lastSubmitButton : null;
         setSubmitButtonLoading(form, clicked);

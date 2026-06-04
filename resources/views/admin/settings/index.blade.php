@@ -228,6 +228,28 @@
                 </label>
               </div>
             </div>
+            <hr>
+            <h5 class="mb-3 text-muted"><i class="fa fa-bell"></i> Payment Reminders & Auto-Suspend</h5>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Invoice Reminder After (days)</label>
+                  <input type="number" name="payment_reminder_days" class="form-control" min="1" max="90" value="{{ old('payment_reminder_days', $settings['payment_reminder_days'] ?? 7) }}" required>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Auto-Suspend Unpaid (days after expiry+grace)</label>
+                  <input type="number" name="auto_suspend_unpaid_days" class="form-control" min="0" max="90" value="{{ old('auto_suspend_unpaid_days', $settings['auto_suspend_unpaid_days'] ?? 14) }}" required>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Reminder Channels</label>
+                  <input type="text" name="payment_reminder_channels" class="form-control" value="{{ old('payment_reminder_channels', $settings['payment_reminder_channels'] ?? 'email,sms') }}" placeholder="email,sms">
+                </div>
+              </div>
+            </div>
             <div class="form-group mt-3">
               <label class="control-label font-weight-bold">Payment Instructions</label>
               <textarea name="payment_instructions" class="form-control" rows="5" placeholder="Bank details, M-Pesa pay number, etc. shown to businesses renewing subscription">{{ old('payment_instructions', $settings['payment_instructions']) }}</textarea>
@@ -312,7 +334,115 @@
               <label class="control-label font-weight-bold">Maintenance Message</label>
               <textarea name="maintenance_message" class="form-control" rows="3">{{ old('maintenance_message', $settings['maintenance_message']) }}</textarea>
             </div>
-            <button type="submit" class="btn btn-primary settings-save-btn" style="background-color:#940000;border-color:#940000;"><i class="fa fa-save"></i> Save Security Settings</button>
+            <hr>
+            <h6 class="font-weight-bold mb-3"><i class="fa fa-lock"></i> Admin Access & Retention</h6>
+            <div class="form-group">
+              <label class="control-label font-weight-bold">Admin IP Allowlist</label>
+              <textarea name="admin_ip_allowlist" class="form-control" rows="3" placeholder="One IP per line. Leave empty to allow all.">{{ old('admin_ip_allowlist', $settings['admin_ip_allowlist'] ?? '') }}</textarea>
+              <small class="text-muted">Restricts /admin access to listed IPs (supports CIDR e.g. 192.168.1.0/24).</small>
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Admin Notification Email</label>
+                  <input type="email" name="admin_notification_email" class="form-control" value="{{ old('admin_notification_email', $settings['admin_notification_email'] ?? '') }}" placeholder="Alerts for tickets & demo leads">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Admin Notification Phone</label>
+                  <input type="text" name="admin_notification_phone" class="form-control" value="{{ old('admin_notification_phone', $settings['admin_notification_phone'] ?? '') }}" placeholder="+255... or 07...">
+                  <small class="text-muted">SMS alerts for tickets and demo leads. Falls back to Support Phone if empty.</small>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Audit Log Retention (days)</label>
+                  <input type="number" name="audit_log_retention_days" class="form-control" min="30" max="3650" value="{{ old('audit_log_retention_days', $settings['audit_log_retention_days'] ?? 365) }}" required>
+                </div>
+              </div>
+            </div>
+            <hr>
+            <h6 class="font-weight-bold mb-3"><i class="fa fa-comment"></i> System SMS Notifications</h6>
+            <p class="small text-muted">Control which platform actions send SMS via Mauzo Link. Payment expiry/invoice reminders also follow Reminder Channels on the Subscriptions tab.</p>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="sms_enabled" name="sms_enabled" value="1" {{ old('sms_enabled', $settings['sms_enabled'] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="sms_enabled">
+                  <strong>Enable platform SMS</strong>
+                  <br><small class="text-muted">Master switch for all system SMS below.</small>
+                </label>
+              </div>
+            </div>
+            @php
+              $smsToggles = [
+                'sms_registration_verification' => ['Registration verification code', 'Sent when a business verifies their phone during signup.'],
+                'sms_registration_approved' => ['Registration approved', 'Login password sent when you approve a pending business.'],
+                'sms_registration_rejected' => ['Registration rejected', 'Notice when a pending registration is rejected.'],
+                'sms_password_reset' => ['Owner password reset', 'When admin resets a business owner password with SMS checked.'],
+                'sms_account_suspended' => ['Manual account suspend', 'When you suspend a business from admin.'],
+                'sms_account_reactivated' => ['Account reactivated', 'When a suspended business is turned back on.'],
+                'sms_auto_suspend' => ['Auto-suspend notice', 'When overdue subscription or unpaid invoice triggers auto-suspend.'],
+                'sms_invoice_issued' => ['Invoice issued', 'When a monthly platform invoice is emailed to a business.'],
+                'sms_payment_confirmed' => ['Payment confirmed', 'When an invoice is marked paid and subscription extended.'],
+                'sms_ticket_new_admin' => ['New support ticket (admin)', 'Alert to admin phone when a tenant opens a ticket.'],
+                'sms_ticket_reply_business' => ['Ticket reply (business)', 'Alert to business phone when support replies.'],
+                'sms_staff_welcome' => ['New platform staff', 'Credentials SMS when you create admin staff with a phone number.'],
+                'sms_demo_lead_admin' => ['Demo lead (admin)', 'Alert when someone submits the landing demo form.'],
+              ];
+            @endphp
+            @foreach($smsToggles as $key => [$label, $help])
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="{{ $key }}" name="{{ $key }}" value="1" {{ old($key, $settings[$key] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="{{ $key }}">
+                  <strong>{{ $label }}</strong>
+                  <br><small class="text-muted">{{ $help }}</small>
+                </label>
+              </div>
+            </div>
+            @endforeach
+            <hr>
+            <h6 class="font-weight-bold mb-3"><i class="fa fa-envelope"></i> System Email Notifications</h6>
+            <p class="small text-muted">Send the same platform notifications by email when SMTP is configured and a valid email address is available.</p>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="email_enabled" name="email_enabled" value="1" {{ old('email_enabled', $settings['email_enabled'] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="email_enabled">
+                  <strong>Enable platform email</strong>
+                  <br><small class="text-muted">Master switch for all system emails below.</small>
+                </label>
+              </div>
+            </div>
+            @php
+              $emailToggles = [
+                'email_registration_verification' => ['Registration verification code', 'Also emailed when the applicant provides an email during signup.'],
+                'email_registration_approved' => ['Registration approved', 'Login details emailed when you approve a pending business.'],
+                'email_registration_rejected' => ['Registration rejected', 'Notice when a pending registration is rejected.'],
+                'email_password_reset' => ['Owner password reset', 'When admin resets a business owner password.'],
+                'email_account_suspended' => ['Manual account suspend', 'When you suspend a business from admin.'],
+                'email_account_reactivated' => ['Account reactivated', 'When a suspended business is turned back on.'],
+                'email_auto_suspend' => ['Auto-suspend notice', 'When overdue subscription or unpaid invoice triggers auto-suspend.'],
+                'email_invoice_issued' => ['Invoice issued', 'Included with monthly platform invoice emails.'],
+                'email_payment_confirmed' => ['Payment confirmed', 'When an invoice is marked paid and subscription extended.'],
+                'email_ticket_new_admin' => ['New support ticket (admin)', 'Alert to admin email when a tenant opens a ticket.'],
+                'email_ticket_reply_business' => ['Ticket reply (business)', 'Alert to business email when support replies.'],
+                'email_staff_welcome' => ['New platform staff', 'Credentials email when you create admin staff.'],
+                'email_demo_lead_admin' => ['Demo lead (admin)', 'Alert when someone submits the landing demo form.'],
+              ];
+            @endphp
+            @foreach($emailToggles as $key => [$label, $help])
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="{{ $key }}" name="{{ $key }}" value="1" {{ old($key, $settings[$key] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="{{ $key }}">
+                  <strong>{{ $label }}</strong>
+                  <br><small class="text-muted">{{ $help }}</small>
+                </label>
+              </div>
+            </div>
+            @endforeach
+            <button type="submit" class="btn btn-primary settings-save-btn mt-3" style="background-color:#940000;border-color:#940000;"><i class="fa fa-save"></i> Save Security Settings</button>
           </form>
 
           <hr>

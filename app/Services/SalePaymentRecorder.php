@@ -77,8 +77,8 @@ class SalePaymentRecorder
         }
 
         if (! empty($method['requires_reference'])) {
-            $rules['payment_provider'] = 'nullable|string|max:255';
-            $rules['transaction_reference'] = 'nullable|string|max:255';
+            $rules['payment_provider'] = 'required|string|max:255';
+            $rules['transaction_reference'] = 'required|string|max:255';
         }
 
         return $rules;
@@ -103,6 +103,12 @@ class SalePaymentRecorder
             'customer_phone' => $customerFields['customer_phone'],
             'due_date' => $request->due_date,
             'amount_paid' => $newAmountPaid,
+            ...($this->sale->due_date != $request->due_date ? [
+                'debt_due_soon_sms_sent_at' => null,
+                'debt_due_soon_second_sms_sent_at' => null,
+                'debt_due_today_sms_sent_at' => null,
+                'debt_overdue_sms_sent_at' => null,
+            ] : []),
         ]);
 
         app(SaleStockService::class)->deductInvoiceIfPaid($this->sale->fresh());
@@ -133,6 +139,12 @@ class SalePaymentRecorder
             $updateData['customer_name'] = $customerFields['customer_name'];
             $updateData['customer_phone'] = $customerFields['customer_phone'];
             $updateData['due_date'] = $request->due_date;
+            if ($this->sale->due_date != $request->due_date) {
+                $updateData['debt_due_soon_sms_sent_at'] = null;
+                $updateData['debt_due_soon_second_sms_sent_at'] = null;
+                $updateData['debt_due_today_sms_sent_at'] = null;
+                $updateData['debt_overdue_sms_sent_at'] = null;
+            }
         } elseif ($status === 'paid') {
             $updateData['due_date'] = null;
             if ($request->filled('customer_id') || $request->filled('customer_name')) {

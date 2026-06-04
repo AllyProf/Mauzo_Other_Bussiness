@@ -6,6 +6,7 @@ use App\Http\Controllers\LandingController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [LandingController::class, 'index'])->name('landing.index');
+Route::post('/request-demo', [App\Http\Controllers\LandingLeadController::class, 'store'])->name('landing.lead.store');
 
 // Authentication Routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -20,8 +21,16 @@ Route::get('/register', fn () => redirect()->route('register.business'))->name('
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->middleware(['auth', 'check.user.active']);
 
+Route::middleware(['auth', 'check.user.active'])->group(function () {
+    Route::post('/support/quick', [App\Http\Controllers\SupportTicketController::class, 'quickStore'])->name('tickets.quick-store');
+    Route::get('/activity-log', [App\Http\Controllers\BusinessAuditLogController::class, 'index'])->name('business.activity-log');
+});
+
 // Admin / Software Owner Routes
-Route::middleware(['auth', 'check.user.active'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'check.user.active', 'check.platform.admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [App\Http\Controllers\Admin\AdminDashboardController::class, 'index']);
+
     Route::get('/businesses', [App\Http\Controllers\Admin\BusinessController::class, 'index'])->name('businesses.index');
     Route::get('/businesses/create', [App\Http\Controllers\Admin\BusinessController::class, 'create'])->name('businesses.create');
     Route::post('/businesses', [App\Http\Controllers\Admin\BusinessController::class, 'store'])->name('businesses.store');
@@ -30,6 +39,8 @@ Route::middleware(['auth', 'check.user.active'])->prefix('admin')->name('admin.'
     Route::post('/businesses/{business}/toggle-status', [App\Http\Controllers\Admin\BusinessController::class, 'toggleStatus'])->name('businesses.toggle-status');
     Route::post('/businesses/{business}/approve', [App\Http\Controllers\Admin\BusinessController::class, 'approveRegistration'])->name('businesses.approve');
     Route::post('/businesses/{business}/reject', [App\Http\Controllers\Admin\BusinessController::class, 'rejectRegistration'])->name('businesses.reject');
+    Route::post('/businesses/{business}/reset-owner-password', [App\Http\Controllers\Admin\BusinessController::class, 'resetOwnerPassword'])->name('businesses.reset-owner-password');
+    Route::post('/businesses/{business}/purge-data', [App\Http\Controllers\Admin\BusinessController::class, 'purgeData'])->name('businesses.purge-data');
     
     Route::get('/plans', [App\Http\Controllers\Admin\PlanController::class, 'index'])->name('plans.index');
     Route::get('/plans/{plan}/edit', [App\Http\Controllers\Admin\PlanController::class, 'edit'])->name('plans.edit');
@@ -46,6 +57,36 @@ Route::middleware(['auth', 'check.user.active'])->prefix('admin')->name('admin.'
     Route::put('/tickets/{ticket}', [App\Http\Controllers\Admin\AdminTicketController::class, 'update'])->name('tickets.update');
 
     Route::get('/audit-logs', [App\Http\Controllers\Admin\AuditLogController::class, 'index'])->name('audit-logs.index');
+    Route::get('/audit-logs/feed', [App\Http\Controllers\Admin\AuditLogController::class, 'feed'])->name('audit-logs.feed');
+    Route::get('/audit-logs/export', [App\Http\Controllers\Admin\AuditLogController::class, 'export'])->name('audit-logs.export');
+    Route::get('/audit-logs/{auditLog}', [App\Http\Controllers\Admin\AuditLogController::class, 'show'])->name('audit-logs.show');
+
+    Route::get('/payments', [App\Http\Controllers\Admin\PaymentReportController::class, 'index'])->name('payments.index');
+    Route::post('/payments/generate', [App\Http\Controllers\Admin\PaymentReportController::class, 'generateInvoices'])->name('payments.generate');
+    Route::post('/payments/{invoice}/mark-paid', [App\Http\Controllers\Admin\PaymentReportController::class, 'markPaid'])->name('payments.mark-paid');
+    Route::get('/payments/{invoice}/pdf', [App\Http\Controllers\Admin\PaymentReportController::class, 'downloadPdf'])->name('payments.pdf');
+    Route::post('/payments/{invoice}/resend', [App\Http\Controllers\Admin\PaymentReportController::class, 'resendInvoice'])->name('payments.resend');
+
+    Route::get('/reports', [App\Http\Controllers\Admin\ReportController::class, 'index'])->name('reports.index');
+    Route::get('/regional', [App\Http\Controllers\Admin\RegionalReportController::class, 'index'])->name('regional.index');
+    Route::get('/monitor', [App\Http\Controllers\Admin\PlatformMonitorController::class, 'index'])->name('monitor.index');
+    Route::get('/funnel', [App\Http\Controllers\Admin\RegistrationFunnelController::class, 'index'])->name('funnel.index');
+    Route::get('/leads', [App\Http\Controllers\Admin\PlatformLeadController::class, 'index'])->name('leads.index');
+    Route::put('/leads/{lead}', [App\Http\Controllers\Admin\PlatformLeadController::class, 'update'])->name('leads.update');
+    Route::get('/businesses/{business}/onboarding', [App\Http\Controllers\Admin\BusinessOnboardingController::class, 'show'])->name('onboarding.show');
+
+    Route::get('/security/failed-logins', [App\Http\Controllers\Admin\FailedLoginController::class, 'index'])->name('security.failed-logins');
+    Route::get('/staff', [App\Http\Controllers\Admin\PlatformStaffController::class, 'index'])->name('staff.index');
+    Route::post('/staff', [App\Http\Controllers\Admin\PlatformStaffController::class, 'store'])->name('staff.store');
+    Route::put('/staff/{user}', [App\Http\Controllers\Admin\PlatformStaffController::class, 'update'])->name('staff.update');
+    Route::get('/platform-roles', [App\Http\Controllers\Admin\PlatformAdminRoleController::class, 'index'])->name('platform-roles.index');
+    Route::get('/platform-roles/create', [App\Http\Controllers\Admin\PlatformAdminRoleController::class, 'create'])->name('platform-roles.create');
+    Route::post('/platform-roles', [App\Http\Controllers\Admin\PlatformAdminRoleController::class, 'store'])->name('platform-roles.store');
+    Route::get('/platform-roles/{platformRole}/edit', [App\Http\Controllers\Admin\PlatformAdminRoleController::class, 'edit'])->name('platform-roles.edit');
+    Route::put('/platform-roles/{platformRole}', [App\Http\Controllers\Admin\PlatformAdminRoleController::class, 'update'])->name('platform-roles.update');
+    Route::delete('/platform-roles/{platformRole}', [App\Http\Controllers\Admin\PlatformAdminRoleController::class, 'destroy'])->name('platform-roles.destroy');
+    Route::get('/sessions', [App\Http\Controllers\Admin\AdminSessionController::class, 'index'])->name('sessions.index');
+    Route::delete('/sessions/{sessionId}', [App\Http\Controllers\Admin\AdminSessionController::class, 'destroy'])->name('sessions.destroy');
 
     Route::get('/free-trials', [App\Http\Controllers\Admin\FreeTrialController::class, 'index'])->name('free-trials.index');
     Route::post('/free-trials/{business}/extend', [App\Http\Controllers\Admin\FreeTrialController::class, 'extendTrial'])->name('free-trials.extend');
@@ -64,11 +105,15 @@ Route::middleware(['auth', 'check.user.active'])->prefix('admin')->name('admin.'
 
 // Tenant Routes (Authenticated & Subscribed)
 Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(function () {
+    Route::get('/subscription/upgrade', [App\Http\Controllers\SubscriptionController::class, 'upgrade'])->name('subscription.upgrade');
+
+    Route::middleware('check.plan.feature')->group(function () {
     Route::get('/support', [App\Http\Controllers\SupportTicketController::class, 'index'])->name('tickets.index');
     Route::get('/support/create', [App\Http\Controllers\SupportTicketController::class, 'create'])->name('tickets.create');
     Route::post('/support', [App\Http\Controllers\SupportTicketController::class, 'store'])->name('tickets.store');
     Route::get('/support/{ticket}', [App\Http\Controllers\SupportTicketController::class, 'show'])->name('tickets.show_tenant');
 
+    Route::middleware('check.business.retail')->group(function () {
     // Items Management
     Route::get('/items/stock', [App\Http\Controllers\ItemController::class, 'stock'])->name('items.stock');
     Route::get('/items/{item}/history', [App\Http\Controllers\ItemController::class, 'history'])->name('items.history');
@@ -102,6 +147,21 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::post('/stock-losses', [App\Http\Controllers\StockLossController::class, 'store'])->name('stock-losses.store');
     Route::get('/stock-losses/{stockLoss}', [App\Http\Controllers\StockLossController::class, 'show'])->name('stock-losses.show');
     Route::post('/stock-losses/{stockLoss}/cancel', [App\Http\Controllers\StockLossController::class, 'cancel'])->name('stock-losses.cancel');
+    });
+
+    Route::middleware('check.business.services')->group(function () {
+    Route::get('/services', [App\Http\Controllers\ServiceCatalogController::class, 'index'])->name('services.index');
+    Route::post('/services/import-templates', [App\Http\Controllers\ServiceCatalogController::class, 'importTemplates'])->name('services.import-templates');
+    Route::post('/services/catalog', [App\Http\Controllers\ServiceCatalogController::class, 'storeService'])->name('services.store');
+    Route::put('/services/{service}', [App\Http\Controllers\ServiceCatalogController::class, 'updateService'])->name('services.update');
+    Route::delete('/services/{service}', [App\Http\Controllers\ServiceCatalogController::class, 'destroyService'])->name('services.destroy');
+    Route::get('/service-pos', [App\Http\Controllers\ServiceSaleController::class, 'create'])->name('service-pos.create');
+    Route::post('/service-pos', [App\Http\Controllers\ServiceSaleController::class, 'store'])->name('service-pos.store');
+    Route::get('/service-invoices', [App\Http\Controllers\ServiceInvoiceController::class, 'index'])->name('service-invoices.index');
+    Route::get('/service-invoices/create', [App\Http\Controllers\ServiceInvoiceController::class, 'create'])->name('service-invoices.create');
+    Route::post('/service-invoices', [App\Http\Controllers\ServiceInvoiceController::class, 'store'])->name('service-invoices.store');
+    Route::get('/service-invoices/{serviceInvoice}', [App\Http\Controllers\ServiceInvoiceController::class, 'show'])->name('service-invoices.show');
+    });
 
     // Notes & reminders
     Route::get('/notes', [App\Http\Controllers\BusinessNoteController::class, 'index'])->name('notes.index');
@@ -111,19 +171,23 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::post('/notes/{note}/complete', [App\Http\Controllers\BusinessNoteController::class, 'complete'])->name('notes.complete');
 
     // Sales / POS Routes
+    Route::get('/debts/history', [App\Http\Controllers\DebtController::class, 'history'])->name('debts.history');
     Route::get('/debts', [App\Http\Controllers\DebtController::class, 'index'])->name('debts.index');
     Route::get('/invoices', [App\Http\Controllers\InvoiceController::class, 'index'])->name('invoices.index');
     Route::get('/invoices/create', [App\Http\Controllers\InvoiceController::class, 'create'])->name('invoices.create');
     Route::post('/invoices', [App\Http\Controllers\InvoiceController::class, 'store'])->name('invoices.store');
     Route::get('/invoices/{invoice}', [App\Http\Controllers\InvoiceController::class, 'show'])->name('invoices.show');
+    Route::middleware('check.business.retail')->group(function () {
     Route::resource('/sales', App\Http\Controllers\SaleController::class);
     Route::post('/sales/{sale}/pay', [App\Http\Controllers\SaleController::class, 'pay'])->name('sales.pay');
     Route::post('/sales/{sale}/cancel', [App\Http\Controllers\SaleController::class, 'cancel'])->name('sales.cancel');
+    });
 
     // Sales Shifts
     Route::get('/shifts', [App\Http\Controllers\ShiftController::class, 'index'])->name('shifts.index');
     Route::get('/shifts/stock-shortages', [App\Http\Controllers\ShiftController::class, 'variances'])->name('stock-shortages.index');
     Route::post('/shifts/stock-shortages/{check}/verify', [App\Http\Controllers\ShiftController::class, 'verifyShortage'])->name('stock-shortages.verify');
+    Route::post('/shifts/stock-shortages/{check}/revert', [App\Http\Controllers\ShiftController::class, 'revertShortageDecision'])->name('stock-shortages.revert');
     Route::get('/shifts/open', [App\Http\Controllers\ShiftController::class, 'create'])->name('shifts.create');
     Route::post('/shifts', [App\Http\Controllers\ShiftController::class, 'store'])->name('shifts.store');
     Route::get('/shifts/{shift}', [App\Http\Controllers\ShiftController::class, 'show'])->name('shifts.show');
@@ -131,10 +195,15 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::post('/shifts/{shift}/close', [App\Http\Controllers\ShiftController::class, 'close'])->name('shifts.close.store');
 
     // Day Closing
+    Route::get('/money-shorts', [App\Http\Controllers\MoneyShortController::class, 'index'])->name('money-shorts.index');
+    Route::post('/money-shorts/{dayClosing}/pay', [App\Http\Controllers\MoneyShortController::class, 'recordPayment'])->name('money-shorts.pay');
+    Route::post('/money-shorts/{dayClosing}/salary-deduction', [App\Http\Controllers\MoneyShortController::class, 'recordSalaryDeduction'])->name('money-shorts.salary-deduction');
+    Route::delete('/money-shorts/settlements/{settlement}', [App\Http\Controllers\MoneyShortController::class, 'undoSettlement'])->name('money-shorts.undo');
     Route::get('/day-closing/history', [App\Http\Controllers\DayClosingController::class, 'history'])->name('day-closing.history');
     Route::get('/day-closing/{dayClosing}', [App\Http\Controllers\DayClosingController::class, 'show'])->name('day-closing.show');
     Route::get('/day-closing', [App\Http\Controllers\DayClosingController::class, 'index'])->name('day-closing.index');
     Route::post('/day-closing', [App\Http\Controllers\DayClosingController::class, 'store'])->name('day-closing.store');
+    Route::post('/day-closing/post-owner-sales', [App\Http\Controllers\DayClosingController::class, 'postOwnerDirectSales'])->name('day-closing.post-owner-sales');
     Route::post('/day-closing/{dayClosing}/verify', [App\Http\Controllers\DayClosingController::class, 'verify'])->name('day-closing.verify');
 
     // Business Settings (Owner)
@@ -152,6 +221,7 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::delete('/sales-targets/{salesTarget}', [App\Http\Controllers\SalesTargetController::class, 'destroy'])->name('sales-targets.destroy');
 
     // Branches (Owner)
+    Route::post('/businesses/switch', [App\Http\Controllers\BusinessSwitchController::class, 'switch'])->name('businesses.switch');
     Route::get('/branches', [App\Http\Controllers\BranchController::class, 'index'])->name('branches.index');
     Route::post('/branches/switch', [App\Http\Controllers\BranchController::class, 'switch'])->name('branches.switch');
     Route::post('/branches', [App\Http\Controllers\BranchController::class, 'store'])->name('branches.store');
@@ -189,12 +259,16 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
 
     // Customer Management
     Route::resource('/customers', App\Http\Controllers\CustomerController::class);
+    Route::get('/customer-communications', [App\Http\Controllers\CustomerCommunicationController::class, 'index'])->name('customer-communications.index');
+    Route::post('/customer-communications/send', [App\Http\Controllers\CustomerCommunicationController::class, 'send'])->name('customer-communications.send');
+    Route::delete('/customer-communications/campaigns/{campaign}', [App\Http\Controllers\CustomerCommunicationController::class, 'cancelCampaign'])->name('customer-communications.cancel');
 
     // Staff Management Routes
     Route::post('/employees/{employee}/reset-password', [App\Http\Controllers\StaffController::class, 'resetPassword'])->name('employees.reset-password');
     Route::post('/employees/{employee}/toggle-status', [App\Http\Controllers\StaffController::class, 'toggleStatus'])->name('employees.toggle-status');
     Route::resource('/employees', App\Http\Controllers\StaffController::class);
     Route::resource('/roles', App\Http\Controllers\RoleController::class);
+    });
 });
 
 Route::post('/stop-impersonating', [App\Http\Controllers\Admin\ImpersonationController::class, 'stopImpersonating'])->name('stop-impersonating')->middleware(['auth', 'check.user.active']);

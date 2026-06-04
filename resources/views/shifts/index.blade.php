@@ -100,6 +100,8 @@
 </div>
 @endif
 
+@include('home.partials.my-stock-shortages')
+
 <div class="row">
   <div class="col-md-12">
     <div class="tile">

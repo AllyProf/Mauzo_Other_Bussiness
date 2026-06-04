@@ -17,6 +17,16 @@
   .nested-table { font-size: 0.85rem; background: white; border: 1px solid #dee2e6; }
   .nested-table th { background: #6c757d !important; color: white !important; text-transform: uppercase; font-size: 0.7rem; border: none !important; }
   .manager-received { background-color: #e8f5e9 !important; }
+  .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; }
+  .business-type-tab {
+    cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
+    font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
+    transition: all .15s ease; line-height: 1.5; text-decoration: none !important;
+  }
+  .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
+  .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
+  .business-type-tab i { margin-right: 5px; }
+  .business-type-row td:first-child + td + td { font-weight: 600; color: #940000; }
   @media print {
     .d-print-none { display: none !important; }
     .excel-table { font-size: 10pt; width: 100% !important; }
@@ -92,6 +102,27 @@
 </div>
 @endif
 
+@if($multiBusiness ?? false)
+<div class="tile d-print-none mb-3 py-2">
+  <div class="d-flex align-items-center flex-wrap">
+    <span class="small font-weight-bold mr-2 mb-2">Business:</span>
+    <div class="business-type-tabs mb-2">
+      <a href="{{ route('owner-reports.index', request()->except('business_type')) }}"
+         class="business-type-tab {{ empty($activeBusinessType) ? 'active' : '' }}">
+        <i class="fa fa-th-list"></i> All
+      </a>
+      @foreach($businessTypes as $type)
+        <a href="{{ route('owner-reports.index', array_merge(request()->except('business_type'), ['business_type' => $type['key']])) }}"
+           class="business-type-tab {{ ($activeBusinessType ?? '') === $type['key'] ? 'active' : '' }}">
+          <i class="fa {{ $type['icon'] ?? 'fa-store' }}"></i> {{ $type['label'] }}
+        </a>
+      @endforeach
+    </div>
+  </div>
+  <p class="small text-muted mb-0">Each handover is split by business type so Liquor, Spare Parts, and other departments are not mixed in one row.</p>
+</div>
+@endif
+
 <div class="row">
   <div class="col-md-12">
     <div class="tile p-0" style="overflow:hidden;">
@@ -101,6 +132,9 @@
             <tr>
               <th rowspan="2" class="text-center">#</th>
               <th rowspan="2">DATE</th>
+              @if($multiBusiness ?? false)
+              <th rowspan="2">BUSINESS</th>
+              @endif
               <th rowspan="2">STAFF</th>
               <th rowspan="2" class="text-center">STATUS</th>
               <th rowspan="2" class="text-right">OPENING CASH</th>
@@ -109,6 +143,7 @@
               <th rowspan="2" class="text-right">EXPENSES</th>
               <th rowspan="2" class="text-right text-success">DAILY PROFIT</th>
               <th rowspan="2" class="text-right text-info">CIRCULATION REFILL</th>
+              <th colspan="2" class="text-center" style="background:#5a6268 !important;">SHORT RECOVERY</th>
               <th rowspan="2" class="text-right text-info">CIRCULATION ROLLOVER</th>
               <th rowspan="2" class="text-right text-success">PROFIT ROLLOVER</th>
               <th rowspan="2" class="text-center d-print-none">ACTION</th>
@@ -117,6 +152,8 @@
               <th class="text-right">CASH</th>
               <th class="text-right">DIGITAL</th>
               <th class="text-right">TOTAL</th>
+              <th class="text-right text-success">TO PROFIT</th>
+              <th class="text-right text-primary">TO CIRCULATION</th>
             </tr>
           </thead>
           <tbody>
@@ -124,6 +161,9 @@
               @php
                 $rowClass = ($ledger['is_manager_received'] ?? false) ? 'manager-received' : '';
                 $isPlaceholder = $ledger['is_placeholder'] ?? false;
+                $closingRouteId = $ledger['detail_closing_id'] ?? $ledger['id'];
+                $showRollover = $ledger['show_rollover_columns'] ?? true;
+                $colspan = ($multiBusiness ?? false) ? 18 : 17;
               @endphp
               @if($isPlaceholder)
               <tr class="main-row table-info {{ ($ledger['has_open_day_activity'] ?? false) ? '' : '' }}" @if($ledger['has_open_day_activity'] ?? false) data-toggle="collapse" data-target="#details-{{ $ledger['id'] }}" aria-expanded="false" @endif>
@@ -135,7 +175,10 @@
                   @endif
                 </td>
                 <td class="font-weight-bold text-primary">{{ \Carbon\Carbon::parse($ledger['ledger_date'])->format('d M, Y') }}</td>
-                <td class="text-muted small">Open day</td>
+                @if($multiBusiness ?? false)
+                <td class="text-muted">—</td>
+                @endif
+                <td class="text-muted small">{{ ($ledger['has_open_shift'] ?? false) ? 'Open day' : 'Awaiting shift' }}</td>
                 <td class="text-center">
                   <span class="status-badge" style="border: 1px solid {{ $ledger['status_color'] }}; color: {{ $ledger['status_color'] }};">
                     {{ $ledger['business_status'] }}
@@ -161,6 +204,20 @@
                 <td class="money-column {{ ($ledger['circulation_refill'] ?? 0) > 0 ? 'text-info font-weight-bold' : 'text-muted' }}">
                   {{ ($ledger['circulation_refill'] ?? 0) > 0 ? number_format($ledger['circulation_refill'], 0) : '—' }}
                 </td>
+                <td class="money-column {{ ($ledger['staff_profit_recoveries'] ?? 0) > 0 ? 'text-success font-weight-bold' : 'text-muted' }}">
+                  @if(($ledger['staff_profit_recoveries'] ?? 0) > 0)
+                    +{{ number_format($ledger['staff_profit_recoveries'], 0) }}
+                  @else
+                    —
+                  @endif
+                </td>
+                <td class="money-column {{ ($ledger['staff_circulation_recoveries'] ?? 0) > 0 ? 'text-primary font-weight-bold' : 'text-muted' }}">
+                  @if(($ledger['staff_circulation_recoveries'] ?? 0) > 0)
+                    +{{ number_format($ledger['staff_circulation_recoveries'], 0) }}
+                  @else
+                    —
+                  @endif
+                </td>
                 <td class="money-column font-weight-bold text-primary">
                   {{ number_format($ledger['money_in_circulation'], 0) }}
                   <br><span class="badge badge-light text-muted border mt-1" style="font-size:0.6rem;">AVAILABLE</span>
@@ -180,7 +237,7 @@
               </tr>
               @if($ledger['has_open_day_activity'] ?? false)
               <tr id="details-{{ $ledger['id'] }}" class="collapse detail-row">
-                <td colspan="15">
+                <td colspan="{{ $colspan }}">
                   <div class="detail-container">
                     <div class="row">
                       <div class="col-md-6 border-right">
@@ -221,16 +278,19 @@
               </tr>
               @endif
               @else
-              <tr class="main-row {{ $rowClass }}" data-toggle="collapse" data-target="#details-{{ $ledger['id'] }}" aria-expanded="false">
+              <tr class="main-row {{ $rowClass }} {{ ($ledger['is_business_type_row'] ?? false) ? 'business-type-row' : '' }}" data-toggle="collapse" data-target="#details-{{ $ledger['id'] }}" aria-expanded="false">
                 <td class="text-center text-muted"><i class="fa fa-chevron-down"></i></td>
                 <td class="font-weight-bold text-primary">{{ \Carbon\Carbon::parse($ledger['ledger_date'])->format('d M, Y') }}</td>
+                @if($multiBusiness ?? false)
+                <td><strong>{{ $ledger['business_type_label'] ?? '—' }}</strong></td>
+                @endif
                 <td class="font-weight-bold">{{ $ledger['handover_label'] ?? $ledger['submitted_by'] ?? 'Staff' }}</td>
                 <td class="text-center">
                   <span class="status-badge" style="border: 1px solid {{ $ledger['status_color'] }}; color: {{ $ledger['status_color'] }};">
                     {{ $ledger['business_status'] }}
                   </span>
                 </td>
-                <td class="money-column">{{ number_format($ledger['opening_cash'], 0) }}</td>
+                <td class="money-column">{{ $showRollover && $ledger['opening_cash'] !== null ? number_format($ledger['opening_cash'], 0) : '—' }}</td>
                 <td class="money-column font-weight-bold">{{ number_format($ledger['total_cash_received'], 0) }}</td>
                 <td class="money-column">{{ number_format($ledger['total_digital_received'], 0) }}</td>
                 <td class="money-column font-weight-bold">{{ number_format($ledger['sub_total'], 0) }}</td>
@@ -238,35 +298,57 @@
                 <td class="money-column text-danger">({{ number_format($ledger['combined_expenses'], 0) }})</td>
                 <td class="money-column text-success font-weight-bold">{{ number_format($ledger['daily_net_profit'] ?? $ledger['net_available_profit'], 0) }}</td>
                 <td class="money-column text-info font-weight-bold">{{ number_format($ledger['circulation_refill'], 0) }}</td>
+                <td class="money-column {{ ($ledger['staff_profit_recoveries'] ?? 0) > 0 ? 'text-success font-weight-bold' : 'text-muted' }}">
+                  @if(($ledger['staff_profit_recoveries'] ?? 0) > 0)
+                    +{{ number_format($ledger['staff_profit_recoveries'], 0) }}
+                  @else
+                    —
+                  @endif
+                </td>
+                <td class="money-column {{ ($ledger['staff_circulation_recoveries'] ?? 0) > 0 ? 'text-primary font-weight-bold' : 'text-muted' }}">
+                  @if(($ledger['staff_circulation_recoveries'] ?? 0) > 0)
+                    +{{ number_format($ledger['staff_circulation_recoveries'], 0) }}
+                  @else
+                    —
+                  @endif
+                </td>
                 <td class="money-column font-weight-bold">
+                  @if($showRollover && $ledger['money_in_circulation'] !== null)
                   {{ number_format($ledger['money_in_circulation'], 0) }}
                   @if($ledger['is_finalized'])
                     <br><span class="status-badge text-success mt-1 d-inline-block" style="border-color:#28a745;"><i class="fa fa-check-circle"></i> Finalized</span>
                   @else
                     <br><span class="badge badge-light text-muted border mt-1" style="font-size:0.6rem;">AVAILABLE</span>
                   @endif
+                  @else
+                  <span class="text-muted">—</span>
+                  @endif
                 </td>
                 <td class="money-column font-weight-bold text-success">
-                  {{ number_format($ledger['profit_rollover'] ?? 0, 0) }}
+                  @if($showRollover && $ledger['profit_rollover'] !== null)
+                  {{ number_format($ledger['profit_rollover'], 0) }}
                   @if($ledger['is_finalized'])
                     <br><span class="status-badge text-success mt-1 d-inline-block" style="border-color:#28a745;"><i class="fa fa-check-circle"></i> Finalized</span>
                   @else
                     <br><span class="badge badge-light text-muted border mt-1" style="font-size:0.6rem;">AVAILABLE</span>
                   @endif
+                  @else
+                  <span class="text-muted">—</span>
+                  @endif
                 </td>
                 <td class="text-center d-print-none" style="white-space:nowrap;">
                   <div class="btn-group btn-group-sm">
-                    <a href="{{ route('day-closing.show', $ledger['id']) }}" class="btn btn-primary shadow-sm" title="View Reconciliation" onclick="event.stopPropagation();">
+                    <a href="{{ route('day-closing.show', $closingRouteId) }}" class="btn btn-primary shadow-sm" title="View Reconciliation" onclick="event.stopPropagation();">
                       <i class="fa fa-eye"></i>
                     </a>
-                    <a href="{{ route('day-closing.show', $ledger['id']) }}" target="_blank" class="btn btn-dark shadow-sm" title="Print" onclick="event.stopPropagation();">
+                    <a href="{{ route('day-closing.show', $closingRouteId) }}" target="_blank" class="btn btn-dark shadow-sm" title="Print" onclick="event.stopPropagation();">
                       <i class="fa fa-print"></i>
                     </a>
                   </div>
                 </td>
               </tr>
               <tr id="details-{{ $ledger['id'] }}" class="collapse detail-row">
-                <td colspan="15">
+                <td colspan="{{ $colspan }}">
                   <div class="detail-container">
                     <div class="row">
                       <div class="col-md-6 border-right">
@@ -314,8 +396,36 @@
 
                         @if($ledger['outstanding_debt'] > 0)
                         <div class="mt-3 border-top pt-3">
-                          <h6 class="text-danger font-weight-bold" style="font-size:0.8rem;"><i class="fa fa-exclamation-triangle"></i> CREDIT / DEBT (UNPAID TODAY)</h6>
+                          <h6 class="text-danger font-weight-bold" style="font-size:0.8rem;"><i class="fa fa-exclamation-triangle"></i> NEW DEBT (UNPAID TODAY)</h6>
                           <p class="mb-0 font-weight-bold text-danger">TZS {{ number_format($ledger['outstanding_debt'], 0) }}</p>
+                        </div>
+                        @endif
+
+                        @if(($multiBusiness ?? false) && !empty($ledger['business_type_breakdown']) && !($ledger['is_business_type_row'] ?? false))
+                        <div class="mt-4 border-top pt-3">
+                          <h6 class="text-primary"><i class="fa fa-sitemap"></i> BY BUSINESS TYPE</h6>
+                          <table class="table table-sm nested-table mt-2">
+                            <thead>
+                              <tr>
+                                <th>Business</th>
+                                <th class="text-right">Collected</th>
+                                <th class="text-right">New Debt</th>
+                                <th class="text-right">Profit</th>
+                                <th class="text-right">Circulation</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @foreach($ledger['business_type_breakdown'] as $typeRow)
+                              <tr>
+                                <td>{{ $typeRow['label'] }}</td>
+                                <td class="text-right">TZS {{ number_format($typeRow['collected'], 0) }}</td>
+                                <td class="text-right text-danger">{{ $typeRow['credit'] > 0 ? 'TZS '.number_format($typeRow['credit'], 0) : '—' }}</td>
+                                <td class="text-right text-success">TZS {{ number_format($typeRow['profit_generated'], 0) }}</td>
+                                <td class="text-right text-info">TZS {{ number_format($typeRow['circulation_generated'], 0) }}</td>
+                              </tr>
+                              @endforeach
+                            </tbody>
+                          </table>
                         </div>
                         @endif
                       </div>
@@ -339,6 +449,23 @@
                             <span>Total Collected:</span>
                             <span class="font-weight-bold">TZS {{ number_format($ledger['sub_total'], 0) }}</span>
                           </p>
+                          @if(($ledger['money_short_recoveries'] ?? 0) > 0)
+                          <p class="mb-1 d-flex justify-content-between">
+                            <span>Money Short Recoveries:</span>
+                            <span class="font-weight-bold text-primary">+ TZS {{ number_format($ledger['money_short_recoveries'], 0) }}</span>
+                          </p>
+                          @if(($ledger['money_short_profit_recoveries'] ?? 0) > 0 || ($ledger['money_short_circulation_recoveries'] ?? 0) > 0)
+                          <p class="mb-1 pl-3 small d-flex justify-content-between">
+                            <span class="text-muted">→ To Profit:</span>
+                            <span class="text-success">+ TZS {{ number_format($ledger['money_short_profit_recoveries'] ?? 0, 0) }}</span>
+                          </p>
+                          <p class="mb-1 pl-3 small d-flex justify-content-between">
+                            <span class="text-muted">→ To Circulation:</span>
+                            <span class="text-primary">+ TZS {{ number_format($ledger['money_short_circulation_recoveries'] ?? 0, 0) }}</span>
+                          </p>
+                          @endif
+                          <p class="mb-1 text-muted small">Staff payback restores the profit and circulation portions of the original handover short.</p>
+                          @endif
                           <p class="mb-1 d-flex justify-content-between">
                             <span>Total Expenses:</span>
                             <span class="text-danger">(-) TZS {{ number_format($ledger['combined_expenses'], 0) }}</span>
@@ -385,7 +512,7 @@
                           </div>
 
                           <div class="text-right mt-3">
-                            <a href="{{ route('day-closing.show', $ledger['id']) }}" class="btn btn-primary btn-sm">
+                            <a href="{{ route('day-closing.show', $closingRouteId) }}" class="btn btn-primary btn-sm">
                               <i class="fa fa-external-link"></i> View Reconciliation
                             </a>
                           </div>
@@ -397,7 +524,7 @@
               </tr>
               @endif
             @empty
-              <tr><td colspan="15" class="text-center py-5 text-muted">
+              <tr><td colspan="{{ ($multiBusiness ?? false) ? 18 : 17 }}" class="text-center py-5 text-muted">
                 @if(!empty($canSwitchBranch) && empty($viewingAllBranches))
                   No verified reports for {{ $activeBranchLabel ?? 'this branch' }} yet. Staff must submit reconciliation for this branch and the boss must verify before amounts post here.
                 @else

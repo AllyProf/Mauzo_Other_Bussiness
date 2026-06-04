@@ -7,6 +7,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ShiftStockCheck extends Model
 {
+    public const DECISION_WILL_BE_PAID = 'will_be_paid';
+
+    public const DECISION_WAIVED = 'waived';
+
+    public const DECISIONS = [
+        self::DECISION_WILL_BE_PAID => 'Will be paid',
+        self::DECISION_WAIVED => 'Waived',
+    ];
+
     protected $fillable = [
         'shift_id',
         'item_id',
@@ -20,6 +29,7 @@ class ShiftStockCheck extends Model
         'verified_by',
         'verified_at',
         'owner_notes',
+        'owner_decision',
     ];
 
     protected function casts(): array
@@ -71,6 +81,21 @@ class ShiftStockCheck extends Model
     public function shortageAmount(): float
     {
         return $this->isShort() ? abs((float) $this->variance) : 0;
+    }
+
+    public function ownerDecisionLabel(): ?string
+    {
+        return self::DECISIONS[$this->owner_decision] ?? null;
+    }
+
+    public function isWillBePaid(): bool
+    {
+        return $this->owner_decision === self::DECISION_WILL_BE_PAID;
+    }
+
+    public function isWaived(): bool
+    {
+        return $this->owner_decision === self::DECISION_WAIVED;
     }
 
     public function scopeShortages($query)

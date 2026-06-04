@@ -116,6 +116,17 @@
 </div>
 @endif
 
+@if(session('info') && ($isBossReview ?? false))
+<div class="row mb-3">
+  <div class="col-md-12">
+    <div class="alert alert-info mb-0">
+      <i class="fa fa-info-circle"></i> {{ session('info') }}
+      <a href="{{ route('money-shorts.index') }}" class="alert-link font-weight-bold ml-1">Open Money Shorts</a>
+    </div>
+  </div>
+</div>
+@endif
+
 <div class="row mb-3">
   <div class="col-md-12">
     <div class="tile">
@@ -150,6 +161,11 @@
 </div>
 
 @unless($isBossReview ?? false)
+@php
+  $handoverCash = $platformBreakdown['cash']['amount'] ?? $summary['cash_received'];
+  $handoverMobile = collect($platformBreakdown)->filter(fn ($p) => ($p['method'] ?? '') === 'mobile_money')->sum('amount');
+  $handoverBank = collect($platformBreakdown)->filter(fn ($p) => ($p['method'] ?? '') === 'bank')->sum('amount');
+@endphp
 <div class="row mb-3">
   <div class="col-md-3">
     <div class="widget-small primary coloured-icon">
@@ -166,13 +182,13 @@
   <div class="col-md-3">
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
-      <div class="info"><h4>Total Cash</h4><p><b>TZS {{ number_format($summary['cash_received'], 0) }}</b></p></div>
+      <div class="info"><h4>Total Cash</h4><p><b>TZS {{ number_format($handoverCash, 0) }}</b></p></div>
     </div>
   </div>
   <div class="col-md-3">
     <div class="widget-small success coloured-icon">
       <i class="icon fa fa-mobile fa-3x"></i>
-      <div class="info"><h4>Digital + Bank</h4><p><b>TZS {{ number_format($summary['mobile_received'] + $summary['bank_received'], 0) }}</b></p></div>
+      <div class="info"><h4>Digital + Bank</h4><p><b>TZS {{ number_format($handoverMobile + $handoverBank, 0) }}</b></p></div>
     </div>
   </div>
 </div>
@@ -201,6 +217,7 @@
                   <th>Cash</th>
                   <th>Mobile</th>
                   <th>Bank</th>
+                  <th class="audit-col-bg">Debt Paid</th>
                   <th class="audit-col-bg text-center">Expected</th>
                   <th class="audit-col-bg">Collected</th>
                   <th class="audit-col-bg">Credit</th>
@@ -221,6 +238,13 @@
                   <td>TZS {{ number_format($data['cash_collected'], 0) }}</td>
                   <td>TZS {{ number_format($data['mobile_collected'], 0) }}</td>
                   <td>TZS {{ number_format($data['bank_collected'], 0) }}</td>
+                  <td class="audit-col-bg">
+                    @if(($data['debt_collected'] ?? 0) > 0)
+                      <strong class="text-primary">TZS {{ number_format($data['debt_collected'], 0) }}</strong>
+                    @else
+                      <span class="text-muted">-</span>
+                    @endif
+                  </td>
                   <td class="audit-col-bg"><strong>TZS {{ number_format($data['expected_amount'], 0) }}</strong></td>
                   <td class="audit-col-bg"><strong class="text-info">TZS {{ number_format($data['collected_on_orders'], 0) }}</strong></td>
                   <td class="audit-col-bg">
@@ -232,9 +256,13 @@
                   </td>
                   <td class="diff-col-bg text-center">
                     @php $diff = $data['difference']; @endphp
-                    <strong class="{{ $diff >= 0 ? 'text-success' : 'text-danger' }}">
-                      @if($diff > 0)+@endif{{ number_format($diff, 0) }}
-                    </strong>
+                    @if(abs($diff) < 0.01)
+                      <span class="text-muted">—</span>
+                    @else
+                      <strong class="{{ $diff >= 0 ? 'text-success' : 'text-danger' }}">
+                        @if($diff > 0)+@endif{{ number_format($diff, 0) }}
+                      </strong>
+                    @endif
                   </td>
                   <td class="text-center">
                     @if($data['status'] === 'paid')
@@ -252,6 +280,62 @@
           </div>
         @else
           <div class="alert alert-info"><i class="fa fa-info-circle"></i> No sales found for this date.</div>
+        @endif
+
+        @if(($debtCollections['count'] ?? 0) > 0)
+          <h4 class="mt-4 mb-3"><i class="fa fa-history"></i> Debt Collections Today ({{ $debtCollections['count'] }})</h4>
+          <p class="text-muted small mb-2">
+            @if($shift ?? null)
+              Credit payments you collected today on sales outside this shift — included in your handover total below.
+            @else
+              Payments collected today on credit sales outside today's shift sales — included in handover but separate from shift sales.
+            @endif
+          </p>
+          <div class="table-responsive shadow-sm">
+            <table class="table table-hover table-bordered table-sm mb-0">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Collected By</th>
+                  <th>Customer</th>
+                  <th>Sale Ref</th>
+                  <th>Sale Date</th>
+                  <th>Amount</th>
+                  <th>Method</th>
+                  <th>Provider / Ref</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach($debtCollections['items'] as $item)
+                  <tr>
+                    <td>{{ $item['collected_at'] }}</td>
+                    <td>{{ $item['collected_by'] }}</td>
+                    <td><strong>{{ $item['customer'] }}</strong></td>
+                    <td>{{ $item['sale_ref'] }}</td>
+                    <td>{{ $item['sale_date'] }}</td>
+                    <td class="text-success font-weight-bold">{{ money($item['amount']) }}</td>
+                    <td>{{ ucfirst(str_replace('_', ' ', $item['method'])) }}</td>
+                    <td>
+                      @if($item['provider'] || $item['reference'])
+                        {{ $item['provider'] ?: '—' }}
+                        @if($item['reference'])
+                          <small class="text-muted">({{ $item['reference'] }})</small>
+                        @endif
+                      @else
+                        —
+                      @endif
+                    </td>
+                  </tr>
+                @endforeach
+              </tbody>
+              <tfoot>
+                <tr class="table-primary">
+                  <th colspan="5" class="text-right">Total Debt Collected</th>
+                  <th colspan="3">{{ money($debtCollections['total']) }}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         @endif
       </div>
     </div>
@@ -286,6 +370,195 @@
     </div>
   </div>
 </div>
+
+@if(($summary['sales_count'] ?? 0) > 0)
+<div class="row mb-3">
+  <div class="col-md-12">
+    <div class="tile">
+      <h3 class="tile-title d-flex justify-content-between align-items-center flex-wrap">
+        <span><i class="fa fa-shopping-cart"></i> POS Sales — {{ $displayDate }}</span>
+        @if(count($allDaySales) > 0)
+          <button type="button" class="btn btn-info btn-sm mt-2 mt-md-0" id="viewAllSalesBtnBoss">
+            <i class="fa fa-eye"></i> View All Sales ({{ count($allDaySales) }})
+          </button>
+        @endif
+      </h3>
+      <div class="tile-body">
+        @if(count($businessTypeBreakdown ?? []) > 0)
+          <h5 class="mb-3"><i class="fa fa-sitemap"></i> By Business Type — Profit, Circulation &amp; Debt</h5>
+          <p class="text-muted small mb-3">
+            Profit and circulation split follows your shop setting
+            (<strong>{{ ($expenseDeductFrom ?? 'circulation') === 'profit' ? 'expenses from profit' : 'expenses from circulation' }}</strong>).
+            @if(($expenseDeductFrom ?? 'circulation') === 'circulation')
+              Circulation = cash collected minus profit; profit is capped at what was collected when payment is partial.
+            @else
+              Full sale profit is counted; all collections add to circulation.
+            @endif
+          </p>
+          <div class="table-responsive shadow-sm mb-4">
+            <table class="table table-hover table-bordered table-sm">
+              <thead class="thead-light">
+                <tr>
+                  <th>Business</th>
+                  <th>Orders</th>
+                  <th>Gross Sales</th>
+                  <th>Collected</th>
+                  <th class="text-danger">New Debt</th>
+                  <th class="text-primary">Debt Paid</th>
+                  <th class="text-success">Profit</th>
+                  <th class="text-warning">Circulation</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach($businessTypeBreakdown as $typeRow)
+                <tr>
+                  <td><strong>{{ $typeRow['label'] }}</strong></td>
+                  <td><span class="badge badge-info">{{ $typeRow['orders'] }}</span></td>
+                  <td><strong>TZS {{ number_format($typeRow['gross_sales'], 0) }}</strong></td>
+                  <td>TZS {{ number_format($typeRow['collected'], 0) }}</td>
+                  <td>
+                    @if($typeRow['credit'] > 0)
+                      <span class="text-danger font-weight-bold">TZS {{ number_format($typeRow['credit'], 0) }}</span>
+                    @else
+                      <span class="text-muted">-</span>
+                    @endif
+                  </td>
+                  <td>
+                    @if(($typeRow['debt_collected'] ?? 0) > 0)
+                      <span class="text-primary font-weight-bold">TZS {{ number_format($typeRow['debt_collected'], 0) }}</span>
+                    @else
+                      <span class="text-muted">-</span>
+                    @endif
+                  </td>
+                  <td><span class="text-success font-weight-bold">TZS {{ number_format($typeRow['profit_generated'], 0) }}</span></td>
+                  <td><span class="text-warning font-weight-bold">TZS {{ number_format($typeRow['circulation_generated'], 0) }}</span></td>
+                </tr>
+                @endforeach
+              </tbody>
+              <tfoot class="thead-light">
+                <tr>
+                  <th>Total</th>
+                  <th>{{ $businessTypeTotals['orders'] ?? 0 }}</th>
+                  <th>TZS {{ number_format($businessTypeTotals['gross_sales'] ?? 0, 0) }}</th>
+                  <th>TZS {{ number_format($businessTypeTotals['collected'] ?? 0, 0) }}</th>
+                  <th class="text-danger">TZS {{ number_format($businessTypeTotals['credit'] ?? 0, 0) }}</th>
+                  <th class="text-primary">TZS {{ number_format($businessTypeTotals['debt_collected'] ?? 0, 0) }}</th>
+                  <th class="text-success">TZS {{ number_format($businessTypeTotals['profit_generated'] ?? 0, 0) }}</th>
+                  <th class="text-warning">TZS {{ number_format($businessTypeTotals['circulation_generated'] ?? 0, 0) }}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        @endif
+
+        @if(count($staffRows) > 0)
+          <div class="table-responsive shadow-sm mb-3">
+            <table class="table table-hover table-bordered table-striped" id="boss-staff-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Seller</th>
+                  <th>Orders</th>
+                  <th>Gross Sales</th>
+                  <th>Cash</th>
+                  <th>Mobile</th>
+                  <th>Bank</th>
+                  <th class="audit-col-bg">Debt Paid</th>
+                  <th class="audit-col-bg text-center">Expected</th>
+                  <th class="audit-col-bg">Collected</th>
+                  <th class="audit-col-bg">Credit</th>
+                  <th class="text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach($staffRows as $index => $data)
+                <tr>
+                  <td>{{ $index + 1 }}</td>
+                  <td>
+                    <strong>{{ $data['staff']->name ?? 'Unknown' }}</strong>
+                    @if(($data['staff']->role ?? '') === 'owner')
+                      <span class="badge badge-secondary ml-1">Owner</span>
+                    @endif
+                  </td>
+                  <td><span class="badge badge-info">{{ $data['total_orders'] }}</span></td>
+                  <td><strong>TZS {{ number_format($data['gross_sales'], 0) }}</strong></td>
+                  <td>TZS {{ number_format($data['cash_collected'], 0) }}</td>
+                  <td>TZS {{ number_format($data['mobile_collected'], 0) }}</td>
+                  <td>TZS {{ number_format($data['bank_collected'], 0) }}</td>
+                  <td class="audit-col-bg">
+                    @if(($data['debt_collected'] ?? 0) > 0)
+                      <strong class="text-primary">TZS {{ number_format($data['debt_collected'], 0) }}</strong>
+                    @else
+                      <span class="text-muted">-</span>
+                    @endif
+                  </td>
+                  <td class="audit-col-bg"><strong>TZS {{ number_format($data['expected_amount'], 0) }}</strong></td>
+                  <td class="audit-col-bg"><strong class="text-info">TZS {{ number_format($data['collected_on_orders'], 0) }}</strong></td>
+                  <td class="audit-col-bg">
+                    @if($data['credit'] > 0)
+                      <span class="text-danger">TZS {{ number_format($data['credit'], 0) }}</span>
+                    @else
+                      <span class="text-muted">-</span>
+                    @endif
+                  </td>
+                  <td class="text-center">
+                    @if($data['status'] === 'paid')
+                      <span class="status-pill badge-success">Paid</span>
+                    @elseif($data['status'] === 'partial')
+                      <span class="status-pill badge-warning">Partial</span>
+                    @else
+                      <span class="status-pill badge-warning">Pending</span>
+                    @endif
+                  </td>
+                </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        @endif
+        <div class="alert alert-light border mb-3">
+          <i class="fa fa-info-circle"></i>
+          Your direct POS sales are included above and do not require a shift handover. Sales officers submit handover when they end their shift.
+        </div>
+
+        @if($canPostOwnerDirectSales ?? false)
+          <div class="alert alert-warning border mb-0">
+            <div class="d-flex flex-wrap justify-content-between align-items-center">
+              <div class="mb-2 mb-md-0">
+                <strong><i class="fa fa-book"></i> Post to Master Sheet</strong><br>
+                <span class="small">
+                  Confirm {{ $ownerDirectSummary['sales_count'] ?? 0 }} direct sale(s),
+                  TZS {{ number_format($ownerDirectSummary['gross_sales'] ?? 0, 0) }} gross /
+                  TZS {{ number_format($ownerDirectSummary['amount_collected'] ?? 0, 0) }} collected.
+                </span>
+              </div>
+              <form method="POST" action="{{ route('day-closing.post-owner-sales') }}" id="postOwnerSalesForm" class="mb-0">
+                @csrf
+                <input type="hidden" name="closing_date" value="{{ $date }}">
+                <button type="button" class="btn btn-primary" id="postOwnerSalesBtn">
+                  <i class="fa fa-check"></i> Post to Master Sheet
+                </button>
+              </form>
+            </div>
+            <p class="small text-muted mb-0 mt-2">
+              Step 1: Post your direct sales here.
+              Step 2: Verify any staff handovers below.
+              Step 3: Open <a href="{{ route('owner-reports.index') }}">Master Sheet</a> and finalize the day to carry circulation forward.
+            </p>
+          </div>
+        @elseif(($ownerDirectClosing ?? null) && ($ownerDirectClosing->status ?? '') === 'verified')
+          <div class="alert alert-success border mb-0">
+            <i class="fa fa-check-circle"></i>
+            Your direct POS sales for this date are <strong>posted to the Master Sheet</strong>.
+            <a href="{{ route('owner-reports.show', $date) }}" class="alert-link font-weight-bold ml-1">View day report</a>
+            · <a href="{{ route('owner-reports.index') }}" class="alert-link font-weight-bold">Master Sheet</a>
+          </div>
+        @endif
+      </div>
+    </div>
+  </div>
+</div>
+@endif
 @endif
 
 @php
@@ -338,7 +611,7 @@
   @foreach($handoverCards as $card)
     @include('day-closing.partials.handover-card', $card)
   @endforeach
-@elseif(($awaitingHandoverShifts ?? collect())->isEmpty())
+@elseif(($awaitingHandoverShifts ?? collect())->isEmpty() && ($summary['sales_count'] ?? 0) === 0)
 <div class="row">
   <div class="col-md-12">
     <div class="alert alert-info">
@@ -406,7 +679,7 @@
 
           <h6 class="text-muted text-uppercase mb-1">Collection Breakdown by Platform</h6>
           <p class="small text-muted mb-3">
-            <i class="fa fa-lock"></i> Amounts are calculated from recorded sales and cannot be edited. Use <strong>Record Expense</strong> to deduct shift expenses.
+            <i class="fa fa-lock"></i> Includes this shift's sales plus any credit payments you collected today. Amounts cannot be edited — use <strong>Record Expense</strong> to deduct shift expenses.
           </p>
           <div class="row">
             @forelse($platformBreakdown as $key => $platform)
@@ -447,10 +720,18 @@
             <ul id="expenseListItems" class="list-group list-group-flush border rounded"></ul>
           </div>
 
-          <div class="p-3 bg-light rounded text-right mb-3">
-            <h4 class="mb-0 text-dark">Net Handover: <span id="handover-total" class="font-weight-bold">TZS {{ number_format($overallTotal, 0) }}</span></h4>
-            <small class="text-muted">Collections minus expenses</small>
-            <div id="expenseTotalHint" class="small text-danger mt-1" style="display: none;"></div>
+          <div class="final-handover-banner mb-3 rounded overflow-hidden shadow-sm">
+            <div class="p-4 text-center text-white" style="background: linear-gradient(135deg, #940000 0%, #6d0000 100%);">
+              <div class="text-uppercase small font-weight-bold mb-1" style="letter-spacing: 0.08em; opacity: 0.9;">Final Amount to Handover</div>
+              <div class="display-4 font-weight-bold mb-0"><span id="handover-total">TZS {{ number_format($overallTotal, 0) }}</span></div>
+              <div class="small mt-2" style="opacity: 0.92;">Amount you will submit to your boss after expenses</div>
+            </div>
+            <div class="bg-light px-4 py-3 border-top text-center small">
+              <span class="text-muted">Gross collected:</span> <strong id="handover-gross-amount">TZS {{ number_format($overallTotal, 0) }}</strong>
+              <span id="handover-expense-line" class="text-muted" style="display: none;">
+                <span class="mx-1">−</span> Expenses: <strong class="text-danger" id="handover-expense-amount">TZS 0</strong>
+              </span>
+            </div>
           </div>
 
           <div class="form-group">
@@ -588,12 +869,17 @@ jQuery(function($) {
 
   function updateHandoverTotal() {
     const expenseTotal = getExpenseTotal();
-    const net = getHandoverGross();
+    const gross = Object.values(originalPlatforms).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+    const net = Math.max(0, gross - expenseTotal);
+
+    $('#handover-gross-amount').text('TZS ' + gross.toLocaleString());
     $('#handover-total').text('TZS ' + net.toLocaleString());
+
     if (expenseTotal > 0) {
-      $('#expenseTotalHint').text('Expenses deducted: TZS ' + expenseTotal.toLocaleString()).show();
+      $('#handover-expense-line').show();
+      $('#handover-expense-amount').text('TZS ' + expenseTotal.toLocaleString());
     } else {
-      $('#expenseTotalHint').hide();
+      $('#handover-expense-line').hide();
     }
   }
 
@@ -701,34 +987,90 @@ jQuery(function($) {
 @include('day-closing.partials.sales-modal-render')
 <script>
 jQuery(function($) {
+  const allDaySales = @json($allDaySales);
+
+  $('#viewAllSalesBtnBoss').on('click', function() {
+    renderDayClosingSalesModal(allDaySales, 'All Sales — {{ $displayDate }}');
+  });
+
+  $('#postOwnerSalesBtn').on('click', function() {
+    Swal.fire({
+      title: 'Post to Master Sheet?',
+      html: 'Confirm your direct POS sales for <strong>{{ $displayDate }}</strong>.<br><br>This records circulation and profit for your sales only (not staff shift handovers).',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#940000',
+      confirmButtonText: 'Yes, post now'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        $('#postOwnerSalesForm').submit();
+      }
+    });
+  });
+
+  function updateMoneyShortDisplay($input) {
+    const closingId = $input.closest('.verify-handover-form').data('closing-id');
+    const expected = parseFloat($input.data('expected')) || 0;
+    const actual = parseFloat($input.val()) || 0;
+    const short = Math.max(0, Math.round(expected - actual));
+    const $display = $('#money-short-display-' + closingId);
+    const $noteWrap = $('#shortage-note-wrap-' + closingId);
+    const $note = $('#shortage-note-' + closingId);
+
+    if (short > 0) {
+      $display.text('TZS ' + short.toLocaleString()).addClass('text-danger');
+      $noteWrap.show();
+      $note.prop('required', true);
+    } else {
+      $display.text('—').removeClass('text-danger');
+      $noteWrap.hide();
+      $note.prop('required', false);
+    }
+  }
+
+  $('.actual-received-input').each(function() {
+    updateMoneyShortDisplay($(this));
+  }).on('input', function() {
+    updateMoneyShortDisplay($(this));
+  });
+
+  $('.verify-handover-form').on('submit', function(e) {
+    const $form = $(this);
+    const closingId = $form.data('closing-id');
+    const $input = $('#actual-received-' + closingId);
+    const expected = parseFloat($input.data('expected')) || 0;
+    const actual = parseFloat($input.val()) || 0;
+    const short = Math.max(0, Math.round(expected - actual));
+    const note = ($('#shortage-note-' + closingId).val() || '').trim();
+
+    if (short > 0 && !note) {
+      e.preventDefault();
+      Swal.fire({ icon: 'warning', title: 'Shortage note required', text: 'Explain why the staff handed over less than expected.' });
+      return false;
+    }
+
+    e.preventDefault();
+    const confirmText = short > 0
+      ? 'Expected TZS ' + expected.toLocaleString() + ', received TZS ' + actual.toLocaleString() + '. Record a money short of TZS ' + short.toLocaleString() + ' and post to the Master Sheet?'
+      : 'Confirm full handover of TZS ' + actual.toLocaleString() + ' and post to the Master Sheet?';
+
+    Swal.fire({
+      title: short > 0 ? 'Verify With Money Short?' : 'Verify & Post to Master Sheet?',
+      text: confirmText,
+      icon: short > 0 ? 'warning' : 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#940000',
+      confirmButtonText: 'Yes, verify'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        $form.off('submit').submit();
+      }
+    });
+  });
+
   $(document).on('click', '.view-handover-sales-btn', function() {
     const sales = JSON.parse($(this).attr('data-sales') || '[]');
     renderDayClosingSalesModal(sales, $(this).data('title'));
-  });
-
-  $('.dispute-handover-btn').on('click', function() {
-    const verifyUrl = $(this).data('verify-url');
-    Swal.fire({
-      title: 'Dispute Reconciliation',
-      input: 'textarea',
-      inputLabel: 'Reason for dispute',
-      inputPlaceholder: 'Describe the discrepancy...',
-      showCancelButton: true,
-      confirmButtonColor: '#dc3545',
-      confirmButtonText: 'Submit Dispute',
-      preConfirm: (reason) => {
-        if (!reason) Swal.showValidationMessage('Please enter a reason');
-        return reason;
-      }
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const form = $('<form>', { method: 'POST', action: verifyUrl });
-        form.append($('<input>', { type: 'hidden', name: '_token', value: '{{ csrf_token() }}' }));
-        form.append($('<input>', { type: 'hidden', name: 'dispute_reason', value: result.value }));
-        $('body').append(form);
-        form.submit();
-      }
-    });
   });
 
   if (window.location.hash) {

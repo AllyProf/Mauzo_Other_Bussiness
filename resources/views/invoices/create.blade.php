@@ -20,6 +20,18 @@
 </div>
 @endif
 
+@if(!empty($activeBranchName))
+<div class="alert alert-info py-2 mb-3">
+  <i class="fa fa-map-marker"></i>
+  Showing items for <strong>{{ $activeBranchName }}</strong>. Switch branch in the header to change location.
+</div>
+@elseif($viewingAllBranches ?? false)
+<div class="alert alert-light border py-2 mb-3">
+  <i class="fa fa-building"></i>
+  Viewing items from <strong>all branches</strong>. Switch branch in the header to filter invoice items.
+</div>
+@endif
+
 <div class="row">
   <div class="col-md-12">
     <div class="tile">
@@ -34,24 +46,28 @@
             <label class="font-weight-bold">Customer</label>
             <select name="customer_id" id="customerSelect" class="form-control">
               <option value="">Walk-in / enter manually below</option>
-              @foreach($customers as $customer)
-                <option value="{{ $customer->id }}" data-name="{{ e($customer->name) }}" data-phone="{{ e($customer->phone ?? '') }}"
+                @foreach($customers as $customer)
+                <option value="{{ $customer->id }}" data-name="{{ e($customer->name) }}" data-phone="{{ e($customer->phone ?? '') }}" data-email="{{ e($customer->email ?? '') }}"
                   {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
                   {{ $customer->name }}@if($customer->phone) — {{ $customer->phone }}@endif
                 </option>
-              @endforeach
+                @endforeach
             </select>
             <div class="row mt-2" id="manualCustomerFields">
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <input type="text" name="customer_name" id="customerName" class="form-control" placeholder="Customer name (optional)" value="{{ old('customer_name') }}">
               </div>
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <div class="input-group">
                   <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
-                  <input type="text" name="customer_phone" id="customerPhone" class="form-control" placeholder="Phone (optional)" value="{{ old('customer_phone') }}">
+                  <input type="text" name="customer_phone" id="customerPhone" class="form-control" placeholder="Phone for SMS" value="{{ old('customer_phone') }}">
                 </div>
               </div>
+              <div class="col-md-4">
+                <input type="email" name="customer_email" id="customerEmail" class="form-control" placeholder="Email for invoice attachment" value="{{ old('customer_email') }}">
+              </div>
             </div>
+            <small class="text-muted d-block mt-1">SMS is sent to the phone number; the invoice is emailed as a PDF when an address is provided.</small>
           </div>
         </div>
 
@@ -296,6 +312,7 @@
     if ($opt.val()) {
       $('#customerName').val($opt.data('name') || '');
       $('#customerPhone').val(($opt.data('phone') || '').replace(/^\+255/, ''));
+      $('#customerEmail').val($opt.data('email') || '');
     }
   });
 

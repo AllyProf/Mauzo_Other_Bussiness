@@ -35,6 +35,13 @@
     <div class="alert alert-warning"><i class="fa fa-clock-o"></i> <strong>Awaiting boss verification.</strong> Your handover has been submitted successfully.</div>
   @endif
 
+  @include('day-closing.partials.final-handover-summary', ['handoverSummary' => $handoverSummary ?? [
+    'gross_collected' => (float) ($dayClosing->net_amount + $dayClosing->total_expenses),
+    'expenses' => (float) $dayClosing->total_expenses,
+    'final_handover' => (float) $dayClosing->net_amount,
+    'debt_collected' => (float) ($debtCollections['total'] ?? 0),
+  ]])
+
   @unless($canViewBossFinancials ?? false)
   <div class="row mb-3">
     <div class="col-md-3 col-6"><div class="widget-small primary coloured-icon"><i class="icon fa fa-shopping-cart fa-3x"></i><div class="info"><h4>Sales</h4><p><b>{{ $dayClosing->sales_count }}</b></p></div></div></div>
@@ -54,7 +61,7 @@
     <table class="table table-bordered table-sm">
       <thead>
         <tr>
-          <th>Staff</th><th>Orders</th><th>Gross</th><th>Cash</th><th>Mobile</th><th>Bank</th>
+          <th>Staff</th><th>Orders</th><th>Gross</th><th>Cash</th><th>Mobile</th><th>Bank</th><th class="audit-col-bg">Debt Paid</th>
           <th class="audit-col-bg">Expected</th><th class="audit-col-bg">Collected</th><th class="diff-col-bg">Diff</th><th>Status</th>
         </tr>
       </thead>
@@ -67,15 +74,57 @@
           <td>{{ money($data['cash_collected']) }}</td>
           <td>{{ money($data['mobile_collected']) }}</td>
           <td>{{ money($data['bank_collected']) }}</td>
+          <td class="audit-col-bg">{{ ($data['debt_collected'] ?? 0) > 0 ? money($data['debt_collected']) : '—' }}</td>
           <td class="audit-col-bg">{{ money($data['expected_amount']) }}</td>
           <td class="audit-col-bg">{{ money($data['collected_on_orders']) }}</td>
-          <td class="diff-col-bg">{{ number_format($data['difference'], 0) }}</td>
+          <td class="diff-col-bg">
+            @if(abs($data['difference']) < 0.01)
+              —
+            @else
+              {{ $data['difference'] > 0 ? '+' : '' }}{{ number_format($data['difference'], 0) }}
+            @endif
+          </td>
           <td><span class="status-pill badge-{{ $data['status'] === 'paid' ? 'success' : 'warning' }}">{{ ucfirst($data['status']) }}</span></td>
         </tr>
         @endforeach
       </tbody>
     </table>
   </div>
+
+  @if(($debtCollections['count'] ?? 0) > 0)
+  <h5 class="mt-2"><i class="fa fa-history"></i> Debt Collections ({{ $debtCollections['count'] }})</h5>
+  <div class="table-responsive mb-4">
+    <table class="table table-bordered table-sm">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Collected By</th>
+          <th>Customer</th>
+          <th>Sale Ref</th>
+          <th>Sale Date</th>
+          <th>Amount</th>
+          <th>Method</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach($debtCollections['items'] as $item)
+          <tr>
+            <td>{{ $item['collected_at'] }}</td>
+            <td>{{ $item['collected_by'] }}</td>
+            <td>{{ $item['customer'] }}</td>
+            <td>{{ $item['sale_ref'] }}</td>
+            <td>{{ $item['sale_date'] }}</td>
+            <td>{{ money($item['amount']) }}</td>
+            <td>{{ ucfirst(str_replace('_', ' ', $item['method'])) }}</td>
+          </tr>
+        @endforeach
+      </tbody>
+      <tfoot>
+        <tr><th colspan="5" class="text-right">Total</th><th colspan="2">{{ money($debtCollections['total']) }}</th></tr>
+      </tfoot>
+    </table>
+  </div>
+  @endif
 
   <div class="row">
     <div class="col-md-6">
@@ -94,7 +143,18 @@
           <tr><th>Mobile Money</th><td>{{ money($dayClosing->mobile_received) }}</td></tr>
           <tr><th>Bank</th><td>{{ money($dayClosing->bank_received) }}</td></tr>
         @endforelse
-        <tr class="table-success"><th>Total</th><td><strong>{{ money($dayClosing->payments_received) }}</strong></td></tr>
+        @if(($handoverSummary['expenses'] ?? $dayClosing->total_expenses) > 0)
+          <tr class="table-light">
+            <td colspan="2" class="small text-muted py-2">
+              <i class="fa fa-info-circle"></i>
+              Shift expenses ({{ money($handoverSummary['expenses'] ?? $dayClosing->total_expenses) }}) were deducted from the platforms above before handover.
+            </td>
+          </tr>
+        @endif
+        <tr class="table-success">
+          <th>Final Amount to Handover</th>
+          <td><strong>{{ money($handoverSummary['final_handover'] ?? $dayClosing->net_amount) }}</strong></td>
+        </tr>
       </table>
     </div>
     <div class="col-md-6">
@@ -155,24 +215,78 @@
     <div class="p-3 bg-light rounded">{!! nl2br(e($dayClosing->report_notes)) !!}</div>
   @endif
 
+  @if($dayClosing->hasMoneyShort())
+  <div class="alert alert-danger mt-3 mb-0">
+    <h5 class="alert-heading mb-2"><i class="fa fa-exclamation-triangle"></i> Money Short Recorded</h5>
+    <div class="row">
+      <div class="col-md-4"><small class="text-uppercase font-weight-bold">Expected</small><div>{{ money($dayClosing->expectedHandoverAmount()) }}</div></div>
+      <div class="col-md-4"><small class="text-uppercase font-weight-bold">Actual Received</small><div>{{ money($dayClosing->actual_received) }}</div></div>
+      <div class="col-md-4"><small class="text-uppercase font-weight-bold">Short</small><div class="font-weight-bold">{{ money($dayClosing->money_short) }}</div></div>
+    </div>
+    @if($dayClosing->shortage_note)
+      <hr class="my-2">
+      <small class="text-uppercase font-weight-bold">Boss Note</small>
+      <div>{{ $dayClosing->shortage_note }}</div>
+    @endif
+  </div>
+  @endif
+
   @if($canVerifyHandover ?? false)
     @if($dayClosing->status === 'submitted')
     <div class="mt-4 border-top pt-3">
-      <form action="{{ route('day-closing.verify', $dayClosing) }}" method="POST" class="d-inline verify-handover-form">
+      <h5 class="mb-3"><i class="fa fa-check-square-o"></i> Verify Handover</h5>
+      <form action="{{ route('day-closing.verify', $dayClosing) }}" method="POST" class="verify-handover-form" data-closing-id="{{ $dayClosing->id }}">
         @csrf
-        <button type="button" class="btn btn-success btn-lg" onclick="confirmAction(event, 'Verify & Post to Master Sheet?', 'Confirm collections and publish debt, profit, and circulation to the Master Sheet.');">
-          <i class="fa fa-check"></i> Verify &amp; Post to Master Sheet
-        </button>
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="font-weight-bold text-muted small text-uppercase">Expected Handover</label>
+            <div class="form-control bg-light font-weight-bold">{{ money($handoverSummary['final_handover'] ?? $dayClosing->net_amount) }}</div>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label for="actual-received-{{ $dayClosing->id }}" class="font-weight-bold">Actual Amount Received <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <div class="input-group-prepend"><span class="input-group-text">TZS</span></div>
+              <input type="number"
+                     id="actual-received-{{ $dayClosing->id }}"
+                     name="actual_received"
+                     class="form-control actual-received-input font-weight-bold"
+                     min="0"
+                     step="1"
+                     required
+                     value="{{ old('actual_received', round($handoverSummary['final_handover'] ?? $dayClosing->net_amount)) }}"
+                     data-expected="{{ round($handoverSummary['final_handover'] ?? $dayClosing->net_amount) }}">
+            </div>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="font-weight-bold text-muted small text-uppercase">Money Short</label>
+            <div class="form-control bg-light text-danger font-weight-bold money-short-display" id="money-short-display-{{ $dayClosing->id }}">—</div>
+          </div>
+        </div>
+        <div class="form-group shortage-note-wrap" id="shortage-note-wrap-{{ $dayClosing->id }}" style="display: none;">
+          <label for="shortage-note-{{ $dayClosing->id }}" class="font-weight-bold">Shortage Explanation <span class="text-danger">*</span></label>
+          <textarea id="shortage-note-{{ $dayClosing->id }}"
+                    name="shortage_note"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Explain why the staff handed over less than expected...">{{ old('shortage_note') }}</textarea>
+        </div>
+        <div class="d-flex flex-wrap align-items-center">
+          <button type="submit" class="btn btn-success btn-lg mb-2">
+            <i class="fa fa-check"></i> Verify &amp; Post to Master Sheet
+          </button>
+        </div>
       </form>
-      <button type="button" class="btn btn-danger ml-2 dispute-handover-btn" data-verify-url="{{ route('day-closing.verify', $dayClosing) }}">
-        <i class="fa fa-flag"></i> Dispute
-      </button>
     </div>
     @elseif($dayClosing->status === 'verified')
-    <div class="mt-4 border-top pt-3">
-      <a href="{{ route('owner-reports.index') }}" class="btn btn-primary">
+    <div class="mt-4 border-top pt-3 d-flex flex-wrap">
+      <a href="{{ route('owner-reports.index') }}" class="btn btn-primary mr-2 mb-2">
         <i class="fa fa-list-alt"></i> Open in Master Sheet
       </a>
+      @if($dayClosing->hasMoneyShort())
+      <a href="{{ route('money-shorts.index') }}" class="btn btn-outline-danger mb-2">
+        <i class="fa fa-money"></i> View Money Shorts
+      </a>
+      @endif
     </div>
     @endif
   @endif

@@ -15,6 +15,8 @@ class CustomerController extends Controller
         Gate::authorize('manage_customers');
 
         $businessId = Auth::user()->business_id;
+        $filter = $this->branchBusinessFilterContext($request);
+        extract($filter);
 
         $query = Customer::where('business_id', $businessId)->orderBy('name');
 
@@ -35,11 +37,17 @@ class CustomerController extends Controller
 
         $customers = $query->get();
 
-        $outstandingByCustomer = Sale::where('business_id', $businessId)
+        $salesQuery = Sale::where('business_id', $businessId)
             ->whereNotIn('payment_status', ['paid', 'cancelled'])
             ->whereColumn('total_amount', '>', 'amount_paid')
-            ->whereNotNull('customer_id')
-            ->get()
+            ->whereNotNull('customer_id');
+
+        $this->scopeSalesToBranchCategories($salesQuery);
+        if ($activeBusinessType) {
+            $salesQuery->whereHas('items.item.category', fn ($cat) => $cat->where('source_business_type_key', $activeBusinessType));
+        }
+
+        $outstandingByCustomer = $salesQuery->get()
             ->groupBy('customer_id')
             ->map(fn ($sales) => $sales->sum(fn ($sale) => (float) $sale->total_amount - (float) $sale->amount_paid));
 
@@ -49,7 +57,7 @@ class CustomerController extends Controller
             'with_debt' => $outstandingByCustomer->filter(fn ($amount) => $amount > 0)->count(),
         ];
 
-        return view('customers.index', compact('customers', 'stats', 'outstandingByCustomer'));
+        return view('customers.index', compact('customers', 'stats', 'outstandingByCustomer') + $filter);
     }
 
     public function create()

@@ -7,9 +7,11 @@ use App\Models\Business;
 use App\Models\Customer;
 use App\Models\Plan;
 use App\Models\User;
+use App\Services\PlatformMailService;
 use App\Services\PlatformSettingsService;
+use App\Services\PlatformSmsService;
 use App\Services\RegistrationVerificationService;
-use App\Services\SmsService;
+use App\Services\RegistrationFunnelService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -20,17 +22,21 @@ class BusinessRegistrationController extends Controller
 {
     public function __construct(
         private PlatformSettingsService $platformSettings,
-        private SmsService $smsService,
+        private PlatformSmsService $platformSms,
+        private PlatformMailService $platformMail,
         private RegistrationVerificationService $verificationService,
+        private RegistrationFunnelService $funnelService,
     ) {
     }
 
-    public function showRegistrationForm()
+    public function showRegistrationForm(Request $request)
     {
         if (! $this->platformSettings->isRegistrationOpen()) {
             return redirect()->route('landing.index')
                 ->with('error', 'Registration is currently closed. Please contact us.');
         }
+
+        $this->funnelService->track($request, 'register_form_view');
 
         return view('landing.register', [
             'platformSettings' => $this->platformSettings->all(),
@@ -45,22 +51,24 @@ class BusinessRegistrationController extends Controller
         }
 
         $payload = $this->validatedRegistrationPayload($request);
-        $phone255 = $this->smsService->formatPhoneNumber($payload['phone']);
+        $phone255 = $this->platformSms->formatPhoneNumber($payload['phone']);
         $code = $this->verificationService->generateCode();
-        $platformName = $this->platformSettings->get('platform_name', 'Mauzo Link');
 
         $this->verificationService->store($phone255, $payload, $code);
 
-        $message = "{$platformName}: Your verification code is {$code}. It expires in 10 minutes.";
-        $result = $this->smsService->sendSms($phone255, $message);
-
-        if (! $result['success']) {
+        if (! $this->platformSms->sendRegistrationVerification($phone255, $code)) {
             $this->verificationService->forget($phone255);
 
             return response()->json([
                 'message' => 'We could not send the SMS. Please check your phone number and try again.',
             ], 502);
         }
+
+        if (filled($payload['email'] ?? null)) {
+            $this->platformMail->sendRegistrationVerification($payload['email'], $code);
+        }
+
+        $this->funnelService->track($request, 'verification_code_sent', ['phone' => $phone255]);
 
         return response()->json([
             'message' => 'Verification code sent.',
@@ -129,7 +137,7 @@ class BusinessRegistrationController extends Controller
 
         \App\Models\Branch::createDefaultForBusiness($business);
 
-        User::create([
+        $owner = User::create([
             'name' => $payload['name'],
             'email' => $loginEmail,
             'password' => Hash::make($temporaryPassword),
@@ -137,7 +145,13 @@ class BusinessRegistrationController extends Controller
             'role' => 'owner',
         ]);
 
+        $business->update(['owner_user_id' => $owner->id]);
+        Branch::query()
+            ->where('business_id', $business->id)
+            ->update(['owner_user_id' => $owner->id]);
+
         $this->verificationService->forget($phone255);
+        $this->funnelService->track($request, 'registration_submitted', ['business_id' => $business->id]);
 
         $pendingMessage = 'Thank you! Your registration was received and is pending review. Once approved, your login password will be sent to your phone by SMS.';
 

@@ -13,6 +13,11 @@
   @endcan
 </div>
 
+@include('partials.branch-business-filters', [
+  'filterHint' => 'Outstanding debt reflects sales from the selected branch and business only.',
+  'filterNote' => 'debt from this department only',
+])
+
 <div class="row mb-3">
   <div class="col-md-4">
     <div class="widget-small primary coloured-icon"><i class="icon fa fa-users fa-3x"></i>
@@ -33,6 +38,9 @@
 
 <div class="tile d-print-none mb-3 py-2">
   <form method="GET" action="{{ route('customers.index') }}" class="row align-items-end">
+    @if($activeBusinessType ?? false)
+      <input type="hidden" name="business_type" value="{{ $activeBusinessType }}">
+    @endif
     <div class="col-md-4">
       <label class="small font-weight-bold mb-0">Search</label>
       <input type="text" name="search" class="form-control form-control-sm" value="{{ request('search') }}" placeholder="Name, phone, or email">

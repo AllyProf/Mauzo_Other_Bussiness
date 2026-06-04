@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Item;
 use App\Models\Sale;
@@ -45,7 +46,7 @@ class InvoiceController extends Controller
         $customers = Customer::where('business_id', $businessId)
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'phone']);
+            ->get(['id', 'name', 'phone', 'email']);
 
         $paymentMethods = Auth::user()->business->enabledPaymentMethods();
 
@@ -75,9 +76,41 @@ class InvoiceController extends Controller
         $stockService = app(SaleStockService::class);
         $stockContext = $stockService->shiftStockContext($openShift);
         $business = Auth::user()->business;
-        $businessTypes = $business->posBusinessTypesMeta();
+
+        $branchFilterId = null;
+        if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
+            $branchFilterId = (int) Auth::user()->branch_id;
+        } elseif ($branchId = active_branch_id()) {
+            $branchFilterId = $branchId;
+        }
+
+        $templates = config('category_templates', []);
+
+        if ($branchFilterId) {
+            $businessTypes = collect($business->importedTypesForBranch($branchFilterId))
+                ->map(function ($type) use ($templates) {
+                    $key = (string) ($type['key'] ?? '');
+
+                    return [
+                        'key' => $key,
+                        'label' => (string) ($type['label'] ?? $key),
+                        'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
+                    ];
+                })
+                ->values()
+                ->all();
+        } else {
+            $businessTypes = $business->posBusinessTypesMeta();
+        }
+
+        $multiBusiness = count($businessTypes) > 1;
+        $activeBranchName = $branchFilterId
+            ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? Auth::user()->branch?->name ?? 'Branch')
+            : null;
+        $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
 
         $catalogItems = Item::where('business_id', $business->id)
+            ->when($branchFilterId, fn ($query) => $query->whereHas('category', fn ($cat) => $cat->where('branch_id', $branchFilterId)))
             ->with(['packagings', 'category'])
             ->orderBy('name')
             ->get()
@@ -114,14 +147,18 @@ class InvoiceController extends Controller
         $customers = Customer::where('business_id', Auth::user()->business_id)
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'phone']);
+            ->get(['id', 'name', 'phone', 'email']);
 
         return view('invoices.create', compact(
             'catalogItems',
             'catalogGroups',
             'businessTypes',
+            'multiBusiness',
             'customers',
             'openShift',
+            'activeBranchName',
+            'branchFilterId',
+            'viewingAllBranches',
         ));
     }
 
@@ -148,6 +185,7 @@ class InvoiceController extends Controller
             'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', Auth::user()->business_id)],
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:50',
+            'customer_email' => 'nullable|email|max:255',
             'notes' => 'nullable|string|max:1000',
         ]);
 
@@ -161,11 +199,27 @@ class InvoiceController extends Controller
             }
 
             $stockContext = app(SaleStockService::class)->shiftStockContext($openShift);
-        $stockService = app(SaleStockService::class);
+            $stockService = app(SaleStockService::class);
+
+            $branchFilterId = null;
+            if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
+                $branchFilterId = (int) Auth::user()->branch_id;
+            } elseif ($branchId = active_branch_id()) {
+                $branchFilterId = $branchId;
+            }
 
             foreach ($activeItems as $i) {
-                $item = Item::find($i['id']);
-                $available = $this->availableStockForShift($item, $openShift, $stockContext);
+                $item = Item::with('category')->find($i['id']);
+
+                if ($branchFilterId && (int) ($item->category?->branch_id ?? 0) !== (int) $branchFilterId) {
+                    DB::rollBack();
+
+                    return redirect()->back()
+                        ->with('error', "Item {$item->name} is not available for the selected branch.")
+                        ->withInput();
+                }
+
+                $available = $stockService->availableStockForShift($item, $openShift, $stockContext);
 
                 if ((float) $i['qty'] > $available) {
                     DB::rollBack();
@@ -220,9 +274,25 @@ class InvoiceController extends Controller
             DB::commit();
             $openShift?->refreshTotals();
 
+            $sale->load(['items.item', 'user', 'customer', 'business']);
+            $notification = app(\App\Services\BusinessInvoiceNotificationService::class)
+                ->notifyCreated($sale, Auth::user(), $request->input('customer_email'));
+
+            $successMessage = "Invoice {$ref} created.";
+            if ($notification['sms_sent']) {
+                $successMessage .= ' SMS sent to customer.';
+            } elseif ($notification['sms_error'] && filled($sale->customer_phone ?: $sale->customer?->phone)) {
+                $successMessage .= ' SMS could not be sent: '.$notification['sms_error'];
+            }
+            if ($notification['email_sent']) {
+                $successMessage .= ' Invoice emailed with PDF attachment.';
+            } elseif ($notification['email_error'] && (filled($sale->customer?->email) || filled($request->input('customer_email')))) {
+                $successMessage .= ' Email could not be sent: '.$notification['email_error'];
+            }
+
             return redirect()
                 ->route('invoices.show', $sale)
-                ->with('success', "Invoice {$ref} created. Print the invoice for the customer, then record payment when they pay.");
+                ->with('success', $successMessage);
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -251,7 +321,7 @@ class InvoiceController extends Controller
         $customers = Customer::where('business_id', Auth::user()->business_id)
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'phone']);
+            ->get(['id', 'name', 'phone', 'email']);
 
         $paymentMethods = Auth::user()->business->enabledPaymentMethods();
 

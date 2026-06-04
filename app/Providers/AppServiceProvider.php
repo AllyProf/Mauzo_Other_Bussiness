@@ -29,8 +29,14 @@ class AppServiceProvider extends ServiceProvider
             ['layouts.partials._header', 'layouts.partials._sidebar', 'layouts.app'],
             function ($view) {
                 $branchService = app(\App\Services\ActiveBranchService::class);
+                $businessService = app(\App\Services\ActiveBusinessService::class);
 
                 $data = [
+                    'canSwitchBusiness' => $businessService->canSwitch(),
+                    'ownerBusinesses' => $businessService->businesses(),
+                    'activeBusiness' => $businessService->activeBusiness(),
+                    'activeBusinessId' => $businessService->activeBusinessId(),
+                    'activeBusinessLabel' => $businessService->activeBusinessLabel(),
                     'canSwitchBranch' => $branchService->canSwitch(),
                     'ownerBranches' => $branchService->branches(),
                     'activeBranch' => $branchService->activeBranch(),
@@ -40,14 +46,18 @@ class AppServiceProvider extends ServiceProvider
                     'dueNoteReminders' => collect(),
                     'dueNoteRemindersCount' => 0,
                     'newNoteReminderToasts' => collect(),
+                    'unreadAdminTickets' => 0,
                 ];
 
                 $user = auth()->user();
                 $data['headerBrand'] = platform_settings('platform_name', 'SP-POS');
 
                 if ($user) {
-                    if ($user->role === 'super_admin') {
+                    if ($user->isPlatformAdmin()) {
                         $data['headerBrand'] = platform_settings('platform_name', 'SP-POS');
+                        $data['unreadAdminTickets'] = app(\App\Services\PlatformAdminService::class)->unreadTicketsCount();
+                    } elseif ($businessService->activeBusiness()?->name) {
+                        $data['headerBrand'] = $businessService->activeBusiness()->name;
                     } elseif ($user->business_id) {
                         $user->loadMissing('business');
                         if ($user->business?->name) {
@@ -56,8 +66,11 @@ class AppServiceProvider extends ServiceProvider
                     }
                 }
 
-                if ($user && $user->role !== 'super_admin' && $user->business_id) {
-                    $dueReminders = \App\Models\BusinessNote::where('business_id', $user->business_id)
+                if ($user && $user->role !== 'super_admin' && $user->role !== 'platform_staff') {
+                    $notesBusinessId = $businessService->activeBusinessId() ?? $user->business_id;
+
+                    if ($notesBusinessId) {
+                    $dueReminders = \App\Models\BusinessNote::where('business_id', $notesBusinessId)
                         ->where('user_id', $user->id)
                         ->due()
                         ->orderBy('remind_at')
@@ -79,6 +92,7 @@ class AppServiceProvider extends ServiceProvider
                     $data['dueNoteReminders'] = $dueReminders;
                     $data['dueNoteRemindersCount'] = $dueReminders->count();
                     $data['newNoteReminderToasts'] = $newToasts;
+                    }
                 }
 
                 $view->with($data);

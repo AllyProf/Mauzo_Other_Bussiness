@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\Business;
 use App\Services\ActiveBranchService;
+use App\Services\ActiveBusinessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class BranchController extends Controller
 {
@@ -14,18 +16,26 @@ class BranchController extends Controller
     {
         $this->authorizeAny(['manage_branches']);
 
-        $business = Business::with('plan')->findOrFail(Auth::user()->business_id);
-        $branches = Branch::where('business_id', $business->id)->orderByDesc('is_default')->orderBy('name')->get();
+        $business = $this->currentBusiness();
+        $ownerBusinesses = app(ActiveBusinessService::class)->businesses();
+        $branches = Branch::query()
+            ->with('businesses')
+            ->where('owner_user_id', Auth::id())
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
 
-        return view('branches.index', compact('business', 'branches'));
+        return view('branches.index', compact('business', 'branches', 'ownerBusinesses'));
     }
 
     public function store(Request $request)
     {
         $this->authorizeAny(['manage_branches']);
 
-        $business = Business::with('plan')->findOrFail(Auth::user()->business_id);
-        $currentCount = Branch::where('business_id', $business->id)->count();
+        $business = $this->currentBusiness();
+        $ownerBusinesses = app(ActiveBusinessService::class)->businesses();
+        $allowedBusinessIds = $ownerBusinesses->pluck('id')->all();
+        $currentCount = Branch::where('owner_user_id', Auth::id())->count();
         $maxBranches = $business->maxBranchesAllowed();
 
         if ($maxBranches !== null && $currentCount >= $maxBranches) {
@@ -42,12 +52,16 @@ class BranchController extends Controller
             'leader_name' => 'nullable|string|max:255',
             'leader_phone' => 'nullable|string|max:50',
             'leader_email' => 'nullable|email|max:255',
+            'business_ids' => 'required|array|min:1',
+            'business_ids.*' => ['integer', Rule::in($allowedBusinessIds)],
         ]);
 
         $isFirst = $currentCount === 0;
+        $primaryBusinessId = (int) $request->business_ids[0];
 
-        Branch::create([
-            'business_id' => $business->id,
+        $branch = Branch::create([
+            'owner_user_id' => Auth::id(),
+            'business_id' => $primaryBusinessId,
             'name' => $request->name,
             'address' => $request->address,
             'location' => $request->location,
@@ -58,6 +72,12 @@ class BranchController extends Controller
             'is_default' => $isFirst,
         ]);
 
+        $sync = [];
+        foreach ($request->business_ids as $index => $businessId) {
+            $sync[(int) $businessId] = ['is_default' => $index === 0];
+        }
+        $branch->businesses()->sync($sync);
+
         return redirect()->back()->with('success', 'Branch registered successfully.');
     }
 
@@ -65,6 +85,9 @@ class BranchController extends Controller
     {
         $this->authorizeAny(['manage_branches']);
         $this->ensureBranchAccess($branch);
+
+        $ownerBusinesses = app(ActiveBusinessService::class)->businesses();
+        $allowedBusinessIds = $ownerBusinesses->pluck('id')->all();
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -74,9 +97,14 @@ class BranchController extends Controller
             'leader_phone' => 'nullable|string|max:50',
             'leader_email' => 'nullable|email|max:255',
             'is_active' => 'nullable|boolean',
+            'business_ids' => 'required|array|min:1',
+            'business_ids.*' => ['integer', Rule::in($allowedBusinessIds)],
         ]);
 
+        $primaryBusinessId = (int) $request->business_ids[0];
+
         $branch->update([
+            'business_id' => $primaryBusinessId,
             'name' => $request->name,
             'address' => $request->address,
             'location' => $request->location,
@@ -85,6 +113,12 @@ class BranchController extends Controller
             'leader_email' => $request->leader_email,
             'is_active' => $request->boolean('is_active'),
         ]);
+
+        $sync = [];
+        foreach ($request->business_ids as $index => $businessId) {
+            $sync[(int) $businessId] = ['is_default' => $index === 0];
+        }
+        $branch->businesses()->sync($sync);
 
         return redirect()->back()->with('success', 'Branch updated successfully.');
     }
@@ -122,6 +156,7 @@ class BranchController extends Controller
             return redirect()->back()->with('error', 'Move or remove employees from this branch before deleting it.');
         }
 
+        $branch->businesses()->detach();
         $branch->delete();
 
         return redirect()->back()->with('success', 'Branch deleted successfully.');
@@ -143,15 +178,16 @@ class BranchController extends Controller
         return $digits ? '+255'.$digits : null;
     }
 
-    private function authorizeOwner(): void
-    {
-        $this->authorizeAny(['manage_branches']);
-    }
-
     private function ensureBranchAccess(Branch $branch): void
     {
-        if ($branch->business_id != Auth::user()->business_id) {
-            abort(403);
+        if ((int) $branch->owner_user_id === (int) Auth::id()) {
+            return;
         }
+
+        if ((int) $branch->business_id === $this->currentBusinessId()) {
+            return;
+        }
+
+        abort(403);
     }
 }

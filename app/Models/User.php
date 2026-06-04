@@ -21,11 +21,16 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
         'business_id',
         'branch_id',
+        'business_type_key',
+        'business_type_keys',
         'role_id',
         'role',
+        'platform_admin_role',
+        'platform_admin_role_id',
         'is_active',
     ];
 
@@ -50,6 +55,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'business_type_keys' => 'array',
         ];
     }
 
@@ -87,6 +93,11 @@ class User extends Authenticatable
         return $this->belongsTo(Business::class);
     }
 
+    public function ownedBusinesses()
+    {
+        return $this->hasMany(Business::class, 'owner_user_id');
+    }
+
     public function branch()
     {
         return $this->belongsTo(Branch::class);
@@ -104,6 +115,46 @@ class User extends Authenticatable
         }
 
         return $this->can('view_reports');
+    }
+
+    public function assignedBusinessTypeKeys(): array
+    {
+        $keys = collect($this->business_type_keys ?? [])
+            ->filter(fn ($key) => is_string($key) && $key !== '')
+            ->values()
+            ->all();
+
+        if ($keys !== []) {
+            return $keys;
+        }
+
+        return $this->business_type_key ? [(string) $this->business_type_key] : [];
+    }
+
+    public function syncBusinessTypeAssignments(array $keys): void
+    {
+        $keys = array_values(array_unique(array_filter($keys, fn ($key) => is_string($key) && $key !== '')));
+        $this->business_type_keys = $keys;
+        $this->business_type_key = $keys[0] ?? null;
+    }
+
+    public function displayBusinessTypeLabels(): ?string
+    {
+        $keys = $this->assignedBusinessTypeKeys();
+        if ($keys === []) {
+            return null;
+        }
+
+        $this->loadMissing('business');
+
+        return collect($keys)
+            ->map(fn (string $key) => $this->business?->businessTypeLabel($key) ?? $key)
+            ->implode(', ');
+    }
+
+    public function displayBusinessTypeLabel(): ?string
+    {
+        return $this->displayBusinessTypeLabels();
     }
 
     public function displayRoleName(): string
@@ -127,6 +178,21 @@ class User extends Authenticatable
         return $this->displayRoleName();
     }
 
+    public function hasRolePermissions(): bool
+    {
+        if (in_array($this->role, ['owner', 'super_admin'], true)) {
+            return true;
+        }
+
+        $this->loadMissing('role_relation');
+
+        if (! $this->role_id || ! $this->role_relation) {
+            return false;
+        }
+
+        return count($this->role_relation->permissions ?? []) > 0;
+    }
+
     public function requiresOpenShift(): bool
     {
         return ! in_array($this->role, ['owner', 'super_admin'], true);
@@ -147,8 +213,22 @@ class User extends Authenticatable
 
     public function defaultLandingUrl(): string
     {
+        if (in_array($this->role, ['super_admin', 'platform_staff'], true)) {
+            return route('admin.dashboard');
+        }
+
         return $this->needsShiftOpened()
             ? route('shifts.create')
             : url('/home');
+    }
+
+    public function isPlatformAdmin(): bool
+    {
+        return in_array($this->role, ['super_admin', 'platform_staff'], true);
+    }
+
+    public function platformAdminRole()
+    {
+        return $this->belongsTo(PlatformAdminRole::class, 'platform_admin_role_id');
     }
 }

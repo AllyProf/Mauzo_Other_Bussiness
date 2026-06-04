@@ -174,6 +174,6 @@ class ItemPackagingNormalizer
 
     private function isBulkPackagingName(string $name): bool
     {
-        return (bool) preg_match('/\b(box|carton|pack|crate|bundle|bag|case)\b/i', $name);
+        return (bool) preg_match('/\b(box|carton|pack|crate|bundle|bag|case|dozen|dz|tray|ream|sachet|can)\b/i', $name);
     }
 }

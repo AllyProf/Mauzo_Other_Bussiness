@@ -13,16 +13,16 @@ class ImpersonationController extends Controller
 {
     public function impersonate(Business $business)
     {
-        $owner = User::where('business_id', $business->id)->where('role', 'owner')->first();
+        $owner = $business->resolveOwner();
 
-        if (!$owner) {
+        if (! $owner) {
             return redirect()->back()->with('error', 'No owner account found for this business.');
         }
 
         // Store the original Admin ID in session so we can switch back
         session(['impersonate_original_user' => Auth::id()]);
         
-        AuditLog::log('IMPERSONATE_START', "Admin started impersonating business: {$business->name} (Owner: {$owner->email})");
+        AuditLog::log('IMPERSONATE_START', "Admin started impersonating business: {$business->name} (Owner: {$owner->email})", $business->id);
         Auth::login($owner);
 
         return redirect('/home')->with('success', "You are now logged in as {$business->name}");
@@ -34,11 +34,12 @@ class ImpersonationController extends Controller
         
         if ($adminId) {
             $businessName = Auth::user()->business ? Auth::user()->business->name : 'Unknown';
+            $businessId = Auth::user()->business_id;
             $admin = User::find($adminId);
             Auth::login($admin);
             session()->forget('impersonate_original_user');
 
-            AuditLog::log('IMPERSONATE_STOP', "Admin stopped impersonating business: {$businessName}");
+            AuditLog::log('IMPERSONATE_STOP', "Admin stopped impersonating business: {$businessName}", $businessId);
             
             return redirect()->route('admin.businesses.index')->with('success', 'Switched back to Software Owner account.');
         }

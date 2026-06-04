@@ -92,21 +92,20 @@ class ReportController extends Controller
     {
         $this->authorizeAny(['view_reports']);
         $range = $this->reports->parseDateRange($request);
-        $business = Auth::user()->business;
-        $businessTypes = $business->posBusinessTypesMeta();
-        $multiBusiness = count($businessTypes) > 1;
-        $activeBusinessType = $this->reports->resolveBusinessTypeFilter($request, $business);
+        $filter = $this->branchBusinessFilterContext($request);
+        $business = $filter['business'];
+        $activeBusinessType = $this->reports->resolveBusinessTypeFilter($request, $business, $filter['businessTypes']);
         $data = $builder($business, $range['from'], $range['to'], $activeBusinessType);
 
         return view('reports.'.$view, [
             'title' => $title,
             'data' => $data,
             'business' => $business,
-            'businessTypes' => $businessTypes,
-            'multiBusiness' => $multiBusiness,
+            'businessTypes' => $filter['businessTypes'],
+            'multiBusiness' => $filter['multiBusiness'],
             'activeBusinessType' => $activeBusinessType,
             'businessTypeNote' => $data['business_type_note'] ?? null,
-        ]);
+        ] + $filter);
     }
 
     private function paginateReportRows(Request $request, Collection $rows, int $perPage = 15): LengthAwarePaginator

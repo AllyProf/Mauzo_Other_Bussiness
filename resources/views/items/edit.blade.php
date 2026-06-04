@@ -23,6 +23,9 @@
         <form action="{{ route('items.update', $item->id) }}" method="POST">
           @csrf
           @method('PUT')
+
+          @include('items.partials.business-type-selector')
+
           <div class="row">
             <div class="col-md-6">
               <div class="form-group">
@@ -32,12 +35,15 @@
               </div>
               <div class="form-group">
                 <label class="control-label">Category</label>
-                <select class="form-control" name="category_id">
+                <select class="form-control" name="category_id" id="itemCategorySelect">
                     <option value="">Select Category</option>
                     @foreach($categories as $category)
-                        <option value="{{ $category->id }}" {{ (old('category_id', $item->category_id) == $category->id) ? 'selected' : '' }}>{{ $category->name }}</option>
+                        <option value="{{ $category->id }}" {{ (string) old('category_id', $item->category_id) === (string) $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
                     @endforeach
                 </select>
+                @if($multiBusiness ?? false)
+                  <small class="text-muted">Only categories for the selected business type are shown.</small>
+                @endif
               </div>
               <div class="form-group">
                 <label class="control-label">Brand / Manufacturer</label>
@@ -48,15 +54,7 @@
               <div class="tile bg-light p-3">
                 <h5 class="mb-3"><i class="fa fa-archive"></i> Unit & Packaging Setup</h5>
                 
-                <div class="form-group">
-                  <label class="control-label">Receiving Package (Purchased as)</label>
-                  <select class="form-control" name="receiving_packaging_id" required>
-                      <option value="">Select Unit</option>
-                      @foreach($packagingTypes as $pkg)
-                          <option value="{{ $pkg->id }}" {{ (old('receiving_packaging_id', $item->receiving_packaging_id) == $pkg->id) ? 'selected' : '' }}>{{ $pkg->name }}</option>
-                      @endforeach
-                  </select>
-                </div>
+                @include('items.partials.receiving-package-field', ['item' => null])
 
                 @include('items.partials.selling-packages-field', ['item' => $item])
 

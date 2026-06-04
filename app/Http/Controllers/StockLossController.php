@@ -6,37 +6,93 @@ use App\Models\Category;
 use App\Models\Item;
 use App\Models\StockLoss;
 use App\Models\StockLossItem;
+use App\Services\StockShortageImpactService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class StockLossController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $this->authorizeAny(['record_stock_loss', 'view_stock_history']);
+        $this->authorizeAny(['record_stock_loss', 'view_stock_history', 'open_shift', 'process_sales']);
 
-        $losses = StockLoss::where('business_id', Auth::user()->business_id)
-            ->with(['user'])
-            ->withCount('items')
-            ->latest()
-            ->paginate(15);
+        $user = Auth::user();
+        $businessId = (int) $user->business_id;
+        $filter = $this->branchBusinessFilterContext($request);
+        extract($filter);
+        $canViewManualLosses = $user->can('record_stock_loss') || $user->can('view_stock_history');
+        $showStaffShortages = $user->requiresOpenShift()
+            && ($user->can('open_shift') || $user->can('process_sales'));
 
-        $stats = [
-            'total_records' => StockLoss::where('business_id', Auth::user()->business_id)
-                ->where('status', 'completed')
-                ->count(),
-            'total_units_lost' => (float) StockLoss::where('business_id', Auth::user()->business_id)
-                ->where('status', 'completed')
-                ->sum('total_quantity'),
-            'total_cost_value' => (float) StockLoss::where('business_id', Auth::user()->business_id)
-                ->where('status', 'completed')
-                ->sum('total_cost_value'),
-        ];
+        if ($canViewManualLosses) {
+            $applyLossScope = function ($query) use ($user) {
+                if (! $this->actsAsBusinessWideViewer()) {
+                    $query->where('user_id', $user->id);
+                } else {
+                    $this->scopeStockLossesForActiveBranch($query);
+                }
+            };
 
-        $form = auth()->user()->can('record_stock_loss') ? $this->formContext() : null;
+            $applyItemFilters = function ($query) use ($branchFilterId, $activeBusinessType) {
+                if ($branchFilterId || $activeBusinessType) {
+                    $query->whereHas('items.item', function ($itemQuery) use ($branchFilterId, $activeBusinessType) {
+                        if ($branchFilterId) {
+                            $itemQuery->whereHas('category', fn ($cat) => $cat->where('branch_id', $branchFilterId));
+                        }
+                        if ($activeBusinessType) {
+                            $itemQuery->whereHas('category', fn ($cat) => $cat->where('source_business_type_key', $activeBusinessType));
+                        }
+                    });
+                }
+            };
 
-        return view('stock-losses.index', compact('losses', 'stats', 'form'));
+            $lossQuery = StockLoss::where('business_id', $businessId)
+                ->with(['user'])
+                ->withCount('items')
+                ->latest();
+            $applyLossScope($lossQuery);
+            $applyItemFilters($lossQuery);
+            $losses = $lossQuery->paginate(15)->withQueryString();
+
+            $statsQuery = StockLoss::where('business_id', $businessId)->where('status', 'completed');
+            $applyLossScope($statsQuery);
+            $applyItemFilters($statsQuery);
+
+            $stats = [
+                'total_records' => (clone $statsQuery)->count(),
+                'total_units_lost' => (float) (clone $statsQuery)->sum('total_quantity'),
+                'total_cost_value' => (float) (clone $statsQuery)->sum('total_cost_value'),
+            ];
+        } else {
+            $losses = new LengthAwarePaginator([], 0, 15);
+            $stats = [
+                'total_records' => 0,
+                'total_units_lost' => 0.0,
+                'total_cost_value' => 0.0,
+            ];
+        }
+
+        $shortageService = app(StockShortageImpactService::class);
+        $myStockShortages = $showStaffShortages
+            ? $shortageService->staffShortagesForUser($user, 30)
+            : collect();
+        $myShortageStats = $shortageService->staffShortageStats($myStockShortages);
+
+        $form = ($canViewManualLosses && $user->can('record_stock_loss'))
+            ? $this->formContext($branchFilterId)
+            : null;
+
+        return view('stock-losses.index', compact(
+            'losses',
+            'stats',
+            'form',
+            'myStockShortages',
+            'myShortageStats',
+            'canViewManualLosses',
+            'showStaffShortages',
+        ) + $filter);
     }
 
     public function create()
@@ -147,20 +203,25 @@ class StockLossController extends Controller
         }
     }
 
-    private function formContext(): array
+    private function formContext(?int $branchFilterId = null): array
     {
         $businessId = Auth::user()->business_id;
         $business = Auth::user()->business;
-        $businessTypes = $business->posBusinessTypesMeta();
+        $branchFilterId = $branchFilterId ?? $this->resolveBranchFilterId();
+        $businessTypes = $branchFilterId
+            ? $business->branchPosBusinessTypesMeta($branchFilterId)
+            : $business->posBusinessTypesMeta();
         $multiBusiness = count($businessTypes) > 1;
 
-        $categories = Category::where('business_id', $businessId)
-            ->has('items')
-            ->orderBy('name')
-            ->get();
+        $categoriesQuery = Category::where('business_id', $businessId)->has('items');
+        if ($branchFilterId) {
+            $categoriesQuery->where('branch_id', $branchFilterId);
+        }
+        $categories = $categoriesQuery->orderBy('name')->get();
 
         $itemsByCategory = Category::where('business_id', $businessId)
             ->has('items')
+            ->when($branchFilterId, fn ($query) => $query->where('branch_id', $branchFilterId))
             ->with(['items.packagings.packagingType'])
             ->get()
             ->mapWithKeys(function ($cat) {

@@ -37,22 +37,22 @@
 
   <div class="col-md-6">
     <div class="tile">
-      <h3 class="tile-title">Response from Admin</h3>
+      <h3 class="tile-title">Response from Platform Support</h3>
       <div class="tile-body">
         @if($ticket->admin_reply)
-            <div class="p-3 bg-light border rounded">
-                {{ $ticket->admin_reply }}
+            <div class="p-3 bg-light border rounded" style="border-left: 4px solid #940000 !important;">
+                {!! nl2br(e($ticket->admin_reply)) !!}
             </div>
             <div class="mt-3 text-muted">
                 Replied on: {{ $ticket->updated_at->format('M d, Y H:i') }}
             </div>
         @else
-            <div class="alert alert-info">
-                <i class="fa fa-clock-o mr-2"></i> Your ticket is currently being reviewed by the Software Owner. Please check back later.
+            <div class="alert alert-info mb-0">
+                <i class="fa fa-clock-o mr-2"></i> Your request is being reviewed. Check back here later — you will see the reply on this page once the platform team responds.
             </div>
         @endif
-        <div class="tile-footer mt-3">
-            <a href="{{ route('tickets.index') }}" class="btn btn-secondary">Back to Tickets</a>
+        <div class="tile-footer mt-3 px-0">
+            <a href="{{ route('tickets.index') }}" class="btn btn-secondary">Back to My Support</a>
         </div>
       </div>
     </div>

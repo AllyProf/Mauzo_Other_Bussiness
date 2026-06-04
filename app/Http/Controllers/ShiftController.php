@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Item;
 use App\Models\Shift;
 use App\Models\ShiftStockCheck;
+use App\Services\ItemStockDisplayService;
 use App\Services\ShiftPolicyService;
+use App\Services\StockShortageImpactService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +38,9 @@ class ShiftController extends Controller
         $pendingHandoverShift = Shift::latestClosedAwaitingHandover(Auth::id(), $businessId);
 
         $recentShortages = collect();
+        $myStockShortages = collect();
+        $myShortageStats = ['total' => 0, 'pending' => 0, 'will_be_paid' => 0, 'waived' => 0, 'amount_due' => 0];
+
         if ($this->actsAsBusinessWideViewer()) {
             $recentShortages = ShiftStockCheck::query()
                 ->whereHas('shift', function ($q) use ($businessId) {
@@ -47,6 +52,10 @@ class ShiftController extends Controller
                 ->latest('recorded_at')
                 ->limit(5)
                 ->get();
+        } elseif (Auth::user()->requiresOpenShift()) {
+            $shortageService = app(StockShortageImpactService::class);
+            $myStockShortages = $shortageService->staffShortagesForUser(Auth::user());
+            $myShortageStats = $shortageService->staffShortageStats($myStockShortages);
         }
 
         return view('shifts.index', [
@@ -54,6 +63,8 @@ class ShiftController extends Controller
             'shifts' => $shifts,
             'pendingHandoverShift' => $pendingHandoverShift,
             'recentShortages' => $recentShortages,
+            'myStockShortages' => $myStockShortages,
+            'myShortageStats' => $myShortageStats,
             'shiftOpenCheck' => $shiftPolicy->canOpenShift($business),
             'shiftOpenWindowLabel' => $shiftPolicy->openWindowLabel($business),
             'shiftOverdueStatus' => $openShift ? $shiftPolicy->shiftOverdueStatus($openShift, $business) : null,
@@ -65,18 +76,35 @@ class ShiftController extends Controller
         $this->authorizeOwnerOrViewer();
 
         $businessId = Auth::user()->business_id;
+        $filter = $this->branchBusinessFilterContext($request);
+        extract($filter);
+
+        $applyShiftScope = function ($q) use ($businessId) {
+            $q->where('business_id', $businessId);
+            $this->scopeToActiveBranchUsers($q);
+
+            return $q;
+        };
 
         $query = ShiftStockCheck::query()
-            ->whereHas('shift', function ($q) use ($businessId) {
-                $q->where('business_id', $businessId);
-                $this->scopeToActiveBranchUsers($q);
-            })
+            ->whereHas('shift', $applyShiftScope)
             ->shortages()
-            ->with(['shift.user', 'item.category', 'recorder', 'verifier'])
             ->latest('recorded_at');
+
+        if ($branchFilterId) {
+            $query->whereHas('item.category', fn ($cat) => $cat->where('branch_id', $branchFilterId));
+        }
+
+        if ($activeBusinessType) {
+            $query->whereHas('item.category', fn ($cat) => $cat->where('source_business_type_key', $activeBusinessType));
+        }
 
         if ($request->status === 'pending') {
             $query->pendingVerification();
+        } elseif ($request->status === 'will_be_paid') {
+            $query->where('owner_decision', ShiftStockCheck::DECISION_WILL_BE_PAID);
+        } elseif ($request->status === 'waived') {
+            $query->where('owner_decision', ShiftStockCheck::DECISION_WAIVED);
         } elseif ($request->status === 'verified') {
             $query->whereNotNull('verified_at');
         }
@@ -98,33 +126,51 @@ class ShiftController extends Controller
             });
         }
 
-        $shortages = $query->paginate(20)->withQueryString();
+        $impactService = app(StockShortageImpactService::class);
+
+        $shortages = $query
+            ->with(['item.packagings.packagingType', 'shift.user', 'item.category', 'recorder', 'verifier'])
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (ShiftStockCheck $check) => $impactService->enrich($check));
 
         $stats = [
-            'opening_shortages' => ShiftStockCheck::whereHas('shift', fn ($q) => $q->where('business_id', $businessId))
+            'opening_shortages' => ShiftStockCheck::whereHas('shift', $applyShiftScope)
+                ->when($branchFilterId, fn ($q) => $q->whereHas('item.category', fn ($cat) => $cat->where('branch_id', $branchFilterId)))
+                ->when($activeBusinessType, fn ($q) => $q->whereHas('item.category', fn ($cat) => $cat->where('source_business_type_key', $activeBusinessType)))
                 ->where('check_type', 'opening')
                 ->shortages()
                 ->count(),
-            'closing_shortages' => ShiftStockCheck::whereHas('shift', fn ($q) => $q->where('business_id', $businessId))
+            'closing_shortages' => ShiftStockCheck::whereHas('shift', $applyShiftScope)
+                ->when($branchFilterId, fn ($q) => $q->whereHas('item.category', fn ($cat) => $cat->where('branch_id', $branchFilterId)))
+                ->when($activeBusinessType, fn ($q) => $q->whereHas('item.category', fn ($cat) => $cat->where('source_business_type_key', $activeBusinessType)))
                 ->where('check_type', 'closing')
                 ->shortages()
                 ->count(),
-            'open_shift_shortages' => ShiftStockCheck::whereHas('shift', fn ($q) => $q->where('business_id', $businessId)->where('status', 'open'))
+            'open_shift_shortages' => ShiftStockCheck::whereHas('shift', function ($q) use ($applyShiftScope) {
+                $applyShiftScope($q);
+                $q->where('status', 'open');
+            })
+                ->when($branchFilterId, fn ($q) => $q->whereHas('item.category', fn ($cat) => $cat->where('branch_id', $branchFilterId)))
+                ->when($activeBusinessType, fn ($q) => $q->whereHas('item.category', fn ($cat) => $cat->where('source_business_type_key', $activeBusinessType)))
                 ->where('check_type', 'opening')
                 ->shortages()
                 ->count(),
-            'pending_verification' => ShiftStockCheck::whereHas('shift', fn ($q) => $q->where('business_id', $businessId))
+            'pending_verification' => ShiftStockCheck::whereHas('shift', $applyShiftScope)
+                ->when($branchFilterId, fn ($q) => $q->whereHas('item.category', fn ($cat) => $cat->where('branch_id', $branchFilterId)))
+                ->when($activeBusinessType, fn ($q) => $q->whereHas('item.category', fn ($cat) => $cat->where('source_business_type_key', $activeBusinessType)))
                 ->shortages()
                 ->pendingVerification()
                 ->count(),
         ];
 
-        $staffMembers = \App\Models\User::where('business_id', $businessId)
+        $staffQuery = \App\Models\User::where('business_id', $businessId)
             ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+            ->orderBy('name');
+        $this->scopeStaffToActiveBranch($staffQuery);
+        $staffMembers = $staffQuery->get(['id', 'name']);
 
-        return view('shifts.variances', compact('shortages', 'stats', 'staffMembers'));
+        return view('shifts.variances', compact('shortages', 'stats', 'staffMembers') + $filter);
     }
 
     public function verifyShortage(Request $request, ShiftStockCheck $check)
@@ -146,16 +192,60 @@ class ShiftController extends Controller
         }
 
         $request->validate([
+            'owner_decision' => 'required|in:'.ShiftStockCheck::DECISION_WILL_BE_PAID.','.ShiftStockCheck::DECISION_WAIVED,
             'owner_notes' => 'nullable|string|max:500',
         ]);
+
+        $decision = $request->owner_decision;
 
         $check->update([
             'verified_by' => Auth::id(),
             'verified_at' => now(),
             'owner_notes' => $request->owner_notes,
+            'owner_decision' => $decision,
         ]);
 
-        return redirect()->back()->with('success', 'Stock shortage marked as reviewed.');
+        $message = $decision === ShiftStockCheck::DECISION_WILL_BE_PAID
+            ? 'Shortage marked — staff will pay for the missing stock.'
+            : 'Shortage waived — no payment required from staff.';
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    public function revertShortageDecision(Request $request, ShiftStockCheck $check)
+    {
+        $this->authorizeOwnerOrViewer();
+
+        $check->load('shift');
+
+        if ($check->shift->business_id !== Auth::user()->business_id) {
+            abort(403);
+        }
+
+        if (! $check->isShort()) {
+            return redirect()->back()->with('error', 'Only stock shortages can be reverted.');
+        }
+
+        if (! $check->isVerified()) {
+            return redirect()->back()->with('info', 'This shortage is already pending review.');
+        }
+
+        $previousLabel = $check->ownerDecisionLabel() ?? 'Reviewed';
+        $revertStamp = now()->format('d M Y, h:i A');
+        $auditLine = "[Reverted {$revertStamp}] Previous decision: {$previousLabel}.";
+        $existingNotes = trim((string) $check->owner_notes);
+        $ownerNotes = $existingNotes !== ''
+            ? $auditLine.' '.$existingNotes
+            : $auditLine;
+
+        $check->update([
+            'verified_by' => null,
+            'verified_at' => null,
+            'owner_decision' => null,
+            'owner_notes' => \Illuminate\Support\Str::limit($ownerNotes, 500, '…'),
+        ]);
+
+        return redirect()->back()->with('success', 'Decision undone — shortage is pending review again. You can choose Will Pay or Waive.');
     }
 
     public function create(ShiftPolicyService $shiftPolicy)
@@ -176,13 +266,25 @@ class ShiftController extends Controller
                 ->with('error', $openCheck['message']);
         }
 
-        $items = Item::where('business_id', $businessId)
-            ->where('current_stock', '>', 0)
-            ->with(['category', 'packagings.packagingType', 'receivingPackaging'])
-            ->orderBy('name')
-            ->get();
+        $stockDisplay = app(ItemStockDisplayService::class);
+        $user = Auth::user();
 
-        return view('shifts.open', compact('items'));
+        $itemsQuery = Item::where('business_id', $businessId)
+            ->where('current_stock', '>', 0)
+            ->with(['category', 'packagings.packagingType', 'receivingPackaging']);
+        $this->scopeItemsForStaffShift($itemsQuery, $user);
+
+        $items = $itemsQuery
+            ->orderBy('name')
+            ->get()
+            ->each(fn (Item $item) => $item->stock_info = $stockDisplay->format($item));
+
+        $shortageService = app(StockShortageImpactService::class);
+        $myStockShortages = $shortageService->staffShortagesForUser($user);
+        $myShortageStats = $shortageService->staffShortageStats($myStockShortages);
+        $scopeLabels = $this->staffShiftScopeLabels($user);
+
+        return view('shifts.open', compact('items', 'myStockShortages', 'myShortageStats') + $scopeLabels);
     }
 
     public function store(Request $request, ShiftPolicyService $shiftPolicy)
@@ -202,10 +304,10 @@ class ShiftController extends Controller
             return redirect()->back()->with('error', $openCheck['message'])->withInput();
         }
 
-        $items = Item::where('business_id', $businessId)
-            ->where('current_stock', '>', 0)
-            ->get()
-            ->keyBy('id');
+        $itemsQuery = Item::where('business_id', $businessId)
+            ->where('current_stock', '>', 0);
+        $this->scopeItemsForStaffShift($itemsQuery, Auth::user());
+        $items = $itemsQuery->get()->keyBy('id');
 
         $request->validate([
             'opening_notes' => 'nullable|string|max:2000',
@@ -214,6 +316,13 @@ class ShiftController extends Controller
             'notes' => 'nullable|array',
             'notes.*' => 'nullable|string|max:500',
         ]);
+
+        $allowedItemIds = $items->keys()->map(fn ($id) => (int) $id)->all();
+        foreach (array_keys($request->counts ?? []) as $submittedItemId) {
+            if (! in_array((int) $submittedItemId, $allowedItemIds, true)) {
+                abort(403, 'One or more items are outside your assigned branch or business.');
+            }
+        }
 
         if ($items->isEmpty()) {
             return redirect()->back()->with('error', 'No items with stock to count. Receive stock or add items first.')->withInput();

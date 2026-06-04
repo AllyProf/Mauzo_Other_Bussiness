@@ -9,6 +9,8 @@ class SaleItem extends Model
     protected $fillable = [
         'sale_id',
         'item_id',
+        'service_id',
+        'line_description',
         'item_packaging_id',
         'quantity',
         'unit_price',
@@ -31,6 +33,11 @@ class SaleItem extends Model
         return $this->belongsTo(Item::class);
     }
 
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
+    }
+
     public function itemPackaging()
     {
         return $this->belongsTo(ItemPackaging::class);
@@ -38,6 +45,14 @@ class SaleItem extends Model
 
     public function soldLineDescription(): string
     {
+        if ($this->service_id) {
+            $qty = (float) $this->quantity;
+            $qtyLabel = fmod($qty, 1.0) === 0.0 ? (string) (int) $qty : rtrim(rtrim(number_format($qty, 2), '0'), '.');
+            $name = $this->line_description ?: $this->service?->name ?: 'Service';
+
+            return trim($qtyLabel.' × '.$name);
+        }
+
         $qty = (float) $this->quantity;
         $qtyLabel = fmod($qty, 1.0) === 0.0 ? (string) (int) $qty : rtrim(rtrim(number_format($qty, 2), '0'), '.');
         $unitName = $this->itemPackaging?->packagingType?->name ?? 'Unit';

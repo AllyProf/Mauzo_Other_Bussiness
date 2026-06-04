@@ -85,12 +85,13 @@
 @section('content')
 @php
   $importedKeys = collect($importedTypes)->pluck('key')->all();
-  $typesUsed = $business->categoryBusinessTypesUsed();
+  $typesUsed = $businessTypesUsed ?? $business->categoryBusinessTypesUsed();
   $typesLimit = $business->maxBusinessTypesAllowed();
   $typesRemaining = $typesLimit === null ? null : max(0, $typesLimit - $typesUsed);
   $otherCount = $categoryCountsByType['other'] ?? 0;
   $defaultCategoryTab = count($importedTypes) === 1 ? ($importedTypes[0]['key'] ?? 'all') : 'all';
 @endphp
+
 <div class="app-title">
   <div>
     <h1><i class="fa fa-list"></i> Categories</h1>
@@ -101,9 +102,20 @@
 @if(count($importedTypes) > 0)
 <div class="alert alert-success py-2 mb-3">
   <i class="fa fa-check-circle"></i>
-  <strong>Imported business types:</strong>
-  @foreach($importedTypes as $imported)
-    <span class="badge badge-light ml-1">{{ $imported['label'] ?? 'Business' }}@if(str_starts_with($imported['key'] ?? '', 'custom:')) (Custom)@endif</span>
+  <strong>
+    Imported business types
+    @if($branchFilterId ?? null)
+      for {{ $activeBranchName }}
+    @endif
+    :
+  </strong>
+  @foreach($importedTypesMeta ?? $importedTypes as $imported)
+    <span class="badge badge-light ml-1">
+      {{ $imported['label'] ?? 'Business' }}@if(str_starts_with($imported['key'] ?? '', 'custom:')) (Custom)@endif
+      @if(!empty($imported['branch_names']))
+        <span class="text-muted">→ {{ implode(', ', $imported['branch_names']) }}</span>
+      @endif
+    </span>
   @endforeach
   <span class="text-muted ml-2">· {{ $categories->count() }} categories loaded</span>
 </div>
@@ -123,12 +135,15 @@
   <div class="col-md-12">
     <div class="tile">
       <h3 class="tile-title">Choose Your Business Type</h3>
-      <p class="text-muted small mb-3">Select one or more business types below, then import their categories. You can combine types if your plan allows (e.g. Spare Parts + Grocery). Existing categories with the same name will not be duplicated.</p>
+      <p class="text-muted small mb-3">Pick the branch, select one or more business types below, then import their categories. You can combine types if your plan allows (e.g. Spare Parts + Grocery). Existing categories with the same name will not be duplicated.</p>
 
       <form id="templateForm" action="{{ route('categories.import-templates') }}" method="POST">
         @csrf
         <div id="templateTypesHidden"></div>
 
+        @include('registration.categories.partials.branch-select', ['fieldId' => 'templateBranchSelect'])
+
+        @if(($writableBranches ?? collect())->isNotEmpty())
         <div class="business-type-grid mb-3">
           @foreach($businessTemplates as $key => $template)
             @php $isImported = in_array($key, $importedKeys, true); @endphp
@@ -155,6 +170,7 @@
         <button type="button" class="btn btn-info" id="btnImportTemplate" disabled>
           <i class="fa fa-magic"></i> Import Selected Template(s)
         </button>
+        @endif
       </form>
     </div>
   </div>
@@ -179,6 +195,7 @@
       <form id="customTemplateForm" action="{{ route('categories.import-templates') }}" method="POST">
         @csrf
         <input type="hidden" name="template_type" value="custom">
+        @include('registration.categories.partials.branch-select', ['fieldId' => 'customBranchSelect'])
         <div class="custom-template-box">
           <div class="row">
             <div class="col-md-4">
@@ -215,6 +232,7 @@
       @if(count($importedTypes) > 0)
       <form action="{{ route('categories.store') }}" method="POST">
         @csrf
+        @include('registration.categories.partials.branch-select', ['fieldId' => 'addCategoryBranchSelect'])
         <div class="form-group">
           <label class="control-label">Business Type <span class="text-danger">*</span></label>
           <select class="form-control" name="source_business_type_key" id="addCategoryTypeKey" required>
@@ -299,6 +317,9 @@
           <thead>
             <tr>
               <th>Name</th>
+              @if($viewingAllBranches ?? false)
+              <th>Branch</th>
+              @endif
               <th>Items Count</th>
               <th>Actions</th>
             </tr>
@@ -318,7 +339,10 @@
                         {{ $category->name }}
                         @endcan
                     </td>
-                    <td><span class="badge badge-info">{{ $category->items()->count() }} items</span></td>
+                    @if($viewingAllBranches ?? false)
+                    <td><span class="badge badge-light border">{{ $category->branch?->name ?? '—' }}</span></td>
+                    @endif
+                    <td><span class="badge badge-info">{{ $category->items_count ?? 0 }} items</span></td>
                     <td>
                         @can('delete_items')
                         <form action="{{ route('categories.destroy', $category->id) }}" method="POST" class="delete-cat-form" style="display:inline">
@@ -346,6 +370,7 @@ $(document).ready(function() {
     const importedKeys = @json($importedKeys);
     const typesLimit = @json($typesLimit);
     const typesUsed = @json($typesUsed);
+    const canPickBranch = @json($canPickBranch ?? false);
     let selectedTypes = [];
     let activeCategoryTab = @json($defaultCategoryTab);
 
@@ -354,7 +379,7 @@ $(document).ready(function() {
         let visibleCount = 0;
 
         $('#categoriesTable tbody tr').each(function() {
-            const rowType = $(this).data('business-type') || 'other';
+            const rowType = $(this).attr('data-business-type') || 'other';
             const show = type === 'all' || rowType === type;
             $(this).toggle(show);
             if (show) {
@@ -373,11 +398,35 @@ $(document).ready(function() {
         e.preventDefault();
         $('.category-type-tab').removeClass('active');
         $(this).addClass('active');
-        filterCategoriesByTab($(this).data('type'));
+        filterCategoriesByTab($(this).attr('data-type'));
     });
 
     if ($('#categoryTypeTabs').length) {
         filterCategoriesByTab(activeCategoryTab);
+    } else if ($('#categoriesTable tbody tr').length) {
+        $('#categoryTabEmpty').hide();
+    }
+
+    function selectedBranchLabel(selectId) {
+        const $select = $(selectId);
+        if (!$select.length || !$select.val()) {
+            return '';
+        }
+
+        return $select.find('option:selected').text().trim();
+    }
+
+    function ensureBranchSelected(selectId) {
+        if (!canPickBranch) {
+            return true;
+        }
+
+        if ($(selectId).val()) {
+            return true;
+        }
+
+        Swal.fire('Select Branch', 'Please choose which branch this business type belongs to.', 'warning');
+        return false;
     }
 
     function syncTemplateHiddenInputs() {
@@ -411,6 +460,10 @@ $(document).ready(function() {
     });
 
     $('#btnImportTemplate').on('click', function() {
+        if (!ensureBranchSelected('#templateBranchSelect')) {
+            return;
+        }
+
         if (selectedTypes.length === 0) {
             Swal.fire('Select Business Types', 'Please click one or more business types above first.', 'warning');
             return;
@@ -437,9 +490,14 @@ $(document).ready(function() {
             return '<div style="margin-bottom:8px;"><strong>' + label + '</strong><br><span style="font-size:12px;">' + cats + '</span></div>';
         }).join('');
 
+        const branchLabel = selectedBranchLabel('#templateBranchSelect');
+        const branchHtml = branchLabel
+            ? '<p class="mb-2"><strong>Branch:</strong> ' + branchLabel + '</p>'
+            : '';
+
         Swal.fire({
             title: 'Import Selected Templates?',
-            html: '<div style="text-align:left;max-height:220px;overflow-y:auto;padding:8px;background:#f8f9fa;border-radius:4px;font-size:13px">' + previews + '</div>',
+            html: branchHtml + '<div style="text-align:left;max-height:220px;overflow-y:auto;padding:8px;background:#f8f9fa;border-radius:4px;font-size:13px">' + previews + '</div>',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#940000',
@@ -456,6 +514,10 @@ $(document).ready(function() {
     });
 
     $('#btnImportCustom').on('click', function() {
+        if (!ensureBranchSelected('#customBranchSelect')) {
+            return;
+        }
+
         const form = document.getElementById('customTemplateForm');
         const businessName = form.querySelector('[name="custom_business_name"]').value.trim();
         const categoriesRaw = form.querySelector('[name="custom_categories"]').value.trim();
@@ -471,9 +533,14 @@ $(document).ready(function() {
             .filter(function(item) { return item !== ''; })
             .join(', ');
 
+        const branchLabel = selectedBranchLabel('#customBranchSelect');
+        const branchHtml = branchLabel
+            ? '<p class="mb-2"><strong>Branch:</strong> ' + branchLabel + '</p>'
+            : '';
+
         Swal.fire({
             title: 'Import Custom Categories?',
-            html: '<strong>' + businessName + '</strong><br><br>Categories to add:<br><br><div style="text-align:left;padding:8px;background:#f8f9fa;border-radius:4px;font-size:13px">' + preview + '</div>',
+            html: branchHtml + '<strong>' + businessName + '</strong><br><br>Categories to add:<br><br><div style="text-align:left;padding:8px;background:#f8f9fa;border-radius:4px;font-size:13px">' + preview + '</div>',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#940000',

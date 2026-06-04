@@ -42,6 +42,7 @@
     .item-meta { display: flex; flex-direction: column; gap: 2px; font-size: 11px; margin-bottom: 5px;}
     .item-stock { color: #6c757d; }
     .item-price { font-weight: bold; color: #940000; }
+    .item-price.unset { color: #856404; font-weight: 600; font-size: 10px; }
     .add-btn { margin-top: 5px; color: #940000; font-weight: bold; cursor: pointer; border-top: 1px solid #e9ecef; padding-top: 5px; text-align: center; font-size: 12px;}
     .add-btn i { margin-right: 5px; }
     .add-btn:hover { color: #7a0000; }
@@ -51,6 +52,7 @@
     .item-row-title { font-weight: bold; font-size: 14px; flex: 2;}
     .item-row-stock { font-size: 12px; flex: 1;}
     .item-row-price { font-weight: bold; color: #940000; flex: 1; text-align: right;}
+    .item-row-price.unset { color: #856404; font-size: 12px; font-weight: 600; }
 
     .cart-header { padding: 15px; border-bottom: 1px solid #e9ecef; font-size: 18px; font-weight: bold; color: #940000; }
     .cart-header i { margin-right: 10px; }
@@ -139,10 +141,21 @@
   <a href="{{ route('day-closing.index', ['shift' => $openShift->id]) }}" class="alert-link ml-2">End shift / handover</a>
 </div>
 @endif
-@if(count($businessTypes ?? []) > 1)
+@if($multiBusiness ?? count($businessTypes ?? []) > 1)
 <div class="alert alert-light border mb-3 py-2">
   <i class="fa fa-info-circle text-primary"></i>
-  <strong>Multi-department shop:</strong> pick a department above, then choose a category. One order can include items from different departments.
+  <strong>Multi-department shop:</strong> pick a department to filter items, then choose a category.
+</div>
+@endif
+@if(!empty($activeBranchName))
+<div class="alert alert-info mb-3 py-2">
+  <i class="fa fa-map-marker"></i>
+  Showing items for <strong>{{ $activeBranchName }}</strong>. Department tabs reflect this branch only.
+</div>
+@elseif($viewingAllBranches ?? false)
+<div class="alert alert-light border mb-3 py-2">
+  <i class="fa fa-building"></i>
+  Viewing <strong>all branches</strong>. Switch branch in the header to filter POS items.
 </div>
 @endif
 <div class="pos-container">
@@ -153,7 +166,7 @@
             <input type="text" id="searchInput" placeholder="Search items...">
         </div>
 
-        @if(count($businessTypes ?? []) > 1)
+        @if($multiBusiness ?? count($businessTypes ?? []) > 1)
         <div class="business-type-pills mb-2" id="businessTypePills">
             <button type="button" class="business-type-pill active" data-key="all"><i class="fa fa-th-large"></i> All Departments</button>
             @foreach($businessTypes as $type)
@@ -266,7 +279,12 @@
             <label class="control-label text-center d-block small text-uppercase text-muted mb-2">Sell as</label>
             <div class="packaging-switch" id="modalPackagingSwitch"></div>
         </div>
-        <div class="price-info">TSh <span id="modalPrice">0</span> <small id="modalPriceUnit" style="font-size:12px;color:#6c757d;">per unit</small></div>
+        <div class="price-info" id="modalPriceDisplay">TSh <span id="modalPrice">0</span> <small id="modalPriceUnit" style="font-size:12px;color:#6c757d;">per unit</small></div>
+        <div class="form-group mb-3" id="modalPriceEditGroup" style="display:none;">
+            <label class="control-label text-center d-block font-weight-bold">Selling Price (TZS) <span class="text-danger">*</span></label>
+            <input type="number" class="form-control text-center" id="modalPriceInput" min="1" step="1" placeholder="e.g. 10000">
+            <small class="text-muted d-block text-center mt-1">No price set for this item yet. Enter the price for this sale — it will be saved for next time.</small>
+        </div>
 
         <div class="form-group">
             <label class="control-label text-center d-block" id="modalQtyLabel">Quantity</label>
@@ -294,7 +312,7 @@
 <script>
     // Prepare data
     const itemsByCategory = @json($itemsByCategory);
-    const hasMultipleBusinessTypes = @json(count($businessTypes ?? []) > 1);
+    const hasMultipleBusinessTypes = @json($multiBusiness ?? count($businessTypes ?? []) > 1);
     let activeBusinessType = hasMultipleBusinessTypes ? 'all' : 'all';
     let allItems = [];
     Object.keys(itemsByCategory).forEach(catId => {
@@ -311,13 +329,15 @@
 
         $('#categoryPills .category-pill').each(function () {
             const $pill = $(this);
-            if ($pill.data('id') === 'all') {
+            const pillId = String($pill.attr('data-id') || '');
+
+            if (pillId === 'all') {
                 $pill.show();
                 return;
             }
 
             const matches = activeBusinessType === 'all'
-                || String($pill.data('business-type')) === String(activeBusinessType);
+                || String($pill.attr('data-business-type')) === String(activeBusinessType);
 
             $pill.toggle(matches);
         });
@@ -330,8 +350,8 @@
 
     function filterItems() {
         const searchTerm = $('#searchInput').val().toLowerCase();
-        const activeCatId = $('#categoryPills .category-pill.active:visible').first().data('id')
-            || $('#categoryPills .category-pill[data-id="all"]').data('id');
+        const activeCatId = String($('#categoryPills .category-pill.active:visible').first().attr('data-id')
+            || $('#categoryPills .category-pill[data-id="all"]').attr('data-id') || 'all');
 
         let filtered = allItems;
 
@@ -402,16 +422,34 @@
         return list.find(p => p.id === item.default_packaging_id) || list[0];
     }
 
-    function itemDisplayPrice(item) {
+    function itemHasPrice(item) {
         const list = item.packagings || [];
+        if (list.length) {
+            return list.some(p => parseFloat(p.selling_price) > 0);
+        }
+
+        return parseFloat(item.selling_price) > 0;
+    }
+
+    function itemPriceText(item) {
+        const list = item.packagings || [];
+        if (!itemHasPrice(item)) {
+            return null;
+        }
         if (list.length <= 1) {
             return formatTZS(item.selling_price);
         }
         const prices = list.map(p => p.selling_price).filter(p => p > 0);
-        if (!prices.length) return formatTZS(0);
+        if (!prices.length) {
+            return null;
+        }
         const min = Math.min.apply(null, prices);
         const max = Math.max.apply(null, prices);
         return min === max ? formatTZS(min) : formatTZS(min) + ' – ' + formatTZS(max);
+    }
+
+    function activeUnitPrice(item, packaging) {
+        return parseFloat(packaging?.selling_price ?? item?.selling_price ?? 0) || 0;
     }
 
     function renderItems(items) {
@@ -434,7 +472,7 @@
                         <div class="item-title">${item.name}</div>
                         <div class="item-meta">
                             <div class="item-stock">Stock: <b>${formatStockQty(item.stock_pieces ?? item.stock)} pcs</b></div>
-                            <div class="item-price">TSh ${itemDisplayPrice(item)}</div>
+                            <div class="item-price${itemHasPrice(item) ? '' : ' unset'}">${itemPriceText(item) ? 'TSh ' + itemPriceText(item) : 'Price not set'}</div>
                         </div>
                         <div class="add-btn">
                             <i class="fa fa-plus-circle"></i> Add
@@ -450,7 +488,7 @@
                     <div class="item-row" onclick="openModal(${item.id})">
                         <div class="item-row-title">${item.name}</div>
                         <div class="item-row-stock">Stock: ${formatStockQty(item.stock_pieces ?? item.stock)} pcs</div>
-                        <div class="item-row-price">TSh ${itemDisplayPrice(item)}</div>
+                        <div class="item-row-price${itemHasPrice(item) ? '' : ' unset'}">${itemPriceText(item) ? 'TSh ' + itemPriceText(item) : 'Price not set'}</div>
                         <div class="add-btn" style="border:none; margin:0; padding:0;"><i class="fa fa-plus-circle fa-lg"></i></div>
                     </div>
                 `;
@@ -489,7 +527,9 @@
                     <button type="button" class="packaging-switch-btn${isActive ? ' active' : ''}${disabled ? ' disabled' : ''}"
                             data-id="${pkg.id}" ${disabled ? 'disabled' : ''}>
                         ${pkg.name}
-                        <small>TSh ${formatTZS(pkg.selling_price)} · ${avail} avail.</small>
+                        ${parseFloat(pkg.selling_price) > 0
+                            ? '<small>TSh ' + formatTZS(pkg.selling_price) + ' · ' + avail + ' avail.</small>'
+                            : '<small class="text-warning">Price not set · ' + avail + ' avail.</small>'}
                     </button>
                 `);
             });
@@ -503,13 +543,25 @@
 
         const maxQty = packagingMaxQty(currentModalItem, currentModalPackaging);
         const unitName = currentModalPackaging?.name || 'unit';
+        const unitPrice = activeUnitPrice(currentModalItem, currentModalPackaging);
+        const needsPrice = unitPrice <= 0;
 
         $('#modalItemName').text(currentModalItem.name);
         $('#modalStockText').text(
             formatStockQty(pieces) + ' pcs in stock · can sell up to ' + maxQty + ' ' + unitName
         );
-        $('#modalPrice').text(formatTZS(currentModalPackaging?.selling_price ?? currentModalItem.selling_price));
-        $('#modalPriceUnit').text('per ' + unitName);
+
+        if (needsPrice) {
+            $('#modalPriceDisplay').hide();
+            $('#modalPriceEditGroup').show();
+            $('#modalPriceInput').val('');
+        } else {
+            $('#modalPriceDisplay').show();
+            $('#modalPriceEditGroup').hide();
+            $('#modalPrice').text(formatTZS(unitPrice));
+            $('#modalPriceUnit').text('per ' + unitName);
+        }
+
         $('#modalQtyLabel').text('Quantity (' + unitName + ')');
         $('#modalQtyInput').val(maxQty > 0 ? 1 : 0).attr('max', Math.max(0, maxQty));
         $('#confirmAddToCart').prop('disabled', maxQty <= 0);
@@ -558,6 +610,17 @@
         const packaging = currentModalPackaging || defaultPackaging(currentModalItem);
         const maxQty = packagingMaxQty(currentModalItem, packaging);
         if (maxQty <= 0) return;
+
+        let price = activeUnitPrice(currentModalItem, packaging);
+        if ($('#modalPriceEditGroup').is(':visible')) {
+            price = parseFloat($('#modalPriceInput').val()) || 0;
+            if (price <= 0) {
+                alert('Please enter a selling price for this item.');
+                $('#modalPriceInput').focus();
+                return;
+            }
+        }
+
         const cartKey = currentModalItem.id + ':' + (packaging.id || 'default');
         
         const existingItem = cart.find(i => i.cartKey === cartKey);
@@ -567,6 +630,7 @@
             } else {
                 existingItem.qty = maxQty;
             }
+            existingItem.price = price;
         } else {
             cart.push({
                 cartKey: cartKey,
@@ -574,7 +638,7 @@
                 item_packaging_id: packaging.id,
                 name: currentModalItem.name + packagingLabel(currentModalItem, packaging),
                 packaging_name: packaging.name,
-                price: packaging.selling_price ?? currentModalItem.selling_price,
+                price: price,
                 qty: qty,
                 maxQty: maxQty,
             });
@@ -645,7 +709,7 @@
     $('#businessTypePills .business-type-pill').click(function() {
         $('#businessTypePills .business-type-pill').removeClass('active');
         $(this).addClass('active');
-        activeBusinessType = $(this).data('key');
+        activeBusinessType = String($(this).attr('data-key') || 'all');
         $('#categoryPills .category-pill').removeClass('active');
         $('#categoryPills .category-pill[data-id="all"]').addClass('active');
         syncCategoryPillsVisibility();

@@ -5,14 +5,20 @@ namespace App\Services;
 use App\Models\Business;
 use App\Models\BusinessOwnerExpense;
 use App\Models\DayClosing;
+use App\Models\MoneyShortSettlement;
 use App\Models\OwnerDailyReport;
 use App\Models\Sale;
 use App\Models\SalePayment;
+use App\Models\Shift;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 
 class OwnerDailyReportService
 {
+    public function __construct(private BusinessTypeBreakdownService $businessTypeBreakdown)
+    {
+    }
+
     private function branchService(): ActiveBranchService
     {
         return active_branch_service();
@@ -28,9 +34,35 @@ class OwnerDailyReportService
         return $this->branchService()->scopeRecordsByBranchUsers($query, $column);
     }
 
+    private function scopeBranchSales(Builder $query): Builder
+    {
+        if (! $this->isBranchScoped()) {
+            return $query;
+        }
+
+        $branchId = $this->branchService()->activeBranchId();
+
+        return $query->whereHas('items.item.category', function ($categoryQuery) use ($branchId) {
+            $categoryQuery->where('branch_id', $branchId);
+        });
+    }
+
     private function scopeBranchDayClosings(Builder $query): Builder
     {
-        return $this->scopeBranchUsers($query, 'user_id');
+        if (! $this->isBranchScoped()) {
+            return $query;
+        }
+
+        $ownerId = auth()->id();
+
+        return $query->where(function ($scoped) use ($ownerId) {
+            $this->scopeBranchUsers($scoped, 'user_id');
+            if ($ownerId) {
+                $scoped->orWhere(function ($ownerQuery) use ($ownerId) {
+                    $ownerQuery->where('user_id', $ownerId)->whereNull('shift_id');
+                });
+            }
+        });
     }
 
     public function getOpeningCirculation(Business $business, string $date): float
@@ -107,7 +139,7 @@ class OwnerDailyReportService
     {
         $paymentsQuery = SalePayment::whereHas('sale', function ($q) use ($businessId) {
             $q->where('business_id', $businessId);
-            $this->scopeBranchUsers($q);
+            $this->scopeBranchSales($q);
         })->whereDate('created_at', $date);
 
         $payments = $paymentsQuery->get();
@@ -139,7 +171,7 @@ class OwnerDailyReportService
             $salesQuery->where('shift_id', $shiftId);
         }
 
-        $this->scopeBranchUsers($salesQuery);
+        $this->scopeBranchSales($salesQuery);
 
         $sales = $salesQuery->with(['items.item.packagings'])->get();
 
@@ -211,7 +243,8 @@ class OwnerDailyReportService
         $totalExpenses = $staffExpenses + $ownerExpenses;
 
         if ($deductFrom === 'circulation') {
-            $netProfit = $profit['gross_profit'] - $ownerProfitExpenses;
+            $profitFromHandover = min($netHandover, $profit['gross_profit']);
+            $netProfit = $profitFromHandover - $ownerProfitExpenses;
             $circulationFromCollections = max(0, $netHandover - $profit['gross_profit']);
             if ($dayClosing) {
                 // Net handover already reflects staff expenses deducted at submission.
@@ -268,7 +301,7 @@ class OwnerDailyReportService
             $data = $this->buildReportData($business, $date, null);
             $data['verified_handover_count'] = 0;
 
-            return $data;
+            return $this->applyMoneyShortRecoveries($business, $date, $data);
         }
 
         $lastClosing = $closings->last();
@@ -295,6 +328,46 @@ class OwnerDailyReportService
         $data['day_closing'] = $lastClosing;
         $data['staff_expenses'] = (float) $closings->sum(fn (DayClosing $closing) => (float) $closing->total_expenses);
         $data['total_expenses'] = $data['staff_expenses'] + (float) $data['owner_expenses'];
+
+        return $this->applyMoneyShortRecoveries($business, $date, $data);
+    }
+
+    private function applyMoneyShortRecoveries(Business $business, string $date, array $data): array
+    {
+        $settlementService = app(MoneyShortSettlementService::class);
+        $recoveryTotals = $settlementService->recoveryTotalsForDate($business->id, $date);
+        $recoveries = (float) $recoveryTotals['total'];
+
+        if ($recoveries <= 0) {
+            $data['money_short_recoveries'] = 0;
+            $data['money_short_profit_recoveries'] = 0;
+            $data['money_short_circulation_recoveries'] = 0;
+
+            return $data;
+        }
+
+        $recoveryBreakdown = $settlementService->cashRecoveryBreakdownForDate($business->id, $date);
+        $profitRecovery = (float) $recoveryTotals['profit'];
+        $circulationRecovery = (float) $recoveryTotals['circulation'];
+
+        $data['money_short_recoveries'] = $recoveries;
+        $data['money_short_profit_recoveries'] = $profitRecovery;
+        $data['money_short_circulation_recoveries'] = $circulationRecovery;
+        $data['total_collected'] = (float) ($data['total_collected'] ?? 0) + $recoveries;
+        $data['closing_profit'] = (float) ($data['closing_profit'] ?? 0) + $profitRecovery;
+        $data['closing_circulation'] = max(0, (float) ($data['closing_circulation'] ?? 0) + $circulationRecovery);
+
+        foreach ($recoveryBreakdown as $key => $amount) {
+            if (isset($data['payment_breakdown'][$key])) {
+                $data['payment_breakdown'][$key]['amount'] = (float) $data['payment_breakdown'][$key]['amount'] + $amount;
+            } else {
+                $data['payment_breakdown'][$key] = [
+                    'label' => $key === 'cash' ? 'Physical Cash' : ucwords(str_replace('_', ' ', $key)),
+                    'method' => $key === 'cash' ? 'cash' : (str_contains($key, 'bank') ? 'bank' : 'mobile_money'),
+                    'amount' => $amount,
+                ];
+            }
+        }
 
         return $data;
     }
@@ -451,7 +524,8 @@ class OwnerDailyReportService
         }
 
         if ($deductFrom === 'circulation') {
-            $netProfit = $profit['gross_profit'] - $ownerProfitExpenses;
+            $profitFromHandover = min($netHandover, $profit['gross_profit']);
+            $netProfit = $profitFromHandover - $ownerProfitExpenses;
             $circulationFromCollections = max(0, $netHandover - $profit['gross_profit']);
             $closingCirculation = $openingCirculation + $circulationFromCollections - $ownerCirculationExpenses;
         } else {
@@ -480,6 +554,10 @@ class OwnerDailyReportService
 
     private function resolveNetHandover(DayClosing $dayClosing): float
     {
+        if ($dayClosing->actual_received !== null) {
+            return (float) $dayClosing->actual_received;
+        }
+
         if (! empty($dayClosing->payment_breakdown)) {
             return (float) collect($dayClosing->payment_breakdown)->sum();
         }
@@ -547,6 +625,9 @@ class OwnerDailyReportService
             $data['owner_expenses'] = $dayEnd['owner_expenses'];
             $data['owner_circulation_expenses'] = $dayEnd['owner_circulation_expenses'];
             $data['owner_profit_expenses'] = $dayEnd['owner_profit_expenses'];
+            $data['money_short_recoveries'] = (float) ($dayEnd['money_short_recoveries'] ?? 0);
+            $data['money_short_profit_recoveries'] = (float) ($dayEnd['money_short_profit_recoveries'] ?? 0);
+            $data['money_short_circulation_recoveries'] = (float) ($dayEnd['money_short_circulation_recoveries'] ?? 0);
         }
 
         $cashCollected = (float) ($closing->cash_received ?? 0);
@@ -591,6 +672,10 @@ class OwnerDailyReportService
             default => '#ffc107',
         };
 
+        $staffRecoveries = $this->staffRecoveryTotals($closing);
+        $businessTypes = $this->businessTypesForMasterSheet($business);
+        $businessTypeBreakdown = $this->buildBusinessTypeBreakdownForClosing($business, $closing, $businessTypes);
+
         return [
             'id' => $closing->id,
             'report_id' => $report?->id,
@@ -622,9 +707,188 @@ class OwnerDailyReportService
             'submitted_by' => $closing->user->name ?? 'Staff',
             'shift_id' => $closing->shift_id,
             'handover_label' => trim(($closing->user->name ?? 'Staff').($closing->shift_id ? ' · Shift #'.$closing->shift_id : '')),
+            'money_short_recoveries' => (float) ($data['money_short_recoveries'] ?? 0),
+            'money_short_profit_recoveries' => (float) ($data['money_short_profit_recoveries'] ?? 0),
+            'money_short_circulation_recoveries' => (float) ($data['money_short_circulation_recoveries'] ?? 0),
+            'staff_short_recoveries' => $staffRecoveries['total'],
+            'staff_profit_recoveries' => $staffRecoveries['profit'],
+            'staff_circulation_recoveries' => $staffRecoveries['circulation'],
             'report' => $report,
             'closing' => $closing,
+            'business_type_breakdown' => $businessTypeBreakdown,
+            'is_last_handover_of_day' => $isLastHandoverOfDay,
         ];
+    }
+
+    public function businessTypesForMasterSheet(Business $business): array
+    {
+        if ($branchId = active_branch_id()) {
+            return $business->branchPosBusinessTypesMeta($branchId);
+        }
+
+        return $business->posBusinessTypesMeta();
+    }
+
+    public function buildBusinessTypeBreakdownForClosing(Business $business, DayClosing $closing, array $businessTypes): array
+    {
+        $sales = $this->closingSales($closing);
+        $debtByType = $this->debtCollectionsByBusinessType($business, $closing, $sales);
+
+        return $this->businessTypeBreakdown->buildFromSales($sales, $businessTypes, $business, $debtByType);
+    }
+
+    public function expandMasterSheetLedgersByBusinessType($ledgers, array $businessTypes)
+    {
+        if (count($businessTypes) <= 1) {
+            return collect($ledgers)->map(function ($ledger) {
+                $breakdown = $ledger['business_type_breakdown'] ?? [];
+                if (count($breakdown) === 1) {
+                    $ledger['business_type_label'] = $breakdown[0]['label'];
+                }
+
+                return $ledger;
+            });
+        }
+
+        $expanded = collect();
+
+        foreach ($ledgers as $ledger) {
+            if ($ledger['is_placeholder'] ?? false) {
+                $expanded->push($ledger);
+
+                continue;
+            }
+
+            $breakdown = $ledger['business_type_breakdown'] ?? [];
+            if (count($breakdown) <= 1) {
+                if (count($breakdown) === 1) {
+                    $ledger['business_type_label'] = $breakdown[0]['label'];
+                }
+                $expanded->push($ledger);
+
+                continue;
+            }
+
+            $closingCash = (float) ($ledger['total_cash_received'] ?? 0);
+            $closingTotal = (float) ($ledger['sub_total'] ?? 0);
+            $cashRatio = $closingTotal > 0 ? ($closingCash / $closingTotal) : 1.0;
+            $typeCount = count($breakdown);
+
+            foreach ($breakdown as $index => $typeRow) {
+                $collected = (float) $typeRow['collected'];
+                $typeCash = round($collected * $cashRatio, 2);
+                $typeDigital = round($collected - $typeCash, 2);
+                $isLastType = ($index === $typeCount - 1);
+                $showDayTotals = ($ledger['is_last_handover_of_day'] ?? false) && $isLastType;
+
+                $expanded->push(array_merge($ledger, [
+                    'id' => $ledger['id'].'-'.$typeRow['key'],
+                    'detail_closing_id' => $ledger['id'],
+                    'business_type_key' => $typeRow['key'],
+                    'business_type_label' => $typeRow['label'],
+                    'is_business_type_row' => true,
+                    'show_rollover_columns' => $showDayTotals,
+                    'handover_label' => ($ledger['submitted_by'] ?? 'Staff').($ledger['shift_id'] ? ' · Shift #'.$ledger['shift_id'] : ''),
+                    'gross_sales' => (float) $typeRow['gross_sales'],
+                    'cost_of_goods' => (float) $typeRow['cost_of_goods'],
+                    'sub_total' => $collected,
+                    'total_cash_received' => $typeCash,
+                    'total_digital_received' => $typeDigital,
+                    'total_assets' => (float) ($ledger['opening_cash'] ?? 0) + $collected,
+                    'outstanding_debt' => (float) $typeRow['credit'],
+                    'profit_generated' => (float) $typeRow['gross_profit'],
+                    'daily_net_profit' => (float) $typeRow['profit_generated'],
+                    'net_available_profit' => (float) $typeRow['profit_generated'],
+                    'circulation_refill' => (float) $typeRow['circulation_generated'],
+                    'combined_expenses' => 0.0,
+                    'money_short_recoveries' => 0.0,
+                    'money_short_profit_recoveries' => 0.0,
+                    'money_short_circulation_recoveries' => 0.0,
+                    'staff_short_recoveries' => 0.0,
+                    'staff_profit_recoveries' => 0.0,
+                    'staff_circulation_recoveries' => 0.0,
+                    'opening_cash' => $showDayTotals ? (float) ($ledger['opening_cash'] ?? 0) : null,
+                    'money_in_circulation' => $showDayTotals ? (float) ($ledger['money_in_circulation'] ?? 0) : null,
+                    'profit_rollover' => $showDayTotals ? (float) ($ledger['profit_rollover'] ?? 0) : null,
+                    'carried_forward' => $showDayTotals ? (float) ($ledger['carried_forward'] ?? 0) : null,
+                    'opening_profit' => $showDayTotals ? (float) ($ledger['opening_profit'] ?? 0) : null,
+                ]));
+            }
+        }
+
+        return $expanded;
+    }
+
+    private function closingSales(DayClosing $closing)
+    {
+        $query = Sale::where('business_id', $closing->business_id)
+            ->whereDate('sale_date', $closing->closing_date->toDateString())
+            ->where('payment_status', '!=', 'cancelled');
+
+        if ($closing->shift_id) {
+            $query->where('shift_id', $closing->shift_id);
+        } else {
+            $query->whereNull('shift_id')->where('user_id', $closing->user_id);
+        }
+
+        $this->scopeBranchSales($query);
+
+        return $query->with(['items.item.category', 'items.item.packagings', 'payments'])->get();
+    }
+
+    private function debtCollectionsByBusinessType(Business $business, DayClosing $closing, $sales): array
+    {
+        $shiftSaleIds = $sales->pluck('id')->all();
+
+        $payments = SalePayment::query()
+            ->whereDate('created_at', $closing->closing_date->toDateString())
+            ->whereHas('sale', function ($query) use ($business) {
+                $query->where('business_id', $business->id);
+                $this->scopeBranchSales($query);
+            })
+            ->when(! empty($shiftSaleIds), fn ($query) => $query->whereNotIn('sale_id', $shiftSaleIds))
+            ->with(['sale.items.item.category'])
+            ->get();
+
+        return $this->businessTypeBreakdown->allocateDebtFromPayments($payments);
+    }
+
+    private function staffRecoveryTotals(DayClosing $closing): array
+    {
+        $settlementService = app(MoneyShortSettlementService::class);
+        $settlements = MoneyShortSettlement::where('day_closing_id', $closing->id)
+            ->where('settlement_type', MoneyShortSettlement::TYPE_CASH_PAYMENT)
+            ->active()
+            ->orderBy('id')
+            ->get();
+
+        $profit = 0.0;
+        $circulation = 0.0;
+        $total = 0.0;
+
+        foreach ($settlements as $settlement) {
+            $allocation = $settlementService->recoveryAllocation($settlement);
+            $profit += $allocation['profit'];
+            $circulation += $allocation['circulation'];
+            $total += (float) $settlement->amount;
+        }
+
+        return [
+            'total' => round($total, 2),
+            'profit' => round($profit, 2),
+            'circulation' => round($circulation, 2),
+        ];
+    }
+
+    private function hasOpenShiftForDate(Business $business, string $dateString): bool
+    {
+        $query = Shift::where('business_id', $business->id)
+            ->whereDate('opened_at', $dateString)
+            ->where('status', 'open');
+
+        $this->scopeBranchUsers($query, 'user_id');
+
+        return $query->exists();
     }
 
     public function buildOpeningDayRow(Business $business): ?array
@@ -672,9 +936,15 @@ class OwnerDailyReportService
                     ]);
                 }
 
-                $hasActivity = $subTotal > 0
+                $hasOpenShift = $this->hasOpenShiftForDate($business, $dateString);
+                $hasSalesOrExpenses = $subTotal > 0
                     || (float) $data['total_expenses'] > 0
                     || $grossProfit > 0;
+                $hasActivity = $hasOpenShift || $hasSalesOrExpenses;
+
+                [$businessStatus, $statusColor] = $hasActivity
+                    ? ['OPEN', '#ffc107']
+                    : ['NOT STARTED', '#6c757d'];
 
                 return [
                     'id' => 'open-'.$dateString,
@@ -699,14 +969,18 @@ class OwnerDailyReportService
                     'cost_of_goods' => (float) $data['cost_of_goods'],
                     'expense_list' => $expenseList,
                     'platform_breakdown' => $platformBreakdown,
-                    'business_status' => 'OPEN',
-                    'status_color' => '#ffc107',
+                    'business_status' => $businessStatus,
+                    'status_color' => $statusColor,
                     'is_finalized' => false,
                     'is_manager_received' => false,
                     'is_placeholder' => true,
                     'has_open_day_activity' => $hasActivity,
+                    'has_open_shift' => $hasOpenShift,
                     'expense_deduct_from' => $data['expense_deduct_from'],
                     'submitted_by' => '—',
+                    'staff_short_recoveries' => 0,
+                    'staff_profit_recoveries' => 0,
+                    'staff_circulation_recoveries' => 0,
                     'report' => $report,
                     'closing' => null,
                 ];
@@ -718,7 +992,7 @@ class OwnerDailyReportService
         return null;
     }
 
-    public function getPettyCashBalances(Business $business, ?string $date = null): array
+    public function getPettyCashBalances(Business $business, ?string $date = null, ?string $businessTypeKey = null): array
     {
         $date = $date ?? now()->toDateString();
         $data = $this->buildDayEndTotals($business, $date);
@@ -732,7 +1006,7 @@ class OwnerDailyReportService
         $this->scopeBranchDayClosings($dayClosingQuery);
         $dayClosing = $dayClosingQuery->orderByDesc('verified_at')->orderByDesc('id')->first();
 
-        return [
+        $result = [
             'date' => $date,
             'opening_circulation' => (float) $data['opening_circulation'],
             'opening_profit' => (float) $data['opening_profit'],
@@ -746,7 +1020,52 @@ class OwnerDailyReportService
             'is_finalized' => $report?->status === 'finalized',
             'report' => $report,
             'day_closing' => $data['day_closing'] ?? $dayClosing,
+            'business_type_key' => null,
+            'business_type_label' => null,
+            'scoped_to_business_type' => false,
         ];
+
+        if ($businessTypeKey) {
+            $branchId = active_branch_id();
+            $businessTypes = $branchId
+                ? $business->branchPosBusinessTypesMeta($branchId)
+                : $business->posBusinessTypesMeta();
+
+            $sales = $this->branchScopedSalesQuery($business->id, $date)
+                ->with(['items.item.category', 'items.item.packagings', 'payments'])
+                ->get();
+
+            $breakdown = app(BusinessTypeBreakdownService::class)->buildFromSales(
+                $sales,
+                $businessTypes,
+                $business,
+                []
+            );
+
+            $typeRow = collect($breakdown)->firstWhere('key', $businessTypeKey) ?? [
+                'key' => $businessTypeKey,
+                'label' => $business->businessTypeLabel($businessTypeKey),
+                'circulation_generated' => 0.0,
+                'profit_generated' => 0.0,
+                'gross_profit' => 0.0,
+            ];
+
+            $expensesQuery = $this->branchScopedOwnerExpenses($business->id, $date, $businessTypeKey);
+            $circulationSpent = (float) (clone $expensesQuery)->where('fund_source', 'circulation')->sum('amount');
+            $profitSpent = (float) (clone $expensesQuery)->where('fund_source', 'profit')->sum('amount');
+
+            $result['available_circulation'] = max(0, (float) $typeRow['circulation_generated'] - $circulationSpent);
+            $result['available_profit'] = max(0, (float) $typeRow['profit_generated'] - $profitSpent);
+            $result['owner_circulation_spent'] = $circulationSpent;
+            $result['owner_profit_spent'] = $profitSpent;
+            $result['daily_net_profit'] = (float) $typeRow['profit_generated'];
+            $result['gross_profit_today'] = (float) ($typeRow['gross_profit'] ?? $typeRow['profit_generated']);
+            $result['business_type_key'] = $businessTypeKey;
+            $result['business_type_label'] = (string) ($typeRow['label'] ?? $business->businessTypeLabel($businessTypeKey));
+            $result['scoped_to_business_type'] = true;
+        }
+
+        return $result;
     }
 
     private function getBranchOpeningCirculation(Business $business, string $date): float
@@ -795,12 +1114,25 @@ class OwnerDailyReportService
             ->whereDate('sale_date', $date)
             ->where('payment_status', '!=', 'cancelled');
 
-        return $this->scopeBranchUsers($query);
+        return $this->scopeBranchSales($query);
     }
 
-    private function branchScopedOwnerExpenses(int $businessId, string $date)
+    private function branchScopedOwnerExpenses(int $businessId, string $date, ?string $businessTypeKey = null)
     {
-        return BusinessOwnerExpense::where('business_id', $businessId)
+        $query = BusinessOwnerExpense::where('business_id', $businessId)
             ->whereDate('expense_date', $date);
+
+        if ($this->isBranchScoped()) {
+            $branchId = $this->branchService()->activeBranchId();
+            $query->where(function ($scoped) use ($branchId) {
+                $scoped->where('branch_id', $branchId)->orWhereNull('branch_id');
+            });
+        }
+
+        if ($businessTypeKey) {
+            $query->where('business_type_key', $businessTypeKey);
+        }
+
+        return $query;
     }
 }

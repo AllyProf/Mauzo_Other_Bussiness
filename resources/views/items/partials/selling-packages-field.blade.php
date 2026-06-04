@@ -24,27 +24,38 @@
     </button>
   </div>
 
+  <div class="row small text-muted font-weight-bold mb-1 d-none d-md-flex">
+    <div class="col-7">Sale unit</div>
+    <div class="col-4">Pieces per sale unit</div>
+    <div class="col-1"></div>
+  </div>
+
   <div id="sellingPackagesList">
     @foreach($sellingRows as $index => $row)
     <div class="selling-package-row {{ $index > 0 ? 'mt-2 pt-2' : '' }}" @if($index > 0) style="border-top:1px dashed #dee2e6;" @endif>
-      <div class="row align-items-center">
-        <div class="col-7 mb-1 mb-md-0">
+      <div class="row align-items-end">
+        <div class="col-7 mb-2 mb-md-0">
+          <label class="control-label small d-md-none mb-1">Sale unit</label>
           <select class="form-control sell-pkg-select" name="selling_packagings[{{ $index }}][packaging_id]" required>
             <option value="">Select Unit</option>
             @foreach($pkgOptions as $pkg)
-              <option value="{{ $pkg->id }}" {{ (string) ($row['packaging_id'] ?? '') === (string) $pkg->id ? 'selected' : '' }}>
+              <option value="{{ $pkg->id }}"
+                      data-name="{{ $pkg->name }}"
+                      {{ (string) ($row['packaging_id'] ?? '') === (string) $pkg->id ? 'selected' : '' }}>
                 {{ $pkg->name }}
               </option>
             @endforeach
           </select>
         </div>
-        <div class="col-4 sell-pkg-contains">
-          <input type="number" class="form-control form-control-sm sell-pkg-qty text-center"
+        <div class="col-4 sell-pkg-contains mb-2 mb-md-0">
+          <label class="control-label small sell-pkg-qty-label d-md-none mb-1">Pieces per sale unit</label>
+          <span class="small text-muted sell-pkg-qty-label d-none d-md-block mb-1">Pieces per sale unit</span>
+          <input type="number" class="form-control sell-pkg-qty text-center"
                  name="selling_packagings[{{ $index }}][quantity_per_unit]"
-                 value="{{ $row['quantity_per_unit'] ?? 1 }}" min="1"
-                 placeholder="Pcs" title="Pieces in stock per sale unit">
+                 value="{{ $row['quantity_per_unit'] ?? 1 }}" min="1" step="1"
+                 placeholder="e.g. 12" title="How many pieces leave stock when you sell 1 of this unit">
         </div>
-        <div class="col-1 text-right pl-0 sell-pkg-remove {{ $multiSell ? '' : 'd-none' }}">
+        <div class="col-1 text-right pl-0 sell-pkg-remove mb-2 mb-md-0 {{ $multiSell ? '' : 'd-none' }}">
           <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-selling-package" title="Remove">
             <i class="fa fa-times"></i>
           </button>
@@ -54,25 +65,29 @@
     @endforeach
   </div>
 
-  <small class="text-muted d-block mt-1">
-    <strong>Pcs</strong> = pieces deducted from stock when sold. <strong>Piece = 1</strong>, <strong>Box = how many pieces in one box</strong> (e.g. 20).
+  <small class="text-muted d-block mt-2">
+    For <strong>Piece</strong>, quantity is always 1. For <strong>Box, Dozen, Carton</strong>, etc., enter how many pieces are in one sale unit
+    (e.g. Dozen = 12, Box of 20 = 20).
   </small>
   @error('selling_packagings') <div class="text-danger small">{{ $message }}</div> @enderror
 </div>
 
 <template id="sellingPackageRowTemplate">
   <div class="selling-package-row mt-2 pt-2" style="border-top:1px dashed #dee2e6;">
-    <div class="row align-items-center">
-      <div class="col-7 mb-1 mb-md-0">
+    <div class="row align-items-end">
+      <div class="col-7 mb-2 mb-md-0">
+        <label class="control-label small d-md-none mb-1">Sale unit</label>
         <select class="form-control sell-pkg-select" required>
           <option value="">Select Unit</option>
           @foreach($pkgOptions as $pkg)
-            <option value="{{ $pkg->id }}">{{ $pkg->name }}</option>
+            <option value="{{ $pkg->id }}" data-name="{{ $pkg->name }}">{{ $pkg->name }}</option>
           @endforeach
         </select>
       </div>
-      <div class="col-4 sell-pkg-contains">
-        <input type="number" class="form-control form-control-sm sell-pkg-qty text-center" value="1" min="1" placeholder="Pcs" title="Pieces in stock per sale unit">
+      <div class="col-4 sell-pkg-contains mb-2 mb-md-0">
+        <label class="control-label small sell-pkg-qty-label d-md-none mb-1">Pieces per sale unit</label>
+        <span class="small text-muted sell-pkg-qty-label d-none d-md-block mb-1">Pieces per sale unit</span>
+        <input type="number" class="form-control sell-pkg-qty text-center" value="1" min="1" step="1" placeholder="e.g. 12">
       </div>
       <div class="col-1 text-right pl-0 sell-pkg-remove">
         <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-selling-package" title="Remove">
@@ -82,6 +97,8 @@
     </div>
   </div>
 </template>
+
+@include('items.partials.packaging-qty-helpers')
 
 @push('scripts')
 <script>
@@ -106,6 +123,9 @@
 
     $('.remove-selling-package').prop('disabled', count <= 1);
     reindexSellingPackages();
+    if (typeof refreshAllSellingPackageQtyRows === 'function') {
+      refreshAllSellingPackageQtyRows();
+    }
   }
 
   $(document).ready(function () {
@@ -118,6 +138,14 @@
       if ($('#sellingPackagesList .selling-package-row').length <= 1) return;
       $(this).closest('.selling-package-row').remove();
       refreshSellingPackageLayout();
+    });
+
+    $(document).on('change', '.sell-pkg-select', function () {
+      refreshSellingPackageQtyRow($(this).closest('.selling-package-row'));
+    });
+
+    $(document).on('input', '.sell-pkg-qty', function () {
+      $(this).data('userEdited', 1);
     });
 
     refreshSellingPackageLayout();

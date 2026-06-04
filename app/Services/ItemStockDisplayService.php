@@ -52,6 +52,22 @@ class ItemStockDisplayService
             $stockDisplay = trim($formattedPieces . ' ' . ($pieces === 1.0 ? rtrim($unitName, 's') : $unitName));
         }
 
+        $packagingBreakdown = collect($packagingPrices)
+            ->sortBy('quantity_per_unit')
+            ->map(function ($pkg) use ($pieces) {
+                $qpu = max(1, (int) $pkg['quantity_per_unit']);
+                $count = (int) floor($pieces / $qpu);
+
+                return [
+                    'name' => $pkg['name'],
+                    'quantity_per_unit' => $qpu,
+                    'count' => $count,
+                    'formatted_count' => (string) $count,
+                ];
+            })
+            ->values()
+            ->all();
+
         return [
             'pieces' => $pieces,
             'formatted_pieces' => $formattedPieces,
@@ -61,6 +77,7 @@ class ItemStockDisplayService
             'bulk_count' => $bulkCount,
             'bulk_name' => $bulkName,
             'pack_size' => $packSize,
+            'packaging_breakdown' => $packagingBreakdown,
         ];
     }
 }

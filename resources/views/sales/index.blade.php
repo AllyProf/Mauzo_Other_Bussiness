@@ -10,6 +10,15 @@
     font-size: 0.9rem;
     line-height: 1.35;
   }
+  .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; flex: 1; min-width: 0; }
+  .business-type-tab {
+    cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
+    font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
+    transition: all .15s ease; line-height: 1.5;
+  }
+  .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
+  .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
+  .business-type-tab i { margin-right: 5px; }
 </style>
 @endsection
 
@@ -46,6 +55,23 @@
 <div class="alert alert-success py-2 mb-3">
   <i class="fa fa-clock-o"></i> Shift #{{ $openShift->id }} is open.
   <a href="{{ route('shifts.show', $openShift) }}" class="alert-link">View</a>
+</div>
+@elseif(!empty($activeBranchName))
+<div class="alert alert-info py-2 mb-3">
+  <i class="fa fa-map-marker"></i>
+  Showing sales for items sold from <strong>{{ $activeBranchName }}</strong> categories.
+</div>
+@elseif($viewingAllBranches ?? false)
+<div class="alert alert-light border py-2 mb-3">
+  <i class="fa fa-building"></i>
+  Viewing sales from <strong>all branches</strong>. Switch branch in the header to filter.
+</div>
+@endif
+
+@if($multiBusiness ?? false)
+<div class="alert alert-light border mb-3 py-2">
+  <i class="fa fa-info-circle text-primary"></i>
+  <strong>Multi-department shop:</strong> use the tabs below to filter sales by business type.
 </div>
 @endif
 
@@ -91,6 +117,18 @@
 <div class="row">
   <div class="col-md-12">
     <div class="tile">
+      @if($multiBusiness ?? false)
+      <div class="business-type-tabs mb-3" id="businessTypeTabs">
+        <button type="button" class="business-type-tab active" data-business-type="all">
+          <i class="fa fa-th-large"></i> All
+        </button>
+        @foreach($businessTypes as $type)
+        <button type="button" class="business-type-tab" data-business-type="{{ $type['key'] }}">
+          <i class="fa {{ $type['icon'] }}"></i> {{ $type['label'] }}
+        </button>
+        @endforeach
+      </div>
+      @endif
       <div class="tile-body">
         <table class="table table-hover table-bordered" id="salesTable">
           <thead>
@@ -107,9 +145,15 @@
           </thead>
           <tbody>
             @foreach($sales as $sale)
-                <tr>
+                @php
+                  $businessTypeKeys = $sale->items
+                      ->map(fn ($line) => $line->item?->category?->source_business_type_key ?: 'other')
+                      ->unique()
+                      ->values();
+                @endphp
+                <tr data-business-types="{{ $businessTypeKeys->implode(',') }}">
                     <td>{{ \Carbon\Carbon::parse($sale->sale_date)->format('M d, Y') }}</td>
-                    <td>{{ $sale->reference_no }}</td>
+                    <td>{{ $sale->reference_no }}@if($sale->isServicePos()) <span class="badge badge-info">Service</span>@endif</td>
                     <td class="sold-items-cell">
                       @php $soldSummary = $sale->soldItemsSummary(); @endphp
                       @if($soldSummary)
@@ -164,7 +208,9 @@
                                 $payItems = $sale->items->map(function ($si) {
                                     return [
                                         'id' => $si->id,
-                                        'name' => $si->item->name ?? 'Item',
+                                        'name' => $si->service_id
+                                            ? ($si->line_description ?: $si->service?->name ?? 'Service')
+                                            : ($si->item->name ?? 'Item'),
                                         'qty' => (float) $si->quantity,
                                         'unit_price' => (float) ($si->list_unit_price ?? $si->unit_price),
                                     ];
@@ -218,11 +264,40 @@
 @section('scripts')
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script type="text/javascript" src="{{ asset('admin/js/plugins/jquery.dataTables.min.js') }}"></script>
-    <script type="text/javascript" src="{{ asset('admin/js/plugins/dataTables.bootstrap.min.js') }}"></script>
+    <script type="text/javascript" src="{{ asset('panel-assets/js/plugins/jquery.dataTables.min.js') }}"></script>
+    <script type="text/javascript" src="{{ asset('panel-assets/js/plugins/dataTables.bootstrap.min.js') }}"></script>
     <script type="text/javascript">
-        $('#salesTable').DataTable({
-            "order": [[ 0, "desc" ]]
+        $(function () {
+            const hasMultipleBusinessTypes = @json($multiBusiness ?? false);
+            let activeBusinessType = 'all';
+
+            const table = $('#salesTable').DataTable({
+                order: [[0, 'desc']],
+            });
+
+            if (hasMultipleBusinessTypes) {
+                $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                    if (settings.nTable.id !== 'salesTable') {
+                        return true;
+                    }
+
+                    if (activeBusinessType === 'all') {
+                        return true;
+                    }
+
+                    const row = table.row(dataIndex).node();
+                    const keys = String($(row).attr('data-business-types') || '').split(',').filter(Boolean);
+
+                    return keys.indexOf(String(activeBusinessType)) !== -1;
+                });
+
+                $('#businessTypeTabs .business-type-tab').on('click', function () {
+                    $('#businessTypeTabs .business-type-tab').removeClass('active');
+                    $(this).addClass('active');
+                    activeBusinessType = String($(this).attr('data-business-type') || 'all');
+                    table.draw();
+                });
+            }
         });
     </script>
     @include('sales.partials.customer-picker-scripts')

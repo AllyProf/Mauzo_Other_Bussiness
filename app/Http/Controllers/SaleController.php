@@ -8,6 +8,7 @@ use App\Models\SalePayment;
 use App\Models\Shift;
 use App\Models\ShiftStockCheck;
 use App\Models\Item;
+use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Services\ItemPackagingNormalizer;
@@ -26,6 +27,40 @@ class SaleController extends Controller
         $requiresOpenShift = Auth::user()->requiresOpenShift();
         $openShift = Shift::openForUser(Auth::id(), $businessId);
 
+        $branchFilterId = null;
+        if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
+            $branchFilterId = (int) Auth::user()->branch_id;
+        } elseif ($branchId = active_branch_id()) {
+            $branchFilterId = $branchId;
+        }
+
+        $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
+        $activeBranchName = $branchFilterId
+            ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? 'Branch')
+            : null;
+
+        $business = Auth::user()->business;
+        $templates = config('category_templates', []);
+
+        if ($branchFilterId) {
+            $businessTypes = collect($business->importedTypesForBranch($branchFilterId))
+                ->map(function ($type) use ($templates) {
+                    $key = (string) ($type['key'] ?? '');
+
+                    return [
+                        'key' => $key,
+                        'label' => (string) ($type['label'] ?? $key),
+                        'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
+                    ];
+                })
+                ->values()
+                ->all();
+        } else {
+            $businessTypes = $business->posBusinessTypesMeta();
+        }
+
+        $multiBusiness = count($businessTypes) > 1;
+
         $salesQuery = Sale::where('business_id', $businessId);
 
         if ($requiresOpenShift) {
@@ -34,8 +69,14 @@ class SaleController extends Controller
             } else {
                 $salesQuery->whereRaw('1 = 0');
             }
+        } elseif ($this->actsAsBusinessWideViewer()) {
+            if ($branchFilterId) {
+                $salesQuery->whereHas('items.item.category', function ($query) use ($branchFilterId) {
+                    $query->where('branch_id', $branchFilterId);
+                });
+            }
         } else {
-            $salesQuery = $this->scopeToCurrentStaff($salesQuery);
+            $salesQuery->where('user_id', Auth::id());
         }
 
         $activeSales = (clone $salesQuery)->where('payment_status', '!=', 'cancelled');
@@ -51,7 +92,7 @@ class SaleController extends Controller
         ];
 
         $sales = (clone $salesQuery)
-            ->with(['user', 'items.item', 'items.itemPackaging.packagingType', 'customer'])
+            ->with(['user', 'items.item.category', 'items.itemPackaging.packagingType', 'items.service', 'customer'])
             ->latest()
             ->paginate(15);
 
@@ -72,6 +113,11 @@ class SaleController extends Controller
             'shiftContext',
             'customers',
             'paymentMethods',
+            'activeBranchName',
+            'branchFilterId',
+            'viewingAllBranches',
+            'businessTypes',
+            'multiBusiness',
         ));
     }
 
@@ -91,12 +137,54 @@ class SaleController extends Controller
 
         // POS Screen
         $business = Auth::user()->business;
-        $businessTypes = $business->posBusinessTypesMeta();
-        $categories = Category::where('business_id', $business->id)->has('items')->get();
+
+        $branchFilterId = null;
+        if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
+            $branchFilterId = (int) Auth::user()->branch_id;
+        } elseif ($branchId = active_branch_id()) {
+            $branchFilterId = $branchId;
+        }
+
+        $templates = config('category_templates', []);
+
+        if ($branchFilterId) {
+            $businessTypes = collect($business->importedTypesForBranch($branchFilterId))
+                ->map(function ($type) use ($templates) {
+                    $key = (string) ($type['key'] ?? '');
+
+                    return [
+                        'key' => $key,
+                        'label' => (string) ($type['label'] ?? $key),
+                        'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
+                    ];
+                })
+                ->values()
+                ->all();
+        } else {
+            $businessTypes = $business->posBusinessTypesMeta();
+        }
+
+        $multiBusiness = count($businessTypes) > 1;
+        $activeBranchName = $branchFilterId
+            ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? Auth::user()->branch?->name ?? 'Branch')
+            : null;
+        $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
+
+        $categoriesQuery = Category::where('business_id', $business->id)->has('items');
+        if ($branchFilterId) {
+            $categoriesQuery->where('branch_id', $branchFilterId);
+        }
+        if (! $this->actsAsBusinessWideViewer() && ($typeKeys = Auth::user()->assignedBusinessTypeKeys()) !== []) {
+            $categoriesQuery->whereIn('source_business_type_key', $typeKeys);
+        }
+        $categories = $categoriesQuery->get();
+
         $stockContext = app(SaleStockService::class)->shiftStockContext($openShift);
 
         $itemsByCategory = Category::where('business_id', $business->id)
             ->has('items')
+            ->when($branchFilterId, fn ($query) => $query->where('branch_id', $branchFilterId))
+            ->when(! $this->actsAsBusinessWideViewer() && ($typeKeys = Auth::user()->assignedBusinessTypeKeys()) !== [], fn ($query) => $query->whereIn('source_business_type_key', $typeKeys))
             ->with(['items.packagings.packagingType'])
             ->get()
             ->mapWithKeys(function ($cat) use ($openShift, $stockContext) {
@@ -111,7 +199,13 @@ class SaleController extends Controller
                     $normalizer = app(ItemPackagingNormalizer::class);
                     $packagingModels = $item->packagings->sortBy('quantity_per_unit')->values();
                     $normalized = $normalizer->normalizeItemPackagings($item, $packagingModels);
-                    $defaultRow = $normalized->firstWhere('quantity_per_unit', 1) ?? $normalized->first();
+                    $defaultRow = $normalized->first(function ($row) {
+                        return (float) ($row['packaging']->selling_price ?? 0) > 0
+                            && (int) $row['quantity_per_unit'] === 1;
+                    }) ?? $normalized->first(function ($row) {
+                        return (float) ($row['packaging']->selling_price ?? 0) > 0;
+                    }) ?? $normalized->firstWhere('quantity_per_unit', 1)
+                        ?? $normalized->first();
                     $defaultPackaging = $defaultRow['packaging'] ?? null;
 
                     return [
@@ -150,6 +244,10 @@ class SaleController extends Controller
             'openShift',
             'customers',
             'businessTypes',
+            'multiBusiness',
+            'activeBranchName',
+            'branchFilterId',
+            'viewingAllBranches',
         ));
     }
 
@@ -173,7 +271,7 @@ class SaleController extends Controller
             'items.*.id' => 'required|exists:items,id',
             'items.*.item_packaging_id' => 'nullable|exists:item_packagings,id',
             'items.*.qty' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric|min:0',
+            'items.*.price' => 'required|numeric|min:0.01',
             'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', Auth::user()->business_id)],
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:50',
@@ -254,6 +352,10 @@ class SaleController extends Controller
                     'cost_price' => $unitCost,
                     'subtotal' => $subtotal,
                 ]);
+
+                if ($packaging && (float) $packaging->selling_price <= 0 && (float) $i['price'] > 0) {
+                    $packaging->update(['selling_price' => (float) $i['price']]);
+                }
             }
 
             app(SaleStockService::class)->deductForSale($sale->fresh());
@@ -276,7 +378,7 @@ class SaleController extends Controller
             abort(403);
         }
         $this->ensureCanAccessStaffRecord((int) $sale->user_id);
-        $sale->load(['items.item', 'user', 'payments.user']);
+        $sale->load(['items.item', 'items.service', 'user', 'payments.user']);
         return view('sales.show', compact('sale'));
     }
 
@@ -348,6 +450,13 @@ class SaleController extends Controller
                 'due_date' => $request->due_date,
             ];
 
+            if ($sale->due_date != $request->due_date) {
+                $updateData['debt_due_soon_sms_sent_at'] = null;
+                $updateData['debt_due_soon_second_sms_sent_at'] = null;
+                $updateData['debt_due_today_sms_sent_at'] = null;
+                $updateData['debt_overdue_sms_sent_at'] = null;
+            }
+
             if ($request->filled('notes')) {
                 $updateData['notes'] = $this->appendSaleNote($sale, $request->notes);
             }
@@ -381,8 +490,8 @@ class SaleController extends Controller
 
         if (! empty($method['requires_reference'])) {
             $request->validate([
-                'payment_provider' => 'nullable|string|max:255',
-                'transaction_reference' => 'nullable|string|max:255',
+                'payment_provider' => 'required|string|max:255',
+                'transaction_reference' => 'required|string|max:255',
             ]);
         }
 
@@ -413,6 +522,12 @@ class SaleController extends Controller
                 $updateData['customer_phone'] = $customerFields['customer_phone'];
                 $updateData['due_date'] = $request->due_date;
                 $updateData['notes'] = $this->appendSaleNote($sale, $request->notes);
+                if ($sale->due_date != $request->due_date) {
+                    $updateData['debt_due_soon_sms_sent_at'] = null;
+                    $updateData['debt_due_soon_second_sms_sent_at'] = null;
+                    $updateData['debt_due_today_sms_sent_at'] = null;
+                    $updateData['debt_overdue_sms_sent_at'] = null;
+                }
             } elseif ($status === 'paid') {
                 $updateData['due_date'] = null;
                 if ($request->filled('customer_id')) {

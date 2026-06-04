@@ -38,6 +38,7 @@
               <th class="text-right">Physical Count</th>
               <th class="text-right">Short By</th>
               <th>Staff Reason</th>
+              <th>Owner Decision</th>
               <th>Recorded By</th>
             </tr>
           </thead>
@@ -49,6 +50,22 @@
                 <td class="text-right">{{ number_format($check->counted_stock, 2) }}</td>
                 <td class="text-right font-weight-bold text-danger">{{ number_format($check->shortageAmount(), 2) }}</td>
                 <td>{{ $check->notes ?: '—' }}</td>
+                <td>
+                  @if($check->isVerified())
+                    @if($check->isWillBePaid())
+                      <span class="badge badge-primary">Will be paid</span>
+                    @elseif($check->isWaived())
+                      <span class="badge badge-success">Waived</span>
+                    @else
+                      <span class="badge badge-secondary">Reviewed</span>
+                    @endif
+                    @if($check->owner_notes)
+                      <br><small class="text-muted">{{ $check->owner_notes }}</small>
+                    @endif
+                  @else
+                    <span class="badge badge-warning">Pending</span>
+                  @endif
+                </td>
                 <td>{{ $check->recorder->name ?? $shift->user->name }}</td>
               </tr>
             @endforeach

@@ -245,9 +245,39 @@
             <div class="col-12 col-sm-10 col-lg-8">
                 <div class="nl-content text-center">
                     <h2>Questions? We're here to help.</h2>
-                    <p class="mb-4">Email us at <strong>{{ $platformSettings['support_email'] ?? 'support@mauzolink.com' }}</strong> or register and start selling in minutes.</p>
+                    <p class="mb-4">Email us at <strong>{{ $platformSettings['support_email'] ?? 'support@mauzolink.com' }}</strong> or request a personalized demo.</p>
+                    @if(session('lead_success'))
+                    <div class="alert alert-success">{{ session('lead_success') }}</div>
+                    @endif
+                    <form method="POST" action="{{ route('landing.lead.store') }}" class="text-left bg-white p-4 rounded shadow-sm mb-4">
+                        @csrf
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                <label>Your Name *</label>
+                                <input type="text" name="name" class="form-control" value="{{ old('name') }}" required>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label>Company / Shop</label>
+                                <input type="text" name="company" class="form-control" value="{{ old('company') }}">
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label>Phone</label>
+                                <input type="text" name="phone" class="form-control" value="{{ old('phone') }}" placeholder="07xxxxxxxx">
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label>Email</label>
+                                <input type="email" name="email" class="form-control" value="{{ old('email') }}">
+                            </div>
+                            <div class="col-12 form-group mb-0">
+                                <label>Message</label>
+                                <textarea name="message" class="form-control" rows="2" placeholder="Tell us about your business...">{{ old('message') }}</textarea>
+                            </div>
+                        </div>
+                        @error('email')<small class="text-danger d-block mt-2">{{ $message }}</small>@enderror
+                        <button type="submit" class="btn credit-btn mt-3"><i class="fa fa-calendar"></i> Request Demo</button>
+                    </form>
                     @if($registrationOpen)
-                    <a href="{{ route('register.business') }}" class="btn credit-btn btn-lg">Create Free Account</a>
+                    <a href="{{ route('register.business') }}" class="btn btn-outline-light btn-lg">Or Create Free Account</a>
                     @endif
                 </div>
             </div>

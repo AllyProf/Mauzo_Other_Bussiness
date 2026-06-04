@@ -8,6 +8,8 @@ class BusinessOwnerExpense extends Model
 {
     protected $fillable = [
         'business_id',
+        'branch_id',
+        'business_type_key',
         'owner_daily_report_id',
         'expense_date',
         'description',
@@ -48,6 +50,20 @@ class BusinessOwnerExpense extends Model
     public function business()
     {
         return $this->belongsTo(Business::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function businessTypeLabel(Business $business): string
+    {
+        if (! $this->business_type_key) {
+            return 'All / General';
+        }
+
+        return $business->businessTypeLabel($this->business_type_key);
     }
 
     public function report()

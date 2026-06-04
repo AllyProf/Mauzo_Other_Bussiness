@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Branch extends Model
 {
     protected $fillable = [
+        'owner_user_id',
         'business_id',
         'name',
         'phone',
@@ -29,6 +30,32 @@ class Branch extends Model
         return $this->belongsTo(Business::class);
     }
 
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_user_id');
+    }
+
+    public function businesses()
+    {
+        return $this->belongsToMany(Business::class, 'branch_business')
+            ->withPivot('is_default')
+            ->withTimestamps();
+    }
+
+    public function servesBusiness(int $businessId): bool
+    {
+        if ($this->businesses()->where('businesses.id', $businessId)->exists()) {
+            return true;
+        }
+
+        return (int) $this->business_id === $businessId;
+    }
+
+    public function scopeForOwner($query, int $ownerUserId)
+    {
+        return $query->where('owner_user_id', $ownerUserId);
+    }
+
     public function users()
     {
         return $this->hasMany(User::class);
@@ -36,7 +63,8 @@ class Branch extends Model
 
     public static function createDefaultForBusiness(Business $business, ?string $name = null): self
     {
-        return self::create([
+        $branch = self::create([
+            'owner_user_id' => $business->owner_user_id,
             'business_id' => $business->id,
             'name' => $name ?: 'Main Branch',
             'address' => $business->address,
@@ -44,5 +72,11 @@ class Branch extends Model
             'is_active' => true,
             'is_default' => true,
         ]);
+
+        $branch->businesses()->syncWithoutDetaching([
+            $business->id => ['is_default' => true],
+        ]);
+
+        return $branch;
     }
 }

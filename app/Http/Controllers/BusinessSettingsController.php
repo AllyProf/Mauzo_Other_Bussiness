@@ -82,13 +82,29 @@ class BusinessSettingsController extends Controller
     {
         $this->authorizeAny(['manage_business_settings']);
 
+        if (! Auth::user()->business?->hasPlanFeature('automation_reminders')) {
+            return redirect()
+                ->route('subscription.upgrade')
+                ->with('warning', 'Automated reminders are not included in your current plan.');
+        }
+
         $request->validate([
             'debt_due_reminder_days' => 'required|integer|min:1|max:30',
+            'debt_due_reminder_days_second' => 'nullable|required_if:debt_reminder_frequency,twice|integer|min:1|max:29|lt:debt_due_reminder_days',
+            'debt_reminder_send_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'debt_reminder_frequency' => 'required|in:once,twice',
             'default_debt_due_days' => 'required|integer|min:1|max:365',
             'low_stock_threshold' => 'required|integer|min:0|max:1000',
+            ...collect(Business::defaultSmsTemplates())->mapWithKeys(
+                fn ($default, $key) => [$key => 'required|string|max:480']
+            )->all(),
         ]);
 
         $business = Auth::user()->business;
+
+        $smsTemplates = collect(Business::defaultSmsTemplates())
+            ->mapWithKeys(fn ($default, $key) => [$key => trim((string) $request->input($key, $default))])
+            ->all();
 
         $business->update([
             'automation_settings' => array_merge(
@@ -97,6 +113,11 @@ class BusinessSettingsController extends Controller
                     'notify_debt_overdue' => $request->boolean('notify_debt_overdue'),
                     'notify_debt_due_soon' => $request->boolean('notify_debt_due_soon'),
                     'debt_due_reminder_days' => (int) $request->debt_due_reminder_days,
+                    'debt_due_reminder_days_second' => $request->debt_reminder_frequency === 'twice'
+                        ? (int) $request->debt_due_reminder_days_second
+                        : 1,
+                    'debt_reminder_send_time' => (string) $request->debt_reminder_send_time,
+                    'debt_reminder_frequency' => (string) $request->debt_reminder_frequency,
                     'default_debt_due_days' => (int) $request->default_debt_due_days,
                     'notify_low_stock' => $request->boolean('notify_low_stock'),
                     'low_stock_threshold' => (int) $request->low_stock_threshold,
@@ -104,6 +125,24 @@ class BusinessSettingsController extends Controller
                     'notify_finalize_daily_report' => $request->boolean('notify_finalize_daily_report'),
                     'notify_unclosed_shifts' => $request->boolean('notify_unclosed_shifts'),
                     'notify_opening_stock_shortages' => $request->boolean('notify_opening_stock_shortages'),
+                    'sms_staff_enabled' => $request->boolean('sms_staff_enabled'),
+                    'sms_staff_welcome' => $request->boolean('sms_staff_welcome'),
+                    'sms_staff_password_reset' => $request->boolean('sms_staff_password_reset'),
+                    'sms_staff_activated' => $request->boolean('sms_staff_activated'),
+                    'sms_staff_deactivated' => $request->boolean('sms_staff_deactivated'),
+                    'sms_staff_handover_submitted_owner' => $request->boolean('sms_staff_handover_submitted_owner'),
+                    'sms_staff_handover_verified_staff' => $request->boolean('sms_staff_handover_verified_staff'),
+                    'sms_staff_note_reminder' => $request->boolean('sms_staff_note_reminder'),
+                    'sms_debt_enabled' => $request->boolean('sms_debt_enabled'),
+                    'sms_debt_due_soon_customer' => $request->boolean('sms_debt_due_soon_customer'),
+                    'sms_debt_due_soon_staff' => $request->boolean('sms_debt_due_soon_staff'),
+                    'sms_debt_due_today_customer' => $request->boolean('sms_debt_due_today_customer'),
+                    'sms_debt_due_today_staff' => $request->boolean('sms_debt_due_today_staff'),
+                    'sms_debt_overdue_customer' => $request->boolean('sms_debt_overdue_customer'),
+                    'sms_debt_overdue_staff' => $request->boolean('sms_debt_overdue_staff'),
+                    'email_staff_enabled' => $request->boolean('email_staff_enabled'),
+                    'email_debt_enabled' => $request->boolean('email_debt_enabled'),
+                    ...$smsTemplates,
                 ]
             ),
         ]);

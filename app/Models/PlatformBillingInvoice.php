@@ -25,6 +25,12 @@ class PlatformBillingInvoice extends Model
         'amount',
         'status',
         'emailed_at',
+        'expiry_reminder_sent_at',
+        'payment_reminder_sent_at',
+        'paid_at',
+        'payment_reference',
+        'payment_notes',
+        'marked_paid_by',
     ];
 
     protected $casts = [
@@ -33,6 +39,9 @@ class PlatformBillingInvoice extends Model
         'share_percent' => 'decimal:2',
         'amount' => 'decimal:2',
         'emailed_at' => 'datetime',
+        'expiry_reminder_sent_at' => 'datetime',
+        'payment_reminder_sent_at' => 'datetime',
+        'paid_at' => 'datetime',
     ];
 
     public function business(): BelongsTo
@@ -43,6 +52,11 @@ class PlatformBillingInvoice extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    public function markedPaidByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'marked_paid_by');
     }
 
     public function billingMonthLabel(): string
@@ -57,5 +71,19 @@ class PlatformBillingInvoice extends Model
             self::STATUS_NOTIFIED => 'Invoice Sent',
             default => 'Pending Payment',
         };
+    }
+
+    public function statusBadgeClass(): string
+    {
+        return match ($this->status) {
+            self::STATUS_PAID => 'success',
+            self::STATUS_NOTIFIED => 'info',
+            default => 'warning',
+        };
+    }
+
+    public function billingModelLabel(): string
+    {
+        return $this->billing_model === 'profit_share' ? 'Profit Share' : 'Fixed Fee';
     }
 }

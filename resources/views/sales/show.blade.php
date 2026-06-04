@@ -81,7 +81,13 @@
                   $hasDiscount = $item->adjustment_mode === 'discount' && (float) $item->discount_amount > 0;
                 @endphp
                 <tr>
-                  <td>{{ $item->item->name }} ({{ $item->item->sku }})</td>
+                  <td>
+                    @if($item->service_id)
+                      {{ $item->line_description ?: $item->service?->name ?? 'Service' }}
+                    @else
+                      {{ $item->item->name ?? 'Item' }}@if($item->item?->sku) ({{ $item->item->sku }})@endif
+                    @endif
+                  </td>
                   <td>{{ $item->quantity }}</td>
                   <td>{{ money($listPrice) }}</td>
                   <td>{{ money($item->unit_price) }}</td>

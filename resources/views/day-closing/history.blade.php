@@ -13,6 +13,8 @@
   @endcan
 </div>
 
+@include('partials.branch-business-filters', ['filterHint' => 'Select a business tab to filter reconciliation history by department.'])
+
 <div class="row">
   <div class="col-md-12">
     <div class="tile">
@@ -22,6 +24,9 @@
             <tr>
               <th>Date</th>
               <th>Submitted By</th>
+              @if($multiBusiness ?? false)
+              <th>Business</th>
+              @endif
               <th>Sales</th>
               <th>Gross Sales</th>
               <th>Received</th>
@@ -37,6 +42,9 @@
               <tr>
                 <td><strong>{{ $closing->closing_date->format('M d, Y') }}</strong></td>
                 <td>{{ $closing->user->name }}</td>
+                @if($multiBusiness ?? false)
+                <td nowrap>{{ ($activeBusinessType ?? false) ? ($activeBusinessLabel ?? $activeBusinessType) : (implode(', ', $closing->business_type_labels ?? []) ?: '—') }}</td>
+                @endif
                 <td>{{ $closing->sales_count }}</td>
                 <td>TZS {{ number_format($closing->gross_sales, 2) }}</td>
                 <td>TZS {{ number_format($closing->payments_received, 2) }}</td>

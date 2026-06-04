@@ -35,7 +35,45 @@ class PlatformSettingsService
             'expiry_warning_days' => 7,
             'auto_suspend_on_expiry' => true,
             'auto_email_billing_invoices' => true,
+            'payment_reminder_days' => 7,
+            'payment_reminder_channels' => 'email,sms',
+            'auto_suspend_unpaid_days' => 14,
             'payment_instructions' => '',
+
+            'admin_ip_allowlist' => '',
+            'admin_notification_email' => '',
+            'admin_notification_phone' => '',
+            'audit_log_retention_days' => 365,
+
+            'sms_enabled' => true,
+            'sms_registration_verification' => true,
+            'sms_registration_approved' => true,
+            'sms_registration_rejected' => true,
+            'sms_password_reset' => true,
+            'sms_account_suspended' => true,
+            'sms_account_reactivated' => true,
+            'sms_auto_suspend' => true,
+            'sms_invoice_issued' => true,
+            'sms_payment_confirmed' => true,
+            'sms_ticket_new_admin' => true,
+            'sms_ticket_reply_business' => true,
+            'sms_staff_welcome' => true,
+            'sms_demo_lead_admin' => true,
+
+            'email_enabled' => true,
+            'email_registration_verification' => true,
+            'email_registration_approved' => true,
+            'email_registration_rejected' => true,
+            'email_password_reset' => true,
+            'email_account_suspended' => true,
+            'email_account_reactivated' => true,
+            'email_auto_suspend' => true,
+            'email_invoice_issued' => true,
+            'email_payment_confirmed' => true,
+            'email_ticket_new_admin' => true,
+            'email_ticket_reply_business' => true,
+            'email_staff_welcome' => true,
+            'email_demo_lead_admin' => true,
 
             'default_billing_model' => 'fixed_monthly',
             'default_profit_share_percent' => 5,
@@ -121,26 +159,49 @@ class PlatformSettingsService
     public function applyMailConfig(): void
     {
         $host = trim((string) $this->get('mail_host'));
+        $usePlatformSettings = $host !== '';
 
-        if ($host === '') {
-            return;
+        if (! $usePlatformSettings) {
+            $host = trim((string) env('MAIL_HOST', ''));
+
+            if ($host === '' || env('MAIL_MAILER', 'log') === 'log') {
+                return;
+            }
         }
+
+        $port = $usePlatformSettings
+            ? (int) $this->get('mail_port', 587)
+            : (int) env('MAIL_PORT', 587);
+        $encryption = $usePlatformSettings
+            ? (string) $this->get('mail_encryption', 'tls')
+            : (string) (env('MAIL_SCHEME') === 'smtps' ? 'ssl' : env('MAIL_ENCRYPTION', 'tls'));
+        $username = $usePlatformSettings ? $this->get('mail_username') : env('MAIL_USERNAME');
+        $password = $usePlatformSettings ? $this->mailPassword() : env('MAIL_PASSWORD');
+        $fromAddress = trim((string) ($usePlatformSettings ? $this->get('mail_from_address') : env('MAIL_FROM_ADDRESS', '')));
+        $fromName = trim((string) ($usePlatformSettings ? $this->get('mail_from_name') : env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel'))));
 
         Config::set('mail.default', 'smtp');
         Config::set('mail.mailers.smtp.transport', 'smtp');
         Config::set('mail.mailers.smtp.host', $host);
-        Config::set('mail.mailers.smtp.port', (int) $this->get('mail_port', 587));
-        Config::set('mail.mailers.smtp.encryption', $this->get('mail_encryption') ?: null);
-        Config::set('mail.mailers.smtp.username', $this->get('mail_username'));
-        Config::set('mail.mailers.smtp.password', $this->mailPassword());
-
-        $fromAddress = trim((string) $this->get('mail_from_address'));
-        $fromName = trim((string) $this->get('mail_from_name'));
+        Config::set('mail.mailers.smtp.port', $port);
+        Config::set('mail.mailers.smtp.username', $username);
+        Config::set('mail.mailers.smtp.password', $password);
+        Config::set('mail.mailers.smtp.scheme', $encryption === 'ssl' ? 'smtps' : null);
 
         if ($fromAddress !== '') {
             Config::set('mail.from.address', $fromAddress);
             Config::set('mail.from.name', $fromName !== '' ? $fromName : $this->get('platform_name'));
         }
+    }
+
+    public function isMailConfigured(): bool
+    {
+        if (trim((string) $this->get('mail_host')) !== '') {
+            return true;
+        }
+
+        return trim((string) env('MAIL_HOST', '')) !== ''
+            && env('MAIL_MAILER', 'log') !== 'log';
     }
 
     public function isRegistrationOpen(): bool

@@ -14,6 +14,7 @@ class Sale extends Model
         'reference_no',
         'sale_source',
         'stock_deducted',
+        'consumables_deducted',
         'sale_date',
         'total_amount',
         'amount_paid',
@@ -25,15 +26,40 @@ class Sale extends Model
         'customer_name',
         'customer_phone',
         'due_date',
+        'debt_due_soon_sms_sent_at',
+        'debt_due_soon_second_sms_sent_at',
+        'debt_due_today_sms_sent_at',
+        'debt_overdue_sms_sent_at',
     ];
 
     protected $casts = [
         'stock_deducted' => 'boolean',
+        'consumables_deducted' => 'boolean',
+        'due_date' => 'date',
+        'debt_due_soon_sms_sent_at' => 'datetime',
+        'debt_due_soon_second_sms_sent_at' => 'datetime',
+        'debt_due_today_sms_sent_at' => 'datetime',
+        'debt_overdue_sms_sent_at' => 'datetime',
     ];
 
     public function isInvoice(): bool
     {
         return ($this->sale_source ?? 'pos') === 'invoice';
+    }
+
+    public function isServicePos(): bool
+    {
+        return ($this->sale_source ?? 'pos') === 'service_pos';
+    }
+
+    public function isServiceInvoice(): bool
+    {
+        return ($this->sale_source ?? 'pos') === 'service_invoice';
+    }
+
+    public function usesServices(): bool
+    {
+        return $this->isServicePos() || $this->isServiceInvoice();
     }
 
     public function business()
@@ -72,5 +98,18 @@ class Sale extends Model
     public function payments()
     {
         return $this->hasMany(SalePayment::class);
+    }
+
+    public function businessTypeKeys(): array
+    {
+        if (! $this->relationLoaded('items')) {
+            $this->load('items.item.category');
+        }
+
+        return $this->items
+            ->map(fn (SaleItem $line) => $line->item?->category?->source_business_type_key ?: 'other')
+            ->unique()
+            ->values()
+            ->all();
     }
 }

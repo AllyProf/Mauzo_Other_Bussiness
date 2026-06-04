@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\BusinessOwnerExpense;
 use App\Models\DayClosing;
 use App\Models\OwnerDailyReport;
@@ -11,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class PettyCashController extends Controller
 {
@@ -22,22 +24,53 @@ class PettyCashController extends Controller
     {
         $this->ensureOwner();
 
-        $business = Auth::user()->business;
+        $business = $this->currentBusiness() ?? Auth::user()->business;
+        $branchFilterId = active_branch_id();
+        $activeBranchName = $branchFilterId
+            ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? 'Branch')
+            : null;
+        $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
+
+        $businessTypes = $branchFilterId
+            ? $business->branchPosBusinessTypesMeta($branchFilterId)
+            : $business->posBusinessTypesMeta();
+        $multiBusiness = count($businessTypes) > 1;
+        $activeBusinessType = $request->get('business_type');
+
         $selectedDate = $request->filled('date')
             ? Carbon::parse($request->date)->toDateString()
             : now()->toDateString();
 
-        $balances = $this->reportService->getPettyCashBalances($business, $selectedDate);
+        $balances = $this->reportService->getPettyCashBalances(
+            $business,
+            $selectedDate,
+            $activeBusinessType ?: null
+        );
 
-        $staffMembers = User::where('business_id', $business->id)
+        $staffQuery = User::where('business_id', $business->id)
             ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'role']);
+            ->orderBy('name');
+
+        if ($branchFilterId) {
+            $this->scopeStaffToActiveBranch($staffQuery);
+        }
+
+        $staffMembers = $staffQuery->get(['id', 'name', 'role']);
 
         $expensesQuery = BusinessOwnerExpense::where('business_id', $business->id)
-            ->with(['recorder', 'issuedTo', 'report'])
+            ->with(['recorder', 'issuedTo', 'report', 'branch'])
             ->latest('expense_date')
             ->latest('id');
+
+        if ($branchFilterId) {
+            $expensesQuery->where(function ($query) use ($branchFilterId) {
+                $query->where('branch_id', $branchFilterId)->orWhereNull('branch_id');
+            });
+        }
+
+        if ($activeBusinessType) {
+            $expensesQuery->where('business_type_key', $activeBusinessType);
+        }
 
         if ($request->filled('start_date')) {
             $expensesQuery->whereDate('expense_date', '>=', $request->start_date);
@@ -59,7 +92,13 @@ class PettyCashController extends Controller
             'balances',
             'selectedDate',
             'staffMembers',
-            'expenses'
+            'expenses',
+            'businessTypes',
+            'multiBusiness',
+            'activeBusinessType',
+            'activeBranchName',
+            'branchFilterId',
+            'viewingAllBranches',
         ));
     }
 
@@ -67,13 +106,16 @@ class PettyCashController extends Controller
     {
         $this->ensureOwner();
 
+        $business = $this->currentBusiness() ?? Auth::user()->business;
+
         $request->validate([
             'date' => 'required|date',
+            'business_type' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $business = Auth::user()->business;
         $date = Carbon::parse($request->date)->toDateString();
-        $balances = $this->reportService->getPettyCashBalances($business, $date);
+        $businessTypeKey = $request->filled('business_type') ? $request->business_type : null;
+        $balances = $this->reportService->getPettyCashBalances($business, $date, $businessTypeKey);
 
         return response()->json([
             'date' => $date,
@@ -86,6 +128,9 @@ class PettyCashController extends Controller
             'owner_profit_spent' => $balances['owner_profit_spent'],
             'daily_net_profit' => $balances['daily_net_profit'],
             'is_finalized' => $balances['is_finalized'],
+            'business_type_key' => $balances['business_type_key'],
+            'business_type_label' => $balances['business_type_label'],
+            'scoped_to_business_type' => $balances['scoped_to_business_type'],
         ]);
     }
 
@@ -93,7 +138,12 @@ class PettyCashController extends Controller
     {
         $this->ensureOwner();
 
-        $business = Auth::user()->business;
+        $business = $this->currentBusiness() ?? Auth::user()->business;
+        $branchFilterId = active_branch_id();
+        $businessTypes = $branchFilterId
+            ? $business->branchPosBusinessTypesMeta($branchFilterId)
+            : $business->posBusinessTypesMeta();
+        $typeKeys = collect($businessTypes)->pluck('key')->filter()->values()->all();
 
         $request->validate([
             'expense_date' => 'required|date',
@@ -102,23 +152,35 @@ class PettyCashController extends Controller
             'category' => 'required|in:restock,payment,salary,operational,other',
             'fund_source' => 'required|in:circulation,profit',
             'issued_to_user_id' => 'nullable|exists:users,id',
+            'business_type_key' => [
+                Rule::requiredIf(count($typeKeys) > 1),
+                'nullable',
+                'string',
+                'max:100',
+                Rule::in($typeKeys),
+            ],
         ]);
 
         if ($request->filled('issued_to_user_id')) {
-            $recipient = User::where('business_id', $business->id)
+            $recipientQuery = User::where('business_id', $business->id)
                 ->where('is_active', true)
-                ->find($request->issued_to_user_id);
+                ->where('id', $request->issued_to_user_id);
 
-            if (! $recipient) {
+            if ($branchFilterId) {
+                $this->scopeStaffToActiveBranch($recipientQuery);
+            }
+
+            if (! $recipientQuery->exists()) {
                 return redirect()->back()
                     ->withInput()
-                    ->with('error', 'Selected staff member is not valid for this business.');
+                    ->with('error', 'Selected staff member is not valid for this branch.');
             }
         }
 
         $parsedDate = Carbon::parse($request->expense_date)->toDateString();
         $amount = (float) $request->amount;
         $fundSource = $request->fund_source;
+        $businessTypeKey = $request->business_type_key ?: null;
 
         $report = OwnerDailyReport::where('business_id', $business->id)
             ->whereDate('report_date', $parsedDate)
@@ -128,17 +190,18 @@ class PettyCashController extends Controller
             return redirect()->back()->with('error', 'That day is finalized. Petty cash cannot be changed for finalized days.');
         }
 
-        $balances = $this->reportService->getPettyCashBalances($business, $parsedDate);
+        $balances = $this->reportService->getPettyCashBalances($business, $parsedDate, $businessTypeKey);
         $available = $fundSource === 'profit'
             ? $balances['available_profit']
             : $balances['available_circulation'];
 
         if ($amount > $available) {
             $label = $fundSource === 'profit' ? 'profit' : 'circulation money';
+            $scope = $businessTypeKey ? ' for '.$balances['business_type_label'] : '';
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Amount exceeds available '.$label.' on '.$parsedDate.' (TZS '.number_format($available, 0).' available).');
+                ->with('error', 'Amount exceeds available '.$label.$scope.' on '.$parsedDate.' (TZS '.number_format($available, 0).' available).');
         }
 
         DB::beginTransaction();
@@ -149,6 +212,8 @@ class PettyCashController extends Controller
 
             BusinessOwnerExpense::create([
                 'business_id' => $business->id,
+                'branch_id' => $branchFilterId,
+                'business_type_key' => $businessTypeKey,
                 'owner_daily_report_id' => $report?->id,
                 'expense_date' => $parsedDate,
                 'description' => $request->description,
@@ -163,8 +228,10 @@ class PettyCashController extends Controller
 
             DB::commit();
 
-            return redirect()->route('petty-cash.index', ['date' => $parsedDate])
-                ->with('success', 'Petty cash issued successfully.');
+            return redirect()->route('petty-cash.index', array_filter([
+                'date' => $parsedDate,
+                'business_type' => $businessTypeKey,
+            ]))->with('success', 'Petty cash issued successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -180,11 +247,18 @@ class PettyCashController extends Controller
             abort(403);
         }
 
+        if ($branchFilterId = active_branch_id()) {
+            if ($expense->branch_id && (int) $expense->branch_id !== (int) $branchFilterId) {
+                abort(403, 'This petty cash entry belongs to another branch.');
+            }
+        }
+
         if ($expense->report && $expense->report->status === 'finalized') {
             return redirect()->back()->with('error', 'Cannot remove petty cash from a finalized day.');
         }
 
         $parsedDate = $expense->expense_date->toDateString();
+        $businessTypeKey = $expense->business_type_key;
         $expense->delete();
 
         $dayClosing = DayClosing::where('business_id', Auth::user()->business_id)
@@ -193,7 +267,10 @@ class PettyCashController extends Controller
 
         $this->reportService->syncReport(Auth::user()->business, $parsedDate, $dayClosing);
 
-        return redirect()->back()->with('success', 'Petty cash entry removed.');
+        return redirect()->route('petty-cash.index', array_filter([
+            'date' => $parsedDate,
+            'business_type' => $businessTypeKey,
+        ]))->with('success', 'Petty cash entry removed.');
     }
 
     private function ensureOwner(): void
