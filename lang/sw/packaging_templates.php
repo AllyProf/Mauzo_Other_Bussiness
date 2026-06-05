@@ -1,0 +1,25 @@
+<?php
+
+return [
+    'spare_parts' => ['Kipande (Pcs)', 'Sanduku', 'Seti', 'Jozi', 'Kareti', 'Chupa', 'Pakiti', 'Rolli'],
+    'grocery' => ['Kipande (Pcs)', 'Kilogramu (Kg)', 'Gramu (g)', 'Lita (L)', 'Kareti', 'Sanduku la Matunda', 'Pakiti', 'Dozeni (Dz)', 'Gunia'],
+    'electronics' => ['Kipande (Pcs)', 'Sanduku', 'Seti', 'Kareti', 'Jozi', 'Pakiti'],
+    'pharmacy' => ['Kidonge', 'Strip', 'Kapsuli', 'Chupa', 'Tube', 'Pakiti', 'Vial', 'Ampoule', 'Kipande (Pcs)'],
+    'hardware' => ['Kipande (Pcs)', 'Sanduku', 'Seti', 'Mita (M)', 'Kilogramu (Kg)', 'Jozi', 'Kareti', 'Rolli', 'Gunia'],
+    'fashion' => ['Kipande (Pcs)', 'Jozi', 'Seti', 'Kareti', 'Sanduku'],
+    'stationery' => ['Kipande (Pcs)', 'Sanduku', 'Dozeni (Dz)', 'Pakiti', 'Seti', 'Ream', 'Rolli'],
+    'restaurant' => ['Sahani', 'Bakuli', 'Kikombe', 'Glasi', 'Kipande', 'Sehemu', 'Kipande (Pcs)', 'Chupa'],
+    'beauty' => ['Kipande (Pcs)', 'Chupa', 'Tube', 'Pakiti', 'Seti', 'Sanduku', 'Pakiti'],
+    'construction' => ['Gunia', 'Toni (T)', 'Kilogramu (Kg)', 'Kipande (Pcs)', 'Mita (M)', 'Fungu', 'Kareti', 'Karatasi'],
+    'agriculture' => ['Kilogramu (Kg)', 'Gunia', 'Lita (L)', 'Kipande (Pcs)', 'Pakiti', 'Chupa', 'Kareti', 'Sanduku'],
+    'toys' => ['Kipande (Pcs)', 'Sanduku', 'Seti', 'Jozi', 'Kareti'],
+    'liquor' => ['Chupa', 'Sanduku la Pombe', 'Kareti', 'Kesi', 'Kipande (Pcs)', 'Kopo'],
+    'furniture' => ['Kipande (Pcs)', 'Seti', 'Kareti', 'Sanduku'],
+    'auto_garage' => ['Kipande (Pcs)', 'Sanduku', 'Seti', 'Chupa', 'Lita (L)', 'Jozi', 'Kareti', 'Pakiti'],
+    'pet_shop' => ['Kilogramu (Kg)', 'Gunia', 'Kipande (Pcs)', 'Chupa', 'Sanduku', 'Pakiti'],
+    'bakery' => ['Kipande (Pcs)', 'Dozeni (Dz)', 'Sanduku', 'Tray', 'Sehemu', 'Gunia', 'Kareti'],
+    'wholesale' => ['Kareti', 'Sanduku', 'Kipande (Pcs)', 'Sanduku la Matunda', 'Kilogramu (Kg)', 'Fungu', 'Gunia'],
+    'salon' => ['Kipande (Pcs)', 'Chupa', 'Tube', 'Seti', 'Kipindi', 'Pakiti', 'Sanduku'],
+    'general_retail' => ['Kipande (Pcs)', 'Sanduku', 'Seti', 'Dozeni (Dz)', 'Pakiti', 'Kareti', 'Gunia', 'Chupa', 'Jozi'],
+    '_default' => ['Kipande (Pcs)', 'Sanduku', 'Seti', 'Pakiti', 'Kareti', 'Gunia', 'Chupa', 'Jozi'],
+];

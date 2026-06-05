@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Sales History - SpareParts POS')
+@section('title', __('pages.sales.title') . ' - SpareParts POS')
 
 @section('styles')
 <style>
@@ -25,7 +25,7 @@
 @section('content')
 <div class="app-title">
   <div>
-    <h1><i class="fa fa-shopping-cart"></i> Sales History</h1>
+    <h1><i class="fa fa-shopping-cart"></i> {{ __('pages.sales.title') }}</h1>
     <p>
       @if(($shiftContext ?? '') === 'current')
         Sales for your current shift #{{ $openShift->id }} only
@@ -39,9 +39,9 @@
     </p>
   </div>
   @if(($requiresOpenShift ?? false) && !($openShift ?? null))
-    <a href="{{ route('shifts.create') }}" class="btn btn-warning"><i class="fa fa-clock-o"></i> Open Shift First</a>
+    <a href="{{ route('shifts.create') }}" class="btn btn-warning"><i class="fa fa-clock-o"></i> {{ __('pages.sales.open_shift_first') }}</a>
   @else
-    <a href="{{ route('sales.create') }}" class="btn btn-primary"><i class="fa fa-plus"></i> New Sale (POS)</a>
+    <a href="{{ route('sales.create') }}" class="btn btn-primary"><i class="fa fa-plus"></i> {{ __('pages.sales.new_sale') }}</a>
   @endif
 </div>
 
@@ -80,7 +80,7 @@
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-shopping-cart fa-3x"></i>
       <div class="info">
-        <h4>Total Sales</h4>
+        <h4>{{ __('pages.sales.total_sales') }}</h4>
         <p><b>{{ number_format($stats['total_sales']) }}</b></p>
       </div>
     </div>
@@ -89,7 +89,7 @@
     <div class="widget-small info coloured-icon">
       <i class="icon fa fa-line-chart fa-3x"></i>
       <div class="info">
-        <h4>Gross Sales</h4>
+        <h4>{{ __('pages.sales.gross_sales') }}</h4>
         <p><b>TZS {{ number_format($stats['gross_sales'], 0) }}</b></p>
       </div>
     </div>
@@ -98,7 +98,7 @@
     <div class="widget-small success coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
-        <h4>Collected</h4>
+        <h4>{{ __('pages.sales.collected') }}</h4>
         <p><b>TZS {{ number_format($stats['collected'], 0) }}</b></p>
       </div>
     </div>
@@ -107,7 +107,7 @@
     <div class="widget-small danger coloured-icon">
       <i class="icon fa fa-credit-card fa-3x"></i>
       <div class="info">
-        <h4>Outstanding</h4>
+        <h4>{{ __('pages.sales.outstanding') }}</h4>
         <p><b>TZS {{ number_format($stats['outstanding'], 0) }}</b></p>
       </div>
     </div>
@@ -133,14 +133,14 @@
         <table class="table table-hover table-bordered" id="salesTable">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Reference No</th>
-              <th>Items Sold</th>
-              <th>Cashier</th>
-              <th>Total Amount</th>
-              <th>Status</th>
-              <th>Payment Details</th>
-              <th>Actions</th>
+              <th>{{ __('tables.columns.date') }}</th>
+              <th>{{ __('tables.columns.reference_no') }}</th>
+              <th>{{ __('tables.columns.items_sold') }}</th>
+              <th>{{ __('tables.columns.cashier') }}</th>
+              <th>{{ __('tables.columns.total_amount') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
+              <th>{{ __('tables.columns.payment_details') }}</th>
+              <th>{{ __('tables.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -153,7 +153,7 @@
                 @endphp
                 <tr data-business-types="{{ $businessTypeKeys->implode(',') }}">
                     <td>{{ \Carbon\Carbon::parse($sale->sale_date)->format('M d, Y') }}</td>
-                    <td>{{ $sale->reference_no }}@if($sale->isServicePos()) <span class="badge badge-info">Service</span>@endif</td>
+                    <td>{{ $sale->reference_no }}@if($sale->isServicePos()) <span class="badge badge-info">{{ __('tables.status.service') }}</span>@endif</td>
                     <td class="sold-items-cell">
                       @php $soldSummary = $sale->soldItemsSummary(); @endphp
                       @if($soldSummary)
@@ -166,15 +166,15 @@
                     <td class="text-success font-weight-bold">{{ money($sale->total_amount) }}</td>
                     <td>
                         @if($sale->payment_status == 'paid')
-                            <span class="badge badge-success">Paid</span>
+                            <span class="badge badge-success">{{ __('tables.status.paid') }}</span>
                         @elseif($sale->payment_status == 'partial')
-                            <span class="badge badge-info">Partial</span>
+                            <span class="badge badge-info">{{ __('tables.status.partial') }}</span>
                         @elseif($sale->payment_status == 'debt')
-                            <span class="badge badge-danger">Debt</span>
+                            <span class="badge badge-danger">{{ __('tables.status.debt') }}</span>
                         @elseif($sale->payment_status == 'cancelled')
-                            <span class="badge badge-secondary">Cancelled</span>
+                            <span class="badge badge-secondary">{{ __('tables.status.cancelled') }}</span>
                         @else
-                            <span class="badge badge-warning">Pending</span>
+                            <span class="badge badge-warning">{{ __('tables.status.pending') }}</span>
                         @endif
                     </td>
                     <td>

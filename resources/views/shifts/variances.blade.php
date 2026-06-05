@@ -143,15 +143,15 @@
           <tr>
             <th style="width:32px;"></th>
             <th>Date / Time</th>
-            <th>Shift</th>
-            <th>Officer</th>
-            <th>Check</th>
-            <th>Item</th>
+            <th>{{ __('tables.columns.shift') }}</th>
+            <th>{{ __('tables.columns.officer') }}</th>
+            <th>{{ __('tables.columns.check') }}</th>
+            <th>{{ __('tables.columns.item') }}</th>
             <th class="text-right">System</th>
             <th class="text-right">Counted</th>
-            <th class="text-right">Short By</th>
-            <th>Reason / Notes</th>
-            <th>Status</th>
+            <th class="text-right">{{ __('tables.columns.short_by') }}</th>
+            <th>{{ __('tables.columns.reason_notes') }}</th>
+            <th>{{ __('tables.columns.status') }}</th>
             <th class="text-center" style="min-width:150px;">Action</th>
           </tr>
         </thead>
@@ -199,7 +199,7 @@
                   @endif
                   <br><small class="text-muted">{{ $check->verified_at->format('d M, h:i A') }}</small>
                 @else
-                  <span class="badge badge-warning">Pending</span>
+                  <span class="badge badge-warning">{{ __('tables.status.pending') }}</span>
                 @endif
               </td>
               <td class="text-center text-nowrap shortage-no-toggle">

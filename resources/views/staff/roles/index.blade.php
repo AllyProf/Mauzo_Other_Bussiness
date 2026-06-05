@@ -21,7 +21,7 @@
               <th>Role Name</th>
               <th>Permissions</th>
               <th>Created At</th>
-              <th>Actions</th>
+              <th>{{ __('tables.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody>

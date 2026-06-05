@@ -70,7 +70,7 @@
           <table class="table table-hover table-bordered report-table mb-0">
             <thead>
               <tr>
-                <th>Customer</th>
+                <th>{{ __('tables.columns.customer') }}</th>
                 <th class="text-center">Orders</th>
                 <th class="money-col">Balance</th>
               </tr>

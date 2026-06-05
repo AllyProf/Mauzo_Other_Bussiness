@@ -16,7 +16,7 @@
 
 <div class="tile"><div class="tile-body table-responsive">
   <table class="table table-hover table-bordered mb-0">
-    <thead><tr><th>When</th><th>Login</th><th>IP</th><th>User Agent</th></tr></thead>
+    <thead><tr><th>{{ __('tables.columns.when') }}</th><th>Login</th><th>{{ __('tables.columns.ip') }}</th><th>User Agent</th></tr></thead>
     <tbody>
       @forelse($attempts as $attempt)
       <tr>

@@ -131,16 +131,16 @@
             <thead class="thead-light">
               <tr>
                 <th>Verified</th>
-                <th>Staff</th>
+                <th>{{ __('tables.columns.staff') }}</th>
                 @if($multiBusiness ?? false)
-                <th>Business</th>
+                <th>{{ __('tables.columns.business') }}</th>
                 @endif
-                <th>Shift</th>
+                <th>{{ __('tables.columns.shift') }}</th>
                 <th>Short Date</th>
                 <th>Original Short</th>
                 <th>Paid / Deducted</th>
-                <th>Balance Due</th>
-                <th>Status</th>
+                <th>{{ __('tables.columns.balance_due') }}</th>
+                <th>{{ __('tables.columns.status') }}</th>
                 <th>Note</th>
                 <th></th>
               </tr>
@@ -228,10 +228,10 @@
                     <table class="table table-sm table-bordered mb-0 mt-2 bg-white">
                       <thead>
                         <tr>
-                          <th>Date</th>
+                          <th>{{ __('tables.columns.date') }}</th>
                           <th>Type</th>
-                          <th>Amount</th>
-                          <th>Method</th>
+                          <th>{{ __('tables.columns.amount') }}</th>
+                          <th>{{ __('tables.columns.method') }}</th>
                           <th>Master Sheet</th>
                           <th>Note</th>
                           <th></th>
@@ -319,13 +319,13 @@
             <thead class="thead-light">
               <tr>
                 <th>Recorded</th>
-                <th>Staff</th>
+                <th>{{ __('tables.columns.staff') }}</th>
                 <th>Short Date</th>
                 <th>Type</th>
-                <th>Amount</th>
-                <th>Method</th>
+                <th>{{ __('tables.columns.amount') }}</th>
+                <th>{{ __('tables.columns.method') }}</th>
                 <th>Master Sheet</th>
-                <th>Status</th>
+                <th>{{ __('tables.columns.status') }}</th>
                 <th>Note</th>
                 <th></th>
               </tr>
@@ -369,7 +369,7 @@
                         <br><small>{{ $settlement->voided_at->format('M d, Y') }}</small>
                       @endif
                     @else
-                      <span class="badge badge-success">Active</span>
+                      <span class="badge badge-success">{{ __('tables.status.active') }}</span>
                     @endif
                   </td>
                   <td>{{ $settlement->notes ?: '—' }}</td>

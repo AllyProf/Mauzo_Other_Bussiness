@@ -133,10 +133,10 @@
             <thead>
               <tr>
                 <th>Service</th>
-                <th>Category</th>
-                <th>Unit</th>
+                <th>{{ __('tables.columns.category') }}</th>
+                <th>{{ __('tables.columns.unit') }}</th>
                 <th class="text-right">Price (TZS)</th>
-                <th>Status</th>
+                <th>{{ __('tables.columns.status') }}</th>
                 @canany(['manage_categories','edit_items'])<th></th>@endcanany
               </tr>
             </thead>
@@ -148,8 +148,8 @@
                 <td>{{ $service->unit_label }}</td>
                 <td class="text-right">{{ number_format((float)$service->price, 0) }}</td>
                 <td>
-                  @if($service->is_active)<span class="badge badge-success">Active</span>
-                  @else<span class="badge badge-secondary">Inactive</span>@endif
+                  @if($service->is_active)<span class="badge badge-success">{{ __('tables.status.active') }}</span>
+                  @else<span class="badge badge-secondary">{{ __('tables.status.inactive') }}</span>@endif
                 </td>
                 @canany(['manage_categories','edit_items'])
                 <td class="text-nowrap">

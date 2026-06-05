@@ -135,11 +135,11 @@
         <table class="table table-hover table-bordered mb-0">
           <thead style="background:#940000;color:#fff;">
             <tr>
-              <th>Period</th>
-              <th>Scope</th>
+              <th>{{ __('tables.columns.period') }}</th>
+              <th>{{ __('tables.columns.scope') }}</th>
               <th class="text-right">Target</th>
               <th class="text-right">Actual</th>
-              <th>Progress</th>
+              <th>{{ __('tables.columns.progress') }}</th>
               <th class="text-center">Action</th>
             </tr>
           </thead>
@@ -163,12 +163,12 @@
                   </div>
                 </td>
                 <td class="text-center text-nowrap">
-                  <a href="{{ route('sales-targets.index', ['edit' => $target->id]) }}" class="btn btn-sm btn-outline-primary" title="Edit">
+                  <a href="{{ route('sales-targets.index', ['edit' => $target->id]) }}" class="btn btn-sm btn-outline-primary" title="{{ __('tables.actions.edit') }}">
                     <i class="fa fa-pencil"></i>
                   </a>
                   <form action="{{ route('sales-targets.destroy', $target) }}" method="POST" class="d-inline">
                     @csrf @method('DELETE')
-                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, 'Remove target?', 'This target will be deleted.')" title="Delete">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="confirmAction(event, 'Remove target?', 'This target will be deleted.')" title="{{ __('tables.actions.delete') }}">
                       <i class="fa fa-trash"></i>
                     </button>
                   </form>

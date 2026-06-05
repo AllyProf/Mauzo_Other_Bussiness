@@ -30,7 +30,7 @@
 @php
   $hasBulkItems = $items->contains(fn ($item) => ($item->stock_info['has_bulk_stock'] ?? false));
 @endphp
-<div class="app-title">
+<div class="app-title" data-tour="shift-stock-check">
   <div>
     <h1><i class="fa fa-clipboard"></i> Open Shift — Physical Stock Check</h1>
     <p>Verify stock on hand before selling. Enter physical count in <strong>pieces (pcs)</strong> only — change only where different from system stock.</p>
@@ -77,12 +77,12 @@
         <table class="table table-bordered table-sm stock-check-table" id="stockCheckTable">
           <thead style="position: sticky; top: 0; background: #fff; z-index: 2;">
             <tr>
-              <th>Item</th>
-              <th>Category</th>
+              <th>{{ __('tables.columns.item') }}</th>
+              <th>{{ __('tables.columns.category') }}</th>
               <th class="text-right">System Stock</th>
               <th class="text-right">Physical Count <small class="text-muted">(pcs only)</small></th>
               <th class="text-right">Variance</th>
-              <th>Reason / Notes</th>
+              <th>{{ __('tables.columns.reason_notes') }}</th>
             </tr>
           </thead>
           <tbody>

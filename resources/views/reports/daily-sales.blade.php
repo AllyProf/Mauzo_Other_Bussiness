@@ -44,7 +44,7 @@
           <table class="table table-hover table-bordered report-table mb-0">
             <thead>
               <tr>
-                <th>Date</th>
+                <th>{{ __('tables.columns.date') }}</th>
                 <th class="text-center">Orders</th>
                 <th class="money-col">Gross Sales</th>
                 <th class="money-col">Collected</th>

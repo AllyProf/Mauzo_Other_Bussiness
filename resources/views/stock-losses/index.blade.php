@@ -170,15 +170,15 @@
         <table class="table table-hover table-bordered">
           <thead>
             <tr>
-              <th>Reference</th>
-              <th>Date</th>
-              <th>Reason</th>
+              <th>{{ __('tables.columns.reference') }}</th>
+              <th>{{ __('tables.columns.date') }}</th>
+              <th>{{ __('tables.columns.reason') }}</th>
               <th>Items</th>
               <th>Qty Lost</th>
               <th>Cost Value</th>
               <th>Recorded By</th>
-              <th>Status</th>
-              <th>Action</th>
+              <th>{{ __('tables.columns.status') }}</th>
+              <th>{{ __('tables.columns.action') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -193,7 +193,7 @@
                 <td>{{ $loss->user->name ?? 'N/A' }}</td>
                 <td>
                   @if($loss->isCancelled())
-                    <span class="badge badge-secondary">Cancelled</span>
+                    <span class="badge badge-secondary">{{ __('tables.status.cancelled') }}</span>
                   @else
                     <span class="badge badge-danger">Recorded</span>
                   @endif

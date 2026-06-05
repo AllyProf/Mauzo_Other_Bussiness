@@ -66,11 +66,11 @@
       <table class="table table-hover table-bordered table-sm mb-0">
         <thead style="background-color: #940000; color: white;">
           <tr>
-            <th>Date &amp; Time</th>
-            <th>User</th>
-            <th>Action</th>
-            <th>Details</th>
-            <th>IP</th>
+            <th>{{ __('tables.columns.date_time') }}</th>
+            <th>{{ __('tables.columns.user') }}</th>
+            <th>{{ __('tables.columns.action') }}</th>
+            <th>{{ __('tables.columns.details') }}</th>
+            <th>{{ __('tables.columns.ip') }}</th>
           </tr>
         </thead>
         <tbody>

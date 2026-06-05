@@ -90,7 +90,7 @@
             <table class="table table-bordered table-hover table-sm mb-0" id="loss-items-table">
               <thead class="thead-light">
                 <tr>
-                  <th>Item</th>
+                  <th>{{ __('tables.columns.item') }}</th>
                   <th class="text-center" style="width:72px;">Stock</th>
                   <th class="text-center" style="width:88px;">Qty Lost</th>
                   <th class="text-right" style="width:96px;">Unit Cost</th>

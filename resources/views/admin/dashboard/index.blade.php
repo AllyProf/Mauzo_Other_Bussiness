@@ -62,7 +62,7 @@
   <h3 class="tile-title">Businesses Needing Attention</h3>
   <div class="tile-body table-responsive">
     <table class="table table-sm table-hover mb-0">
-      <thead><tr><th>Business</th><th>Health</th><th>Last Login</th><th>Sales (30d)</th><th></th></tr></thead>
+      <thead><tr><th>{{ __('tables.columns.business') }}</th><th>Health</th><th>Last Login</th><th>Sales (30d)</th><th></th></tr></thead>
       <tbody>
         @foreach($m['at_risk'] as $row)
         <tr>

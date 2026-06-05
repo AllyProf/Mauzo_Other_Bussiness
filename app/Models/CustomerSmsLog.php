@@ -44,41 +44,33 @@ class CustomerSmsLog extends Model
 
     public function statusLabel(): string
     {
-        return match ($this->status) {
-            'sent' => 'Sent',
-            'failed' => 'Failed',
-            default => 'Pending',
-        };
+        $key = 'communications.statuses.'.$this->status;
+        $translated = __($key);
+
+        return $translated !== $key ? $translated : ucfirst($this->status ?? '');
     }
 
     public function channelLabel(): string
     {
-        return match ($this->channel) {
-            'sms' => 'SMS',
-            'email' => 'Email',
-            'email_sms' => 'Email SMS',
-            default => strtoupper($this->channel),
-        };
+        $key = 'communications.channels_map.'.$this->channel;
+        $translated = __($key);
+
+        return $translated !== $key ? $translated : strtoupper($this->channel ?? '');
     }
 
     public function purposeLabel(): string
     {
+        $key = 'communications.purposes.'.$this->purpose;
+        $translated = __($key);
+
+        if ($translated !== $key) {
+            return $translated;
+        }
+
         return match ($this->purpose) {
-            'new_product' => 'New Product',
-            'promotion' => 'Promotion',
-            'debt_reminder' => 'Debt Reminder',
-            'debt_reminder_due_soon' => 'Debt Due Soon',
-            'debt_reminder_due_soon_2' => 'Debt Due Soon (2nd)',
-            'debt_reminder_due' => 'Debt Due Today',
-            'debt_reminder_overdue' => 'Debt Overdue',
-            'staff_welcome' => 'Staff Welcome',
-            'staff_password_reset' => 'Staff Password Reset',
-            'staff_activated' => 'Staff Activated',
-            'staff_deactivated' => 'Staff Deactivated',
-            'handover_submitted_owner' => 'Handover Submitted (Owner)',
-            'handover_verified_staff' => 'Handover Verified (Staff)',
-            'note_reminder' => 'Note Reminder',
-            default => 'General',
+            'new_product' => __('communications.purposes.new_product_short'),
+            'promotion' => __('communications.purposes.promotion_short'),
+            default => __('communications.purposes.general'),
         };
     }
 

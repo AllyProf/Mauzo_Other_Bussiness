@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Master Sheet — Daily Business Reports')
+@section('title', __('owner_reports.title'))
 
 @section('styles')
 <style>
@@ -41,36 +41,36 @@
 @section('content')
 <div class="app-title d-print-none">
   <div>
-    <h1><i class="fa fa-list-alt"></i> Master Sheet Archive</h1>
-    <p>Click any row to see the full reconciliation breakdown.</p>
+    <h1><i class="fa fa-list-alt"></i> {{ __('owner_reports.archive_title') }}</h1>
+    <p>{{ __('owner_reports.subtitle') }}</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
-    <li class="breadcrumb-item"><a href="{{ url('/home') }}">Dashboard</a></li>
-    <li class="breadcrumb-item">Finance</li>
-    <li class="breadcrumb-item active">Daily Business Report</li>
+    <li class="breadcrumb-item"><a href="{{ url('/home') }}">{{ __('menu.dashboard') }}</a></li>
+    <li class="breadcrumb-item">{{ __('owner_reports.finance') }}</li>
+    <li class="breadcrumb-item active">{{ __('owner_reports.daily_report') }}</li>
   </ul>
 </div>
 
 <div class="tile d-print-none mb-3 py-2">
   <form method="GET" action="{{ route('owner-reports.index') }}" class="row align-items-center">
     <div class="col-md-3">
-      <label class="small font-weight-bold mb-0">From Date:</label>
+      <label class="small font-weight-bold mb-0">{{ __('owner_reports.from_date') }}</label>
       <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
     </div>
     <div class="col-md-3">
-      <label class="small font-weight-bold mb-0">To Date:</label>
+      <label class="small font-weight-bold mb-0">{{ __('owner_reports.to_date') }}</label>
       <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
     </div>
     <div class="col-md-2 mt-3">
-      <button type="submit" class="btn btn-primary btn-sm btn-block"><i class="fa fa-search"></i> Search</button>
+      <button type="submit" class="btn btn-primary btn-sm btn-block"><i class="fa fa-search"></i> {{ __('common.search') }}</button>
     </div>
     <div class="col-md-2 mt-3">
-      <a href="{{ route('owner-reports.index') }}" class="btn btn-outline-secondary btn-sm btn-block"><i class="fa fa-refresh"></i> Reset</a>
+      <a href="{{ route('owner-reports.index') }}" class="btn btn-outline-secondary btn-sm btn-block"><i class="fa fa-refresh"></i> {{ __('tables.filters.reset') }}</a>
     </div>
     @if(Auth::user()->role === 'owner')
     <div class="col-md-2 mt-3 text-right">
-      <a href="{{ route('settings.index') }}" class="btn btn-outline-dark btn-sm btn-block"><i class="fa fa-gears"></i> Settings</a>
+      <a href="{{ route('settings.index') }}" class="btn btn-outline-dark btn-sm btn-block"><i class="fa fa-gears"></i> {{ __('common.settings') }}</a>
     </div>
     @endif
   </form>
@@ -78,10 +78,10 @@
 
 @if($pendingClosings->isNotEmpty())
 <div class="tile d-print-none mb-3 border-warning">
-  <h3 class="tile-title text-warning"><i class="fa fa-hourglass-half"></i> Awaiting Boss Verification ({{ $pendingClosings->count() }})</h3>
+  <h3 class="tile-title text-warning"><i class="fa fa-hourglass-half"></i> {{ __('owner_reports.awaiting_verification', ['count' => $pendingClosings->count()]) }}</h3>
   <div class="tile-body p-0">
     <table class="table table-sm mb-0">
-      <thead><tr><th>Date</th><th>Submitted By</th><th>Collected</th><th>Action</th></tr></thead>
+      <thead><tr><th>{{ __('tables.columns.date') }}</th><th>{{ __('owner_reports.submitted_by') }}</th><th>{{ __('tables.columns.collected') }}</th><th>{{ __('tables.columns.action') }}</th></tr></thead>
       <tbody>
         @foreach($pendingClosings as $pending)
         <tr>
@@ -90,14 +90,14 @@
           <td>TZS {{ number_format($pending->payments_received, 0) }}</td>
           <td>
             <a href="{{ route('day-closing.index', ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning">
-              <i class="fa fa-check"></i> Review
+              <i class="fa fa-check"></i> {{ __('owner_reports.review') }}
             </a>
           </td>
         </tr>
         @endforeach
       </tbody>
     </table>
-    <p class="small text-muted px-3 py-2 mb-0">Verify on the reconciliation page first. Amounts appear here after verification.</p>
+    <p class="small text-muted px-3 py-2 mb-0">{{ __('owner_reports.verify_hint') }}</p>
   </div>
 </div>
 @endif
@@ -105,11 +105,11 @@
 @if($multiBusiness ?? false)
 <div class="tile d-print-none mb-3 py-2">
   <div class="d-flex align-items-center flex-wrap">
-    <span class="small font-weight-bold mr-2 mb-2">Business:</span>
+    <span class="small font-weight-bold mr-2 mb-2">{{ __('owner_reports.business_filter') }}</span>
     <div class="business-type-tabs mb-2">
       <a href="{{ route('owner-reports.index', request()->except('business_type')) }}"
          class="business-type-tab {{ empty($activeBusinessType) ? 'active' : '' }}">
-        <i class="fa fa-th-list"></i> All
+        <i class="fa fa-th-list"></i> {{ __('tables.filters.all') }}
       </a>
       @foreach($businessTypes as $type)
         <a href="{{ route('owner-reports.index', array_merge(request()->except('business_type'), ['business_type' => $type['key']])) }}"
@@ -119,7 +119,7 @@
       @endforeach
     </div>
   </div>
-  <p class="small text-muted mb-0">Each handover is split by business type so Liquor, Spare Parts, and other departments are not mixed in one row.</p>
+  <p class="small text-muted mb-0">{{ __('owner_reports.multi_business_hint') }}</p>
 </div>
 @endif
 
@@ -130,30 +130,30 @@
         <table class="table table-bordered excel-table mb-0">
           <thead>
             <tr>
-              <th rowspan="2" class="text-center">#</th>
-              <th rowspan="2">DATE</th>
+              <th rowspan="2" class="text-center">{{ __('owner_reports.columns.num') }}</th>
+              <th rowspan="2">{{ __('owner_reports.columns.date') }}</th>
               @if($multiBusiness ?? false)
-              <th rowspan="2">BUSINESS</th>
+              <th rowspan="2">{{ __('owner_reports.columns.business') }}</th>
               @endif
-              <th rowspan="2">STAFF</th>
-              <th rowspan="2" class="text-center">STATUS</th>
-              <th rowspan="2" class="text-right">OPENING CASH</th>
-              <th colspan="3" class="text-center">SUBMITTED COLLECTIONS</th>
-              <th rowspan="2" class="text-right bg-secondary text-white">ASSETS</th>
-              <th rowspan="2" class="text-right">EXPENSES</th>
-              <th rowspan="2" class="text-right text-success">DAILY PROFIT</th>
-              <th rowspan="2" class="text-right text-info">CIRCULATION REFILL</th>
-              <th colspan="2" class="text-center" style="background:#5a6268 !important;">SHORT RECOVERY</th>
-              <th rowspan="2" class="text-right text-info">CIRCULATION ROLLOVER</th>
-              <th rowspan="2" class="text-right text-success">PROFIT ROLLOVER</th>
-              <th rowspan="2" class="text-center d-print-none">ACTION</th>
+              <th rowspan="2">{{ __('owner_reports.columns.staff') }}</th>
+              <th rowspan="2" class="text-center">{{ __('owner_reports.columns.status') }}</th>
+              <th rowspan="2" class="text-right">{{ __('owner_reports.columns.opening_cash') }}</th>
+              <th colspan="3" class="text-center">{{ __('owner_reports.columns.submitted_collections') }}</th>
+              <th rowspan="2" class="text-right bg-secondary text-white">{{ __('owner_reports.columns.assets') }}</th>
+              <th rowspan="2" class="text-right">{{ __('owner_reports.columns.expenses') }}</th>
+              <th rowspan="2" class="text-right text-success">{{ __('owner_reports.columns.daily_profit') }}</th>
+              <th rowspan="2" class="text-right text-info">{{ __('owner_reports.columns.circulation_refill') }}</th>
+              <th colspan="2" class="text-center" style="background:#5a6268 !important;">{{ __('owner_reports.columns.short_recovery') }}</th>
+              <th rowspan="2" class="text-right text-info">{{ __('owner_reports.columns.circulation_rollover') }}</th>
+              <th rowspan="2" class="text-right text-success">{{ __('owner_reports.columns.profit_rollover') }}</th>
+              <th rowspan="2" class="text-center d-print-none">{{ __('owner_reports.columns.action') }}</th>
             </tr>
             <tr>
-              <th class="text-right">CASH</th>
-              <th class="text-right">DIGITAL</th>
-              <th class="text-right">TOTAL</th>
-              <th class="text-right text-success">TO PROFIT</th>
-              <th class="text-right text-primary">TO CIRCULATION</th>
+              <th class="text-right">{{ __('owner_reports.columns.cash') }}</th>
+              <th class="text-right">{{ __('owner_reports.columns.digital') }}</th>
+              <th class="text-right">{{ __('owner_reports.columns.total') }}</th>
+              <th class="text-right text-success">{{ __('owner_reports.columns.to_profit') }}</th>
+              <th class="text-right text-primary">{{ __('owner_reports.columns.to_circulation') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -178,10 +178,10 @@
                 @if($multiBusiness ?? false)
                 <td class="text-muted">—</td>
                 @endif
-                <td class="text-muted small">{{ ($ledger['has_open_shift'] ?? false) ? 'Open day' : 'Awaiting shift' }}</td>
+                <td class="text-muted small">{{ ($ledger['has_open_shift'] ?? false) ? __('owner_reports.open_day') : __('owner_reports.awaiting_shift') }}</td>
                 <td class="text-center">
                   <span class="status-badge" style="border: 1px solid {{ $ledger['status_color'] }}; color: {{ $ledger['status_color'] }};">
-                    {{ $ledger['business_status'] }}
+                    {{ __report_status($ledger['business_status']) }}
                   </span>
                 </td>
                 <td class="money-column font-weight-bold">{{ number_format($ledger['opening_cash'], 0) }}</td>
@@ -220,17 +220,17 @@
                 </td>
                 <td class="money-column font-weight-bold text-primary">
                   {{ number_format($ledger['money_in_circulation'], 0) }}
-                  <br><span class="badge badge-light text-muted border mt-1" style="font-size:0.6rem;">AVAILABLE</span>
+                  <br><span class="badge badge-light text-muted border mt-1" style="font-size:0.6rem;">{{ __('owner_reports.available') }}</span>
                 </td>
                 <td class="money-column font-weight-bold text-success">
                   {{ number_format($ledger['profit_rollover'] ?? 0, 0) }}
-                  <br><span class="badge badge-light text-muted border mt-1" style="font-size:0.6rem;">AVAILABLE</span>
+                  <br><span class="badge badge-light text-muted border mt-1" style="font-size:0.6rem;">{{ __('owner_reports.available') }}</span>
                 </td>
                 <td class="text-center d-print-none">
-                  <a href="{{ route('petty-cash.index', ['date' => $ledger['ledger_date']]) }}" class="btn btn-sm btn-outline-primary mr-1" title="Petty cash">
+                  <a href="{{ route('petty-cash.index', ['date' => $ledger['ledger_date']]) }}" class="btn btn-sm btn-outline-primary mr-1" title="{{ __('owner_reports.petty_cash') }}">
                     <i class="fa fa-money"></i>
                   </a>
-                  <a href="{{ route('day-closing.index') }}" class="btn btn-sm btn-warning" title="Awaiting staff handover">
+                  <a href="{{ route('day-closing.index') }}" class="btn btn-sm btn-warning" title="{{ __('owner_reports.awaiting_handover') }}">
                     <i class="fa fa-clock-o"></i>
                   </a>
                 </td>
@@ -241,10 +241,10 @@
                   <div class="detail-container">
                     <div class="row">
                       <div class="col-md-6 border-right">
-                        <h6 class="text-danger"><i class="fa fa-minus-circle"></i> DAILY EXPENDITURES</h6>
+                        <h6 class="text-danger"><i class="fa fa-minus-circle"></i> {{ __('owner_reports.sections.daily_expenditures') }}</h6>
                         <table class="table table-sm nested-table mt-2">
                           <thead>
-                            <tr><th>Description</th><th class="text-right">Amount</th></tr>
+                            <tr><th>{{ __('tables.columns.description') }}</th><th class="text-right">{{ __('owner_reports.columns.amount') }}</th></tr>
                           </thead>
                           <tbody>
                             @forelse($ledger['expense_list'] as $ex)
@@ -253,24 +253,24 @@
                                 <td class="text-right font-weight-bold">
                                   TZS {{ number_format($ex['amount'], 0) }}
                                   <span class="badge {{ $ex['fund_source'] === 'profit' ? 'badge-info' : 'badge-secondary' }} small" style="font-size:0.6rem;">
-                                    {{ strtoupper($ex['fund_source']) }}
+                                    {{ __('owner_reports.fund.'.$ex['fund_source']) }}
                                   </span>
                                 </td>
                               </tr>
                             @empty
-                              <tr><td colspan="2" class="text-center text-muted">No expenses recorded yet today.</td></tr>
+                              <tr><td colspan="2" class="text-center text-muted">{{ __('owner_reports.empty.expenses_today') }}</td></tr>
                             @endforelse
                           </tbody>
                         </table>
                       </div>
                       <div class="col-md-6">
-                        <h6 class="text-success"><i class="fa fa-line-chart"></i> OPEN DAY SUMMARY</h6>
-                        <p class="mb-2 d-flex justify-content-between"><span>Opening Circulation:</span><strong>TZS {{ number_format($ledger['opening_cash'], 0) }}</strong></p>
-                        <p class="mb-2 d-flex justify-content-between"><span>Opening Profit:</span><strong>TZS {{ number_format($ledger['opening_profit'] ?? 0, 0) }}</strong></p>
-                        <p class="mb-2 d-flex justify-content-between"><span>Petty Cash / Expenses:</span><strong class="text-danger">TZS {{ number_format($ledger['combined_expenses'], 0) }}</strong></p>
-                        <p class="mb-2 d-flex justify-content-between border-top pt-2"><span class="text-primary">Circulation Available:</span><strong class="text-primary">TZS {{ number_format($ledger['money_in_circulation'], 0) }}</strong></p>
-                        <p class="mb-0 d-flex justify-content-between"><span class="text-success">Profit Rollover:</span><strong class="text-success">TZS {{ number_format($ledger['profit_rollover'] ?? 0, 0) }}</strong></p>
-                        <small class="text-muted d-block mt-2">Day still open — amounts update as sales and petty cash are recorded.</small>
+                        <h6 class="text-success"><i class="fa fa-line-chart"></i> {{ __('owner_reports.sections.open_day_summary') }}</h6>
+                        <p class="mb-2 d-flex justify-content-between"><span>{{ __('owner_reports.labels.opening_circulation') }}</span><strong>TZS {{ number_format($ledger['opening_cash'], 0) }}</strong></p>
+                        <p class="mb-2 d-flex justify-content-between"><span>{{ __('owner_reports.labels.opening_profit') }}</span><strong>TZS {{ number_format($ledger['opening_profit'] ?? 0, 0) }}</strong></p>
+                        <p class="mb-2 d-flex justify-content-between"><span>{{ __('owner_reports.labels.petty_cash_expenses') }}</span><strong class="text-danger">TZS {{ number_format($ledger['combined_expenses'], 0) }}</strong></p>
+                        <p class="mb-2 d-flex justify-content-between border-top pt-2"><span class="text-primary">{{ __('owner_reports.labels.circulation_available') }}</span><strong class="text-primary">TZS {{ number_format($ledger['money_in_circulation'], 0) }}</strong></p>
+                        <p class="mb-0 d-flex justify-content-between"><span class="text-success">{{ __('owner_reports.labels.profit_rollover') }}</span><strong class="text-success">TZS {{ number_format($ledger['profit_rollover'] ?? 0, 0) }}</strong></p>
+                        <small class="text-muted d-block mt-2">{{ __('owner_reports.labels.open_day_note') }}</small>
                       </div>
                     </div>
                   </div>
@@ -284,10 +284,10 @@
                 @if($multiBusiness ?? false)
                 <td><strong>{{ $ledger['business_type_label'] ?? '—' }}</strong></td>
                 @endif
-                <td class="font-weight-bold">{{ $ledger['handover_label'] ?? $ledger['submitted_by'] ?? 'Staff' }}</td>
+                <td class="font-weight-bold">{{ $ledger['handover_label'] ?? $ledger['submitted_by'] ?? __('owner_reports.staff') }}</td>
                 <td class="text-center">
                   <span class="status-badge" style="border: 1px solid {{ $ledger['status_color'] }}; color: {{ $ledger['status_color'] }};">
-                    {{ $ledger['business_status'] }}
+                    {{ __report_status($ledger['business_status']) }}
                   </span>
                 </td>
                 <td class="money-column">{{ $showRollover && $ledger['opening_cash'] !== null ? number_format($ledger['opening_cash'], 0) : '—' }}</td>
@@ -316,9 +316,9 @@
                   @if($showRollover && $ledger['money_in_circulation'] !== null)
                   {{ number_format($ledger['money_in_circulation'], 0) }}
                   @if($ledger['is_finalized'])
-                    <br><span class="status-badge text-success mt-1 d-inline-block" style="border-color:#28a745;"><i class="fa fa-check-circle"></i> Finalized</span>
+                    <br><span class="status-badge text-success mt-1 d-inline-block" style="border-color:#28a745;"><i class="fa fa-check-circle"></i> {{ __('owner_reports.finalized') }}</span>
                   @else
-                    <br><span class="badge badge-light text-muted border mt-1" style="font-size:0.6rem;">AVAILABLE</span>
+                    <br><span class="badge badge-light text-muted border mt-1" style="font-size:0.6rem;">{{ __('owner_reports.available') }}</span>
                   @endif
                   @else
                   <span class="text-muted">—</span>
@@ -328,9 +328,9 @@
                   @if($showRollover && $ledger['profit_rollover'] !== null)
                   {{ number_format($ledger['profit_rollover'], 0) }}
                   @if($ledger['is_finalized'])
-                    <br><span class="status-badge text-success mt-1 d-inline-block" style="border-color:#28a745;"><i class="fa fa-check-circle"></i> Finalized</span>
+                    <br><span class="status-badge text-success mt-1 d-inline-block" style="border-color:#28a745;"><i class="fa fa-check-circle"></i> {{ __('owner_reports.finalized') }}</span>
                   @else
-                    <br><span class="badge badge-light text-muted border mt-1" style="font-size:0.6rem;">AVAILABLE</span>
+                    <br><span class="badge badge-light text-muted border mt-1" style="font-size:0.6rem;">{{ __('owner_reports.available') }}</span>
                   @endif
                   @else
                   <span class="text-muted">—</span>
@@ -338,10 +338,10 @@
                 </td>
                 <td class="text-center d-print-none" style="white-space:nowrap;">
                   <div class="btn-group btn-group-sm">
-                    <a href="{{ route('day-closing.show', $closingRouteId) }}" class="btn btn-primary shadow-sm" title="View Reconciliation" onclick="event.stopPropagation();">
+                    <a href="{{ route('day-closing.show', $closingRouteId) }}" class="btn btn-primary shadow-sm" title="{{ __('owner_reports.view_reconciliation') }}" onclick="event.stopPropagation();">
                       <i class="fa fa-eye"></i>
                     </a>
-                    <a href="{{ route('day-closing.show', $closingRouteId) }}" target="_blank" class="btn btn-dark shadow-sm" title="Print" onclick="event.stopPropagation();">
+                    <a href="{{ route('day-closing.show', $closingRouteId) }}" target="_blank" class="btn btn-dark shadow-sm" title="{{ __('owner_reports.print') }}" onclick="event.stopPropagation();">
                       <i class="fa fa-print"></i>
                     </a>
                   </div>
@@ -352,10 +352,10 @@
                   <div class="detail-container">
                     <div class="row">
                       <div class="col-md-6 border-right">
-                        <h6 class="text-danger"><i class="fa fa-minus-circle"></i> DAILY EXPENDITURES</h6>
+                        <h6 class="text-danger"><i class="fa fa-minus-circle"></i> {{ __('owner_reports.sections.daily_expenditures') }}</h6>
                         <table class="table table-sm nested-table mt-2">
                           <thead>
-                            <tr><th>Description</th><th class="text-right">Amount</th></tr>
+                            <tr><th>{{ __('tables.columns.description') }}</th><th class="text-right">{{ __('owner_reports.columns.amount') }}</th></tr>
                           </thead>
                           <tbody>
                             @forelse($ledger['expense_list'] as $ex)
@@ -364,23 +364,23 @@
                                 <td class="text-right font-weight-bold">
                                   TZS {{ number_format($ex['amount'], 0) }}
                                   <span class="badge {{ $ex['fund_source'] === 'profit' ? 'badge-info' : 'badge-secondary' }} small" style="font-size:0.6rem;">
-                                    {{ strtoupper($ex['fund_source']) }}
+                                    {{ __('owner_reports.fund.'.$ex['fund_source']) }}
                                   </span>
                                 </td>
                               </tr>
                             @empty
-                              <tr><td colspan="2" class="text-center text-muted">No expenses recorded.</td></tr>
+                              <tr><td colspan="2" class="text-center text-muted">{{ __('owner_reports.empty.expenses') }}</td></tr>
                             @endforelse
                             <tr class="bg-light">
-                              <th class="text-right">Total Outflow:</th>
+                              <th class="text-right">{{ __('owner_reports.labels.total_outflow') }}</th>
                               <th class="text-right text-danger">TZS {{ number_format($ledger['combined_expenses'], 0) }}</th>
                             </tr>
                           </tbody>
                         </table>
 
-                        <h6 class="mt-4 text-primary"><i class="fa fa-credit-card"></i> COLLECTIONS BY PLATFORM</h6>
+                        <h6 class="mt-4 text-primary"><i class="fa fa-credit-card"></i> {{ __('owner_reports.sections.collections_by_platform') }}</h6>
                         <table class="table table-sm nested-table mt-2">
-                          <thead><tr><th>Platform</th><th class="text-right">Amount</th></tr></thead>
+                          <thead><tr><th>{{ __('tables.columns.platform') }}</th><th class="text-right">{{ __('owner_reports.columns.amount') }}</th></tr></thead>
                           <tbody>
                             @foreach($ledger['platform_breakdown'] as $key => $platform)
                               @php $amt = is_array($platform) ? ($platform['amount'] ?? 0) : $platform; @endphp
@@ -396,22 +396,22 @@
 
                         @if($ledger['outstanding_debt'] > 0)
                         <div class="mt-3 border-top pt-3">
-                          <h6 class="text-danger font-weight-bold" style="font-size:0.8rem;"><i class="fa fa-exclamation-triangle"></i> NEW DEBT (UNPAID TODAY)</h6>
+                          <h6 class="text-danger font-weight-bold" style="font-size:0.8rem;"><i class="fa fa-exclamation-triangle"></i> {{ __('owner_reports.sections.new_debt_unpaid') }}</h6>
                           <p class="mb-0 font-weight-bold text-danger">TZS {{ number_format($ledger['outstanding_debt'], 0) }}</p>
                         </div>
                         @endif
 
                         @if(($multiBusiness ?? false) && !empty($ledger['business_type_breakdown']) && !($ledger['is_business_type_row'] ?? false))
                         <div class="mt-4 border-top pt-3">
-                          <h6 class="text-primary"><i class="fa fa-sitemap"></i> BY BUSINESS TYPE</h6>
+                          <h6 class="text-primary"><i class="fa fa-sitemap"></i> {{ __('owner_reports.sections.by_business_type') }}</h6>
                           <table class="table table-sm nested-table mt-2">
                             <thead>
                               <tr>
-                                <th>Business</th>
-                                <th class="text-right">Collected</th>
-                                <th class="text-right">New Debt</th>
-                                <th class="text-right">Profit</th>
-                                <th class="text-right">Circulation</th>
+                                <th>{{ __('tables.columns.business') }}</th>
+                                <th class="text-right">{{ __('owner_reports.columns.collected') }}</th>
+                                <th class="text-right">{{ __('owner_reports.columns.new_debt') }}</th>
+                                <th class="text-right">{{ __('owner_reports.columns.profit') }}</th>
+                                <th class="text-right">{{ __('owner_reports.columns.circulation') }}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -431,89 +431,89 @@
                       </div>
 
                       <div class="col-md-6">
-                        <h6 class="text-success"><i class="fa fa-info-circle"></i> RECONCILIATION SUMMARY</h6>
+                        <h6 class="text-success"><i class="fa fa-info-circle"></i> {{ __('owner_reports.sections.reconciliation_summary') }}</h6>
                         <div class="mt-3">
                           <p class="mb-1 d-flex justify-content-between">
-                            <span>Gross Sales:</span>
+                            <span>{{ __('owner_reports.metrics.gross_sales') }}</span>
                             <span class="font-weight-bold">TZS {{ number_format($ledger['gross_sales'], 0) }}</span>
                           </p>
                           <p class="mb-1 d-flex justify-content-between">
-                            <span>Cost of Goods:</span>
+                            <span>{{ __('owner_reports.metrics.cost_of_goods') }}</span>
                             <span class="text-muted">(-) TZS {{ number_format($ledger['cost_of_goods'], 0) }}</span>
                           </p>
                           <p class="mb-1 d-flex justify-content-between border-bottom pb-1">
-                            <span>Gross Profit:</span>
+                            <span>{{ __('owner_reports.metrics.gross_profit') }}</span>
                             <span class="font-weight-bold text-success">TZS {{ number_format($ledger['profit_generated'], 0) }}</span>
                           </p>
                           <p class="mb-1 d-flex justify-content-between">
-                            <span>Total Collected:</span>
+                            <span>{{ __('owner_reports.metrics.total_collected') }}</span>
                             <span class="font-weight-bold">TZS {{ number_format($ledger['sub_total'], 0) }}</span>
                           </p>
                           @if(($ledger['money_short_recoveries'] ?? 0) > 0)
                           <p class="mb-1 d-flex justify-content-between">
-                            <span>Money Short Recoveries:</span>
+                            <span>{{ __('owner_reports.labels.money_short_recoveries') }}</span>
                             <span class="font-weight-bold text-primary">+ TZS {{ number_format($ledger['money_short_recoveries'], 0) }}</span>
                           </p>
                           @if(($ledger['money_short_profit_recoveries'] ?? 0) > 0 || ($ledger['money_short_circulation_recoveries'] ?? 0) > 0)
                           <p class="mb-1 pl-3 small d-flex justify-content-between">
-                            <span class="text-muted">→ To Profit:</span>
+                            <span class="text-muted">{{ __('owner_reports.labels.to_profit') }}</span>
                             <span class="text-success">+ TZS {{ number_format($ledger['money_short_profit_recoveries'] ?? 0, 0) }}</span>
                           </p>
                           <p class="mb-1 pl-3 small d-flex justify-content-between">
-                            <span class="text-muted">→ To Circulation:</span>
+                            <span class="text-muted">{{ __('owner_reports.labels.to_circulation') }}</span>
                             <span class="text-primary">+ TZS {{ number_format($ledger['money_short_circulation_recoveries'] ?? 0, 0) }}</span>
                           </p>
                           @endif
-                          <p class="mb-1 text-muted small">Staff payback restores the profit and circulation portions of the original handover short.</p>
+                          <p class="mb-1 text-muted small">{{ __('owner_reports.labels.short_recovery_note') }}</p>
                           @endif
                           <p class="mb-1 d-flex justify-content-between">
-                            <span>Total Expenses:</span>
+                            <span>{{ __('owner_reports.labels.total_expenses') }}</span>
                             <span class="text-danger">(-) TZS {{ number_format($ledger['combined_expenses'], 0) }}</span>
                           </p>
                           <p class="mb-3 d-flex justify-content-between h6">
-                            <span>Net Profit (Today):</span>
+                            <span>{{ __('owner_reports.labels.net_profit_today') }}</span>
                             <span class="font-weight-bold text-success">TZS {{ number_format($ledger['net_available_profit'], 0) }}</span>
                           </p>
                           <p class="mb-3 d-flex justify-content-between h6 border-bottom pb-2">
-                            <span>Opening Profit:</span>
+                            <span>{{ __('owner_reports.labels.opening_profit') }}</span>
                             <span class="font-weight-bold">TZS {{ number_format($ledger['opening_profit'] ?? 0, 0) }}</span>
                           </p>
                           <p class="mb-3 d-flex justify-content-between h5">
-                            <span class="text-success"><i class="fa fa-line-chart"></i> Total Profit Rollover:</span>
+                            <span class="text-success"><i class="fa fa-line-chart"></i> {{ __('owner_reports.labels.total_profit_rollover') }}</span>
                             <span class="font-weight-bold text-success">TZS {{ number_format($ledger['profit_rollover'] ?? 0, 0) }}</span>
                           </p>
 
                           <div class="alert alert-info py-2" style="font-size:0.85rem; border-left: 5px solid #940000;">
-                            <strong>Financial Breakdown:</strong>
+                            <strong>{{ __('owner_reports.sections.financial_breakdown') }}</strong>
                             <div class="mt-2 pl-2">
                               <div class="d-flex justify-content-between mb-1">
-                                <span>Submitted by:</span>
+                                <span>{{ __('owner_reports.labels.submitted_by') }}</span>
                                 <span class="font-weight-bold">{{ $ledger['submitted_by'] }}</span>
                               </div>
                               <div class="d-flex justify-content-between mb-1">
-                                <span>Circulation Refill (Sales Capital):</span>
+                                <span>{{ __('owner_reports.labels.circulation_refill_capital') }}</span>
                                 <span class="font-weight-bold text-info">TZS {{ number_format($ledger['circulation_refill'], 0) }}</span>
                               </div>
                               <div class="d-flex justify-content-between mb-1">
-                                <span>Expenses deduct from:</span>
-                                <span class="font-weight-bold">{{ $ledger['expense_deduct_from'] === 'profit' ? 'Profit' : 'Circulation' }}</span>
+                                <span>{{ __('owner_reports.labels.expenses_deduct_from') }}</span>
+                                <span class="font-weight-bold">{{ __('owner_reports.labels.'.$ledger['expense_deduct_from']) }}</span>
                               </div>
                             </div>
                             <hr class="my-2">
                             <div class="d-flex justify-content-between font-weight-bold">
-                              <span class="text-primary"><i class="fa fa-clock-o"></i> Circulation for Next Day:</span>
+                              <span class="text-primary"><i class="fa fa-clock-o"></i> {{ __('owner_reports.labels.circulation_next_day') }}</span>
                               <span class="h6 mb-0 text-primary">TZS {{ number_format($ledger['carried_forward'], 0) }}</span>
                             </div>
                             <div class="d-flex justify-content-between font-weight-bold mt-2">
-                              <span class="text-success"><i class="fa fa-line-chart"></i> Profit for Next Day:</span>
+                              <span class="text-success"><i class="fa fa-line-chart"></i> {{ __('owner_reports.labels.profit_next_day') }}</span>
                               <span class="h6 mb-0 text-success">TZS {{ number_format($ledger['profit_rollover'] ?? 0, 0) }}</span>
                             </div>
-                            <small class="text-muted d-block mt-1">Finalize to carry circulation and profit forward to the next day.</small>
+                            <small class="text-muted d-block mt-1">{{ __('owner_reports.labels.finalize_note') }}</small>
                           </div>
 
                           <div class="text-right mt-3">
                             <a href="{{ route('day-closing.show', $closingRouteId) }}" class="btn btn-primary btn-sm">
-                              <i class="fa fa-external-link"></i> View Reconciliation
+                              <i class="fa fa-external-link"></i> {{ __('owner_reports.view_reconciliation') }}
                             </a>
                           </div>
                         </div>
@@ -526,9 +526,9 @@
             @empty
               <tr><td colspan="{{ ($multiBusiness ?? false) ? 18 : 17 }}" class="text-center py-5 text-muted">
                 @if(!empty($canSwitchBranch) && empty($viewingAllBranches))
-                  No verified reports for {{ $activeBranchLabel ?? 'this branch' }} yet. Staff must submit reconciliation for this branch and the boss must verify before amounts post here.
+                  {{ __('owner_reports.empty.reports_branch', ['branch' => $activeBranchLabel ?? __('common.branch')]) }}
                 @else
-                  No verified reports yet. Staff must submit reconciliation and the boss must verify before amounts post here.
+                  {{ __('owner_reports.empty.reports') }}
                 @endif
               </td></tr>
             @endforelse

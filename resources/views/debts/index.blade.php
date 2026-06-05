@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Debt Management - SpareParts POS')
+@section('title', __('pages.debts.title') . ' - SpareParts POS')
 
 @section('styles')
 <style>
@@ -19,11 +19,11 @@
 @section('content')
 <div class="app-title">
   <div>
-    <h1><i class="fa fa-credit-card"></i> Debt Management</h1>
-    <p>{{ ($scopedToSelf ?? false) ? 'Your customer debts only' : 'Track customer balances and collect outstanding payments' }}</p>
+    <h1><i class="fa fa-credit-card"></i> {{ __('pages.debts.title') }}</h1>
+    <p>{{ ($scopedToSelf ?? false) ? __('pages.debts.subtitle_self') : __('pages.debts.subtitle') }}</p>
   </div>
-  <a href="{{ route('sales.index') }}" class="btn btn-secondary"><i class="fa fa-shopping-cart"></i> Sales History</a>
-  <a href="{{ route('debts.history') }}" class="btn btn-outline-primary ml-2"><i class="fa fa-history"></i> Debt History</a>
+  <a href="{{ route('sales.index') }}" class="btn btn-secondary"><i class="fa fa-shopping-cart"></i> {{ __('pages.sales.title') }}</a>
+  <a href="{{ route('debts.history') }}" class="btn btn-outline-primary ml-2"><i class="fa fa-history"></i> {{ __('pages.debts.debt_history') }}</a>
 </div>
 
 @if(!empty($activeBranchName))
@@ -43,7 +43,7 @@
     <div class="widget-small danger coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
-        <h4>Total Outstanding</h4>
+        <h4>{{ __('pages.debts.total_outstanding') }}</h4>
         <p><b>{{ money($stats['total_outstanding']) }}</b></p>
       </div>
     </div>
@@ -52,7 +52,7 @@
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-file-text-o fa-3x"></i>
       <div class="info">
-        <h4>Open Accounts</h4>
+        <h4>{{ __('pages.debts.open_accounts') }}</h4>
         <p><b>{{ $stats['open_accounts'] }}</b></p>
       </div>
     </div>
@@ -61,7 +61,7 @@
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-clock-o fa-3x"></i>
       <div class="info">
-        <h4>Overdue</h4>
+        <h4>{{ __('pages.debts.overdue') }}</h4>
         <p><b>{{ $stats['overdue_count'] }}</b></p>
       </div>
     </div>
@@ -70,7 +70,7 @@
     <div class="widget-small info coloured-icon">
       <i class="icon fa fa-users fa-3x"></i>
       <div class="info">
-        <h4>Customers Owing</h4>
+        <h4>{{ __('pages.debts.customers_owing') }}</h4>
         <p><b>{{ $stats['customers'] }}</b></p>
       </div>
     </div>
@@ -81,15 +81,15 @@
 <div class="row mb-3">
   <div class="col-md-12">
     <div class="tile">
-      <h3 class="tile-title">Top Customer Balances</h3>
+      <h3 class="tile-title">{{ __('pages.debts.top_balances') }}</h3>
       <div class="tile-body">
         <table class="table table-sm table-bordered mb-0">
           <thead>
             <tr>
-              <th>Customer</th>
-              <th>Phone</th>
-              <th>Open Orders</th>
-              <th>Total Balance</th>
+              <th>{{ __('tables.columns.customer') }}</th>
+              <th>{{ __('tables.columns.phone') }}</th>
+              <th>{{ __('tables.columns.open_orders') }}</th>
+              <th>{{ __('tables.columns.total_balance') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -130,7 +130,7 @@
       </div>
       @endif
       <div class="tile-title-w-btn">
-        <h3 class="title">Outstanding Debts</h3>
+        <h3 class="title">{{ __('pages.debts.outstanding_debts') }}</h3>
         <form method="GET" action="{{ route('debts.index') }}" class="form-inline">
           @if(($activeBusinessType ?? 'all') !== 'all')
             <input type="hidden" name="business_type" value="{{ $activeBusinessType }}">
@@ -156,17 +156,17 @@
         <table class="table table-hover table-bordered">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Reference</th>
-              <th>Customer</th>
-              <th>Phone</th>
-              <th>Sale Total</th>
-              <th>Paid</th>
-              <th>Balance Due</th>
-              <th>Due Date</th>
-              <th>Status</th>
-              <th>Cashier</th>
-              <th>Actions</th>
+              <th>{{ __('tables.columns.date') }}</th>
+              <th>{{ __('tables.columns.reference') }}</th>
+              <th>{{ __('tables.columns.customer') }}</th>
+              <th>{{ __('tables.columns.phone') }}</th>
+              <th>{{ __('tables.columns.sale_total') }}</th>
+              <th>{{ __('tables.columns.paid') }}</th>
+              <th>{{ __('tables.columns.balance_due') }}</th>
+              <th>{{ __('tables.columns.due_date') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
+              <th>{{ __('tables.columns.cashier') }}</th>
+              <th>{{ __('tables.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -187,7 +187,7 @@
                   @if($sale->due_date)
                     {{ \Carbon\Carbon::parse($sale->due_date)->format('M d, Y') }}
                     @if($isOverdue)
-                      <span class="badge badge-danger">Overdue</span>
+                      <span class="badge badge-danger">{{ __('tables.status.overdue') }}</span>
                     @endif
                   @else
                     —
@@ -195,11 +195,11 @@
                 </td>
                 <td>
                   @if($sale->payment_status === 'debt')
-                    <span class="badge badge-danger">Debt</span>
+                    <span class="badge badge-danger">{{ __('tables.status.debt') }}</span>
                   @elseif($sale->payment_status === 'partial')
-                    <span class="badge badge-info">Partial</span>
+                    <span class="badge badge-info">{{ __('tables.status.partial') }}</span>
                   @else
-                    <span class="badge badge-warning">Pending</span>
+                    <span class="badge badge-warning">{{ __('tables.status.pending') }}</span>
                   @endif
                 </td>
                 <td>{{ $sale->user->name }}</td>
@@ -224,7 +224,7 @@
                     data-customer-phone="{{ e($sale->customer_phone ?? '') }}"
                     data-due-date="{{ $sale->due_date ? \Carbon\Carbon::parse($sale->due_date)->format('Y-m-d') : '' }}"
                     data-items='@json($payItems)'>
-                    <i class="fa fa-money"></i> Collect
+                    <i class="fa fa-money"></i> {{ __('tables.actions.collect') }}
                   </button>
                   <a href="{{ route('sales.show', $sale->id) }}" class="btn btn-sm btn-primary" title="View Receipt"><i class="fa fa-eye"></i></a>
                 </td>
@@ -232,7 +232,7 @@
             @endforeach
             @if($debts->isEmpty())
               <tr>
-                <td colspan="11" class="text-center">No outstanding debts found.</td>
+                <td colspan="11" class="text-center">{{ __('tables.empty.outstanding_debts') }}</td>
               </tr>
             @endif
           </tbody>

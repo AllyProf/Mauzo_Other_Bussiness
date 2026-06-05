@@ -20,7 +20,7 @@ class CategoryController extends Controller
         $businessId = $this->currentBusinessId();
         $branchFilterId = $this->branchFilterId();
         $business = $this->currentBusinessForWrite();
-        $businessTemplates = config('category_templates', []);
+        $businessTemplates = category_templates();
         $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
 
         $categoriesQuery = Category::query()
@@ -161,7 +161,7 @@ class CategoryController extends Controller
             );
         }
         $type = $request->template_type;
-        $templates = config('category_templates', []);
+        $templates = category_templates();
 
         if ($type === 'custom') {
             $request->validate([

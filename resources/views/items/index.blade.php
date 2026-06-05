@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Items List - SpareParts POS')
+@section('title', __('pages.items.title') . ' - SpareParts POS')
 
 @section('styles')
 <style>
@@ -19,8 +19,8 @@
 @section('content')
 <div class="app-title">
   <div>
-    <h1><i class="fa fa-th-list"></i> Items Inventory</h1>
-    <p>List of all registered items for your shop</p>
+    <h1><i class="fa fa-th-list"></i> {{ __('pages.items.title') }}</h1>
+    <p>{{ __('pages.items.subtitle') }}</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
@@ -99,12 +99,12 @@
         <table class="table table-hover table-bordered" id="sampleTable">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>SKU</th>
-              <th>Category</th>
-              <th>Brand</th>
-              <th>Packaging (Units)</th>
-              <th>Actions</th>
+              <th>{{ __('tables.columns.name') }}</th>
+              <th>{{ __('tables.columns.sku') }}</th>
+              <th>{{ __('tables.columns.category') }}</th>
+              <th>{{ __('tables.columns.brand') }}</th>
+              <th>{{ __('tables.columns.packaging') }}</th>
+              <th>{{ __('tables.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody>

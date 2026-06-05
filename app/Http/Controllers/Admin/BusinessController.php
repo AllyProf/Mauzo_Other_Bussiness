@@ -9,6 +9,8 @@ use App\Models\Business;
 use App\Models\Plan;
 use App\Models\User;
 use App\Services\Admin\BusinessDataPurgeService;
+use App\Services\PlatformMailService;
+use App\Services\PlatformSmsService;
 use App\Services\ServiceTemplateImportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -237,13 +239,23 @@ class BusinessController extends Controller
                 $business->id
             );
 
-            return redirect()->route('admin.businesses.index')->with('success', 'Business linked to existing owner successfully.');
+            $owner = User::find($ownerUserId);
+            $notifications = $owner
+                ? $this->notifyBusinessLinkedToOwner($business->fresh(), $owner)
+                : ['sms_sent' => false, 'email_sent' => false];
+
+            return redirect()->route('admin.businesses.index')->with(
+                'success',
+                'Business linked to existing owner successfully.'.$this->notificationStatusSuffix($notifications),
+            );
         }
+
+        $plainPassword = $request->password;
 
         $owner = User::create([
             'name' => $request->contact_person,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'password' => Hash::make($plainPassword),
             'business_id' => $business->id,
             'role' => 'owner',
         ]);
@@ -258,7 +270,12 @@ class BusinessController extends Controller
             $business->id
         );
 
-        return redirect()->route('admin.businesses.index')->with('success', 'Business and owner account registered successfully.');
+        $notifications = $this->notifyBusinessRegistered($business->fresh(), $owner, $plainPassword);
+
+        return redirect()->route('admin.businesses.index')->with(
+            'success',
+            'Business and owner account registered successfully.'.$this->notificationStatusSuffix($notifications),
+        );
     }
 
     public function edit(Business $business)
@@ -485,7 +502,7 @@ class BusinessController extends Controller
             $platformMail = app(\App\Services\PlatformMailService::class);
 
             if ($business->phone) {
-                $platformSms->sendRegistrationApproved($business, $loginPassword);
+                $platformSms->sendRegistrationApproved($business, $loginPassword, $owner->email);
             }
 
             $platformMail->sendRegistrationApproved($business, $loginPassword, $owner->email);
@@ -570,6 +587,58 @@ class BusinessController extends Controller
             ->with('success', $message)
             ->with('generated_password', $password)
             ->with('generated_password_for', $owner->name);
+    }
+
+    /**
+     * @return array{sms_sent: bool, email_sent: bool}
+     */
+    private function notifyBusinessRegistered(Business $business, User $owner, string $plainPassword): array
+    {
+        $platformSms = app(PlatformSmsService::class);
+        $platformMail = app(PlatformMailService::class);
+
+        $smsSent = $business->phone
+            ? $platformSms->sendBusinessRegistered($business, $plainPassword, $owner->email)
+            : false;
+
+        $emailSent = $platformMail->sendBusinessRegistered($business, $plainPassword, $owner->email);
+
+        return compact('smsSent', 'emailSent');
+    }
+
+    /**
+     * @return array{sms_sent: bool, email_sent: bool}
+     */
+    private function notifyBusinessLinkedToOwner(Business $business, User $owner): array
+    {
+        $platformSms = app(PlatformSmsService::class);
+        $platformMail = app(PlatformMailService::class);
+
+        $smsSent = $business->phone
+            ? $platformSms->sendBusinessLinkedToOwner($business, $owner->email)
+            : false;
+
+        $emailSent = $platformMail->sendBusinessLinkedToOwner($business, $owner->email);
+
+        return compact('smsSent', 'emailSent');
+    }
+
+    /**
+     * @param  array{sms_sent: bool, email_sent: bool}  $notifications
+     */
+    private function notificationStatusSuffix(array $notifications): string
+    {
+        $suffix = '';
+
+        if ($notifications['sms_sent'] ?? false) {
+            $suffix .= ' An SMS was sent to the business phone number.';
+        }
+
+        if ($notifications['email_sent'] ?? false) {
+            $suffix .= ' An email was sent to the business email address.';
+        }
+
+        return $suffix;
     }
 
     private function resolveBusinessOwner(Business $business): ?User

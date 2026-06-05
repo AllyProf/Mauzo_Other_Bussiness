@@ -33,49 +33,49 @@
 
 {{-- KPI Row --}}
 <div class="row">
-  <div class="col-md-3 col-sm-6">
+  <div class="col-md-3 col-sm-6" data-tour="today-revenue">
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
-        <h4>Today Revenue</h4>
+        <h4>{{ __('dashboard.today_revenue') }}</h4>
         <p><b>{{ money($todayRevenue) }}</b></p>
       </div>
     </div>
   </div>
-  <div class="col-md-3 col-sm-6">
+  <div class="col-md-3 col-sm-6" data-tour="month-revenue">
     <div class="widget-small info coloured-icon">
       <i class="icon fa fa-line-chart fa-3x"></i>
       <div class="info">
-        <h4>Month {{ now()->format('M Y') }}</h4>
+        <h4>{{ __('dashboard.month_label', ['month' => now()->format('M Y')]) }}</h4>
         <p><b>{{ money($monthRevenue) }}</b></p>
-        <small class="text-white" style="opacity:.85;">{{ number_format($monthOrders) }} orders · {{ money($monthCollected, false) }} collected</small>
+        <small class="text-white" style="opacity:.85;">{{ __('dashboard.orders_collected', ['orders' => number_format($monthOrders), 'collected' => money($monthCollected, false)]) }}</small>
       </div>
     </div>
   </div>
-  <div class="col-md-3 col-sm-6">
+  <div class="col-md-3 col-sm-6" data-tour="stock-alerts">
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-warning fa-3x"></i>
       <div class="info">
-        <h4>Stock Alerts</h4>
+        <h4>{{ __('dashboard.stock_alerts') }}</h4>
         <p><b>{{ number_format($pendingShortages) }}</b></p>
-        <small class="text-white" style="opacity:.85;">shortages · {{ number_format($lowStockCount) }} low stock</small>
+        <small class="text-white" style="opacity:.85;">{{ __('dashboard.shortages_low_stock', ['count' => number_format($lowStockCount)]) }}</small>
       </div>
     </div>
   </div>
-  <div class="col-md-3 col-sm-6">
+  <div class="col-md-3 col-sm-6" data-tour="month-purchases">
     <div class="widget-small danger coloured-icon">
       <i class="icon fa fa-shopping-bag fa-3x"></i>
       <div class="info">
-        <h4>Month Purchases</h4>
+        <h4>{{ __('dashboard.month_purchases') }}</h4>
         <p><b>{{ money($monthlyPurchaseCost) }}</b></p>
-        <small class="text-white" style="opacity:.85;">stock received</small>
+        <small class="text-white" style="opacity:.85;">{{ __('dashboard.stock_received') }}</small>
       </div>
     </div>
   </div>
 </div>
 
 {{-- Sales target progress --}}
-<div class="row">
+<div class="row" data-tour="sales-targets">
   @if($targetProgress->count() > 0)
     @php $targetColors = ['#940000', '#009688', '#1565C0', '#f6c23e', '#6f42c1', '#e65100']; @endphp
     @foreach($targetProgress->take(4) as $index => $row)
@@ -85,7 +85,7 @@
           <div class="d-flex justify-content-between align-items-start flex-wrap">
             <div>
               <h6 class="text-muted small font-weight-bold mb-1">
-                <i class="fa fa-bullseye mr-1"></i> {{ strtoupper($row['period_type']) }} GOAL
+                <i class="fa fa-bullseye mr-1"></i> {{ __('dashboard.period_goal', ['period' => strtoupper($row['period_type'])]) }}
               </h6>
               <div class="small text-muted">{{ $row['scope_label'] }}</div>
             </div>
@@ -96,7 +96,7 @@
           </div>
           <div class="d-flex justify-content-between mt-1 small text-muted">
             <span>{{ money($row['actual']) }}</span>
-            <span>Target: {{ money($row['target']->target_amount) }}</span>
+            <span>{{ __('dashboard.target_label') }}: {{ money($row['target']->target_amount) }}</span>
           </div>
           <div class="small text-muted mt-1">{{ $row['period_label'] }}</div>
         </div>
@@ -106,9 +106,9 @@
     <div class="col-md-12 mb-4">
       <div class="tile text-center py-4">
         <i class="fa fa-bullseye fa-2x text-muted mb-2"></i>
-        <p class="mb-2 text-muted">No sales targets set for the current day, week, or month.</p>
+        <p class="mb-2 text-muted">{{ __('dashboard.no_sales_targets') }}</p>
         <a href="{{ route('sales-targets.index') }}" class="btn btn-primary" style="background:#940000;border-color:#940000;">
-          <i class="fa fa-plus"></i> Set Sales Targets
+          <i class="fa fa-plus"></i> {{ __('dashboard.set_sales_targets') }}
         </a>
       </div>
     </div>
@@ -117,20 +117,20 @@
 
 {{-- Charts --}}
 <div class="row">
-  <div class="col-md-8 mb-4">
+  <div class="col-md-8 mb-4" data-tour="revenue-chart">
     <div class="tile h-100 mb-0">
-      <h3 class="tile-title"><i class="fa fa-area-chart"></i> Revenue — Last 7 Days</h3>
+      <h3 class="tile-title"><i class="fa fa-area-chart"></i> {{ __('dashboard.revenue_last_7_days') }}</h3>
       <div class="tile-body">
         <canvas id="revenueTrendChart" style="max-height: 300px;"></canvas>
         @if(collect($revenueTrend)->sum('revenue') <= 0)
-          <div class="owner-empty"><i class="fa fa-bar-chart"></i> No revenue data yet</div>
+          <div class="owner-empty"><i class="fa fa-bar-chart"></i> {{ __('dashboard.no_revenue_data') }}</div>
         @endif
       </div>
     </div>
   </div>
   <div class="col-md-4 mb-4">
     <div class="tile h-100 mb-0">
-      <h3 class="tile-title"><i class="fa fa-pie-chart"></i> Category Sales</h3>
+      <h3 class="tile-title"><i class="fa fa-pie-chart"></i> {{ __('dashboard.category_sales') }}</h3>
       <div class="tile-body text-center">
         <div style="position:relative;height:200px;width:100%;display:flex;justify-content:center;align-items:center;margin-bottom:15px;">
           <canvas id="categoryDistributionChart"></canvas>
@@ -141,14 +141,14 @@
             <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1" style="border:none;border-bottom:1px solid #f0f0f0;">
               <span class="text-truncate" style="max-width:60%;">
                 <i class="fa fa-circle mr-2" style="font-size:8px;color:#940000;"></i>
-                {{ $cat['category'] ?? 'Uncategorized' }}
+                {{ $cat['category'] ?? __('dashboard.uncategorized') }}
               </span>
               <span class="badge badge-pill badge-primary">{{ money($cat['revenue']) }}</span>
             </li>
             @endforeach
           </ul>
         @else
-          <p class="text-muted text-center mt-3">No sales data this month.</p>
+          <p class="text-muted text-center mt-3">{{ __('dashboard.no_sales_data_month') }}</p>
         @endif
       </div>
     </div>
@@ -157,9 +157,9 @@
 
 {{-- Top products & staff --}}
 <div class="row">
-  <div class="col-md-8 mb-4">
+  <div class="col-md-8 mb-4" data-tour="top-products">
     <div class="tile h-100 mb-0">
-      <h3 class="tile-title"><i class="fa fa-star"></i> Top Products This Month</h3>
+      <h3 class="tile-title"><i class="fa fa-star"></i> {{ __('dashboard.top_products_month') }}</h3>
       <div class="tile-body">
         @if($topProducts->count() > 0)
           @php $maxQty = max(1, (float) $topProducts->max('qty')); @endphp
@@ -169,7 +169,7 @@
               <div class="col-md-6 mb-3">
                 <div class="product-bar-label">
                   <span class="text-truncate pr-3" title="{{ $tp['name'] }}">{{ $tp['name'] }}</span>
-                  <span style="color:#940000;font-weight:bold;">{{ number_format($tp['qty']) }} <small>sold</small></span>
+                  <span style="color:#940000;font-weight:bold;">{{ number_format($tp['qty']) }} <small>{{ __('dashboard.sold') }}</small></span>
                 </div>
                 <div class="product-bar-track">
                   <div class="product-bar-fill" style="width: {{ $pct }}%;"></div>
@@ -179,14 +179,14 @@
             @endforeach
           </div>
         @else
-          <div class="owner-empty"><i class="fa fa-star-o"></i> No sales data this month</div>
+          <div class="owner-empty"><i class="fa fa-star-o"></i> {{ __('dashboard.no_sales_data_month_short') }}</div>
         @endif
       </div>
     </div>
   </div>
   <div class="col-md-4 mb-4">
     <div class="tile h-100 mb-0">
-      <h3 class="tile-title"><i class="fa fa-users"></i> Top Staff This Month</h3>
+      <h3 class="tile-title"><i class="fa fa-users"></i> {{ __('dashboard.top_staff_month') }}</h3>
       <div class="tile-body">
         @if($topStaff->count() > 0)
           <ul class="list-group list-group-flush">
@@ -194,7 +194,7 @@
             <li class="list-group-item px-0 d-flex justify-content-between align-items-center" style="font-size:13px;">
               <div>
                 <div class="font-weight-bold">{{ $staff['name'] }}</div>
-                <small class="text-muted">{{ $staff['orders_count'] }} orders</small>
+                <small class="text-muted">{{ __('dashboard.orders_count', ['count' => $staff['orders_count']]) }}</small>
               </div>
               <div class="text-right">
                 <div class="text-success font-weight-bold">{{ money($staff['total_revenue']) }}</div>
@@ -205,14 +205,14 @@
                     @endforeach
                   </div>
                 @else
-                  <div class="text-muted" style="font-size:11px;">Collected: {{ money($staff['collected'], false) }}</div>
+                  <div class="text-muted" style="font-size:11px;">{{ __('dashboard.collected_label') }}: {{ money($staff['collected'], false) }}</div>
                 @endif
               </div>
             </li>
             @endforeach
           </ul>
         @else
-          <div class="owner-empty"><i class="fa fa-user-o"></i> No staff sales this month</div>
+          <div class="owner-empty"><i class="fa fa-user-o"></i> {{ __('dashboard.no_staff_sales_month') }}</div>
         @endif
       </div>
     </div>
@@ -223,48 +223,48 @@
 <div class="row mt-2">
   <div class="col-md-12">
     <div class="tile">
-      <h3 class="tile-title"><i class="fa fa-bolt"></i> Quick Links</h3>
+      <h3 class="tile-title"><i class="fa fa-bolt"></i> {{ __('dashboard.quick_links') }}</h3>
       <div class="tile-body">
         <div class="row">
           @can('process_sales')
           <div class="col-md-3 col-sm-6 mb-3">
             <a href="{{ route('sales.create') }}" class="btn btn-primary btn-block p-3 text-center shadow-sm" style="background:#940000;border:none;">
-              <i class="fa fa-shopping-cart fa-2x mb-2"></i><br>STORE / POS
+              <i class="fa fa-shopping-cart fa-2x mb-2"></i><br>{{ strtoupper(__('menu.store_pos')) }}
             </a>
           </div>
           @endcan
           @can('manage_business_settings')
           <div class="col-md-3 col-sm-6 mb-3">
             <a href="{{ route('sales-targets.index') }}" class="btn btn-outline-primary btn-block p-3 text-center" style="border-color:#940000;color:#940000;">
-              <i class="fa fa-bullseye fa-2x mb-2"></i><br>SALES TARGETS
+              <i class="fa fa-bullseye fa-2x mb-2"></i><br>{{ strtoupper(__('menu.sales_targets')) }}
             </a>
           </div>
           @endcan
           @can('view_reports')
           <div class="col-md-3 col-sm-6 mb-3">
             <a href="{{ route('reports.daily-sales') }}" class="btn btn-outline-primary btn-block p-3 text-center" style="border-color:#940000;color:#940000;">
-              <i class="fa fa-line-chart fa-2x mb-2"></i><br>DAILY SALES
+              <i class="fa fa-line-chart fa-2x mb-2"></i><br>{{ strtoupper(__('menu.daily_sales')) }}
             </a>
           </div>
           @endcan
           @can('receive_stock')
           <div class="col-md-3 col-sm-6 mb-3">
             <a href="{{ route('receivings.index') }}" class="btn btn-outline-success btn-block p-3 text-center">
-              <i class="fa fa-truck fa-2x mb-2"></i><br>RECEIVING
+              <i class="fa fa-truck fa-2x mb-2"></i><br>{{ strtoupper(__('menu.receiving')) }}
             </a>
           </div>
           @endcan
           @can('view_inventory')
           <div class="col-md-3 col-sm-6 mb-3">
             <a href="{{ route('items.stock') }}" class="btn btn-outline-info btn-block p-3 text-center">
-              <i class="fa fa-cubes fa-2x mb-2"></i><br>ITEM STOCK
+              <i class="fa fa-cubes fa-2x mb-2"></i><br>{{ strtoupper(__('menu.item_stock')) }}
             </a>
           </div>
           @endcan
           @canany(['verify_stock_shortages', 'view_reports'])
           <div class="col-md-3 col-sm-6 mb-3">
             <a href="{{ route('stock-shortages.index') }}" class="btn btn-outline-warning btn-block p-3 text-center">
-              <i class="fa fa-warning fa-2x mb-2"></i><br>STOCK SHORTAGES
+              <i class="fa fa-warning fa-2x mb-2"></i><br>{{ strtoupper(__('menu.stock_shortages')) }}
               @if($pendingShortages > 0)
                 <span class="badge badge-danger ml-1">{{ $pendingShortages }}</span>
               @endif
@@ -274,27 +274,27 @@
           @canany(['manage_debts', 'collect_payments'])
           <div class="col-md-3 col-sm-6 mb-3">
             <a href="{{ route('debts.index') }}" class="btn btn-outline-danger btn-block p-3 text-center">
-              <i class="fa fa-credit-card fa-2x mb-2"></i><br>DEBT MANAGEMENT
+              <i class="fa fa-credit-card fa-2x mb-2"></i><br>{{ strtoupper(__('pages.debts.title')) }}
             </a>
           </div>
           @endcanany
           @canany(['view_reports', 'finalize_reports'])
           <div class="col-md-3 col-sm-6 mb-3">
             <a href="{{ route('owner-reports.index') }}" class="btn btn-outline-dark btn-block p-3 text-center">
-              <i class="fa fa-file-text-o fa-2x mb-2"></i><br>MASTER SHEET
+              <i class="fa fa-file-text-o fa-2x mb-2"></i><br>{{ strtoupper(__('menu.master_sheet')) }}
             </a>
           </div>
           @endcanany
           @can('view_reports')
           <div class="col-md-3 col-sm-6 mb-3">
             <a href="{{ route('reports.profit') }}" class="btn btn-outline-secondary btn-block p-3 text-center">
-              <i class="fa fa-money fa-2x mb-2"></i><br>PROFIT REPORT
+              <i class="fa fa-money fa-2x mb-2"></i><br>{{ strtoupper(__('settings.profit_report')) }}
             </a>
           </div>
           @endcan
           <div class="col-md-3 col-sm-6 mb-3">
             <a href="{{ route('settings.index') }}" class="btn btn-outline-secondary btn-block p-3 text-center">
-              <i class="fa fa-gears fa-2x mb-2"></i><br>BUSINESS SETTINGS
+              <i class="fa fa-gears fa-2x mb-2"></i><br>{{ strtoupper(__('menu.business_settings')) }}
             </a>
           </div>
         </div>
@@ -311,6 +311,10 @@
   const businessTypes = @json($businessTypes);
   const multiBusiness = @json($multiBusiness);
   const deptColors = ['rgba(148,0,0,0.85)', 'rgba(0,150,136,0.85)', 'rgba(21,101,192,0.85)', 'rgba(246,194,62,0.85)', 'rgba(111,66,193,0.85)'];
+  const revenueChartLabel = @json(__('dashboard.revenue_chart_label'));
+  const ordersChartLabel = @json(__('dashboard.orders_chart_label'));
+  const ordersTooltipTemplate = @json(__('dashboard.orders_tooltip'));
+  const chartLocale = @json(app()->getLocale() === 'sw' ? 'sw-TZ' : 'en-US');
 
   const labels = [];
   const ordersSeries = [];
@@ -319,7 +323,7 @@
     const d = new Date();
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().slice(0, 10);
-    labels.push(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+    labels.push(d.toLocaleDateString(chartLocale, { weekday: 'short', month: 'short', day: 'numeric' }));
     const match = trendData.find(r => r.date === dateStr);
     ordersSeries.push(match ? parseInt(match.orders) : 0);
   }
@@ -357,7 +361,7 @@
         data.push(match ? parseFloat(match.revenue) : 0);
       }
       datasets.push({
-        label: 'Revenue (TZS)',
+        label: revenueChartLabel,
         data: data,
         backgroundColor: 'rgba(148,0,0,0.85)',
         borderColor: '#6b0000',
@@ -370,7 +374,7 @@
 
     datasets.push({
       type: 'line',
-      label: 'Orders',
+      label: ordersChartLabel,
       data: ordersSeries,
       borderColor: '#7B1FA2',
       backgroundColor: 'rgba(123,31,162,0.1)',
@@ -393,7 +397,9 @@
           tooltip: {
             callbacks: {
               label: function(c) {
-                if (c.dataset.label === 'Orders') return ' ' + c.parsed.y + ' orders';
+                if (c.dataset.label === ordersChartLabel) {
+                  return ' ' + ordersTooltipTemplate.replace(':count', c.parsed.y);
+                }
                 return ' TZS ' + c.parsed.y.toLocaleString();
               }
             }

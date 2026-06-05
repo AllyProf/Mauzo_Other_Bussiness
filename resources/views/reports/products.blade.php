@@ -52,7 +52,7 @@
             <thead>
               <tr>
                 <th>Product</th>
-                <th>Category</th>
+                <th>{{ __('tables.columns.category') }}</th>
                 <th class="text-center">Qty Sold</th>
                 <th class="money-col">Revenue</th>
                 <th class="money-col">Cost</th>

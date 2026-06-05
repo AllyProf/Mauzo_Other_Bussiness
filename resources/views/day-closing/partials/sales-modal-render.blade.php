@@ -33,7 +33,7 @@ function renderDayClosingSalesModal(sales, title) {
   if (!sales.length) {
     jQuery('#sales-content').html('<div class="alert alert-info">No sales found.</div>');
   } else {
-    let html = '<div class="table-responsive"><table class="table table-sm table-bordered table-hover"><thead><tr><th>Ref</th><th>Time</th><th>Cashier</th><th>Total</th><th>Paid</th><th>Balance</th><th>Payment</th><th>Payment Ref</th><th>Status</th></tr></thead><tbody>';
+    let html = '<div class="table-responsive"><table class="table table-sm table-bordered table-hover"><thead><tr><th>Ref</th><th>{{ __('tables.columns.time') }}</th><th>{{ __('tables.columns.cashier') }}</th><th>{{ __('tables.columns.total') }}</th><th>{{ __('tables.columns.paid') }}</th><th>Balance</th><th>Payment</th><th>Payment Ref</th><th>{{ __('tables.columns.status') }}</th></tr></thead><tbody>';
     sales.forEach(s => {
       let payHtml = '-';
       if (s.payments && s.payments.length) {

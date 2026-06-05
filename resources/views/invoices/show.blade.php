@@ -140,8 +140,8 @@
           <thead>
             <tr>
               <th>#</th>
-              <th>Description</th>
-              <th>SKU</th>
+              <th>{{ __('tables.columns.description') }}</th>
+              <th>{{ __('tables.columns.sku') }}</th>
               <th class="text-right">Qty</th>
               <th class="text-right">Unit Price</th>
               <th class="text-right">Amount</th>
@@ -204,10 +204,10 @@
         <table class="table table-sm table-bordered mb-0">
           <thead class="thead-light">
             <tr>
-              <th>Method</th>
-              <th>Platform</th>
+              <th>{{ __('tables.columns.method') }}</th>
+              <th>{{ __('tables.columns.platform') }}</th>
               <th>Pay Number / Account</th>
-              <th>Name</th>
+              <th>{{ __('tables.columns.name') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -230,9 +230,9 @@
         <table class="table table-sm table-bordered">
           <thead class="bg-light">
             <tr>
-              <th>Date</th>
-              <th>Method</th>
-              <th>Reference</th>
+              <th>{{ __('tables.columns.date') }}</th>
+              <th>{{ __('tables.columns.method') }}</th>
+              <th>{{ __('tables.columns.reference') }}</th>
               <th class="text-right">Amount</th>
             </tr>
           </thead>

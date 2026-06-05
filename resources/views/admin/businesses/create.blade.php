@@ -137,9 +137,8 @@
 @endsection
 
 @section('scripts')
+@include('partials.tanzania-location-select2', ['selectedDistrict' => old('district', '')])
 <script type="text/javascript">
-    const tanzaniaDistricts = @json(tanzania_districts());
-
     function generatePassword() {
         const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
         let password = "";
@@ -173,26 +172,6 @@
         preview.value = formatExpiryDate(option.getAttribute('data-months'));
     }
 
-    function populateDistricts(region, selectedDistrict) {
-        const districtSelect = document.getElementById('businessDistrict');
-        districtSelect.innerHTML = '';
-
-        if (!region) {
-            districtSelect.appendChild(new Option('Select region first', ''));
-            return;
-        }
-
-        districtSelect.appendChild(new Option('Select district', ''));
-
-        (tanzaniaDistricts[region] || []).forEach(function(district) {
-            const option = new Option(district, district);
-            if (selectedDistrict === district) {
-                option.selected = true;
-            }
-            districtSelect.appendChild(option);
-        });
-    }
-
     function toggleOwnerMode() {
         const linkExisting = document.getElementById('ownerModeExisting').checked;
         document.getElementById('existingOwnerGroup').style.display = linkExisting ? '' : 'none';
@@ -207,10 +186,6 @@
     jQuery(function($) {
         $('input[name="owner_mode"]').on('change', toggleOwnerMode);
         toggleOwnerMode();
-
-        $('#businessRegion').on('change', function() {
-            populateDistricts(this.value, '');
-        });
 
         $('#planSelect').on('change', updateExpiryPreview);
 
@@ -229,12 +204,11 @@
 
         $('#businessCreateForm').on('submit', function () {
             const region = $('#businessRegion').val();
-            if (!region) {
-                populateDistricts('', '');
+            if (!region && typeof window.populateTanzaniaDistricts === 'function') {
+                window.populateTanzaniaDistricts('', '');
             }
         });
 
-        populateDistricts($('#businessRegion').val(), @json(old('district', '')));
         updateExpiryPreview();
 
         @if($errors->any())

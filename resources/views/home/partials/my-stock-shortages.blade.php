@@ -31,10 +31,10 @@
           <table class="table table-sm table-hover mb-0">
             <thead class="thead-light">
               <tr>
-                <th>Date</th>
-                <th>Shift</th>
-                <th>Item</th>
-                <th class="text-right">Short By</th>
+                <th>{{ __('tables.columns.date') }}</th>
+                <th>{{ __('tables.columns.shift') }}</th>
+                <th>{{ __('tables.columns.item') }}</th>
+                <th class="text-right">{{ __('tables.columns.short_by') }}</th>
                 <th>Your Reason</th>
                 <th>Owner Decision</th>
                 <th class="text-right">Amount</th>

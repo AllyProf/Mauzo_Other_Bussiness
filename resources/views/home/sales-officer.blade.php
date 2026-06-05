@@ -16,7 +16,7 @@
 </style>
 
 @if($needsShift ?? false)
-<div class="row mt-2">
+<div class="row mt-2" data-tour="shift-stock-check">
   <div class="col-md-12">
     <div class="tile shadow-sm border-0" style="border-radius: 15px; border-left: 4px solid #940000 !important;">
       <div class="d-flex justify-content-between align-items-center flex-wrap mb-3 pb-3 border-bottom">
@@ -91,8 +91,8 @@
           <table class="table table-hover table-bordered table-sm bg-white">
             <thead class="bg-light">
               <tr>
-                <th>Item</th>
-                <th>Category</th>
+                <th>{{ __('tables.columns.item') }}</th>
+                <th>{{ __('tables.columns.category') }}</th>
                 <th class="text-center">System Stock</th>
               </tr>
             </thead>
@@ -281,10 +281,10 @@
         <table class="table table-hover table-sm">
           <thead>
             <tr>
-              <th>Reference</th>
-              <th>Customer</th>
-              <th>Total</th>
-              <th>Status</th>
+              <th>{{ __('tables.columns.reference') }}</th>
+              <th>{{ __('tables.columns.customer') }}</th>
+              <th>{{ __('tables.columns.total') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -295,7 +295,7 @@
               <td>{{ money($sale->total_amount) }}</td>
               <td>
                 @if($sale->payment_status === 'paid')
-                  <span class="badge badge-success">Paid</span>
+                  <span class="badge badge-success">{{ __('tables.status.paid') }}</span>
                 @elseif(in_array($sale->payment_status, ['pending', 'partial', 'debt']))
                   <span class="badge badge-warning">{{ ucfirst($sale->payment_status) }}</span>
                 @else
@@ -319,7 +319,7 @@
         <table class="table table-hover table-sm">
           <thead>
             <tr>
-              <th>Item</th>
+              <th>{{ __('tables.columns.item') }}</th>
               <th class="text-center">Stock</th>
             </tr>
           </thead>

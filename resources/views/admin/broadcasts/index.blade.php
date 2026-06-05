@@ -37,9 +37,9 @@
         <table class="table table-hover">
           <thead>
             <tr>
-              <th>Message</th>
-              <th>Status</th>
-              <th>Action</th>
+              <th>{{ __('tables.columns.message') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
+              <th>{{ __('tables.columns.action') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -48,7 +48,7 @@
                     <td>{{ Str::limit($broadcast->message, 50) }}</td>
                     <td>
                         @if($broadcast->is_active)
-                            <span class="badge badge-success">Active</span>
+                            <span class="badge badge-success">{{ __('tables.status.active') }}</span>
                         @else
                             <span class="badge badge-secondary">Past</span>
                         @endif

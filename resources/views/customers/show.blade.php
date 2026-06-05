@@ -40,17 +40,17 @@
       <h3 class="tile-title">Contact Details</h3>
       <div class="tile-body">
         <table class="table table-sm">
-          <tr><th>Phone</th><td>{{ $customer->phone }}</td></tr>
-          <tr><th>Email</th><td>{{ $customer->email ?: '—' }}</td></tr>
-          <tr><th>Region</th><td>{{ $customer->region ?: '—' }}</td></tr>
+          <tr><th>{{ __('tables.columns.phone') }}</th><td>{{ $customer->phone }}</td></tr>
+          <tr><th>{{ __('tables.columns.email') }}</th><td>{{ $customer->email ?: '—' }}</td></tr>
+          <tr><th>{{ __('tables.columns.region') }}</th><td>{{ $customer->region ?: '—' }}</td></tr>
           <tr><th>Address</th><td>{{ $customer->address ?: '—' }}</td></tr>
           <tr>
-            <th>Status</th>
+            <th>{{ __('tables.columns.status') }}</th>
             <td>
               @if($customer->is_active)
-                <span class="badge badge-success">Active</span>
+                <span class="badge badge-success">{{ __('tables.status.active') }}</span>
               @else
-                <span class="badge badge-secondary">Inactive</span>
+                <span class="badge badge-secondary">{{ __('tables.status.inactive') }}</span>
               @endif
             </td>
           </tr>
@@ -77,12 +77,12 @@
         <table class="table table-hover table-bordered table-sm">
           <thead>
             <tr>
-              <th>Reference</th>
-              <th>Date</th>
-              <th>Staff</th>
+              <th>{{ __('tables.columns.reference') }}</th>
+              <th>{{ __('tables.columns.date') }}</th>
+              <th>{{ __('tables.columns.staff') }}</th>
               <th class="text-right">Total</th>
               <th class="text-right">Paid</th>
-              <th>Status</th>
+              <th>{{ __('tables.columns.status') }}</th>
             </tr>
           </thead>
           <tbody>

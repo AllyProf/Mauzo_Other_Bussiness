@@ -47,15 +47,39 @@ class PlatformSmsService
         );
     }
 
-    public function sendRegistrationApproved(Business $business, string $password): bool
+    public function sendRegistrationApproved(Business $business, string $password, string $loginEmail): bool
     {
-        $platformName = $this->platformName();
+        $supportPhone = $this->supportContactPhone();
 
         return $this->sendToBusiness(
             $business,
-            "{$platformName}: Your account is approved. Sign in with your phone number. Password: {$password}",
+            "Usajili wa biashara {$business->name} umekubaliwa. Ingia kupitia email yako ambayo ni {$loginEmail}. Nenosiri: {$password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {$supportPhone}",
             'registration_approved',
             'registration_approved',
+        );
+    }
+
+    public function sendBusinessRegistered(Business $business, string $password, string $loginEmail): bool
+    {
+        $supportPhone = $this->supportContactPhone();
+
+        return $this->sendToBusiness(
+            $business,
+            "Akaunti yako ya biashara {$business->name} iko tayari. Ingia kupitia email yako ambayo ni {$loginEmail}. Nenosiri: {$password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {$supportPhone}",
+            'business_registered',
+            'business_registered',
+        );
+    }
+
+    public function sendBusinessLinkedToOwner(Business $business, string $loginEmail): bool
+    {
+        $supportPhone = $this->supportContactPhone();
+
+        return $this->sendToBusiness(
+            $business,
+            "Biashara {$business->name} imeongezwa kwenye akaunti yako. Ingia kupitia email yako ambayo ni {$loginEmail}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {$supportPhone}",
+            'business_linked',
+            'business_linked',
         );
     }
 
@@ -330,6 +354,13 @@ class PlatformSmsService
     private function platformName(): string
     {
         return (string) $this->settings->get('platform_name', 'Mauzo Link');
+    }
+
+    private function supportContactPhone(): string
+    {
+        $supportPhone = trim((string) $this->settings->get('support_phone', ''));
+
+        return $supportPhone !== '' ? $supportPhone : '0749719998';
     }
 
     private function adminPhone(): ?string

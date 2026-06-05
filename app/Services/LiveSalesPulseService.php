@@ -27,8 +27,8 @@ class LiveSalesPulseService
                 'mode' => $shift ? 'shift' : 'none',
                 'date' => $date,
                 'scope_label' => $shift
-                    ? 'Your shift #'.$shift->id
-                    : 'Open a shift to see live data',
+                    ? __('live_sales.scope.your_shift', ['id' => $shift->id])
+                    : __('live_sales.scope.open_shift_prompt'),
             ];
         }
 
@@ -40,8 +40,8 @@ class LiveSalesPulseService
                 'mode' => $shift ? 'shift' : 'day',
                 'date' => $date,
                 'scope_label' => $shift
-                    ? 'Business · Shift #'.$shift->id.' ('.$shift->user?->name.')'
-                    : 'Business · Today',
+                    ? __('live_sales.scope.business_shift', ['id' => $shift->id, 'name' => $shift->user?->name ?? ''])
+                    : __('live_sales.scope.business_today'),
             ];
         }
 
@@ -51,7 +51,7 @@ class LiveSalesPulseService
             'shift' => $shift,
             'mode' => $shift ? 'shift' : 'day',
             'date' => $date,
-            'scope_label' => $shift ? 'Your shift #'.$shift->id : 'Your sales today',
+            'scope_label' => $shift ? __('live_sales.scope.your_shift', ['id' => $shift->id]) : __('live_sales.scope.your_sales_today'),
         ];
     }
 
@@ -271,7 +271,7 @@ class LiveSalesPulseService
     public function filterNote(?string $businessTypeKey, ?string $businessTypeLabel): string
     {
         if ($businessTypeKey && $businessTypeLabel) {
-            return 'Business type: '.$businessTypeLabel;
+            return __('live_sales.filter_business_type', ['label' => $businessTypeLabel]);
         }
 
         return '';

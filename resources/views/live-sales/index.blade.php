@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Live Sales Pulse')
+@section('title', __('live_sales.title'))
 
 @push('styles')
 <style>
@@ -45,14 +45,14 @@
 
 <div class="app-title">
     <div>
-        <h1><i class="fa fa-bolt"></i> {{ $activeShift ? 'Live Shift Pulse' : 'Daily Sales Monitor' }}</h1>
+        <h1><i class="fa fa-bolt"></i> {{ $activeShift ? __('live_sales.live_shift_pulse') : __('live_sales.daily_sales_monitor') }}</h1>
         <p>
             @if($pulseMode === 'none')
                 <span class="text-warning"><i class="fa fa-exclamation-triangle"></i> {{ $scopeLabel }}</span>
             @elseif($activeShift)
-                Monitoring <strong>Shift #{{ $activeShift->id }}</strong> (started {{ $activeShift->opened_at->format('H:i') }})
+                {{ __('live_sales.monitoring_shift', ['id' => $activeShift->id, 'time' => $activeShift->opened_at->format('H:i')]) }}
             @else
-                Real-time pulse for <strong>{{ $scopeLabel }}</strong> — {{ now()->format('l, F j') }}
+                {!! __('live_sales.pulse_for', ['scope' => '<strong>'.$scopeLabel.'</strong>', 'date' => now()->translatedFormat('l, F j')]) !!}
             @endif
             @if(!empty($filterNote))
             <br><small class="text-muted" id="pulse-filter-note"><i class="fa fa-filter"></i> {{ $filterNote }}</small>
@@ -61,8 +61,8 @@
     </div>
     <ul class="app-breadcrumb breadcrumb">
         <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
-        <li class="breadcrumb-item"><a href="{{ route('live-sales.index') }}">Live Monitor</a></li>
-        <li class="breadcrumb-item" id="last-updated-text" style="font-weight: bold; color: #940000;">Synced: Just now</li>
+        <li class="breadcrumb-item"><a href="{{ route('live-sales.index') }}">{{ __('live_sales.live_monitor') }}</a></li>
+        <li class="breadcrumb-item" id="last-updated-text" style="font-weight: bold; color: #940000;">{{ __('live_sales.synced_now') }}</li>
     </ul>
 </div>
 
@@ -73,9 +73,9 @@
         <div class="widget-small primary coloured-icon">
             <i class="icon fa fa-money fa-3x"></i>
             <div class="info">
-                <h4>{{ $activeShift ? 'Shift Revenue' : 'Today Revenue' }}</h4>
+                <h4>{{ $activeShift ? __('live_sales.stats.shift_revenue') : __('live_sales.stats.today_revenue') }}</h4>
                 <p><b id="total-revenue-text">{{ money($totalRevenue) }}</b></p>
-                <small>Cash: <span id="cash-revenue-text">{{ money($todayCash, false) }}</span> | Digital: <span id="digital-revenue-text">{{ money($todayDigital, false) }}</span></small>
+                <small>{{ __('live_sales.stats.cash') }}: <span id="cash-revenue-text">{{ money($todayCash, false) }}</span> | {{ __('live_sales.stats.digital') }}: <span id="digital-revenue-text">{{ money($todayDigital, false) }}</span></small>
             </div>
         </div>
     </div>
@@ -83,9 +83,9 @@
         <div class="widget-small info coloured-icon" style="background-color: #28a745 !important;">
             <i class="icon fa fa-line-chart fa-3x"></i>
             <div class="info">
-                <h4>{{ $activeShift ? 'Shift Profit' : 'Gross Profit' }}</h4>
+                <h4>{{ $activeShift ? __('live_sales.stats.shift_profit') : __('live_sales.stats.gross_profit') }}</h4>
                 <p><b id="total-profit-text">{{ money($shiftProfit) }}</b></p>
-                <small class="text-white" id="margin-text">Margin: {{ $marginPercent }}%</small>
+                <small class="text-white" id="margin-text">{{ __('live_sales.stats.margin', ['percent' => $marginPercent]) }}</small>
             </div>
         </div>
     </div>
@@ -93,9 +93,9 @@
         <div class="widget-small warning coloured-icon">
             <i class="icon fa fa-refresh fa-3x"></i>
             <div class="info">
-                <h4>In Circulation</h4>
+                <h4>{{ __('live_sales.stats.in_circulation') }}</h4>
                 <p><b id="total-circulation-text">{{ money($moneyInCirculation) }}</b></p>
-                <small>Collected − profit (approx.)</small>
+                <small>{{ __('live_sales.stats.circulation_hint') }}</small>
             </div>
         </div>
     </div>
@@ -103,12 +103,12 @@
         <div class="widget-small danger coloured-icon">
             <i class="icon fa fa-shopping-cart fa-3x"></i>
             <div class="info">
-                <h4>{{ $activeShift ? 'Shift Orders' : 'Today Orders' }}</h4>
+                <h4>{{ $activeShift ? __('live_sales.stats.shift_orders') : __('live_sales.stats.today_orders') }}</h4>
                 <p>
-                    <b id="total-orders-count">{{ $totalOrders }}</b> <small>Total</small> |
-                    <b class="text-white" id="active-orders-count">{{ $activeOrders }}</b> <small>Open</small>
+                    <b id="total-orders-count">{{ $totalOrders }}</b> <small>{{ __('live_sales.stats.total') }}</small> |
+                    <b class="text-white" id="active-orders-count">{{ $activeOrders }}</b> <small>{{ __('live_sales.stats.open') }}</small>
                 </p>
-                <small>Paid: <span id="served-orders-count">{{ $servedOrders }}</span></small>
+                <small>{{ __('live_sales.stats.paid') }}: <span id="served-orders-count">{{ $servedOrders }}</span></small>
             </div>
         </div>
     </div>
@@ -118,8 +118,8 @@
     <div class="col-md-8">
         <div class="tile p-3 mb-4" style="min-height: 250px; display: flex; flex-direction: column;">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0 text-muted small font-weight-bold text-uppercase">{{ $activeShift ? 'Shift velocity' : 'Hourly velocity' }}</h6>
-                <span class="badge badge-primary">Sales per hour</span>
+                <h6 class="mb-0 text-muted small font-weight-bold text-uppercase">{{ $activeShift ? __('live_sales.charts.shift_velocity') : __('live_sales.charts.hourly_velocity') }}</h6>
+                <span class="badge badge-primary">{{ __('live_sales.charts.sales_per_hour') }}</span>
             </div>
             <div class="velocity-chart-container flex-grow-1">
                 <canvas id="velocityChart"></canvas>
@@ -129,8 +129,8 @@
     <div class="col-md-4">
         <div class="tile p-3 mb-4" style="min-height: 250px; display: flex; flex-direction: column;">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0 text-muted small font-weight-bold text-uppercase">Sales mix</h6>
-                <span class="badge badge-info">Products vs services</span>
+                <h6 class="mb-0 text-muted small font-weight-bold text-uppercase">{{ __('live_sales.charts.sales_mix') }}</h6>
+                <span class="badge badge-info">{{ __('live_sales.charts.products_vs_services') }}</span>
             </div>
             <div class="flex-grow-1 d-flex align-items-center justify-content-center">
                 <div style="width: 180px; height: 180px;">
@@ -145,7 +145,7 @@
     <div class="col-md-8 mb-4">
         <div class="tile">
             <h3 class="tile-title border-bottom pb-2">
-                <i class="fa fa-flash text-warning mr-2"></i> Real-time sales stream
+                <i class="fa fa-flash text-warning mr-2"></i> {{ __('live_sales.feed.title') }}
             </h3>
             <div class="tile-body" id="live-feed-container" style="max-height: 600px; overflow-y: auto;">
                 @include('live-sales.partials.feed_items', ['liveFeed' => $liveFeed])
@@ -154,7 +154,7 @@
     </div>
     <div class="col-md-4">
         <div class="tile mb-4">
-            <h3 class="tile-title border-bottom pb-2"><i class="fa fa-users text-primary mr-2"></i> Staff leaderboard</h3>
+            <h3 class="tile-title border-bottom pb-2"><i class="fa fa-users text-primary mr-2"></i> {{ __('live_sales.staff.leaderboard') }}</h3>
             <div class="tile-body">
                 <ul class="list-group list-group-flush" id="staff-pulse-container">
                     @include('live-sales.partials.staff_items', ['staffPulse' => $staffPulse])
@@ -162,29 +162,29 @@
             </div>
         </div>
         <div class="tile">
-            <h3 class="tile-title border-bottom pb-2"><i class="fa fa-star text-warning mr-2"></i> Trending now</h3>
+            <h3 class="tile-title border-bottom pb-2"><i class="fa fa-star text-warning mr-2"></i> {{ __('live_sales.trending.title') }}</h3>
             <div class="tile-body">
                 <div class="mb-3">
-                    <h6 class="text-muted small font-weight-bold mb-3">TOP PRODUCTS</h6>
+                    <h6 class="text-muted small font-weight-bold mb-3">{{ __('live_sales.trending.top_products') }}</h6>
                     @forelse($topProducts as $product)
                     <div class="d-flex justify-content-between align-items-center mb-2 px-1">
                         <span class="small font-weight-bold">{{ $product->name }}</span>
                         <span class="badge badge-pill badge-primary">{{ number_format($product->total_qty, 0) }}</span>
                     </div>
                     @empty
-                    <p class="small text-muted mb-0">No product lines yet.</p>
+                    <p class="small text-muted mb-0">{{ __('live_sales.trending.no_products') }}</p>
                     @endforelse
                 </div>
                 <hr>
                 <div>
-                    <h6 class="text-muted small font-weight-bold mb-3">TOP SERVICES</h6>
+                    <h6 class="text-muted small font-weight-bold mb-3">{{ __('live_sales.trending.top_services') }}</h6>
                     @forelse($topServices as $service)
                     <div class="d-flex justify-content-between align-items-center mb-2 px-1">
                         <span class="small">{{ $service->name }}</span>
                         <span class="badge badge-pill badge-info">{{ number_format($service->total_qty, 0) }}</span>
                     </div>
                     @empty
-                    <p class="small text-muted mb-0">No service lines yet.</p>
+                    <p class="small text-muted mb-0">{{ __('live_sales.trending.no_services') }}</p>
                     @endforelse
                 </div>
             </div>
@@ -194,9 +194,19 @@
 @endsection
 
 @push('scripts')
+@php
+    $pulseI18n = [
+        'sales' => __('live_sales.charts.sales'),
+        'products' => __('live_sales.charts.products'),
+        'services' => __('live_sales.charts.services'),
+        'synced_at' => __('live_sales.synced_at'),
+        'margin' => __('live_sales.stats.margin'),
+    ];
+@endphp
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (function () {
+    var pulseI18n = @json($pulseI18n);
     var velocityChart, categoryChart;
     var refreshInterval = 30000;
     var lastRefresh = Date.now();
@@ -210,7 +220,7 @@
             data: {
                 labels: Array.from({length: 24}, function (_, i) { return i + ':00'; }),
                 datasets: [{
-                    label: 'Sales',
+                    label: pulseI18n.sales,
                     data: @json(array_values($hourlyData)),
                     borderColor: '#940000',
                     backgroundColor: 'rgba(148, 0, 0, 0.05)',
@@ -235,7 +245,7 @@
         categoryChart = new Chart(catCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Products', 'Services'],
+                labels: [pulseI18n.products, pulseI18n.services],
                 datasets: [{
                     data: [{{ $categoryMix['products'] }}, {{ $categoryMix['services'] }}],
                     backgroundColor: ['#940000', '#17a2b8'],
@@ -286,7 +296,7 @@
             document.getElementById('digital-revenue-text').innerText = data.revenue.digital;
             document.getElementById('total-profit-text').innerText = 'TZS ' + data.revenue.profit;
             document.getElementById('total-circulation-text').innerText = 'TZS ' + data.revenue.circulation;
-            document.getElementById('margin-text').innerText = 'Margin: ' + data.margin_percent + '%';
+            document.getElementById('margin-text').innerText = pulseI18n.margin.replace(':percent', data.margin_percent);
 
             document.getElementById('total-orders-count').innerText = data.pulse.total_orders;
             document.getElementById('active-orders-count').innerText = data.pulse.active_orders;
@@ -301,7 +311,7 @@
             categoryChart.data.datasets[0].data = [data.category_mix.products, data.category_mix.services];
             categoryChart.update('none');
 
-            document.getElementById('last-updated-text').innerText = 'Synced: ' + new Date().toLocaleTimeString();
+            document.getElementById('last-updated-text').innerText = pulseI18n.synced_at.replace(':time', new Date().toLocaleTimeString());
             lastRefresh = Date.now();
         })
         .catch(function (err) {

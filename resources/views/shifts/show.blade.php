@@ -33,10 +33,10 @@
         <table class="table table-sm table-bordered mb-0">
           <thead class="thead-light">
             <tr>
-              <th>Item</th>
+              <th>{{ __('tables.columns.item') }}</th>
               <th class="text-right">System Stock</th>
               <th class="text-right">Physical Count</th>
-              <th class="text-right">Short By</th>
+              <th class="text-right">{{ __('tables.columns.short_by') }}</th>
               <th>Staff Reason</th>
               <th>Owner Decision</th>
               <th>Recorded By</th>
@@ -63,7 +63,7 @@
                       <br><small class="text-muted">{{ $check->owner_notes }}</small>
                     @endif
                   @else
-                    <span class="badge badge-warning">Pending</span>
+                    <span class="badge badge-warning">{{ __('tables.status.pending') }}</span>
                   @endif
                 </td>
                 <td>{{ $check->recorder->name ?? $shift->user->name }}</td>
@@ -81,7 +81,7 @@
       <h3 class="tile-title">Opening Stock Check</h3>
       <div class="tile-body table-responsive">
         <table class="table table-sm table-bordered">
-          <thead><tr><th>Item</th><th class="text-right">System</th><th class="text-right">Counted</th><th class="text-right">Variance</th><th>Notes</th></tr></thead>
+          <thead><tr><th>{{ __('tables.columns.item') }}</th><th class="text-right">System</th><th class="text-right">Counted</th><th class="text-right">Variance</th><th>Notes</th></tr></thead>
           <tbody>
             @forelse($shift->openingChecks as $check)
               <tr class="{{ $check->isShort() ? 'table-danger' : (abs($check->variance) > 0.001 ? 'table-warning' : '') }}">
@@ -112,7 +112,7 @@
       <h3 class="tile-title">Closing Stock Check</h3>
       <div class="tile-body table-responsive">
         <table class="table table-sm table-bordered">
-          <thead><tr><th>Item</th><th class="text-right">System</th><th class="text-right">Counted</th><th class="text-right">Variance</th></tr></thead>
+          <thead><tr><th>{{ __('tables.columns.item') }}</th><th class="text-right">System</th><th class="text-right">Counted</th><th class="text-right">Variance</th></tr></thead>
           <tbody>
             @forelse($shift->closingChecks as $check)
               <tr class="{{ abs($check->variance) > 0.001 ? 'table-warning' : '' }}">
@@ -138,7 +138,7 @@
   <h3 class="tile-title">Sales During Shift</h3>
   <div class="tile-body table-responsive">
     <table class="table table-bordered table-sm">
-      <thead><tr><th>Ref</th><th>Time</th><th>Total</th><th>Paid</th><th>Status</th></tr></thead>
+      <thead><tr><th>Ref</th><th>{{ __('tables.columns.time') }}</th><th>{{ __('tables.columns.total') }}</th><th>{{ __('tables.columns.paid') }}</th><th>{{ __('tables.columns.status') }}</th></tr></thead>
       <tbody>
         @forelse($shift->sales as $sale)
           <tr>

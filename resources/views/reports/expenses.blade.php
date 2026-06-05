@@ -56,7 +56,7 @@
           <table class="table table-hover table-bordered report-table mb-0">
             <thead>
               <tr>
-                <th>Date</th>
+                <th>{{ __('tables.columns.date') }}</th>
                 <th class="money-col">Staff Expenses</th>
                 <th class="money-col">Owner Expenses</th>
                 <th class="money-col">Daily Total</th>

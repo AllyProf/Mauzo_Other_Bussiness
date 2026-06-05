@@ -74,7 +74,7 @@
         <th>Month</th>
         <th>Invoice</th>
         <th class="text-right">Amount</th>
-        <th>Status</th>
+        <th>{{ __('tables.columns.status') }}</th>
       </tr>
     </thead>
     <tbody>

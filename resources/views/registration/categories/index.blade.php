@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Categories')
+@section('title', __('categories.title'))
 
 @section('styles')
 <style>
@@ -94,8 +94,8 @@
 
 <div class="app-title">
   <div>
-    <h1><i class="fa fa-list"></i> Categories</h1>
-    <p>Manage product categories or choose a template for your business type</p>
+    <h1><i class="fa fa-list"></i> {{ __('categories.title') }}</h1>
+    <p>{{ __('categories.subtitle') }}</p>
   </div>
 </div>
 
@@ -103,30 +103,30 @@
 <div class="alert alert-success py-2 mb-3">
   <i class="fa fa-check-circle"></i>
   <strong>
-    Imported business types
     @if($branchFilterId ?? null)
-      for {{ $activeBranchName }}
+      {{ __('categories.imported_types_for', ['branch' => $activeBranchName]) }}
+    @else
+      {{ __('categories.imported_types') }}:
     @endif
-    :
   </strong>
   @foreach($importedTypesMeta ?? $importedTypes as $imported)
     <span class="badge badge-light ml-1">
-      {{ $imported['label'] ?? 'Business' }}@if(str_starts_with($imported['key'] ?? '', 'custom:')) (Custom)@endif
+      {{ $imported['label'] ?? __('categories.business') }}@if(str_starts_with($imported['key'] ?? '', 'custom:')) ({{ __('categories.custom') }})@endif
       @if(!empty($imported['branch_names']))
         <span class="text-muted">→ {{ implode(', ', $imported['branch_names']) }}</span>
       @endif
     </span>
   @endforeach
-  <span class="text-muted ml-2">· {{ $categories->count() }} categories loaded</span>
+  <span class="text-muted ml-2">· {{ __('categories.categories_loaded', ['count' => $categories->count()]) }}</span>
 </div>
 @endif
 
 <div class="alert alert-info py-2 mb-3">
   <i class="fa fa-credit-card"></i>
-  Your <strong>{{ $business->plan->name ?? 'plan' }}</strong> allows
-  <strong>{{ $business->businessTypesLimitLabel() }}</strong> business type(s).
+  @php $limitLabel = $typesLimit === null ? __('categories.unlimited') : (string) $typesLimit; @endphp
+  {{ __('categories.plan_allowance', ['plan' => $business->plan->name ?? __('categories.default_plan'), 'limit' => $limitLabel]) }}
   @if($typesLimit !== null)
-    <span class="ml-1">Used: <strong>{{ $typesUsed }}</strong>@if($typesRemaining !== null) · Remaining: <strong>{{ $typesRemaining }}</strong>@endif</span>
+    <span class="ml-1">{{ __('categories.used', ['count' => $typesUsed]) }}@if($typesRemaining !== null) · {{ __('categories.remaining', ['count' => $typesRemaining]) }}@endif</span>
   @endif
 </div>
 
@@ -134,8 +134,8 @@
 <div class="row mb-3">
   <div class="col-md-12">
     <div class="tile">
-      <h3 class="tile-title">Choose Your Business Type</h3>
-      <p class="text-muted small mb-3">Pick the branch, select one or more business types below, then import their categories. You can combine types if your plan allows (e.g. Spare Parts + Grocery). Existing categories with the same name will not be duplicated.</p>
+      <h3 class="tile-title">{{ __('categories.choose_type') }}</h3>
+      <p class="text-muted small mb-3">{{ __('categories.choose_type_hint') }}</p>
 
       <form id="templateForm" action="{{ route('categories.import-templates') }}" method="POST">
         @csrf
@@ -150,9 +150,9 @@
             <div class="business-type-card {{ $isImported ? 'imported' : '' }}" data-type="{{ $key }}" data-label="{{ $template['label'] }}" data-categories="{{ implode(', ', $template['categories']) }}" data-imported="{{ $isImported ? '1' : '0' }}">
               <i class="fa {{ $template['icon'] ?? 'fa-store' }}"></i>
               <div class="label-text">{{ $template['label'] }}</div>
-              <div class="small text-muted">{{ count($template['categories']) }} categories</div>
+              <div class="small text-muted">{{ __('categories.categories_count', ['count' => count($template['categories'])]) }}</div>
               @if($isImported)
-                <div class="small imported-badge text-success"><i class="fa fa-check"></i> Imported</div>
+                <div class="small imported-badge text-success"><i class="fa fa-check"></i> {{ __('categories.imported') }}</div>
               @endif
             </div>
           @endforeach
@@ -161,14 +161,14 @@
             <div class="business-type-card imported" style="cursor: default;">
               <i class="fa fa-pencil"></i>
               <div class="label-text">{{ $imported['label'] }}</div>
-              <div class="small imported-badge text-success"><i class="fa fa-check"></i> Custom · Imported</div>
+              <div class="small imported-badge text-success"><i class="fa fa-check"></i> {{ __('categories.custom_imported') }}</div>
             </div>
             @endif
           @endforeach
         </div>
 
         <button type="button" class="btn btn-info" id="btnImportTemplate" disabled>
-          <i class="fa fa-magic"></i> Import Selected Template(s)
+          <i class="fa fa-magic"></i> {{ __('categories.import_selected') }}
         </button>
         @endif
       </form>
@@ -179,13 +179,13 @@
 <div class="row mb-3">
   <div class="col-md-12">
     <div class="tile">
-      <h3 class="tile-title">Custom Business Type</h3>
-      <p class="text-muted small mb-3">If your business is not listed above, write your business name and the categories you need. Each custom business name uses one business type slot on your plan.</p>
+      <h3 class="tile-title">{{ __('categories.custom_type') }}</h3>
+      <p class="text-muted small mb-3">{{ __('categories.custom_type_hint') }}</p>
 
       @php $customImported = collect($importedTypes)->filter(fn ($t) => str_starts_with($t['key'] ?? '', 'custom:')); @endphp
       @if($customImported->isNotEmpty())
       <div class="alert alert-info py-2 mb-3">
-        <i class="fa fa-store"></i> Imported custom business types:
+        <i class="fa fa-store"></i> {{ __('categories.imported_custom_types') }}
         @foreach($customImported as $imported)
           <strong class="ml-1">{{ $imported['label'] }}</strong>@if(!$loop->last),@endif
         @endforeach
@@ -200,21 +200,21 @@
           <div class="row">
             <div class="col-md-4">
               <div class="form-group mb-md-0">
-                <label class="control-label font-weight-bold">Business Name</label>
-                <input class="form-control" type="text" name="custom_business_name" value="{{ old('custom_business_name') }}" placeholder="e.g. Mobile Accessories Shop" required>
+                <label class="control-label font-weight-bold">{{ __('categories.business_name') }}</label>
+                <input class="form-control" type="text" name="custom_business_name" value="{{ old('custom_business_name') }}" placeholder="{{ __('categories.business_name_placeholder') }}" required>
               </div>
             </div>
             <div class="col-md-8">
               <div class="form-group mb-md-0">
-                <label class="control-label font-weight-bold">Categories</label>
-                <textarea class="form-control" name="custom_categories" rows="3" placeholder="Enter category names, one per line or separated by commas&#10;e.g. Chargers, Phone Cases, Screen Guards, Earphones" required></textarea>
-                <small class="text-muted">Separate categories with commas or put each on a new line.</small>
+                <label class="control-label font-weight-bold">{{ __('categories.categories_label') }}</label>
+                <textarea class="form-control" name="custom_categories" rows="3" placeholder="{{ __('categories.categories_placeholder') }}" required></textarea>
+                <small class="text-muted">{{ __('categories.categories_hint') }}</small>
               </div>
             </div>
           </div>
           <div class="mt-3">
             <button type="button" class="btn btn-primary" id="btnImportCustom">
-              <i class="fa fa-plus-circle"></i> Import Custom Categories
+              <i class="fa fa-plus-circle"></i> {{ __('categories.import_custom') }}
             </button>
           </div>
         </div>
@@ -228,30 +228,30 @@
   @can('add_items')
   <div class="col-md-4">
     <div class="tile">
-      <h3 class="tile-title">Add New Category</h3>
+      <h3 class="tile-title">{{ __('categories.add_new') }}</h3>
       @if(count($importedTypes) > 0)
       <form action="{{ route('categories.store') }}" method="POST">
         @csrf
         @include('registration.categories.partials.branch-select', ['fieldId' => 'addCategoryBranchSelect'])
         <div class="form-group">
-          <label class="control-label">Business Type <span class="text-danger">*</span></label>
+          <label class="control-label">{{ __('categories.business_type') }} <span class="text-danger">*</span></label>
           <select class="form-control" name="source_business_type_key" id="addCategoryTypeKey" required>
             @foreach($importedTypes as $imported)
               <option value="{{ $imported['key'] }}">{{ $imported['label'] }}</option>
             @endforeach
           </select>
-          <small class="text-muted">Choose which imported business this category belongs to.</small>
+          <small class="text-muted">{{ __('categories.business_type_hint') }}</small>
         </div>
         <div class="form-group">
-          <label class="control-label">Category Name</label>
-          <input class="form-control" type="text" name="name" placeholder="e.g. Engine Parts" required>
+          <label class="control-label">{{ __('categories.category_name') }}</label>
+          <input class="form-control" type="text" name="name" placeholder="{{ __('categories.category_name_placeholder') }}" required>
         </div>
-        <button class="btn btn-primary btn-block" type="submit"><i class="fa fa-plus"></i> Add Category</button>
+        <button class="btn btn-primary btn-block" type="submit"><i class="fa fa-plus"></i> {{ __('categories.add_category') }}</button>
       </form>
       @else
       <div class="alert alert-warning mb-0">
-        <i class="fa fa-lock"></i> Import a business type first.
-        <p class="small mb-0 mt-2">Use <strong>Choose Your Business Type</strong> or <strong>Custom Business Type</strong> above to register your business name and categories before adding new ones manually.</p>
+        <i class="fa fa-lock"></i> {{ __('categories.import_first') }}
+        <p class="small mb-0 mt-2">{!! __('categories.import_first_hint_html', ['choose' => __('categories.choose_type'), 'custom' => __('categories.custom_type')]) !!}</p>
       </div>
       @endif
     </div>
@@ -262,15 +262,15 @@
     <div class="tile">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
-          <h3 class="tile-title mb-0">Your Categories</h3>
-          <p class="text-muted small mb-0 mt-1">Switch tabs to view categories for each business type.</p>
+          <h3 class="tile-title mb-0">{{ __('categories.your_categories') }}</h3>
+          <p class="text-muted small mb-0 mt-1">{{ __('categories.tabs_hint') }}</p>
         </div>
         @can('delete_items')
           @if($categories->isNotEmpty())
           <form id="clearAllCategoriesForm" action="{{ route('categories.clear-all') }}" method="POST">
             @csrf @method('DELETE')
             <button type="button" class="btn btn-outline-danger btn-sm" id="btnClearAllCategories">
-              <i class="fa fa-eraser"></i> Clear All Categories
+              <i class="fa fa-eraser"></i> {{ __('categories.clear_all') }}
             </button>
           </form>
           @endif
@@ -282,7 +282,7 @@
         @if(count($importedTypes) > 1)
         <li class="nav-item">
           <a class="nav-link category-type-tab {{ $defaultCategoryTab === 'all' ? 'active' : '' }}" href="#" data-type="all">
-            All <span class="badge badge-secondary ml-1">{{ $categories->count() }}</span>
+            {{ __('categories.all') }} <span class="badge badge-secondary ml-1">{{ $categories->count() }}</span>
           </a>
         </li>
         @endif
@@ -292,7 +292,7 @@
             <a class="nav-link category-type-tab {{ (count($importedTypes) === 1 || $defaultCategoryTab === $imported['key']) ? 'active' : '' }}" href="#" data-type="{{ $imported['key'] }}">
               {{ $imported['label'] }}
               @if(str_starts_with($imported['key'] ?? '', 'custom:'))
-                <span class="badge badge-info ml-1">Custom</span>
+                <span class="badge badge-info ml-1">{{ __('categories.custom') }}</span>
               @endif
               <span class="badge badge-secondary ml-1">{{ $typeCount }}</span>
             </a>
@@ -301,7 +301,7 @@
         @if($otherCount > 0)
         <li class="nav-item">
           <a class="nav-link category-type-tab" href="#" data-type="other">
-            Other <span class="badge badge-secondary ml-1">{{ $otherCount }}</span>
+            {{ __('categories.other') }} <span class="badge badge-secondary ml-1">{{ $otherCount }}</span>
           </a>
         </li>
         @endif
@@ -311,17 +311,17 @@
       <div class="tile-body px-0 pt-0">
         <div id="categoryTabEmpty" class="text-center text-muted py-4" style="display:none;">
           <i class="fa fa-folder-open-o fa-2x mb-2"></i>
-          <p class="mb-0">No categories in this business type yet.</p>
+          <p class="mb-0">{{ __('categories.no_categories_type') }}</p>
         </div>
         <table class="table table-hover table-bordered mb-0" id="categoriesTable">
           <thead>
             <tr>
-              <th>Name</th>
+              <th>{{ __('tables.columns.name') }}</th>
               @if($viewingAllBranches ?? false)
-              <th>Branch</th>
+              <th>{{ __('tables.columns.branch') }}</th>
               @endif
-              <th>Items Count</th>
-              <th>Actions</th>
+              <th>{{ __('categories.items_count') }}</th>
+              <th>{{ __('tables.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -333,7 +333,7 @@
                         <form action="{{ route('categories.update', $category->id) }}" method="POST" class="form-inline">
                             @csrf @method('PUT')
                             <input type="text" name="name" value="{{ $category->name }}" class="form-control form-control-sm mr-2" required>
-                            <button type="submit" class="btn btn-sm btn-link text-success"><i class="fa fa-save"></i> Save</button>
+                            <button type="submit" class="btn btn-sm btn-link text-success"><i class="fa fa-save"></i> {{ __('categories.save') }}</button>
                         </form>
                         @else
                         {{ $category->name }}
@@ -342,7 +342,7 @@
                     @if($viewingAllBranches ?? false)
                     <td><span class="badge badge-light border">{{ $category->branch?->name ?? '—' }}</span></td>
                     @endif
-                    <td><span class="badge badge-info">{{ $category->items_count ?? 0 }} items</span></td>
+                    <td><span class="badge badge-info">{{ $category->items_count ?? 0 }} {{ __('categories.items') }}</span></td>
                     <td>
                         @can('delete_items')
                         <form action="{{ route('categories.destroy', $category->id) }}" method="POST" class="delete-cat-form" style="display:inline">
@@ -367,6 +367,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 $(document).ready(function() {
+    const catI18n = @json(__('categories.swal'));
     const importedKeys = @json($importedKeys);
     const typesLimit = @json($typesLimit);
     const typesUsed = @json($typesUsed);
@@ -425,7 +426,7 @@ $(document).ready(function() {
             return true;
         }
 
-        Swal.fire('Select Branch', 'Please choose which branch this business type belongs to.', 'warning');
+        Swal.fire(catI18n.select_branch, catI18n.select_branch_text, 'warning');
         return false;
     }
 
@@ -465,7 +466,7 @@ $(document).ready(function() {
         }
 
         if (selectedTypes.length === 0) {
-            Swal.fire('Select Business Types', 'Please click one or more business types above first.', 'warning');
+            Swal.fire(catI18n.select_types, catI18n.select_types_text, 'warning');
             return;
         }
 
@@ -474,8 +475,11 @@ $(document).ready(function() {
         if (typesLimit !== null && newSlotsNeeded > (typesLimit - typesUsed)) {
             Swal.fire({
                 icon: 'warning',
-                title: 'Plan limit reached',
-                html: 'Your plan allows <strong>' + typesLimit + '</strong> business type(s).<br>You have <strong>' + typesUsed + '</strong> and selected import would need <strong>' + newSlotsNeeded + '</strong> new slot(s).<br><br>Clear all categories or upgrade your plan.',
+                title: catI18n.plan_limit,
+                html: catI18n.plan_limit_html
+                    .replace(':limit', typesLimit)
+                    .replace(':used', typesUsed)
+                    .replace(':needed', newSlotsNeeded),
                 confirmButtonColor: '#940000'
             });
             return;
@@ -492,22 +496,22 @@ $(document).ready(function() {
 
         const branchLabel = selectedBranchLabel('#templateBranchSelect');
         const branchHtml = branchLabel
-            ? '<p class="mb-2"><strong>Branch:</strong> ' + branchLabel + '</p>'
+            ? '<p class="mb-2"><strong>' + catI18n.branch_label + '</strong> ' + branchLabel + '</p>'
             : '';
 
         Swal.fire({
-            title: 'Import Selected Templates?',
+            title: catI18n.import_templates,
             html: branchHtml + '<div style="text-align:left;max-height:220px;overflow-y:auto;padding:8px;background:#f8f9fa;border-radius:4px;font-size:13px">' + previews + '</div>',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#940000',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="fa fa-magic"></i> Yes, Import!',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: '<i class="fa fa-magic"></i> ' + catI18n.yes_import,
+            cancelButtonText: catI18n.cancel,
         }).then((result) => {
             if (result.isConfirmed) {
                 const $btn = $('#btnImportTemplate');
-                $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Importing...');
+                $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> ' + catI18n.importing);
                 document.getElementById('templateForm').submit();
             }
         });
@@ -523,7 +527,7 @@ $(document).ready(function() {
         const categoriesRaw = form.querySelector('[name="custom_categories"]').value.trim();
 
         if (!businessName || !categoriesRaw) {
-            Swal.fire('Missing Information', 'Please enter your business name and at least one category.', 'warning');
+            Swal.fire(catI18n.missing_info, catI18n.missing_info_text, 'warning');
             return;
         }
 
@@ -535,22 +539,22 @@ $(document).ready(function() {
 
         const branchLabel = selectedBranchLabel('#customBranchSelect');
         const branchHtml = branchLabel
-            ? '<p class="mb-2"><strong>Branch:</strong> ' + branchLabel + '</p>'
+            ? '<p class="mb-2"><strong>' + catI18n.branch_label + '</strong> ' + branchLabel + '</p>'
             : '';
 
         Swal.fire({
-            title: 'Import Custom Categories?',
-            html: branchHtml + '<strong>' + businessName + '</strong><br><br>Categories to add:<br><br><div style="text-align:left;padding:8px;background:#f8f9fa;border-radius:4px;font-size:13px">' + preview + '</div>',
+            title: catI18n.import_custom_title,
+            html: branchHtml + '<strong>' + businessName + '</strong><br><br>' + catI18n.categories_to_add + '<br><br><div style="text-align:left;padding:8px;background:#f8f9fa;border-radius:4px;font-size:13px">' + preview + '</div>',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#940000',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="fa fa-plus-circle"></i> Yes, Import!',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: '<i class="fa fa-plus-circle"></i> ' + catI18n.yes_import,
+            cancelButtonText: catI18n.cancel,
         }).then((result) => {
             if (result.isConfirmed) {
                 const $btn = $('#btnImportCustom');
-                $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Importing...');
+                $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> ' + catI18n.importing);
                 form.submit();
             }
         });
@@ -562,14 +566,14 @@ $(document).ready(function() {
         const form = btn.closest('form');
 
         Swal.fire({
-            title: 'Delete "' + name + '"?',
-            html: 'Items in this category will become <strong>uncategorized</strong>.<br>This action cannot be undone.',
+            title: catI18n.delete_title.replace(':name', name),
+            html: catI18n.delete_html,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="fa fa-trash"></i> Yes, Delete!',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: '<i class="fa fa-trash"></i> ' + catI18n.yes_delete,
+            cancelButtonText: catI18n.cancel,
         }).then((result) => {
             if (result.isConfirmed) {
                 form.submit();
@@ -579,18 +583,18 @@ $(document).ready(function() {
 
     $('#btnClearAllCategories').on('click', function() {
         Swal.fire({
-            title: 'Clear ALL Categories?',
-            html: 'This will remove <strong>{{ $categories->count() }}</strong> categories from your list.<br>Items in those categories will become <strong>uncategorized</strong>.<br><br>This cannot be undone!',
+            title: catI18n.clear_all_title,
+            html: catI18n.clear_all_html.replace(':count', '{{ $categories->count() }}'),
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="fa fa-eraser"></i> Yes, Clear Everything!',
-            cancelButtonText: 'Cancel',
+            confirmButtonText: '<i class="fa fa-eraser"></i> ' + catI18n.yes_clear,
+            cancelButtonText: catI18n.cancel,
         }).then((result) => {
             if (result.isConfirmed) {
                 const $btn = $('#btnClearAllCategories');
-                $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Clearing...');
+                $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> ' + catI18n.clearing);
                 document.getElementById('clearAllCategoriesForm').submit();
             }
         });

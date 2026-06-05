@@ -24,10 +24,10 @@
         <table class="table table-hover table-bordered mb-0">
           <thead>
             <tr>
-              <th>Business</th>
+              <th>{{ __('tables.columns.business') }}</th>
               <th>Owner</th>
-              <th>Phone</th>
-              <th>Region</th>
+              <th>{{ __('tables.columns.phone') }}</th>
+              <th>{{ __('tables.columns.region') }}</th>
               <th>Business Type</th>
               <th>Registered</th>
               <th class="text-center">Actions</th>
@@ -77,7 +77,7 @@
               <tr>
                 <th>Business Name</th>
                 <th>Current Plan</th>
-                <th>Status</th>
+                <th>{{ __('tables.columns.status') }}</th>
                 <th class="text-center" style="min-width: 220px;">Actions</th>
               </tr>
             </thead>
@@ -103,7 +103,7 @@
                   @elseif($business->expiry_date && \Carbon\Carbon::parse($business->expiry_date)->isPast())
                     <span class="badge badge-danger">Expired</span>
                   @else
-                    <span class="badge badge-success">Active</span>
+                    <span class="badge badge-success">{{ __('tables.status.active') }}</span>
                   @endif
                 </td>
                 <td class="text-center text-nowrap">

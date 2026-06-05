@@ -42,7 +42,7 @@
       <table class="table table-bordered table-sm stock-check-table">
         <thead style="position: sticky; top: 0; background: #fff; z-index: 2;">
           <tr>
-            <th>Item</th>
+            <th>{{ __('tables.columns.item') }}</th>
             <th class="text-right">System Stock Now</th>
             <th class="text-right">Physical Count</th>
             <th class="text-right">Variance</th>

@@ -35,7 +35,7 @@
           <p class="mb-1">
             <strong>Status:</strong>
             @if($stockLoss->isCancelled())
-              <span class="badge badge-secondary">Cancelled</span>
+              <span class="badge badge-secondary">{{ __('tables.status.cancelled') }}</span>
             @else
               <span class="badge badge-danger">Recorded</span>
             @endif
@@ -55,9 +55,9 @@
         <table class="table table-bordered table-striped">
           <thead>
             <tr>
-              <th>Item</th>
-              <th>Category</th>
-              <th>SKU</th>
+              <th>{{ __('tables.columns.item') }}</th>
+              <th>{{ __('tables.columns.category') }}</th>
+              <th>{{ __('tables.columns.sku') }}</th>
               <th class="text-right">Qty Lost</th>
               <th class="text-right">Unit Cost</th>
               <th class="text-right">Cost Value</th>

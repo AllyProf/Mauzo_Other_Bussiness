@@ -77,7 +77,7 @@
       <h3 class="tile-title text-danger"><i class="fa fa-warning"></i> Recent Stock Shortages</h3>
       <div class="tile-body p-0">
         <table class="table table-sm mb-0">
-          <thead><tr><th>When</th><th>Shift</th><th>Staff</th><th>Item</th><th class="text-right">Short By</th><th>Reason</th></tr></thead>
+          <thead><tr><th>{{ __('tables.columns.when') }}</th><th>{{ __('tables.columns.shift') }}</th><th>{{ __('tables.columns.staff') }}</th><th>{{ __('tables.columns.item') }}</th><th class="text-right">{{ __('tables.columns.short_by') }}</th><th>{{ __('tables.columns.reason') }}</th></tr></thead>
           <tbody>
             @foreach($recentShortages as $check)
               <tr>
@@ -110,15 +110,15 @@
         <table class="table table-hover table-bordered">
           <thead>
             <tr>
-              <th>Officer</th>
-              <th>Opened</th>
-              <th>Closed</th>
-              <th>Status</th>
-              <th>Sales</th>
-              <th>Gross</th>
-              <th>Collected</th>
-              <th>Opening Short</th>
-              <th>Actions</th>
+              <th>{{ __('tables.columns.officer') }}</th>
+              <th>{{ __('tables.columns.opened') }}</th>
+              <th>{{ __('tables.columns.closed') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
+              <th>{{ __('tables.columns.sales') }}</th>
+              <th>{{ __('tables.columns.gross') }}</th>
+              <th>{{ __('tables.columns.collected') }}</th>
+              <th>{{ __('tables.columns.opening_short') }}</th>
+              <th>{{ __('tables.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -151,7 +151,7 @@
                   @endif
                 </td>
                 <td>
-                  <a href="{{ route('shifts.show', $shift) }}" class="btn btn-sm btn-primary" title="View"><i class="fa fa-eye"></i></a>
+                  <a href="{{ route('shifts.show', $shift) }}" class="btn btn-sm btn-primary" title="{{ __('tables.actions.view') }}"><i class="fa fa-eye"></i></a>
                   @if($shift->isOpen() && $shift->user_id === Auth::id())
                     <a href="{{ route('day-closing.index', ['shift' => $shift->id]) }}" class="btn btn-sm btn-warning" title="End shift / handover"><i class="fa fa-balance-scale"></i></a>
                   @endif

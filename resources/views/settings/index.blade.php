@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Business Settings')
+@section('title', __('settings.title'))
 
 @section('styles')
 <style>
@@ -19,13 +19,13 @@
 
 <div class="app-title">
   <div>
-    <h1><i class="fa fa-gears"></i> Business Settings</h1>
+    <h1><i class="fa fa-gears"></i> {{ __('settings.title') }}</h1>
     <p>Manage your shop profile, finance rules, and automation alerts.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
     <li class="breadcrumb-item"><a href="{{ url('/home') }}">Dashboard</a></li>
-    <li class="breadcrumb-item active">Settings</li>
+    <li class="breadcrumb-item active">{{ __('common.settings') }}</li>
   </ul>
 </div>
 
@@ -34,24 +34,24 @@
     <div class="tile">
       <ul class="nav nav-tabs settings-tabs border-bottom mb-0 px-3 pt-2" role="tablist">
         <li class="nav-item">
-          <a class="nav-link {{ $activeTab === 'profile' ? 'active' : '' }}" data-toggle="tab" href="#tab-profile"><i class="fa fa-building"></i> Business Profile</a>
+          <a class="nav-link {{ $activeTab === 'profile' ? 'active' : '' }}" data-toggle="tab" href="#tab-profile"><i class="fa fa-building"></i> {{ __('settings.tabs.profile') }}</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link {{ $activeTab === 'finance' ? 'active' : '' }}" data-toggle="tab" href="#tab-finance"><i class="fa fa-money"></i> Finance</a>
+          <a class="nav-link {{ $activeTab === 'finance' ? 'active' : '' }}" data-toggle="tab" href="#tab-finance"><i class="fa fa-money"></i> {{ __('settings.tabs.finance') }}</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link {{ $activeTab === 'payments' ? 'active' : '' }}" data-toggle="tab" href="#tab-payments"><i class="fa fa-credit-card"></i> Payment Methods</a>
+          <a class="nav-link {{ $activeTab === 'payments' ? 'active' : '' }}" data-toggle="tab" href="#tab-payments"><i class="fa fa-credit-card"></i> {{ __('settings.tabs.payments') }}</a>
         </li>
         <li class="nav-item">
           @if(plan_feature('automation_reminders'))
-          <a class="nav-link {{ $activeTab === 'automation' ? 'active' : '' }}" data-toggle="tab" href="#tab-automation"><i class="fa fa-bell"></i> Automation</a>
+          <a class="nav-link {{ $activeTab === 'automation' ? 'active' : '' }}" data-toggle="tab" href="#tab-automation"><i class="fa fa-bell"></i> {{ __('settings.tabs.automation') }}</a>
           @endif
         </li>
         <li class="nav-item">
-          <a class="nav-link {{ $activeTab === 'shifts' ? 'active' : '' }}" data-toggle="tab" href="#tab-shifts"><i class="fa fa-clock-o"></i> Sales Shifts</a>
+          <a class="nav-link {{ $activeTab === 'shifts' ? 'active' : '' }}" data-toggle="tab" href="#tab-shifts"><i class="fa fa-clock-o"></i> {{ __('settings.tabs.shifts') }}</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link {{ $activeTab === 'subscription' ? 'active' : '' }}" data-toggle="tab" href="#tab-subscription"><i class="fa fa-credit-card"></i> Subscription</a>
+          <a class="nav-link {{ $activeTab === 'subscription' ? 'active' : '' }}" data-toggle="tab" href="#tab-subscription"><i class="fa fa-credit-card"></i> {{ __('settings.tabs.subscription') }}</a>
         </li>
       </ul>
 
@@ -578,7 +578,7 @@
           @include('partials.subscription-billing', ['overview' => $billingOverview, 'business' => $business])
 
           <table class="table table-bordered mb-4">
-            <tr><th style="width:38%;">Account Status</th><td>{!! $business->is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Suspended</span>' !!}</td></tr>
+            <tr><th style="width:38%;">Account Status</th><td>{!! $business->is_active ? '<span class="badge badge-success">{{ __('tables.status.active') }}</span>' : '<span class="badge badge-danger">Suspended</span>' !!}</td></tr>
             <tr><th>Staff Limit</th><td>{{ $business->plan->max_users ?? 'Unlimited' }}</td></tr>
             <tr><th>Business Types Limit</th><td>{{ ($business->plan->max_business_types ?? 1) === 0 ? 'Unlimited' : ($business->plan->max_business_types ?? 1) }}</td></tr>
             <tr><th>Business Types Used</th><td>{{ $business->categoryBusinessTypesUsed() }}</td></tr>

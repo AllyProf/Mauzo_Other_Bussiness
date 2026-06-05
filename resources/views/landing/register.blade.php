@@ -99,7 +99,7 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label class="control-label font-weight-bold">District</label>
-                                    <select class="form-control" name="district" id="businessDistrict" required {{ old('region') ? '' : 'disabled' }}>
+                                    <select class="form-control" name="district" id="businessDistrict" required>
                                         <option value="">{{ old('region') ? 'Select district' : 'Select region first' }}</option>
                                         @foreach(old('region') ? tanzania_districts(old('region')) : [] as $district)
                                         <option value="{{ $district }}" {{ old('district') === $district ? 'selected' : '' }}>{{ $district }}</option>
@@ -154,40 +154,12 @@
 @endsection
 
 @push('scripts')
+@include('partials.tanzania-location-select2', [
+    'selectedDistrict' => old('district', ''),
+    'disableDistrictWhenEmpty' => true,
+])
 <script>
 (function () {
-    var tanzaniaDistricts = @json(tanzania_districts());
-    var regionSelect = document.getElementById('businessRegion');
-    var districtSelect = document.getElementById('businessDistrict');
-
-    function populateDistricts(region) {
-        districtSelect.innerHTML = '';
-        var placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = region ? 'Select district' : 'Select region first';
-        districtSelect.appendChild(placeholder);
-
-        if (!region || !tanzaniaDistricts[region]) {
-            districtSelect.disabled = true;
-            return;
-        }
-
-        tanzaniaDistricts[region].forEach(function (district) {
-            var option = document.createElement('option');
-            option.value = district;
-            option.textContent = district;
-            if ('{{ old('district') }}' === district) {
-                option.selected = true;
-            }
-            districtSelect.appendChild(option);
-        });
-        districtSelect.disabled = false;
-    }
-
-    regionSelect.addEventListener('change', function () {
-        populateDistricts(regionSelect.value);
-    });
-
     var form = document.getElementById('register-form');
     var overlay = document.getElementById('register-progress-overlay');
     var progressTitle = document.getElementById('register-progress-title');

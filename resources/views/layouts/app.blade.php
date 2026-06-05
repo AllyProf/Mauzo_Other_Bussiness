@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
   <head>
     <meta name="description" content="SpareParts POS - SaaS Management System">
     <title>@yield('title', 'SpareParts POS')</title>
@@ -262,5 +262,6 @@
     
     @stack('scripts')
     @yield('scripts')
+    @include('partials.system-tour')
   </body>
 </html>

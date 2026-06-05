@@ -25,7 +25,7 @@
         <table class="table table-hover table-bordered">
           <thead style="background-color: #940000; color: white;">
             <tr>
-              <th>Business</th>
+              <th>{{ __('tables.columns.business') }}</th>
               <th>Current Plan</th>
               <th>Expiry Date</th>
               <th>Days Left</th>

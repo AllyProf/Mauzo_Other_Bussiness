@@ -164,3 +164,91 @@ if (! function_exists('platform_admin_can')) {
         return app(\App\Services\PlatformAdminService::class)->canAccess(auth()->user(), $permission);
     }
 }
+
+if (! function_exists('__report_status')) {
+    function __report_status(?string $status): string
+    {
+        if ($status === null || $status === '') {
+            return '';
+        }
+
+        $key = 'owner_reports.statuses.'.str_replace(' ', '_', $status);
+        $translated = __($key);
+
+        return $translated !== $key ? $translated : $status;
+    }
+}
+
+if (! function_exists('category_templates')) {
+    /**
+     * Category import templates with locale-aware labels and category names.
+     *
+     * @return array<string, array{label: string, icon?: string, categories: array<int, string>}>
+     */
+    function category_templates(): array
+    {
+        $templates = config('category_templates', []);
+        $locale = app()->getLocale();
+
+        if ($locale === 'en') {
+            return $templates;
+        }
+
+        $langPath = lang_path($locale.'/category_templates.php');
+        if (! is_file($langPath)) {
+            return $templates;
+        }
+
+        /** @var array<string, array{label?: string, categories?: array<int, string>}> $translations */
+        $translations = require $langPath;
+
+        foreach ($templates as $key => $template) {
+            if (! isset($translations[$key])) {
+                continue;
+            }
+
+            if (! empty($translations[$key]['label'])) {
+                $templates[$key]['label'] = $translations[$key]['label'];
+            }
+
+            if (! empty($translations[$key]['categories'])) {
+                $templates[$key]['categories'] = $translations[$key]['categories'];
+            }
+        }
+
+        return $templates;
+    }
+}
+
+if (! function_exists('packaging_templates')) {
+    /**
+     * Packaging unit templates with locale-aware unit names.
+     *
+     * @return array<string, array<int, string>>
+     */
+    function packaging_templates(): array
+    {
+        $templates = config('packaging_templates', []);
+        $locale = app()->getLocale();
+
+        if ($locale === 'en') {
+            return $templates;
+        }
+
+        $langPath = lang_path($locale.'/packaging_templates.php');
+        if (! is_file($langPath)) {
+            return $templates;
+        }
+
+        /** @var array<string, array<int, string>> $translations */
+        $translations = require $langPath;
+
+        foreach ($templates as $key => $units) {
+            if (! empty($translations[$key])) {
+                $templates[$key] = $translations[$key];
+            }
+        }
+
+        return $templates;
+    }
+}

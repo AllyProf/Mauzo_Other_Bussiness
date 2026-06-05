@@ -51,9 +51,9 @@
           <b>Branch:</b> {{ $receiving->branch->name ?? '—' }}<br>
           <b>Status:</b>
           @if(($receiving->status ?? 'completed') === 'cancelled')
-              <span class="badge badge-secondary">Cancelled</span>
+              <span class="badge badge-secondary">{{ __('tables.status.cancelled') }}</span>
           @else
-              <span class="badge badge-success">Completed</span>
+              <span class="badge badge-success">{{ __('tables.status.completed') }}</span>
           @endif
           <br>
           <b>Notes:</b> {{ $receiving->notes ?? 'N/A' }}
@@ -64,8 +64,8 @@
           <table class="table table-striped table-bordered">
             <thead>
               <tr>
-                <th>Item Name</th>
-                <th>SKU</th>
+                <th>{{ __('tables.columns.item_name') }}</th>
+                <th>{{ __('tables.columns.sku') }}</th>
                 <th>Quantity</th>
                 <th>Unit Cost</th>
                 <th>Discount</th>

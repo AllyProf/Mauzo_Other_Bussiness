@@ -8,7 +8,7 @@
 <div class="tile">
   <div class="tile-body table-responsive">
     <table class="table table-hover table-bordered mb-0">
-      <thead><tr><th>User</th><th>IP</th><th>Last Activity</th><th>User Agent</th><th></th></tr></thead>
+      <thead><tr><th>{{ __('tables.columns.user') }}</th><th>{{ __('tables.columns.ip') }}</th><th>Last Activity</th><th>User Agent</th><th></th></tr></thead>
       <tbody>
         @forelse($sessions as $session)
         <tr class="{{ $session->is_current ? 'table-info' : '' }}">

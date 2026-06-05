@@ -42,7 +42,7 @@ class LoginController extends Controller
             $request->session()->regenerateToken();
 
             return back()->withErrors([
-                'email' => 'Your registration is pending approval. We will notify you once your account is activated.',
+                'email' => __('auth.pending_approval'),
             ])->onlyInput('email');
         }
 
@@ -52,7 +52,7 @@ class LoginController extends Controller
             $request->session()->regenerateToken();
 
             return back()->withErrors([
-                'email' => 'Your business account is suspended. Please contact support.',
+                'email' => __('auth.business_suspended'),
             ])->onlyInput('email');
         }
 
@@ -62,13 +62,20 @@ class LoginController extends Controller
             $request->session()->regenerateToken();
 
             return back()->withErrors([
-                'email' => 'Your account has been deactivated. Contact your administrator.',
+                'email' => __('auth.account_deactivated'),
             ])->onlyInput('email');
         }
 
         $request->session()->regenerate();
 
         AuditLog::logLogin($user);
+
+        $isFirstLogin = $user->first_login_at === null;
+
+        if ($isFirstLogin) {
+            $user->update(['first_login_at' => now()]);
+            app(\App\Services\SystemTourService::class)->queueForNextPage($user->fresh());
+        }
 
         return redirect()->intended($user->defaultLandingUrl());
     }
@@ -92,7 +99,7 @@ class LoginController extends Controller
         $inactive = User::where('email', $email)->where('is_active', false)->exists();
         if ($inactive) {
             return back()->withErrors([
-                'email' => 'Your account has been deactivated. Contact your administrator.',
+                'email' => __('auth.account_deactivated'),
             ])->onlyInput('email');
         }
 
@@ -103,12 +110,12 @@ class LoginController extends Controller
 
         if ($pending) {
             return back()->withErrors([
-                'email' => 'Your registration is pending approval. We will notify you once your account is activated.',
+                'email' => __('auth.pending_approval'),
             ])->onlyInput('email');
         }
 
         return back()->withErrors([
-            'email' => 'The provided credentials do not match our records.',
+            'email' => __('auth.invalid_credentials'),
         ])->onlyInput('email');
     }
 }

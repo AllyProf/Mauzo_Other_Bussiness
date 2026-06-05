@@ -20,11 +20,11 @@
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Subject</th>
-                <th>Status</th>
+                <th>{{ __('tables.columns.subject') }}</th>
+                <th>{{ __('tables.columns.status') }}</th>
                 <th>Reply</th>
                 <th>Last Updated</th>
-                <th>Action</th>
+                <th>{{ __('tables.columns.action') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -36,7 +36,7 @@
                   @if($ticket->status == 'open')
                     <span class="badge badge-danger">Open</span>
                   @elseif($ticket->status == 'pending')
-                    <span class="badge badge-warning">Pending</span>
+                    <span class="badge badge-warning">{{ __('tables.status.pending') }}</span>
                   @elseif($ticket->status == 'resolved')
                     <span class="badge badge-success">Resolved</span>
                   @else

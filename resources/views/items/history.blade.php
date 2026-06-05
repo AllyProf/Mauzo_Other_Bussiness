@@ -72,15 +72,15 @@
         <table class="table table-hover table-bordered" id="historyTable">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Time</th>
+              <th>{{ __('tables.columns.date') }}</th>
+              <th>{{ __('tables.columns.time') }}</th>
               <th>Type</th>
-              <th>Reference</th>
+              <th>{{ __('tables.columns.reference') }}</th>
               <th>Qty Change</th>
               <th>By (Staff)</th>
               <th>Supplier / Customer</th>
-              <th>Details</th>
-              <th>Status</th>
+              <th>{{ __('tables.columns.details') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
             </tr>
           </thead>
           <tbody>

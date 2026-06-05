@@ -74,9 +74,9 @@
           <table class="table table-bordered table-hover mb-0">
             <thead class="thead-light">
               <tr>
-                <th>Date</th>
-                <th>Officer</th>
-                <th>Shift</th>
+                <th>{{ __('tables.columns.date') }}</th>
+                <th>{{ __('tables.columns.officer') }}</th>
+                <th>{{ __('tables.columns.shift') }}</th>
                 <th>Net Handover</th>
                 <th>Submitted</th>
                 <th class="text-center">Action</th>
@@ -224,7 +224,7 @@
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Staff</th>
+                  <th>{{ __('tables.columns.staff') }}</th>
                   <th>Orders</th>
                   <th>Gross Sales</th>
                   <th>Cash</th>
@@ -308,13 +308,13 @@
             <table class="table table-hover table-bordered table-sm mb-0">
               <thead>
                 <tr>
-                  <th>Time</th>
+                  <th>{{ __('tables.columns.time') }}</th>
                   <th>Collected By</th>
-                  <th>Customer</th>
+                  <th>{{ __('tables.columns.customer') }}</th>
                   <th>Sale Ref</th>
                   <th>Sale Date</th>
-                  <th>Amount</th>
-                  <th>Method</th>
+                  <th>{{ __('tables.columns.amount') }}</th>
+                  <th>{{ __('tables.columns.method') }}</th>
                   <th>Provider / Ref</th>
                 </tr>
               </thead>
@@ -412,10 +412,10 @@
             <table class="table table-hover table-bordered table-sm">
               <thead class="thead-light">
                 <tr>
-                  <th>Business</th>
+                  <th>{{ __('tables.columns.business') }}</th>
                   <th>Orders</th>
                   <th>Gross Sales</th>
-                  <th>Collected</th>
+                  <th>{{ __('tables.columns.collected') }}</th>
                   <th class="text-danger">New Debt</th>
                   <th class="text-primary">Debt Paid</th>
                   <th class="text-success">Profit</th>
@@ -450,7 +450,7 @@
               </tbody>
               <tfoot class="thead-light">
                 <tr>
-                  <th>Total</th>
+                  <th>{{ __('tables.columns.total') }}</th>
                   <th>{{ $businessTypeTotals['orders'] ?? 0 }}</th>
                   <th>TZS {{ number_format($businessTypeTotals['gross_sales'] ?? 0, 0) }}</th>
                   <th>TZS {{ number_format($businessTypeTotals['collected'] ?? 0, 0) }}</th>
@@ -592,9 +592,9 @@
           <table class="table table-bordered">
             <thead class="thead-light">
               <tr>
-                <th>Officer</th>
-                <th>Opened</th>
-                <th>Status</th>
+                <th>{{ __('tables.columns.officer') }}</th>
+                <th>{{ __('tables.columns.opened') }}</th>
+                <th>{{ __('tables.columns.status') }}</th>
               </tr>
             </thead>
             <tbody>

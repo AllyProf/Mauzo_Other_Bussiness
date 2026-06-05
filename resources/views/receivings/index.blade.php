@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Receiving History')
+@section('title', __('pages.receivings.title'))
 
 @section('styles')
 <style>
@@ -19,30 +19,30 @@
 @section('content')
 <div class="app-title">
   <div>
-    <h1><i class="fa fa-truck"></i> Receiving History</h1>
-    <p>Track incoming stock from suppliers</p>
+    <h1><i class="fa fa-truck"></i> {{ __('pages.receivings.title') }}</h1>
+    <p>{{ __('pages.receivings.subtitle') }}</p>
   </div>
   @can('receive_stock')
-  <a href="{{ route('receivings.create') }}" class="btn btn-primary"><i class="fa fa-plus"></i> New Stock-In</a>
+  <a href="{{ route('receivings.create') }}" class="btn btn-primary"><i class="fa fa-plus"></i> {{ __('pages.receivings.new_stock_in') }}</a>
   @endcan
 </div>
 
 @if($multiBusiness ?? false)
 <div class="alert alert-light border mb-3 py-2">
   <i class="fa fa-info-circle text-primary"></i>
-  <strong>Multi-department shop:</strong> use the tabs below to filter receiving records by business type.
+  <strong>{{ __('pages.receivings.multi_department') }}</strong> {{ __('pages.receivings.multi_department_hint') }}
 </div>
 @endif
 
 @if(!empty($activeBranchName))
 <div class="alert alert-info mb-3 py-2">
   <i class="fa fa-map-marker"></i>
-  Showing stock-in records for <strong>{{ $activeBranchName }}</strong>.
+  {{ __('pages.receivings.showing_branch') }} <strong>{{ $activeBranchName }}</strong>.
 </div>
 @elseif($viewingAllBranches ?? false)
 <div class="alert alert-light border mb-3 py-2">
   <i class="fa fa-building"></i>
-  Viewing <strong>all branches</strong>. Switch branch in the header to filter.
+  {{ __('pages.receivings.viewing_all_branches') }}
 </div>
 @endif
 
@@ -52,7 +52,7 @@
       @if($multiBusiness ?? false)
       <div class="business-type-tabs mb-3" id="businessTypeTabs">
         <button type="button" class="business-type-tab active" data-business-type="all">
-          <i class="fa fa-th-large"></i> All
+          <i class="fa fa-th-large"></i> {{ __('tables.filters.all') }}
         </button>
         @foreach($businessTypes as $type)
         <button type="button" class="business-type-tab" data-business-type="{{ $type['key'] }}">
@@ -64,24 +64,24 @@
 
       <div class="row mb-3">
         <div class="col-md-5">
-          <label class="control-label font-weight-bold small text-uppercase text-muted">Search</label>
+          <label class="control-label font-weight-bold small text-uppercase text-muted">{{ __('tables.filters.search') }}</label>
           <div class="input-group">
             <div class="input-group-prepend">
               <span class="input-group-text"><i class="fa fa-search"></i></span>
             </div>
-            <input type="text" id="receivingSearch" class="form-control" placeholder="Ref no, supplier, branch, staff, amount...">
+            <input type="text" id="receivingSearch" class="form-control" placeholder="{{ __('tables.filters.search') }}...">
           </div>
         </div>
         <div class="col-md-3">
-          <label class="control-label font-weight-bold small text-uppercase text-muted">Status</label>
+          <label class="control-label font-weight-bold small text-uppercase text-muted">{{ __('tables.filters.status') }}</label>
           <select id="receivingStatusFilter" class="form-control">
-            <option value="all">All Statuses</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="all">{{ __('tables.filters.all_statuses') }}</option>
+            <option value="completed">{{ __('tables.filters.completed') }}</option>
+            <option value="cancelled">{{ __('tables.filters.cancelled') }}</option>
           </select>
         </div>
         <div class="col-md-4 d-flex align-items-end">
-          <small class="text-muted" id="receivingResultCount">{{ $receivings->count() }} record(s)</small>
+          <small class="text-muted" id="receivingResultCount">{{ __('tables.counts.records', ['count' => $receivings->count()]) }}</small>
         </div>
       </div>
 
@@ -89,14 +89,14 @@
         <table class="table table-hover table-bordered mb-0" id="receivingsTable">
           <thead>
             <tr>
-              <th>Ref No.</th>
-              <th>Branch</th>
-              <th>Supplier</th>
-              <th>Date</th>
-              <th>Total Amount</th>
-              <th>Received By</th>
-              <th>Status</th>
-              <th>Action</th>
+              <th>{{ __('tables.columns.ref_no') }}</th>
+              <th>{{ __('tables.columns.branch') }}</th>
+              <th>{{ __('tables.columns.supplier') }}</th>
+              <th>{{ __('tables.columns.date') }}</th>
+              <th>{{ __('tables.columns.total_amount') }}</th>
+              <th>{{ __('tables.columns.received_by') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
+              <th>{{ __('tables.columns.action') }}</th>
             </tr>
           </thead>
           <tbody id="receivingsTableBody">
@@ -122,26 +122,26 @@
                     data-status="{{ $status }}"
                     data-business-types="{{ $businessTypeKeys->implode(',') }}">
                     <td><strong>{{ $receiving->reference_no }}</strong></td>
-                    <td>{{ $receiving->branch->name ?? '—' }}</td>
-                    <td>{{ $receiving->supplier->name ?? 'N/A' }}</td>
+                    <td>{{ $receiving->branch->name ?? __('tables.misc.dash') }}</td>
+                    <td>{{ $receiving->supplier->name ?? __('tables.misc.not_available') }}</td>
                     <td>{{ \Carbon\Carbon::parse($receiving->received_date)->format('M d, Y') }}</td>
                     <td>TZS {{ number_format($receiving->total_amount, 2) }}</td>
                     <td>{{ $receiving->user->name }}</td>
                     <td>
                         @if($status === 'cancelled')
-                            <span class="badge badge-secondary">Cancelled</span>
+                            <span class="badge badge-secondary">{{ __('tables.status.cancelled') }}</span>
                         @else
-                            <span class="badge badge-success">Completed</span>
+                            <span class="badge badge-success">{{ __('tables.status.completed') }}</span>
                         @endif
                     </td>
                     <td class="text-center text-nowrap">
-                        <a href="{{ route('receivings.show', $receiving->id) }}" class="btn btn-sm btn-info" title="View">
+                        <a href="{{ route('receivings.show', $receiving->id) }}" class="btn btn-sm btn-info" title="{{ __('tables.actions.view') }}">
                             <i class="fa fa-eye"></i>
                         </a>
                         @if($status !== 'cancelled')
                         <form action="{{ route('receivings.cancel', $receiving->id) }}" method="POST" class="d-inline">
                             @csrf
-                            <button type="submit" class="btn btn-sm btn-danger" title="Cancel" onclick="confirmAction(event, 'Cancel Receiving?', 'Stock added by this record will be removed from inventory.')"><i class="fa fa-times"></i></button>
+                            <button type="submit" class="btn btn-sm btn-danger" title="{{ __('tables.actions.cancel') }}" onclick="confirmAction(event, @json(__('tables.actions.cancel_receiving')), @json(__('tables.actions.cancel_receiving_text')))"><i class="fa fa-times"></i></button>
                         </form>
                         @endif
                     </td>
@@ -149,11 +149,11 @@
             @endforeach
             @if($receivings->isEmpty())
                 <tr id="receivingsEmptyRow">
-                    <td colspan="8" class="text-center">No receiving records found.</td>
+                    <td colspan="8" class="text-center">{{ __('tables.empty.receiving_records') }}</td>
                 </tr>
             @endif
             <tr id="receivingsNoMatchRow" style="display:none;">
-              <td colspan="8" class="text-center text-muted py-4">No records match your search.</td>
+              <td colspan="8" class="text-center text-muted py-4">{{ __('tables.empty.no_match') }}</td>
             </tr>
           </tbody>
         </table>
@@ -175,6 +175,7 @@ $(function () {
   var $count = $('#receivingResultCount');
   var hasMultipleBusinessTypes = @json($multiBusiness ?? false);
   var activeBusinessType = 'all';
+  var recordsShownLabel = @json(__('tables.counts.records_shown'));
 
   function rowMatchesBusinessType($row) {
     if (!hasMultipleBusinessTypes || activeBusinessType === 'all') {
@@ -216,7 +217,7 @@ $(function () {
       $noMatch.hide();
     }
 
-    $count.text(visible + ' record(s) shown');
+    $count.text(recordsShownLabel.replace(':count', visible));
   }
 
   $('#receivingSearch').on('input', filterReceivings);

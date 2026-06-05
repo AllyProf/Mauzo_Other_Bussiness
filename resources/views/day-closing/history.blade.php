@@ -22,19 +22,19 @@
         <table class="table table-hover table-bordered">
           <thead>
             <tr>
-              <th>Date</th>
+              <th>{{ __('tables.columns.date') }}</th>
               <th>Submitted By</th>
               @if($multiBusiness ?? false)
-              <th>Business</th>
+              <th>{{ __('tables.columns.business') }}</th>
               @endif
-              <th>Sales</th>
+              <th>{{ __('tables.columns.sales') }}</th>
               <th>Gross Sales</th>
               <th>Received</th>
               <th>Expenses</th>
               <th>Net Submitted</th>
-              <th>Status</th>
+              <th>{{ __('tables.columns.status') }}</th>
               <th>Submitted At</th>
-              <th>Action</th>
+              <th>{{ __('tables.columns.action') }}</th>
             </tr>
           </thead>
           <tbody>

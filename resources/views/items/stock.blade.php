@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Item Stock')
+@section('title', __('stock.title'))
 
 @section('styles')
 <style>
@@ -72,14 +72,14 @@
 @endphp
 <div class="app-title">
   <div>
-    <h1><i class="fa fa-cubes"></i> Item Stock</h1>
-    <p>View current inventory in detail</p>
+    <h1><i class="fa fa-cubes"></i> {{ __('stock.title') }}</h1>
+    <p>{{ __('stock.subtitle') }}</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
-    <li class="breadcrumb-item"><a href="{{ url('/home') }}">Dashboard</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('items.index') }}">Items</a></li>
-    <li class="breadcrumb-item">Stock</li>
+    <li class="breadcrumb-item"><a href="{{ url('/home') }}">{{ __('menu.dashboard') }}</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('items.index') }}">{{ __('menu.items') }}</a></li>
+    <li class="breadcrumb-item">{{ __('stock.breadcrumb_stock') }}</li>
   </ul>
 </div>
 
@@ -89,7 +89,7 @@
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-cubes fa-3x"></i>
       <div class="info">
-        <h4>Total Items</h4>
+        <h4>{{ __('stock.stats.total_items') }}</h4>
         <p><b>{{ $stats['total_items'] }}</b></p>
       </div>
     </div>
@@ -98,8 +98,8 @@
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-exclamation-triangle fa-3x"></i>
       <div class="info">
-        <h4>Low Stock Items</h4>
-        <p><b>{{ $stats['low_stock'] }}</b> <small>(≤ {{ $lowStockThreshold }} from settings)</small></p>
+        <h4>{{ __('stock.stats.low_stock_items') }}</h4>
+        <p><b>{{ $stats['low_stock'] }}</b> <small>{{ __('stock.stats.from_settings', ['count' => $lowStockThreshold]) }}</small></p>
       </div>
     </div>
   </div>
@@ -108,7 +108,7 @@
     <div class="widget-small success coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
-        <h4>Total Stock Value</h4>
+        <h4>{{ __('stock.stats.total_stock_value') }}</h4>
         <p><b>{{ money($totalValue) }}</b></p>
       </div>
     </div>
@@ -123,7 +123,7 @@
         @if($multiBusiness)
         <div class="business-type-tabs mr-3 mb-2" id="businessTypeTabs">
           <button type="button" class="business-type-tab active" data-business-type="all">
-            <i class="fa fa-th-large"></i> All
+            <i class="fa fa-th-large"></i> {{ __('stock.all') }}
           </button>
           @foreach($businessTypes as $type)
           <button type="button" class="business-type-tab" data-business-type="{{ $type['key'] }}">
@@ -143,11 +143,11 @@
           </div>
           @can('receive_stock')
           <a href="{{ route('receivings.create') }}" class="btn btn-primary btn-sm shadow-sm mr-2 mb-2">
-            <i class="fa fa-truck"></i> New Stock-In
+            <i class="fa fa-truck"></i> {{ __('stock.new_stock_in') }}
           </a>
           @endcan
           <a href="{{ route('items.index') }}" class="btn btn-secondary btn-sm shadow-sm mb-2">
-            <i class="fa fa-arrow-left"></i> Back
+            <i class="fa fa-arrow-left"></i> {{ __('stock.back') }}
           </a>
         </div>
       </div>
@@ -155,13 +155,12 @@
       @if(!empty($activeBranchName))
       <div class="alert alert-info py-2 mb-3">
         <i class="fa fa-map-marker"></i>
-        Showing stock for <strong>{{ $activeBranchName }}</strong> — items in categories assigned to this branch.
-        Business type tabs reflect this branch only.
+        {!! __('stock.branch.showing_for', ['branch' => '<strong>'.e($activeBranchName).'</strong>']) !!}
       </div>
       @elseif($viewingAllBranches ?? false)
       <div class="alert alert-light border py-2 mb-3">
         <i class="fa fa-building"></i>
-        Viewing <strong>all branches</strong>. Switch branch in the header to filter by branch.
+        {{ __('stock.branch.viewing_all') }}
       </div>
       @endif
 
@@ -169,24 +168,24 @@
       <div class="row mb-4">
         <div class="col-md-3">
           <div class="form-group mb-0">
-            <label class="control-label font-weight-bold">Search Items</label>
+            <label class="control-label font-weight-bold">{{ __('stock.search.label') }}</label>
             <div class="input-group">
               <div class="input-group-prepend">
                 <span class="input-group-text"><i class="fa fa-search"></i></span>
               </div>
-              <input type="text" id="inventorySearch" class="form-control" placeholder="Search by name, SKU, brand...">
+              <input type="text" id="inventorySearch" class="form-control" placeholder="{{ __('stock.search.placeholder') }}">
             </div>
           </div>
         </div>
         <div class="col-md-9">
-          <label class="control-label font-weight-bold">Quick Filters (Categories)</label>
+          <label class="control-label font-weight-bold">{{ __('stock.filters.quick_categories') }}</label>
           <div class="category-tabs-wrapper">
             <div class="d-flex align-items-center overflow-auto no-scrollbar py-1" id="categoryContainer">
               <button class="btn btn-sm btn-outline-primary active filter-pill mr-1 mb-1" data-filter="all" data-filter-type="category">
-                ALL ITEMS
+                {{ __('stock.filters.all_items') }}
               </button>
               <button class="btn btn-sm btn-outline-danger filter-pill mr-1 mb-1" data-filter="low_stock" data-filter-type="category">
-                <i class="fa fa-exclamation-triangle"></i> LOW STOCK
+                <i class="fa fa-exclamation-triangle"></i> {{ __('stock.filters.low_stock') }}
               </button>
               @foreach($categoryFilters as $cat)
                 <button class="btn btn-sm btn-outline-primary filter-pill mr-1 mb-1"
@@ -223,7 +222,7 @@
               <div class="tile p-3 h-100 mb-0 shadow-sm border-0 inventory-item-card transition-all"
                    style="border-radius: 15px; {{ $item['status_color'] === 'warning' ? 'background-color: #fffde7 !important;' : '' }}">
                 @if($item['is_low_stock'])
-                  <div class="badge badge-warning position-absolute" style="top: 10px; right: 10px; z-index: 5;">LOW STOCK</div>
+                  <div class="badge badge-warning position-absolute" style="top: 10px; right: 10px; z-index: 5;">{{ __('stock.card.low_stock') }}</div>
                 @endif
 
                 <div class="mb-2 pr-4">
@@ -236,12 +235,12 @@
 
                 <div class="mb-3">
                   <div class="bg-white border rounded p-2 shadow-xs">
-                    <div class="smallest text-muted text-uppercase font-weight-bold mb-1">Available</div>
+                    <div class="smallest text-muted text-uppercase font-weight-bold mb-1">{{ __('stock.card.available') }}</div>
                     @if(!empty($item['packaging_breakdown']))
                       <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
-                        <div class="smallest text-muted">Pieces</div>
+                        <div class="smallest text-muted">{{ __('stock.card.pieces') }}</div>
                         <div class="font-weight-bold text-{{ $item['status_color'] }}">
-                          {{ $item['formatted_quantity'] }} pcs
+                          {{ $item['formatted_quantity'] }} {{ __('stock.card.pcs') }}
                         </div>
                       </div>
                       @foreach($item['packaging_breakdown'] as $pkgStock)
@@ -249,7 +248,7 @@
                           <div class="smallest text-muted">
                             {{ $pkgStock['name'] }}
                             @if(($pkgStock['quantity_per_unit'] ?? 1) > 1)
-                              <span class="text-muted">({{ $pkgStock['quantity_per_unit'] }} pcs)</span>
+                              <span class="text-muted">({{ $pkgStock['quantity_per_unit'] }} {{ __('stock.card.pcs') }})</span>
                             @endif
                           </div>
                           <div class="font-weight-bold text-{{ $item['status_color'] }}">
@@ -260,9 +259,9 @@
                     @elseif($item['has_bulk_stock'])
                       <div class="d-flex justify-content-between align-items-center">
                         <div>
-                          <div class="smallest text-muted">Pieces</div>
+                          <div class="smallest text-muted">{{ __('stock.card.pieces') }}</div>
                           <div class="h6 mb-0 font-weight-bold text-{{ $item['status_color'] }}">
-                            {{ $item['formatted_quantity'] }} pcs
+                            {{ $item['formatted_quantity'] }} {{ __('stock.card.pcs') }}
                           </div>
                         </div>
                         <div class="text-right">
@@ -279,7 +278,7 @@
                     @endif
                     @if(!empty($branchFilterId) && ($item['branch_received_pieces'] ?? 0) > 0)
                     <div class="smallest text-muted mt-1 pt-1 border-top">
-                      Received at branch: <strong>{{ fmod($item['branch_received_pieces'], 1.0) === 0.0 ? (int) $item['branch_received_pieces'] : number_format($item['branch_received_pieces'], 2) }} pcs</strong>
+                      {{ __('stock.card.received_at_branch') }} <strong>{{ fmod($item['branch_received_pieces'], 1.0) === 0.0 ? (int) $item['branch_received_pieces'] : number_format($item['branch_received_pieces'], 2) }} {{ __('stock.card.pcs') }}</strong>
                     </div>
                     @endif
                   </div>
@@ -288,23 +287,23 @@
                 <div class="row no-gutters mb-3 text-center bg-white rounded border py-2 shadow-xs">
                   <div class="col-12">
                     @if($item['has_multi_packaging'])
-                      <div class="smallest text-muted mb-1">Selling Prices</div>
+                      <div class="smallest text-muted mb-1">{{ __('stock.card.selling_prices') }}</div>
                       @foreach($item['packaging_prices'] as $pkgPrice)
                         <div class="smallest {{ $loop->last ? 'mb-0' : 'mb-1' }}">
                           <strong>{{ $pkgPrice['name'] }}</strong>
                           @if($pkgPrice['quantity_per_unit'] > 1)
-                            <span class="text-muted">({{ $pkgPrice['quantity_per_unit'] }} pcs)</span>
+                            <span class="text-muted">({{ $pkgPrice['quantity_per_unit'] }} {{ __('stock.card.pcs') }})</span>
                           @endif
                           :
                           <span class="font-weight-bold {{ $pkgPrice['selling_price'] > 0 ? 'text-dark' : 'text-muted' }}">
-                            {{ $pkgPrice['selling_price'] > 0 ? money($pkgPrice['selling_price']) : 'Not set' }}
+                            {{ $pkgPrice['selling_price'] > 0 ? money($pkgPrice['selling_price']) : __('stock.card.not_set') }}
                           </span>
                         </div>
                       @endforeach
                     @else
-                      <div class="smallest text-muted">Selling Price</div>
+                      <div class="smallest text-muted">{{ __('stock.card.selling_price') }}</div>
                       <div class="font-weight-bold {{ $item['selling_price'] > 0 ? 'text-dark' : 'text-muted' }}">
-                        {{ $item['selling_price'] > 0 ? money($item['selling_price']) : 'Not set' }}
+                        {{ $item['selling_price'] > 0 ? money($item['selling_price']) : __('stock.card.not_set') }}
                       </div>
                     @endif
                   </div>
@@ -313,7 +312,7 @@
                 <div class="d-flex justify-content-between align-items-center mt-auto">
                   @if($canViewValue)
                   <div class="smallest">
-                    <span class="text-muted">Holding Value:</span><br>
+                    <span class="text-muted">{{ __('stock.card.holding_value') }}</span><br>
                     @if($item['holding_value'] > 0)
                       <strong class="text-success">{{ money($item['holding_value']) }}</strong>
                     @else
@@ -321,7 +320,7 @@
                     @endif
                   </div>
                   @endif
-                  <a href="{{ $item['history_url'] }}" class="btn btn-sm btn-outline-primary ml-auto" title="View History">
+                  <a href="{{ $item['history_url'] }}" class="btn btn-sm btn-outline-primary ml-auto" title="{{ __('stock.card.view_history') }}">
                     <i class="fa fa-history"></i>
                   </a>
                 </div>
@@ -335,23 +334,23 @@
             <table class="table table-hover table-bordered shadow-sm" style="border-radius: 10px; overflow: hidden;">
               <thead class="bg-light">
                 <tr>
-                  <th>Item Name</th>
-                  <th>Brand / Category</th>
-                  <th>Unit</th>
-                  <th>Current Stock</th>
-                  <th>Selling Price(s)</th>
+                  <th>{{ __('tables.columns.item_name') }}</th>
+                  <th>{{ __('tables.columns.brand_category') }}</th>
+                  <th>{{ __('tables.columns.unit') }}</th>
+                  <th>{{ __('tables.columns.current_stock') }}</th>
+                  <th>{{ __('tables.columns.selling_price') }}</th>
                   @if($canViewValue)
-                  <th>Holding Value</th>
+                  <th>{{ __('tables.columns.holding_value') }}</th>
                   @endif
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>{{ __('tables.columns.status') }}</th>
+                  <th>{{ __('tables.columns.actions') }}</th>
                 </tr>
               </thead>
               <tbody>
                 @foreach($stockItems as $item)
                 @php
                   $searchName = strtolower($item['name'] . ' ' . $item['sku'] . ' ' . $item['brand'] . ' ' . $item['category']);
-                  $statusLabel = $item['is_low_stock'] ? 'Low Stock' : 'In Stock';
+                  $statusLabel = $item['is_low_stock'] ? __('stock.status.low_stock') : __('stock.status.in_stock');
                 @endphp
                 <tr class="product-card-wrapper"
                     data-category="{{ $item['category_slug'] }}"
@@ -370,19 +369,19 @@
                   <td><span class="badge badge-secondary">{{ $item['unit'] }}</span></td>
                   <td>
                     @if(!empty($item['packaging_breakdown']))
-                      <strong class="text-{{ $item['status_color'] }}">{{ $item['formatted_quantity'] }} pcs</strong>
+                      <strong class="text-{{ $item['status_color'] }}">{{ $item['formatted_quantity'] }} {{ __('stock.card.pcs') }}</strong>
                       @foreach($item['packaging_breakdown'] as $pkgStock)
                         <br>
                         <span class="smallest text-muted">
                           {{ $pkgStock['name'] }}:
                           <strong class="text-{{ $item['status_color'] }}">{{ $pkgStock['formatted_count'] }}</strong>
                           @if(($pkgStock['quantity_per_unit'] ?? 1) > 1)
-                            <span>({{ $pkgStock['quantity_per_unit'] }} pcs each)</span>
+                            <span>({{ $pkgStock['quantity_per_unit'] }} {{ __('stock.card.pcs_each') }})</span>
                           @endif
                         </span>
                       @endforeach
                     @elseif($item['has_bulk_stock'])
-                      <strong class="text-{{ $item['status_color'] }}">{{ $item['formatted_quantity'] }} pcs</strong>
+                      <strong class="text-{{ $item['status_color'] }}">{{ $item['formatted_quantity'] }} {{ __('stock.card.pcs') }}</strong>
                       <br>
                       <span class="smallest text-muted">{{ $item['stock_bulk_count'] }} {{ $item['stock_bulk_name'] }}</span>
                     @else
@@ -395,14 +394,14 @@
                         <div class="smallest {{ $loop->last ? 'mb-0' : 'mb-1' }}">
                           <strong>{{ $pkgPrice['name'] }}</strong>
                           @if($pkgPrice['quantity_per_unit'] > 1)
-                            <span class="text-muted">({{ $pkgPrice['quantity_per_unit'] }} pcs)</span>
+                            <span class="text-muted">({{ $pkgPrice['quantity_per_unit'] }} {{ __('stock.card.pcs') }})</span>
                           @endif
                           :
-                          {{ $pkgPrice['selling_price'] > 0 ? money($pkgPrice['selling_price']) : 'Not set' }}
+                          {{ $pkgPrice['selling_price'] > 0 ? money($pkgPrice['selling_price']) : __('stock.card.not_set') }}
                         </div>
                       @endforeach
                     @else
-                      {{ $item['selling_price'] > 0 ? money($item['selling_price']) : 'Not set' }}
+                      {{ $item['selling_price'] > 0 ? money($item['selling_price']) : __('stock.card.not_set') }}
                     @endif
                   </td>
                   @if($canViewValue)
@@ -416,7 +415,7 @@
                   @endif
                   <td><span class="badge badge-{{ $item['status_color'] }}">{{ $statusLabel }}</span></td>
                   <td class="text-center">
-                    <a href="{{ $item['history_url'] }}" class="btn btn-sm btn-outline-primary" title="View History">
+                    <a href="{{ $item['history_url'] }}" class="btn btn-sm btn-outline-primary" title="{{ __('stock.card.view_history') }}">
                       <i class="fa fa-history"></i>
                     </a>
                   </td>
@@ -431,8 +430,8 @@
                id="totalValueBar"
                style="background: linear-gradient(135deg, #940000, #7a0000); color:white; border-radius: 15px;">
             <div class="mb-2 mb-md-0">
-              <h5 class="mb-0 font-weight-bold"><i class="fa fa-calculator mr-2"></i> Total Inventory Value</h5>
-              <small class="opacity-75">Estimated value based on current selling prices</small>
+              <h5 class="mb-0 font-weight-bold"><i class="fa fa-calculator mr-2"></i> {{ __('stock.summary.total_value') }}</h5>
+              <small class="opacity-75">{{ __('stock.summary.total_value_hint') }}</small>
             </div>
             <h3 class="mb-0 font-weight-bold" id="totalValueDisplay">{{ money($totalValue) }}</h3>
           </div>
@@ -442,14 +441,14 @@
           <div class="alert alert-info py-4 text-center shadow-xs" style="border-radius: 15px;">
             <i class="fa fa-info-circle fa-2x mb-3"></i>
             @if(!empty($activeBranchName))
-            <h4>No in-stock items for {{ $activeBranchName }}.</h4>
-            <p class="text-muted mb-0">No items with stock belong to categories assigned to this branch yet.<br>Switch branch in the header, assign categories to this branch, or record a stock-in.</p>
+            <h4>{{ __('stock.empty.branch_title', ['branch' => $activeBranchName]) }}</h4>
+            <p class="text-muted mb-0">{{ __('stock.empty.branch_text') }}</p>
             @else
-            <h4>No in-stock items to display.</h4>
-            <p class="text-muted mb-0">Items with zero stock or no category assigned are hidden here.<br>Assign categories on the Items page, or record stock-in for empty items.</p>
+            <h4>{{ __('stock.empty.general_title') }}</h4>
+            <p class="text-muted mb-0">{{ __('stock.empty.general_text') }}</p>
             @endif
             @can('receive_stock')
-            <a href="{{ route('receivings.create') }}" class="btn btn-primary mt-3"><i class="fa fa-truck"></i> Record Stock-In</a>
+            <a href="{{ route('receivings.create') }}" class="btn btn-primary mt-3"><i class="fa fa-truck"></i> {{ __('stock.record_stock_in') }}</a>
             @endcan
           </div>
         @endif

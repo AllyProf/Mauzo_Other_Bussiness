@@ -29,6 +29,14 @@ class AppServiceProvider extends ServiceProvider
             // Fresh deploy, wrong .env, or DB not migrated yet — safe for composer install / key:generate
         }
 
+        \Illuminate\Support\Facades\View::composer('*', function ($view) {
+            $locales = app(\App\Services\LocaleService::class);
+            $view->with([
+                'currentLocale' => $locales->current(),
+                'supportedLocales' => $locales->supported(),
+            ]);
+        });
+
         \Illuminate\Support\Facades\View::composer(
             ['layouts.partials._header', 'layouts.partials._sidebar', 'layouts.app'],
             function ($view) {
@@ -51,6 +59,9 @@ class AppServiceProvider extends ServiceProvider
                     'dueNoteRemindersCount' => 0,
                     'newNoteReminderToasts' => collect(),
                     'unreadAdminTickets' => 0,
+                    'showSystemTour' => false,
+                    'systemTourSteps' => [],
+                    'canReplaySystemTour' => false,
                 ];
 
                 $user = auth()->user();
@@ -68,6 +79,13 @@ class AppServiceProvider extends ServiceProvider
                             $data['headerBrand'] = $user->business->name;
                         }
                     }
+                }
+
+                if ($user) {
+                    $tourService = app(\App\Services\SystemTourService::class);
+                    $data['showSystemTour'] = $tourService->shouldShow($user);
+                    $data['systemTourSteps'] = $data['showSystemTour'] ? $tourService->stepsFor($user) : [];
+                    $data['canReplaySystemTour'] = (bool) $tourService->resolveTourKey($user);
                 }
 
                 if ($user && $user->role !== 'super_admin' && $user->role !== 'platform_staff') {

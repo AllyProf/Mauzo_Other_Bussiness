@@ -91,7 +91,7 @@
         <table class="table table-hover table-bordered mb-0">
           <thead>
             <tr>
-              <th>Title / Note</th>
+              <th>{{ __('tables.columns.title_note') }}</th>
               <th style="width: 180px;">Remind At</th>
               <th style="width: 120px;">Status</th>
               <th style="width: 160px;">Actions</th>
@@ -119,7 +119,7 @@
                 <td>
                   <div class="btn-group btn-group-sm">
                     @if(! $note->isCompleted())
-                      <a href="{{ route('notes.index', ['filter' => $filter, 'edit' => $note->id]) }}" class="btn btn-outline-primary" title="Edit">
+                      <a href="{{ route('notes.index', ['filter' => $filter, 'edit' => $note->id]) }}" class="btn btn-outline-primary" title="{{ __('tables.actions.edit') }}">
                         <i class="fa fa-pencil"></i>
                       </a>
                       <form action="{{ route('notes.complete', $note) }}" method="POST" class="d-inline">
@@ -132,7 +132,7 @@
                     <form action="{{ route('notes.destroy', $note) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this note?');">
                       @csrf
                       @method('DELETE')
-                      <button type="submit" class="btn btn-outline-danger" title="Delete">
+                      <button type="submit" class="btn btn-outline-danger" title="{{ __('tables.actions.delete') }}">
                         <i class="fa fa-trash"></i>
                       </button>
                     </form>

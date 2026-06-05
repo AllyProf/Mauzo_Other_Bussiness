@@ -23,7 +23,7 @@
 <div class="tile">
   <div class="tile-body table-responsive">
     <table class="table table-hover table-bordered mb-0">
-      <thead><tr><th>Date</th><th>Name</th><th>Contact</th><th>Company</th><th>Message</th><th>Status</th></tr></thead>
+      <thead><tr><th>{{ __('tables.columns.date') }}</th><th>{{ __('tables.columns.name') }}</th><th>Contact</th><th>Company</th><th>{{ __('tables.columns.message') }}</th><th>{{ __('tables.columns.status') }}</th></tr></thead>
       <tbody>
         @forelse($leads as $lead)
         <tr>

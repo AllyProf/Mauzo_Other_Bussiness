@@ -30,6 +30,7 @@ class ProfileController extends Controller
         $request->validate([
             'phone' => ['nullable', 'string', 'max:9', 'regex:/^[678]\d{8}$/'],
             'profile_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:2048'],
+            'locale' => ['nullable', 'string', 'in:en,sw'],
         ]);
 
         $phone = filled($request->phone) ? '+255'.$request->phone : null;
@@ -43,11 +44,16 @@ class ProfileController extends Controller
         }
 
         $user->phone = $phone;
+
+        if ($request->filled('locale')) {
+            app(\App\Services\LocaleService::class)->set($request->locale, $user);
+        }
+
         $user->save();
 
         AuditLog::log('UPDATE_PROFILE', "{$user->name} updated profile contact details", $user->business_id);
 
-        return redirect()->route('profile.show')->with('success', 'Profile updated successfully.');
+        return redirect()->route('profile.show')->with('success', __('common.profile_updated'));
     }
 
     public function updatePassword(Request $request)
@@ -63,7 +69,7 @@ class ProfileController extends Controller
 
         AuditLog::log('UPDATE_PROFILE_PASSWORD', "{$user->name} changed account password", $user->business_id);
 
-        return redirect()->route('profile.show')->with('success', 'Password updated successfully.');
+        return redirect()->route('profile.show')->with('success', __('common.password_updated'));
     }
 
     private function isStaffAccount(User $user): bool

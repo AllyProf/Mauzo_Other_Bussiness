@@ -235,8 +235,8 @@ jQuery(function($) {
 });
 </script>
 @endif
+@include('partials.tanzania-location-select2', ['selectedDistrict' => old('district', $business->district)])
 <script type="text/javascript">
-    const tanzaniaDistricts = @json(tanzania_districts());
     const currentExpiry = @json($business->expiry_date?->format('d M, Y'));
 
     function formatExpiryDate(months) {
@@ -267,34 +267,9 @@ jQuery(function($) {
         help.textContent = 'New expiry if you save with this plan (calculated from today).';
     }
 
-    function populateDistricts(region, selectedDistrict) {
-        const districtSelect = document.getElementById('businessDistrict');
-        districtSelect.innerHTML = '';
-
-        if (!region) {
-            districtSelect.appendChild(new Option('Select region first', ''));
-            return;
-        }
-
-        districtSelect.appendChild(new Option('Select district', ''));
-
-        (tanzaniaDistricts[region] || []).forEach(function(district) {
-            const option = new Option(district, district);
-            if (selectedDistrict === district) {
-                option.selected = true;
-            }
-            districtSelect.appendChild(option);
-        });
-    }
-
     jQuery(function($) {
-        $('#businessRegion').on('change', function() {
-            populateDistricts(this.value, '');
-        });
-
         $('#planSelect').on('change', updateExpiryPreview);
 
-        populateDistricts($('#businessRegion').val(), @json(old('district', $business->district)));
         updateExpiryPreview();
 
         $('#purgeDataForm').on('submit', function (e) {

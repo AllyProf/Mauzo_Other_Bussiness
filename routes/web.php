@@ -5,6 +5,8 @@ use App\Http\Controllers\Auth\BusinessRegistrationController;
 use App\Http\Controllers\LandingController;
 use Illuminate\Support\Facades\Route;
 
+Route::match(['get', 'post'], '/locale/{locale}', [App\Http\Controllers\LocaleController::class, 'switch'])->name('locale.switch');
+
 Route::get('/', [LandingController::class, 'index'])->name('landing.index');
 Route::post('/request-demo', [App\Http\Controllers\LandingLeadController::class, 'store'])->name('landing.lead.store');
 
@@ -22,6 +24,9 @@ Route::get('/register', fn () => redirect()->route('register.business'))->name('
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->middleware(['auth', 'check.user.active']);
 
 Route::middleware(['auth', 'check.user.active'])->group(function () {
+    Route::post('/system-tour/complete', [App\Http\Controllers\SystemTourController::class, 'complete'])->name('system-tour.complete');
+    Route::post('/system-tour/skip', [App\Http\Controllers\SystemTourController::class, 'skip'])->name('system-tour.skip');
+    Route::get('/system-tour/replay', [App\Http\Controllers\SystemTourController::class, 'replay'])->name('system-tour.replay');
     Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
     Route::post('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.update-password');

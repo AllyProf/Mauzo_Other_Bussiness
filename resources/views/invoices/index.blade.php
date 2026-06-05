@@ -57,13 +57,13 @@
         <table class="table table-hover table-bordered">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Invoice No.</th>
-              <th>Customer</th>
-              <th>Cashier</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th>{{ __('tables.columns.date') }}</th>
+              <th>{{ __('tables.columns.invoice_no') }}</th>
+              <th>{{ __('tables.columns.customer') }}</th>
+              <th>{{ __('tables.columns.cashier') }}</th>
+              <th>{{ __('tables.columns.amount') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
+              <th>{{ __('tables.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -100,9 +100,9 @@
                 </td>
                 <td>
                   @if($sale->payment_status == 'paid')
-                    <span class="badge badge-success">Paid</span>
+                    <span class="badge badge-success">{{ __('tables.status.paid') }}</span>
                   @elseif($sale->payment_status == 'partial')
-                    <span class="badge badge-info">Partial</span>
+                    <span class="badge badge-info">{{ __('tables.status.partial') }}</span>
                   @elseif($sale->payment_status == 'debt')
                     <span class="badge badge-danger">Credit</span>
                   @else

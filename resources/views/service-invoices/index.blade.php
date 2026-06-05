@@ -22,7 +22,7 @@
 <div class="tile">
   <div class="table-responsive">
     <table class="table table-hover">
-      <thead><tr><th>Date</th><th>Reference</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>{{ __('tables.columns.date') }}</th><th>{{ __('tables.columns.reference') }}</th><th>{{ __('tables.columns.customer') }}</th><th>{{ __('tables.columns.total') }}</th><th>{{ __('tables.columns.status') }}</th><th></th></tr></thead>
       <tbody>
         @forelse($sales as $sale)
         <tr>

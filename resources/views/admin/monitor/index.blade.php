@@ -18,7 +18,7 @@
     <table class="table table-hover table-bordered mb-0">
       <thead>
         <tr>
-          <th>Business</th>
+          <th>{{ __('tables.columns.business') }}</th>
           <th>Plan</th>
           @if($tab === 'sms' || $tab === 'usage')
           <th>SMS (month)</th>
@@ -27,7 +27,7 @@
           <th>Storage</th>
           @endif
           @if($tab === 'usage')
-          <th>Staff</th><th>Sales 30d</th><th>Last Login</th><th>Health</th>
+          <th>{{ __('tables.columns.staff') }}</th><th>Sales 30d</th><th>Last Login</th><th>Health</th>
           @endif
         </tr>
       </thead>

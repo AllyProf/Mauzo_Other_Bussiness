@@ -105,13 +105,13 @@
         <table class="table table-hover table-bordered">
           <thead>
             <tr>
-              <th>Branch</th>
+              <th>{{ __('tables.columns.branch') }}</th>
               <th>Businesses</th>
               <th>Location</th>
               <th>Branch Leader</th>
-              <th>Staff</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th>{{ __('tables.columns.staff') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
+              <th>{{ __('tables.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -152,9 +152,9 @@
                 <td><span class="badge badge-info">{{ $branch->users()->where('role', 'staff')->count() }}</span></td>
                 <td>
                   @if($branch->is_active)
-                    <span class="badge badge-success">Active</span>
+                    <span class="badge badge-success">{{ __('tables.status.active') }}</span>
                   @else
-                    <span class="badge badge-secondary">Inactive</span>
+                    <span class="badge badge-secondary">{{ __('tables.status.inactive') }}</span>
                   @endif
                 </td>
                 <td class="text-nowrap">

@@ -33,6 +33,7 @@ class User extends Authenticatable
         'platform_admin_role',
         'platform_admin_role_id',
         'is_active',
+        'locale',
     ];
 
     /**
@@ -57,6 +58,9 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'business_type_keys' => 'array',
+            'first_login_at' => 'datetime',
+            'tour_completed_at' => 'datetime',
+            'tour_skipped_at' => 'datetime',
         ];
     }
 
@@ -161,11 +165,15 @@ class User extends Authenticatable
     public function displayRoleName(): string
     {
         if ($this->role === 'super_admin') {
-            return 'Software Owner';
+            return __('roles.super_admin');
         }
 
         if ($this->role === 'owner') {
-            return 'Business Owner';
+            return __('roles.owner');
+        }
+
+        if ($this->role === 'platform_staff') {
+            return __('roles.platform_staff');
         }
 
         $this->loadMissing('role_relation');

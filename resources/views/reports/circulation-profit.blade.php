@@ -52,12 +52,12 @@
           <table class="table table-hover table-bordered report-table mb-0">
             <thead>
               <tr>
-                <th>Date</th>
+                <th>{{ __('tables.columns.date') }}</th>
                 @if(!$filtered)<th class="money-col">Closing Circulation</th>@endif
                 <th class="money-col">Gross Profit</th>
                 <th class="money-col">Closing Profit</th>
                 @if(!$filtered)<th class="money-col">Net Profit</th>@endif
-                <th>Status</th>
+                <th>{{ __('tables.columns.status') }}</th>
               </tr>
             </thead>
             <tbody>

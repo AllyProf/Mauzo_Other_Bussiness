@@ -18,11 +18,11 @@
         <table class="table table-hover table-bordered" id="sampleTable">
           <thead>
             <tr>
-              <th>Name</th>
+              <th>{{ __('tables.columns.name') }}</th>
               <th>Phone Number</th>
-              <th>Email</th>
-              <th>Region</th>
-              <th>Actions</th>
+              <th>{{ __('tables.columns.email') }}</th>
+              <th>{{ __('tables.columns.region') }}</th>
+              <th>{{ __('tables.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody>

@@ -91,12 +91,12 @@
         <table class="table table-sm table-bordered mb-0">
           <thead>
             <tr>
-              <th>Customer</th>
-              <th>Reference</th>
-              <th>Sale Total</th>
-              <th>Payments</th>
-              <th>Cleared</th>
-              <th>Cashier</th>
+              <th>{{ __('tables.columns.customer') }}</th>
+              <th>{{ __('tables.columns.reference') }}</th>
+              <th>{{ __('tables.columns.sale_total') }}</th>
+              <th>{{ __('tables.columns.payments') }}</th>
+              <th>{{ __('tables.columns.cleared') }}</th>
+              <th>{{ __('tables.columns.cashier') }}</th>
               <th></th>
             </tr>
           </thead>
@@ -186,11 +186,11 @@
           <thead>
             <tr>
               <th>Date & Time</th>
-              <th>Reference</th>
-              <th>Customer</th>
-              <th>Phone</th>
-              <th>Amount</th>
-              <th>Method</th>
+              <th>{{ __('tables.columns.reference') }}</th>
+              <th>{{ __('tables.columns.customer') }}</th>
+              <th>{{ __('tables.columns.phone') }}</th>
+              <th>{{ __('tables.columns.amount') }}</th>
+              <th>{{ __('tables.columns.method') }}</th>
               <th>Provider / Ref</th>
               <th>Collected By</th>
               <th>Order Status</th>
@@ -246,11 +246,11 @@
                 <td>
                   @if($sale)
                     @if($sale->payment_status === 'paid')
-                      <span class="badge badge-success">Paid</span>
+                      <span class="badge badge-success">{{ __('tables.status.paid') }}</span>
                     @elseif($sale->payment_status === 'partial')
-                      <span class="badge badge-info">Partial</span>
+                      <span class="badge badge-info">{{ __('tables.status.partial') }}</span>
                     @elseif($sale->payment_status === 'debt')
-                      <span class="badge badge-danger">Debt</span>
+                      <span class="badge badge-danger">{{ __('tables.status.debt') }}</span>
                     @else
                       <span class="badge badge-warning">{{ ucfirst($sale->payment_status) }}</span>
                     @endif
@@ -270,7 +270,7 @@
             @endforeach
             @if($payments->isEmpty())
               <tr id="paymentsEmptyRow">
-                <td colspan="11" class="text-center py-4 text-muted">No debt payment history found.</td>
+                <td colspan="11" class="text-center py-4 text-muted">{{ __('tables.empty.debt_history') }}</td>
               </tr>
             @endif
             <tr id="paymentsNoMatchRow" style="display:none;">

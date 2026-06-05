@@ -101,7 +101,7 @@
           <table class="table table-hover table-bordered report-table mb-0">
             <thead>
               <tr>
-                <th>Staff</th>
+                <th>{{ __('tables.columns.staff') }}</th>
                 <th class="text-center">Orders</th>
                 <th class="money-col">Gross</th>
                 <th class="money-col">Collected</th>

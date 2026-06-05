@@ -30,8 +30,8 @@ class PackagingController extends Controller
         }
 
         $configuredKeys = $branchTypeKeys;
-        $businessTemplates = config('category_templates', []);
-        $packagingTemplates = config('packaging_templates', []);
+        $businessTemplates = category_templates();
+        $packagingTemplates = packaging_templates();
 
         $allPackagings = Packaging::where('business_id', $business->id)->orderBy('name')->get();
         $packagings = $branchFilterId
@@ -320,7 +320,7 @@ class PackagingController extends Controller
 
     private function unitsForBusinessType(string $key): array
     {
-        $packagingTemplates = config('packaging_templates', []);
+        $packagingTemplates = packaging_templates();
 
         return $packagingTemplates[$key] ?? $packagingTemplates['_default'] ?? [];
     }

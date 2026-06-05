@@ -18,11 +18,11 @@
           <thead>
             <tr>
               <th>ID</th>
-              <th>Business</th>
-              <th>Subject</th>
-              <th>Status</th>
-              <th>Date</th>
-              <th>Action</th>
+              <th>{{ __('tables.columns.business') }}</th>
+              <th>{{ __('tables.columns.subject') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
+              <th>{{ __('tables.columns.date') }}</th>
+              <th>{{ __('tables.columns.action') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -35,7 +35,7 @@
                         @if($ticket->status == 'open')
                             <span class="badge badge-danger">Open</span>
                         @elseif($ticket->status == 'pending')
-                            <span class="badge badge-warning">Pending</span>
+                            <span class="badge badge-warning">{{ __('tables.status.pending') }}</span>
                         @elseif($ticket->status == 'resolved')
                             <span class="badge badge-success">Resolved</span>
                         @else

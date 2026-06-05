@@ -69,12 +69,12 @@
       <table class="table table-hover table-bordered">
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Reference</th>
+            <th>{{ __('tables.columns.date') }}</th>
+            <th>{{ __('tables.columns.reference') }}</th>
             <th>Services sold</th>
-            <th>Cashier</th>
-            <th>Total</th>
-            <th>Status</th>
+            <th>{{ __('tables.columns.cashier') }}</th>
+            <th>{{ __('tables.columns.total') }}</th>
+            <th>{{ __('tables.columns.status') }}</th>
             <th></th>
           </tr>
         </thead>
@@ -87,8 +87,8 @@
             <td>{{ $sale->user?->name }}</td>
             <td class="font-weight-bold text-success">{{ money($sale->total_amount) }}</td>
             <td>
-              @if($sale->payment_status === 'paid')<span class="badge badge-success">Paid</span>
-              @elseif($sale->payment_status === 'cancelled')<span class="badge badge-secondary">Cancelled</span>
+              @if($sale->payment_status === 'paid')<span class="badge badge-success">{{ __('tables.status.paid') }}</span>
+              @elseif($sale->payment_status === 'cancelled')<span class="badge badge-secondary">{{ __('tables.status.cancelled') }}</span>
               @else<span class="badge badge-warning">{{ ucfirst($sale->payment_status) }}</span>@endif
             </td>
             <td>

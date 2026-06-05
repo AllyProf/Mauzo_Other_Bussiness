@@ -65,7 +65,7 @@
           <table class="table table-striped table-bordered">
             <thead>
               <tr>
-                <th>Item Name</th>
+                <th>{{ __('tables.columns.item_name') }}</th>
                 <th>Quantity</th>
                 <th>List Price</th>
                 <th>Unit Price</th>
@@ -172,11 +172,11 @@
           <table class="table table-sm table-bordered">
             <thead class="bg-light">
               <tr>
-                <th>Date</th>
-                <th>Method</th>
+                <th>{{ __('tables.columns.date') }}</th>
+                <th>{{ __('tables.columns.method') }}</th>
                 <th>Provider/Ref</th>
-                <th>Cashier</th>
-                <th>Amount</th>
+                <th>{{ __('tables.columns.cashier') }}</th>
+                <th>{{ __('tables.columns.amount') }}</th>
               </tr>
             </thead>
             <tbody>

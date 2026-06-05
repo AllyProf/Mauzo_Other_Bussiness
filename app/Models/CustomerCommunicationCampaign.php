@@ -54,14 +54,18 @@ class CustomerCommunicationCampaign extends Model
 
     public function statusLabel(): string
     {
-        return match ($this->status) {
-            'scheduled' => 'Scheduled',
-            'processing' => 'Processing',
-            'completed' => 'Completed',
-            'failed' => 'Failed',
-            'cancelled' => 'Cancelled',
-            default => ucfirst($this->status),
-        };
+        $key = 'communications.statuses.'.$this->status;
+        $translated = __($key);
+
+        return $translated !== $key ? $translated : ucfirst($this->status ?? '');
+    }
+
+    public function purposeLabel(): string
+    {
+        $key = 'communications.purposes.'.$this->purpose;
+        $translated = __($key);
+
+        return $translated !== $key ? $translated : ucfirst(str_replace('_', ' ', $this->purpose ?? ''));
     }
 
     public function channelsLabel(): string
@@ -69,11 +73,9 @@ class CustomerCommunicationCampaign extends Model
         $labels = [];
 
         foreach ($this->channels ?? [] as $channel) {
-            $labels[] = match ($channel) {
-                'sms' => 'SMS',
-                'email' => 'Email',
-                default => strtoupper($channel),
-            };
+            $key = 'communications.channels_map.'.$channel;
+            $translated = __($key);
+            $labels[] = $translated !== $key ? $translated : strtoupper($channel);
         }
 
         return $labels === [] ? '—' : implode(' + ', $labels);

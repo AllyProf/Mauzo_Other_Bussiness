@@ -1,15 +1,15 @@
 @extends('layouts.app')
 
-@section('title', 'Customers')
+@section('title', __('pages.customers.title'))
 
 @section('content')
 <div class="app-title">
   <div>
-    <h1><i class="fa fa-users"></i> Customer Management</h1>
-    <p>Register and manage your customers for sales and credit tracking</p>
+    <h1><i class="fa fa-users"></i> {{ __('pages.customers.title') }}</h1>
+    <p>{{ __('pages.customers.subtitle') }}</p>
   </div>
   @can('manage_customers')
-  <a href="{{ route('customers.create') }}" class="btn btn-primary"><i class="fa fa-plus"></i> Register Customer</a>
+  <a href="{{ route('customers.create') }}" class="btn btn-primary"><i class="fa fa-plus"></i> {{ __('pages.customers.register') }}</a>
   @endcan
 </div>
 
@@ -21,17 +21,17 @@
 <div class="row mb-3">
   <div class="col-md-4">
     <div class="widget-small primary coloured-icon"><i class="icon fa fa-users fa-3x"></i>
-      <div class="info"><h4>Total Customers</h4><p><b>{{ $stats['total'] }}</b></p></div>
+      <div class="info"><h4>{{ __('pages.customers.total_customers') }}</h4><p><b>{{ $stats['total'] }}</b></p></div>
     </div>
   </div>
   <div class="col-md-4">
     <div class="widget-small success coloured-icon"><i class="icon fa fa-check-circle fa-3x"></i>
-      <div class="info"><h4>Active</h4><p><b>{{ $stats['active'] }}</b></p></div>
+      <div class="info"><h4>{{ __('tables.status.active') }}</h4><p><b>{{ $stats['active'] }}</b></p></div>
     </div>
   </div>
   <div class="col-md-4">
     <div class="widget-small warning coloured-icon"><i class="icon fa fa-credit-card fa-3x"></i>
-      <div class="info"><h4>With Outstanding Debt</h4><p><b>{{ $stats['with_debt'] }}</b></p></div>
+      <div class="info"><h4>{{ __('pages.customers.with_debt') }}</h4><p><b>{{ $stats['with_debt'] }}</b></p></div>
     </div>
   </div>
 </div>
@@ -42,22 +42,22 @@
       <input type="hidden" name="business_type" value="{{ $activeBusinessType }}">
     @endif
     <div class="col-md-4">
-      <label class="small font-weight-bold mb-0">Search</label>
-      <input type="text" name="search" class="form-control form-control-sm" value="{{ request('search') }}" placeholder="Name, phone, or email">
+      <label class="small font-weight-bold mb-0">{{ __('tables.filters.search') }}</label>
+      <input type="text" name="search" class="form-control form-control-sm" value="{{ request('search') }}" placeholder="{{ __('pages.customers.search_placeholder') }}">
     </div>
     <div class="col-md-3">
-      <label class="small font-weight-bold mb-0">Status</label>
+      <label class="small font-weight-bold mb-0">{{ __('tables.filters.status') }}</label>
       <select name="status" class="form-control form-control-sm">
-        <option value="">All</option>
-        <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active only</option>
-        <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive only</option>
+        <option value="">{{ __('tables.filters.all') }}</option>
+        <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>{{ __('tables.filters.active_only') }}</option>
+        <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>{{ __('tables.filters.inactive_only') }}</option>
       </select>
     </div>
     <div class="col-md-2">
-      <button type="submit" class="btn btn-primary btn-sm btn-block"><i class="fa fa-search"></i> Filter</button>
+      <button type="submit" class="btn btn-primary btn-sm btn-block"><i class="fa fa-search"></i> {{ __('tables.filters.filter') }}</button>
     </div>
     <div class="col-md-2">
-      <a href="{{ route('customers.index') }}" class="btn btn-outline-secondary btn-sm btn-block"><i class="fa fa-refresh"></i> Reset</a>
+      <a href="{{ route('customers.index') }}" class="btn btn-outline-secondary btn-sm btn-block"><i class="fa fa-refresh"></i> {{ __('tables.filters.reset') }}</a>
     </div>
   </form>
 </div>
@@ -69,13 +69,13 @@
         <table class="table table-hover table-bordered">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Email</th>
-              <th>Region</th>
-              <th>Status</th>
-              <th class="text-right">Outstanding</th>
-              <th>Actions</th>
+              <th>{{ __('tables.columns.name') }}</th>
+              <th>{{ __('tables.columns.phone') }}</th>
+              <th>{{ __('tables.columns.email') }}</th>
+              <th>{{ __('tables.columns.region') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
+              <th class="text-right">{{ __('tables.columns.outstanding') }}</th>
+              <th>{{ __('tables.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -88,26 +88,26 @@
               <td>{{ $customer->region ? $customer->region : '—' }}</td>
               <td>
                 @if($customer->is_active)
-                  <span class="badge badge-success">Active</span>
+                  <span class="badge badge-success">{{ __('tables.status.active') }}</span>
                 @else
-                  <span class="badge badge-secondary">Inactive</span>
+                  <span class="badge badge-secondary">{{ __('tables.status.inactive') }}</span>
                 @endif
               </td>
               <td class="text-right {{ $debt > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">
                 {{ $debt > 0 ? money($debt) : '—' }}
               </td>
               <td style="white-space:nowrap;">
-                <a href="{{ route('customers.show', $customer) }}" class="btn btn-sm btn-primary" title="View"><i class="fa fa-eye"></i></a>
-                <a href="{{ route('customers.edit', $customer) }}" class="btn btn-sm btn-info" title="Edit"><i class="fa fa-edit"></i></a>
+                <a href="{{ route('customers.show', $customer) }}" class="btn btn-sm btn-primary" title="{{ __('tables.actions.view') }}"><i class="fa fa-eye"></i></a>
+                <a href="{{ route('customers.edit', $customer) }}" class="btn btn-sm btn-info" title="{{ __('tables.actions.edit') }}"><i class="fa fa-edit"></i></a>
                 <form action="{{ route('customers.destroy', $customer) }}" method="POST" class="d-inline">
                   @csrf @method('DELETE')
-                  <button type="button" class="btn btn-sm btn-danger btn-delete-customer" data-name="{{ $customer->name }}" title="Delete"><i class="fa fa-trash"></i></button>
+                  <button type="button" class="btn btn-sm btn-danger btn-delete-customer" data-name="{{ $customer->name }}" title="{{ __('tables.actions.delete') }}"><i class="fa fa-trash"></i></button>
                 </form>
               </td>
             </tr>
             @empty
             <tr>
-              <td colspan="7" class="text-center py-4 text-muted">No customers registered yet. Click <strong>Register Customer</strong> to add your first customer.</td>
+              <td colspan="7" class="text-center py-4 text-muted">{{ __('pages.customers.empty') }}</td>
             </tr>
             @endforelse
           </tbody>

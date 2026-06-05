@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -8,7 +8,7 @@
     <link rel="stylesheet" type="text/css" href="{{ asset('panel-assets/css/main.css') }}">
     <!-- Font-icon css-->
     <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-    <title>Login - {{ $platformSettings['platform_name'] ?? 'SpareParts POS' }}</title>
+    <title>{{ __('auth.login_title') }} - {{ $platformSettings['platform_name'] ?? 'SpareParts POS' }}</title>
     <style>
       body, .login-content .logo h1, .login-box .login-head {
         font-family: 'Century Gothic', 'Segoe UI', sans-serif !important;
@@ -63,9 +63,18 @@
         color: #940000;
         outline: none;
       }
+      .login-language-switcher {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 10;
+        display: flex;
+        gap: 8px;
+      }
     </style>
   </head>
   <body>
+    @include('partials.language-switcher-login')
     <section class="material-half-bg">
       <div class="cover"></div>
     </section>
@@ -76,7 +85,7 @@
       <div class="login-box">
         <form class="login-form" action="{{ route('login') }}" method="POST">
           @csrf
-          <h3 class="login-head"><i class="fa fa-lg fa-fw fa-user"></i>SIGN IN</h3>
+          <h3 class="login-head"><i class="fa fa-lg fa-fw fa-user"></i>{{ strtoupper(__('auth.sign_in')) }}</h3>
           
           @if($errors->any())
             <div class="alert alert-danger">
@@ -91,14 +100,14 @@
           @endif
 
           <div class="form-group">
-            <label class="control-label">EMAIL</label>
-            <input class="form-control" type="email" name="email" placeholder="Enter your email address" value="{{ old('email') }}" required autofocus>
+            <label class="control-label">{{ strtoupper(__('auth.email')) }}</label>
+            <input class="form-control" type="email" name="email" placeholder="{{ __('auth.email_placeholder') }}" value="{{ old('email') }}" required autofocus>
           </div>
           <div class="form-group">
-            <label class="control-label">PASSWORD</label>
+            <label class="control-label">{{ strtoupper(__('auth.password')) }}</label>
             <div class="password-toggle-wrap">
-              <input class="form-control" type="password" name="password" id="loginPassword" placeholder="Enter your password" required>
-              <button type="button" class="password-toggle-btn" id="passwordToggle" aria-label="Show password">
+              <input class="form-control" type="password" name="password" id="loginPassword" placeholder="{{ __('auth.password_placeholder') }}" required>
+              <button type="button" class="password-toggle-btn" id="passwordToggle" aria-label="{{ __('auth.show_password') }}">
                 <i class="fa fa-eye fa-lg" id="passwordToggleIcon"></i>
               </button>
             </div>
@@ -107,13 +116,13 @@
             <div class="utility">
               <div class="animated-checkbox">
                 <label>
-                  <input type="checkbox" name="remember"><span class="label-text">Remember Me</span>
+                  <input type="checkbox" name="remember"><span class="label-text">{{ __('auth.remember_me') }}</span>
                 </label>
               </div>
             </div>
           </div>
           <div class="form-group btn-container">
-            <button type="submit" class="btn btn-primary btn-block" id="loginSubmitBtn"><i class="fa fa-sign-in fa-lg fa-fw"></i>SIGN IN</button>
+            <button type="submit" class="btn btn-primary btn-block" id="loginSubmitBtn"><i class="fa fa-sign-in fa-lg fa-fw"></i>{{ strtoupper(__('auth.sign_in')) }}</button>
           </div>
 
         </form>
@@ -127,7 +136,7 @@
     <script type="text/javascript">
       $('.login-form').on('submit', function() {
         var $btn = $('#loginSubmitBtn');
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin fa-lg fa-fw"></i> Signing in...');
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin fa-lg fa-fw"></i> {{ __('auth.signing_in') }}');
       });
 
       $('#passwordToggle').on('click', function() {
@@ -137,7 +146,7 @@
 
         input.attr('type', isHidden ? 'text' : 'password');
         icon.toggleClass('fa-eye fa-eye-slash');
-        $(this).attr('aria-label', isHidden ? 'Hide password' : 'Show password');
+        $(this).attr('aria-label', isHidden ? @json(__('auth.hide_password')) : @json(__('auth.show_password')));
       });
     </script>
   </body>

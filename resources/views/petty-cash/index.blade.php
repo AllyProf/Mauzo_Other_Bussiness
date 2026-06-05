@@ -300,11 +300,11 @@
           <table class="table table-hover table-bordered table-sm">
             <thead class="thead-dark">
               <tr>
-                <th>Date</th>
+                <th>{{ __('tables.columns.date') }}</th>
                 @if($multiBusiness ?? false)
-                <th>Business</th>
+                <th>{{ __('tables.columns.business') }}</th>
                 @endif
-                <th>Description</th>
+                <th>{{ __('tables.columns.description') }}</th>
                 <th>Purpose</th>
                 <th>Issued To</th>
                 <th>Source</th>

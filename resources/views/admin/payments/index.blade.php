@@ -113,12 +113,12 @@
             <thead>
               <tr>
                 <th>Invoice</th>
-                <th>Business</th>
+                <th>{{ __('tables.columns.business') }}</th>
                 <th>Billing Month</th>
                 <th>Plan</th>
                 <th>Billing</th>
                 <th class="text-right">Amount</th>
-                <th>Status</th>
+                <th>{{ __('tables.columns.status') }}</th>
                 <th>Paid On</th>
                 <th class="text-center">Actions</th>
               </tr>

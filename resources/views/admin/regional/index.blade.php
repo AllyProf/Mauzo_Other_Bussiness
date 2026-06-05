@@ -13,7 +13,7 @@
 <div class="tile">
   <div class="tile-body table-responsive">
     <table class="table table-hover table-bordered mb-0">
-      <thead><tr><th>Region</th><th>Total</th><th>Active</th><th>Share</th></tr></thead>
+      <thead><tr><th>{{ __('tables.columns.region') }}</th><th>{{ __('tables.columns.total') }}</th><th>{{ __('tables.columns.active') }}</th><th>Share</th></tr></thead>
       <tbody>
         @foreach($data['regions'] as $row)
         <tr>

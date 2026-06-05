@@ -64,13 +64,13 @@
         <table class="table table-hover table-bordered" id="sampleTable">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>Branch</th>
-              <th>Business</th>
-              <th>Role</th>
-              <th>Status</th>
+              <th>{{ __('tables.columns.name') }}</th>
+              <th>{{ __('tables.columns.email') }}</th>
+              <th>{{ __('tables.columns.phone') }}</th>
+              <th>{{ __('tables.columns.branch') }}</th>
+              <th>{{ __('tables.columns.business') }}</th>
+              <th>{{ __('tables.columns.role') }}</th>
+              <th>{{ __('tables.columns.status') }}</th>
               <th style="min-width: 220px;">Actions</th>
             </tr>
           </thead>
@@ -102,7 +102,7 @@
                     </td>
                     <td>
                         @if($member->isActiveAccount())
-                            <span class="badge badge-success">Active</span>
+                            <span class="badge badge-success">{{ __('tables.status.active') }}</span>
                         @else
                             <span class="badge badge-danger">Inactive</span>
                         @endif
@@ -110,7 +110,7 @@
                     <td>
                         @can('manage_staff')
                         <div class="employee-actions">
-                            <a href="{{ route('employees.edit', $member->id) }}" class="btn btn-sm btn-info" title="Edit"><i class="fa fa-edit"></i></a>
+                            <a href="{{ route('employees.edit', $member->id) }}" class="btn btn-sm btn-info" title="{{ __('tables.actions.edit') }}"><i class="fa fa-edit"></i></a>
 
                             @if($isStaffAccount)
                                 <form action="{{ route('employees.reset-password', $member->id) }}" method="POST">

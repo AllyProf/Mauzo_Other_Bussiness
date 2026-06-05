@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', ($isUnassignedStaffDashboard ?? false) ? 'Account Setup Required - SpareParts POS' : (($isSalesOfficerDashboard ?? false) ? 'Sales Dashboard - SpareParts POS' : (($isOwnerDashboard ?? false) ? 'Business Dashboard - SpareParts POS' : 'Dashboard - SpareParts POS')))
+@section('title', ($isUnassignedStaffDashboard ?? false) ? __('dashboard.unassigned_title') : (($isSalesOfficerDashboard ?? false) ? __('dashboard.sales_title') : (($isOwnerDashboard ?? false) ? __('dashboard.owner_title') : __('dashboard.title'))))
 
 @section('content')
 <div class="app-title">
@@ -8,45 +8,45 @@
       <h1>
         <i class="fa fa-{{ ($isSalesOfficerDashboard ?? false) || ($isOwnerDashboard ?? false) ? 'tachometer' : 'dashboard' }}"></i>
         @if($isUnassignedStaffDashboard ?? false)
-          Account Setup Required
+          {{ __('dashboard.account_setup_required') }}
         @elseif($isSalesOfficerDashboard ?? false)
-          Sales Dashboard
+          {{ __('dashboard.sales_dashboard') }}
         @elseif($isOwnerDashboard ?? false)
-          Business Dashboard
+          {{ __('dashboard.business_dashboard') }}
         @else
-          Dashboard
+          {{ __('dashboard.dashboard') }}
         @endif
       </h1>
     <p>
         @if(Auth::user()->role == 'super_admin')
-            Platform Overview (Software Owner)
+            {{ __('dashboard.platform_overview') }}
         @elseif($isUnassignedStaffDashboard ?? false)
-            Hi {{ Auth::user()->name }} — your account needs a role before you can use the system.
+            {{ __('dashboard.unassigned_message', ['name' => Auth::user()->name]) }}
         @elseif($isSalesOfficerDashboard ?? false)
-            Welcome back, {{ Auth::user()->name }}!
+            {{ __('dashboard.welcome_back', ['name' => Auth::user()->name]) }}
             @if(!empty($activeBranchLabel))
               <span class="badge badge-light ml-1"><i class="fa fa-map-marker"></i> {{ $activeBranchLabel }}</span>
             @endif
         @elseif($isOwnerDashboard ?? false)
-            Welcome back, <strong>{{ Auth::user()->name }}</strong> &mdash; {{ now()->format('l, F j, Y') }}
+            {{ __('dashboard.welcome_back_owner', ['name' => Auth::user()->name]) }} &mdash; {{ now()->format('l, F j, Y') }}
             @if(!empty($activeBranchLabel))
               <span class="badge badge-light ml-1"><i class="fa fa-map-marker"></i> {{ $activeBranchLabel }}</span>
             @endif
         @else
-            Overview of {{ Auth::user()->business?->name ?? 'Spare Parts' }} Management
+            {{ __('dashboard.overview', ['business' => Auth::user()->business?->name ?? 'Spare Parts']) }}
             @if(!empty($canSwitchBranch))
-              <span class="badge badge-light ml-1"><i class="fa fa-map-marker"></i> {{ $activeBranchLabel ?? 'Branch' }}</span>
+              <span class="badge badge-light ml-1"><i class="fa fa-map-marker"></i> {{ $activeBranchLabel ?? __('common.branch') }}</span>
             @endif
         @endif
     </p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
-    <li class="breadcrumb-item"><a href="{{ url('/home') }}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{{ url('/home') }}">{{ __('dashboard.breadcrumb_dashboard') }}</a></li>
     @if($isSalesOfficerDashboard ?? false)
-      <li class="breadcrumb-item">Sales Dashboard</li>
+      <li class="breadcrumb-item">{{ __('dashboard.sales_dashboard_breadcrumb') }}</li>
     @elseif($isOwnerDashboard ?? false)
-      <li class="breadcrumb-item">Business Dashboard</li>
+      <li class="breadcrumb-item">{{ __('dashboard.business_dashboard_breadcrumb') }}</li>
     @endif
   </ul>
 </div>
@@ -104,7 +104,7 @@
         </div>
       </div>
   @else
-    <div class="col-md-6 col-lg-3">
+    <div class="col-md-6 col-lg-3" data-tour="staff-count">
         <div class="widget-small primary coloured-icon"><i class="icon fa fa-users fa-3x"></i>
           <div class="info">
             <h4>Staff</h4>
@@ -112,7 +112,7 @@
           </div>
         </div>
       </div>
-      <div class="col-md-6 col-lg-3">
+      <div class="col-md-6 col-lg-3" data-tour="items-count">
         <div class="widget-small info coloured-icon"><i class="icon fa fa-cubes fa-3x"></i>
           <div class="info">
             <h4>Total Items</h4>
@@ -128,7 +128,7 @@
           </div>
         </div>
       </div>
-      <div class="col-md-6 col-lg-3">
+      <div class="col-md-6 col-lg-3" data-tour="today-sales">
         <div class="widget-small danger coloured-icon"><i class="icon fa fa-money fa-3x"></i>
           <div class="info">
             <h4>Today's Sales</h4>
@@ -162,7 +162,7 @@
             <h3 class="tile-title text-warning"><i class="fa fa-hourglass-half"></i> Pending Registrations ({{ $pendingRegistrations->count() }})</h3>
             <div class="tile-body">
                 <table class="table table-hover table-sm">
-                    <thead><tr><th>Business</th><th>Owner</th><th>Phone</th><th>Location</th><th>Business Type</th><th>Registered</th><th>Action</th></tr></thead>
+                    <thead><tr><th>{{ __('tables.columns.business') }}</th><th>Owner</th><th>{{ __('tables.columns.phone') }}</th><th>Location</th><th>Business Type</th><th>Registered</th><th>{{ __('tables.columns.action') }}</th></tr></thead>
                     <tbody>
                         @foreach($pendingRegistrations as $biz)
                         <tr>
@@ -193,7 +193,7 @@
             <h3 class="tile-title"><i class="fa fa-exclamation-triangle text-warning mr-2"></i>⚠️ Subscription Expiry Alerts (Next 7 Days)</h3>
             <div class="tile-body">
                 <table class="table table-hover table-sm">
-                    <thead><tr><th>Business</th><th>Plan</th><th>Expiry Date</th><th>Days Left</th><th>Action</th></tr></thead>
+                    <thead><tr><th>{{ __('tables.columns.business') }}</th><th>Plan</th><th>Expiry Date</th><th>Days Left</th><th>{{ __('tables.columns.action') }}</th></tr></thead>
                     <tbody>
                         @foreach($expiringBusinesses as $biz)
                         @php $daysLeft = \Carbon\Carbon::now()->diffInDays($biz->expiry_date); @endphp
@@ -228,7 +228,7 @@
               <th>Business Name</th>
               <th>Plan</th>
               <th>Expiry Date</th>
-              <th>Status</th>
+              <th>{{ __('tables.columns.status') }}</th>
               <th>Joined</th>
               <th class="text-center">Actions</th>
             </tr>
@@ -259,12 +259,12 @@
                         @elseif($expiringSoon)
                             <span class="badge badge-warning">Expiring Soon</span>
                         @else
-                            <span class="badge badge-success">Active</span>
+                            <span class="badge badge-success">{{ __('tables.status.active') }}</span>
                         @endif
                     </td>
                     <td>{{ $business->created_at->format('M d, Y') }}</td>
                     <td class="text-center">
-                        <a href="{{ route('admin.businesses.edit', $business->id) }}" class="btn btn-info btn-sm mr-1" title="Edit"><i class="fa fa-edit"></i></a>
+                        <a href="{{ route('admin.businesses.edit', $business->id) }}" class="btn btn-info btn-sm mr-1" title="{{ __('tables.actions.edit') }}"><i class="fa fa-edit"></i></a>
                         <form action="{{ route('admin.businesses.toggle-status', $business->id) }}" method="POST" class="d-inline">
                             @csrf
                             @if($business->is_active)
@@ -333,20 +333,20 @@
 <div class="row">
   <div class="col-md-12">
     <div class="tile">
-      <h3 class="tile-title">Low Stock Alerts</h3>
+      <h3 class="tile-title">{{ __('dashboard.low_stock_alerts') }}</h3>
       <table class="table table-hover table-bordered">
         <thead>
           <tr>
-            <th>Item Name</th>
-            <th>SKU</th>
-            <th>Current Stock</th>
+            <th>{{ __('tables.columns.item_name') }}</th>
+            <th>{{ __('tables.columns.sku') }}</th>
+            <th>{{ __('tables.columns.current_stock') }}</th>
             <th>Min. Required</th>
-            <th>Action</th>
+            <th>{{ __('tables.columns.action') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td colspan="5" class="text-center">No low stock items found.</td>
+            <td colspan="5" class="text-center">{{ __('tables.empty.low_stock_items') }}</td>
           </tr>
         </tbody>
       </table>

@@ -109,7 +109,7 @@
     <div class="tile"><h3 class="tile-title">Staff List</h3>
       <div class="tile-body table-responsive">
         <table class="table table-sm table-hover mb-0">
-          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Active</th><th></th></tr></thead>
+          <thead><tr><th>{{ __('tables.columns.name') }}</th><th>{{ __('tables.columns.email') }}</th><th>{{ __('tables.columns.phone') }}</th><th>{{ __('tables.columns.role') }}</th><th>{{ __('tables.columns.active') }}</th><th></th></tr></thead>
           <tbody>
             @foreach($staff as $member)
             <tr>

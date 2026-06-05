@@ -21,9 +21,9 @@
     <table class="table table-hover table-bordered mb-0">
       <thead>
         <tr>
-          <th>Role</th>
+          <th>{{ __('tables.columns.role') }}</th>
           <th>Access Summary</th>
-          <th>Staff</th>
+          <th>{{ __('tables.columns.staff') }}</th>
           <th class="text-center">Actions</th>
         </tr>
       </thead>

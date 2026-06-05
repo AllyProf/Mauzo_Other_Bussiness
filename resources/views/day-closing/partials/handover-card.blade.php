@@ -61,8 +61,8 @@
     <table class="table table-bordered table-sm">
       <thead>
         <tr>
-          <th>Staff</th><th>Orders</th><th>Gross</th><th>Cash</th><th>Mobile</th><th>Bank</th><th class="audit-col-bg">Debt Paid</th>
-          <th class="audit-col-bg">Expected</th><th class="audit-col-bg">Collected</th><th class="diff-col-bg">Diff</th><th>Status</th>
+          <th>{{ __('tables.columns.staff') }}</th><th>Orders</th><th>{{ __('tables.columns.gross') }}</th><th>Cash</th><th>Mobile</th><th>Bank</th><th class="audit-col-bg">Debt Paid</th>
+          <th class="audit-col-bg">Expected</th><th class="audit-col-bg">Collected</th><th class="diff-col-bg">Diff</th><th>{{ __('tables.columns.status') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -97,13 +97,13 @@
     <table class="table table-bordered table-sm">
       <thead>
         <tr>
-          <th>Time</th>
+          <th>{{ __('tables.columns.time') }}</th>
           <th>Collected By</th>
-          <th>Customer</th>
+          <th>{{ __('tables.columns.customer') }}</th>
           <th>Sale Ref</th>
           <th>Sale Date</th>
-          <th>Amount</th>
-          <th>Method</th>
+          <th>{{ __('tables.columns.amount') }}</th>
+          <th>{{ __('tables.columns.method') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -161,7 +161,7 @@
       <h5>Expenses</h5>
       @if($dayClosing->expenses->isNotEmpty())
       <table class="table table-bordered table-sm">
-        <thead><tr><th>Description</th><th>Platform</th><th>Amount</th></tr></thead>
+        <thead><tr><th>{{ __('tables.columns.description') }}</th><th>{{ __('tables.columns.platform') }}</th><th>{{ __('tables.columns.amount') }}</th></tr></thead>
         <tbody>
           @foreach($dayClosing->expenses as $expense)
             <tr>

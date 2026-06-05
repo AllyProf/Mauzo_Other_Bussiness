@@ -91,8 +91,8 @@
     <thead>
       <tr>
         <th>#</th>
-        <th>Description</th>
-        <th>SKU</th>
+        <th>{{ __('tables.columns.description') }}</th>
+        <th>{{ __('tables.columns.sku') }}</th>
         <th class="text-right">Qty</th>
         <th class="text-right">Unit Price</th>
         <th class="text-right">Amount</th>
@@ -153,10 +153,10 @@
     <table class="invoice-lines">
       <thead>
         <tr>
-          <th>Method</th>
-          <th>Platform</th>
+          <th>{{ __('tables.columns.method') }}</th>
+          <th>{{ __('tables.columns.platform') }}</th>
           <th>Pay Number / Account</th>
-          <th>Name</th>
+          <th>{{ __('tables.columns.name') }}</th>
         </tr>
       </thead>
       <tbody>

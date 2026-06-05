@@ -50,8 +50,32 @@ class PlatformMailService
         return $this->sendToBusiness(
             $business,
             "{$platformName} — Account Approved",
-            "Your account is approved.\n\nSign in with email: {$loginEmail}\nPassword: {$password}\n\nPlease change your password after signing in.",
+            "Your registration for {$business->name} is approved.\n\nSign in with email: {$loginEmail}\nPassword: {$password}\n\nPlease change your password after signing in.",
             'registration_approved',
+        );
+    }
+
+    public function sendBusinessRegistered(Business $business, string $password, string $loginEmail): bool
+    {
+        $platformName = $this->platformName();
+
+        return $this->sendToBusiness(
+            $business,
+            "{$platformName} — Your Account Is Ready",
+            "Welcome! Your business account for {$business->name} is ready.\n\nSign in with email: {$loginEmail}\nPassword: {$password}\n\nPlease change your password after signing in.",
+            'business_registered',
+        );
+    }
+
+    public function sendBusinessLinkedToOwner(Business $business, string $loginEmail): bool
+    {
+        $platformName = $this->platformName();
+
+        return $this->sendToBusiness(
+            $business,
+            "{$platformName} — New Business Added",
+            "{$business->name} has been added to your account.\n\nSign in with email: {$loginEmail} to access it.",
+            'business_linked',
         );
     }
 

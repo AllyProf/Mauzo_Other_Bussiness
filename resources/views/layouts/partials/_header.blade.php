@@ -2,15 +2,16 @@
   <!-- Sidebar toggle button--><a class="app-sidebar__toggle" href="#" data-toggle="sidebar" aria-label="Hide Sidebar"></a>
   <!-- Navbar Right Menu-->
   <ul class="app-nav">
+    @include('partials.language-switcher')
     @if(!empty($canSwitchBusiness) && ($ownerBusinesses ?? collect())->count() > 1)
     <li class="dropdown">
-      <a class="app-nav__item d-flex align-items-center" href="#" data-toggle="dropdown" aria-label="Switch business" title="Switch business">
+      <a class="app-nav__item d-flex align-items-center" href="#" data-toggle="dropdown" aria-label="{{ __('common.switch_business') }}" title="{{ __('common.switch_business') }}">
         <i class="fa fa-briefcase fa-lg"></i>
-        <span class="d-none d-md-inline ml-2">{{ $activeBusinessLabel ?? 'Business' }}</span>
+        <span class="d-none d-md-inline ml-2">{{ $activeBusinessLabel ?? __('common.business') }}</span>
         <i class="fa fa-caret-down ml-1 d-none d-md-inline"></i>
       </a>
       <ul class="dropdown-menu dropdown-menu-right">
-        <li class="dropdown-header">Switch Business</li>
+        <li class="dropdown-header">{{ __('common.switch_business') }}</li>
         @foreach($ownerBusinesses as $ownerBusiness)
         <li>
           <form action="{{ route('businesses.switch') }}" method="POST">
@@ -27,19 +28,19 @@
     @endif
     @if(!empty($canSwitchBranch) && ($ownerBranches ?? collect())->isNotEmpty())
     <li class="dropdown">
-      <a class="app-nav__item d-flex align-items-center" href="#" data-toggle="dropdown" aria-label="Switch branch" title="Switch branch">
+      <a class="app-nav__item d-flex align-items-center" href="#" data-toggle="dropdown" aria-label="{{ __('common.switch_branch') }}" title="{{ __('common.switch_branch') }}">
         <i class="fa fa-map-marker fa-lg"></i>
-        <span class="d-none d-md-inline ml-2 branch-switch-label">{{ $activeBranchLabel ?? 'Branch' }}</span>
+        <span class="d-none d-md-inline ml-2 branch-switch-label">{{ $activeBranchLabel ?? __('common.branch') }}</span>
         <i class="fa fa-caret-down ml-1 d-none d-md-inline"></i>
       </a>
       <ul class="dropdown-menu dropdown-menu-right branch-switch-menu">
-        <li class="dropdown-header">Switch Branch</li>
+        <li class="dropdown-header">{{ __('common.switch_branch') }}</li>
         <li>
           <form action="{{ route('branches.switch') }}" method="POST">
             @csrf
             <input type="hidden" name="branch_id" value="all">
             <button type="submit" class="dropdown-item {{ !empty($viewingAllBranches) ? 'active font-weight-bold' : '' }}">
-              <i class="fa fa-building-o mr-2"></i> All Branches
+              <i class="fa fa-building-o mr-2"></i> {{ __('common.all_branches') }}
             </button>
           </form>
         </li>
@@ -52,7 +53,7 @@
             <button type="submit" class="dropdown-item {{ (int) ($activeBranchId ?? 0) === (int) $branch->id ? 'active font-weight-bold' : '' }}">
               <i class="fa fa-map-marker mr-2"></i> {{ $branch->name }}
               @if($branch->is_default)
-                <small class="text-muted">(Default)</small>
+                <small class="text-muted">({{ __('common.default') }})</small>
               @endif
             </button>
           </form>
@@ -62,7 +63,7 @@
     </li>
     @endif
     <li class="app-search">
-      <input class="app-search__input" type="search" placeholder="Search">
+      <input class="app-search__input" type="search" placeholder="{{ __('common.search') }}">
       <button class="app-search__button"><i class="fa fa-search"></i></button>
     </li>
     <!--Notification Menu-->
@@ -76,12 +77,12 @@
       </a>
       <ul class="app-notification dropdown-menu dropdown-menu-right">
         @if(($dueNoteReminders ?? collect())->isEmpty())
-          <li class="app-notification__title">No due reminders.</li>
+          <li class="app-notification__title">{{ __('common.no_due_reminders') }}</li>
           <div class="app-notification__content">
-            <li class="px-3 py-2 text-muted small">Create a note with a reminder time to get notified here.</li>
+            <li class="px-3 py-2 text-muted small">{{ __('common.reminder_hint') }}</li>
           </div>
         @else
-          <li class="app-notification__title">You have {{ $dueNoteRemindersCount }} due reminder{{ $dueNoteRemindersCount === 1 ? '' : 's' }}.</li>
+          <li class="app-notification__title">{{ trans_choice('common.due_reminders', $dueNoteRemindersCount) }}</li>
           <div class="app-notification__content">
             @foreach($dueNoteReminders as $reminder)
               <li>
@@ -101,15 +102,15 @@
             @endforeach
           </div>
         @endif
-        <li class="app-notification__footer"><a href="{{ route('notes.index') }}">Manage notes & reminders</a></li>
+        <li class="app-notification__footer"><a href="{{ route('notes.index') }}">{{ __('common.manage_notes') }}</a></li>
       </ul>
     </li>
     @else
     <li class="dropdown"><a class="app-nav__item" href="#" data-toggle="dropdown" aria-label="Show notifications"><i class="fa fa-bell-o fa-lg"></i></a>
       <ul class="app-notification dropdown-menu dropdown-menu-right">
-        <li class="app-notification__title">No new notifications.</li>
+        <li class="app-notification__title">{{ __('common.no_notifications') }}</li>
         <div class="app-notification__content">
-          <li class="px-3 py-2 text-muted small">Platform notifications will appear here.</li>
+          <li class="px-3 py-2 text-muted small">{{ __('common.platform_notifications_hint') }}</li>
         </div>
       </ul>
     </li>
@@ -118,14 +119,14 @@
     <li class="dropdown"><a class="app-nav__item" href="#" data-toggle="dropdown" aria-label="Open Profile Menu"><i class="fa fa-user fa-lg"></i></a>
       <ul class="dropdown-menu settings-menu dropdown-menu-right">
         @if(Auth::user()->isPlatformAdmin())
-        <li><a class="dropdown-item" href="{{ route('admin.settings.index') }}"><i class="fa fa-cog fa-lg"></i> Settings</a></li>
+        <li><a class="dropdown-item" href="{{ route('admin.settings.index') }}"><i class="fa fa-cog fa-lg"></i> {{ __('common.settings') }}</a></li>
         @elseif(Auth::user()->role === 'owner')
-        <li><a class="dropdown-item" href="{{ route('settings.index') }}"><i class="fa fa-cog fa-lg"></i> Settings</a></li>
+        <li><a class="dropdown-item" href="{{ route('settings.index') }}"><i class="fa fa-cog fa-lg"></i> {{ __('common.settings') }}</a></li>
         @endif
-        <li><a class="dropdown-item" href="{{ route('profile.show') }}"><i class="fa fa-user fa-lg"></i> Profile</a></li>
+        <li><a class="dropdown-item" href="{{ route('profile.show') }}"><i class="fa fa-user fa-lg"></i> {{ __('common.profile') }}</a></li>
         <li>
             <a class="dropdown-item" href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                <i class="fa fa-sign-out fa-lg"></i> Logout
+                <i class="fa fa-sign-out fa-lg"></i> {{ __('common.logout') }}
             </a>
             <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
                 @csrf

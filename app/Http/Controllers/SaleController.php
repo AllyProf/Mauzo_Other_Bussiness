@@ -23,7 +23,7 @@ class SaleController extends Controller
     public function index()
     {
         $this->authorizeAny(['view_sales_history', 'process_sales']);
-        $businessId = Auth::user()->business_id;
+        $businessId = $this->currentBusinessId();
         $requiresOpenShift = Auth::user()->requiresOpenShift();
         $openShift = Shift::openForUser(Auth::id(), $businessId);
 
@@ -39,7 +39,7 @@ class SaleController extends Controller
             ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? 'Branch')
             : null;
 
-        $business = Auth::user()->business;
+        $business = $this->currentBusiness();
         $templates = config('category_templates', []);
 
         if ($branchFilterId) {
@@ -97,7 +97,7 @@ class SaleController extends Controller
             ->paginate(15);
 
         $customers = $this->activeCustomers();
-        $paymentMethods = Auth::user()->business->enabledPaymentMethods();
+        $paymentMethods = $business->enabledPaymentMethods();
 
         $scopedToSelf = $requiresOpenShift || ! $this->actsAsBusinessWideViewer();
         $shiftContext = $requiresOpenShift
@@ -125,7 +125,8 @@ class SaleController extends Controller
     {
         $this->authorizeAny(['process_sales']);
 
-        $openShift = Shift::openForUser(Auth::id(), Auth::user()->business_id);
+        $businessId = $this->currentBusinessId();
+        $openShift = Shift::openForUser(Auth::id(), $businessId);
         if (Auth::user()->requiresOpenShift() && ! $openShift) {
             return redirect()->route('shifts.create')
                 ->with('warning', 'Complete a physical stock check and open your shift before selling.');
@@ -136,7 +137,7 @@ class SaleController extends Controller
         }
 
         // POS Screen
-        $business = Auth::user()->business;
+        $business = $this->currentBusiness();
 
         $branchFilterId = null;
         if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
@@ -255,7 +256,8 @@ class SaleController extends Controller
     {
         $this->authorizeAny(['process_sales']);
 
-        $openShift = Shift::openForUser(Auth::id(), Auth::user()->business_id);
+        $businessId = $this->currentBusinessId();
+        $openShift = Shift::openForUser(Auth::id(), $businessId);
         if (Auth::user()->requiresOpenShift() && ! $openShift) {
             return redirect()->route('shifts.create')
                 ->with('error', 'Your shift is not open. Complete stock check first.');
@@ -272,7 +274,7 @@ class SaleController extends Controller
             'items.*.item_packaging_id' => 'nullable|exists:item_packagings,id',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0.01',
-            'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', Auth::user()->business_id)],
+            'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', $businessId)],
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:50',
         ]);
@@ -318,7 +320,7 @@ class SaleController extends Controller
             $customerFields = $this->resolveCustomerFields($request);
 
             $sale = Sale::create([
-                'business_id' => Auth::user()->business_id,
+                'business_id' => $businessId,
                 'user_id' => Auth::id(),
                 'shift_id' => $openShift?->id,
                 'reference_no' => $ref,
@@ -374,7 +376,7 @@ class SaleController extends Controller
     public function show(Sale $sale)
     {
         $this->authorizeAny(['view_sales_history', 'process_sales']);
-        if ($sale->business_id != Auth::user()->business_id) {
+        if ($sale->business_id != $this->currentBusinessId()) {
             abort(403);
         }
         $this->ensureCanAccessStaffRecord((int) $sale->user_id);
@@ -385,7 +387,10 @@ class SaleController extends Controller
     public function pay(Request $request, Sale $sale)
     {
         $this->authorizeAny(['collect_invoice_payments', 'collect_payments', 'process_sales']);
-        if ($sale->business_id != Auth::user()->business_id) {
+        $business = $this->currentBusiness();
+        $businessId = $this->currentBusinessId();
+
+        if ($sale->business_id != $businessId) {
             abort(403);
         }
         $this->ensureCanAccessStaffRecord((int) $sale->user_id);
@@ -425,14 +430,14 @@ class SaleController extends Controller
         }
 
         $request->validate([
-            'payment_method' => ['required', 'string', Rule::in(Auth::user()->business->enabledPaymentMethodKeys())],
+            'payment_method' => ['required', 'string', Rule::in($business->enabledPaymentMethodKeys())],
         ]);
 
-        $method = Auth::user()->business->findPaymentMethod($request->payment_method);
+        $method = $business->findPaymentMethod($request->payment_method);
 
         if (($method['type'] ?? '') === 'credit') {
             $request->validate([
-                'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', Auth::user()->business_id)],
+                'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', $businessId)],
                 'customer_name' => 'required|string|max:255',
                 'customer_phone' => 'nullable|string|max:50',
                 'due_date' => 'required|date',
@@ -480,7 +485,7 @@ class SaleController extends Controller
 
         if ($willBePartial) {
             $request->validate([
-                'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', Auth::user()->business_id)],
+                'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', $businessId)],
                 'customer_name' => 'required|string|max:255',
                 'customer_phone' => 'required|string|max:50',
                 'due_date' => 'required|date',
@@ -573,7 +578,7 @@ class SaleController extends Controller
     public function cancel(Sale $sale)
     {
         $this->authorizeAny(['cancel_sales', 'process_sales']);
-        if ($sale->business_id != Auth::user()->business_id) {
+        if ($sale->business_id != $this->currentBusinessId()) {
             abort(403);
         }
         $this->ensureCanAccessStaffRecord((int) $sale->user_id);
@@ -689,7 +694,7 @@ class SaleController extends Controller
 
     private function activeCustomers()
     {
-        return Customer::where('business_id', Auth::user()->business_id)
+        return Customer::where('business_id', $this->currentBusinessId())
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'phone']);
@@ -697,7 +702,7 @@ class SaleController extends Controller
 
     private function resolveCustomerFields(Request $request): array
     {
-        $businessId = Auth::user()->business_id;
+        $businessId = $this->currentBusinessId();
         $customerId = $request->input('customer_id');
 
         if ($customerId) {
