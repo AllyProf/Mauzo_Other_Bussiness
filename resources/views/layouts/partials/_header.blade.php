@@ -1,12 +1,12 @@
-<header class="app-header"><a class="app-header__logo" href="{{ url('/home') }}" title="{{ $headerBrand ?? 'SP-POS' }}">{{ $headerBrand ?? 'SP-POS' }}</a>
-  <!-- Sidebar toggle button--><a class="app-sidebar__toggle" href="#" data-toggle="sidebar" aria-label="Hide Sidebar"></a>
-  <!-- Navbar Right Menu-->
-  <ul class="app-nav">
+<header class="app-header">
+  <a class="app-header__logo" href="{{ url('/home') }}" title="{{ $headerBrand ?? 'SP-POS' }}">{{ $headerBrand ?? 'SP-POS' }}</a>
+  <a class="app-sidebar__toggle" href="#" data-toggle="sidebar" aria-label="Hide Sidebar"></a>
+  <ul class="app-nav app-nav--toolbar">
     @include('partials.language-switcher')
     @if(!empty($canSwitchBusiness) && ($ownerBusinesses ?? collect())->count() > 1)
-    <li class="dropdown">
-      <a class="app-nav__item d-flex align-items-center" href="#" data-toggle="dropdown" aria-label="{{ __('common.switch_business') }}" title="{{ __('common.switch_business') }}">
-        <i class="fa fa-briefcase fa-lg"></i>
+    <li class="dropdown app-nav__action app-nav__business">
+      <a class="app-nav__item app-nav__icon-btn" href="#" data-toggle="dropdown" aria-label="{{ __('common.switch_business') }}" title="{{ __('common.switch_business') }}">
+        <i class="fa fa-briefcase"></i>
         <span class="d-none d-md-inline ml-2">{{ $activeBusinessLabel ?? __('common.business') }}</span>
         <i class="fa fa-caret-down ml-1 d-none d-md-inline"></i>
       </a>
@@ -27,9 +27,9 @@
     </li>
     @endif
     @if(!empty($canSwitchBranch) && ($ownerBranches ?? collect())->isNotEmpty())
-    <li class="dropdown">
-      <a class="app-nav__item d-flex align-items-center" href="#" data-toggle="dropdown" aria-label="{{ __('common.switch_branch') }}" title="{{ __('common.switch_branch') }}">
-        <i class="fa fa-map-marker fa-lg"></i>
+    <li class="dropdown app-nav__action app-nav__branch">
+      <a class="app-nav__item app-nav__icon-btn" href="#" data-toggle="dropdown" aria-label="{{ __('common.switch_branch') }}" title="{{ __('common.switch_branch') }}">
+        <i class="fa fa-map-marker"></i>
         <span class="d-none d-md-inline ml-2 branch-switch-label">{{ $activeBranchLabel ?? __('common.branch') }}</span>
         <i class="fa fa-caret-down ml-1 d-none d-md-inline"></i>
       </a>
@@ -68,11 +68,11 @@
     </li>
     <!--Notification Menu-->
     @if(Auth::user()->role != 'super_admin' && plan_feature('notes_reminders'))
-    <li class="dropdown">
-      <a class="app-nav__item position-relative" href="#" data-toggle="dropdown" aria-label="Show notifications">
-        <i class="fa fa-bell-o fa-lg"></i>
+    <li class="dropdown app-nav__action app-nav__notify">
+      <a class="app-nav__item app-nav__icon-btn app-nav__icon-btn--badge" href="#" data-toggle="dropdown" aria-label="Show notifications">
+        <i class="fa fa-bell-o"></i>
         @if(($dueNoteRemindersCount ?? 0) > 0)
-          <span class="badge badge-danger" style="position:absolute;top:8px;right:2px;font-size:0.65rem;">{{ $dueNoteRemindersCount }}</span>
+          <span class="app-nav__badge badge badge-danger">{{ $dueNoteRemindersCount }}</span>
         @endif
       </a>
       <ul class="app-notification dropdown-menu dropdown-menu-right">
@@ -106,7 +106,7 @@
       </ul>
     </li>
     @else
-    <li class="dropdown"><a class="app-nav__item" href="#" data-toggle="dropdown" aria-label="Show notifications"><i class="fa fa-bell-o fa-lg"></i></a>
+    <li class="dropdown app-nav__action app-nav__notify"><a class="app-nav__item app-nav__icon-btn" href="#" data-toggle="dropdown" aria-label="Show notifications"><i class="fa fa-bell-o"></i></a>
       <ul class="app-notification dropdown-menu dropdown-menu-right">
         <li class="app-notification__title">{{ __('common.no_notifications') }}</li>
         <div class="app-notification__content">
@@ -116,7 +116,10 @@
     </li>
     @endif
     <!-- User Menu-->
-    <li class="dropdown"><a class="app-nav__item" href="#" data-toggle="dropdown" aria-label="Open Profile Menu"><i class="fa fa-user fa-lg"></i></a>
+    <li class="dropdown app-nav__action app-nav__profile">
+      <a class="app-nav__item app-nav__icon-btn" href="#" data-toggle="dropdown" aria-label="Open Profile Menu">
+        <i class="fa fa-user"></i>
+      </a>
       <ul class="dropdown-menu settings-menu dropdown-menu-right">
         @if(Auth::user()->isPlatformAdmin())
         <li><a class="dropdown-item" href="{{ route('admin.settings.index') }}"><i class="fa fa-cog fa-lg"></i> {{ __('common.settings') }}</a></li>

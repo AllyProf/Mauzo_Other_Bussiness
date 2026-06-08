@@ -91,35 +91,13 @@ class OwnerDailyReportController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('view_reports');
 
-        $business = $this->currentBusiness() ?? Auth::user()->business;
         $parsedDate = Carbon::parse($date)->toDateString();
 
-        $dayClosingQuery = DayClosing::where('business_id', $business->id)
-            ->whereDate('closing_date', $parsedDate);
-
-        $this->scopeDayClosingsForActiveBranch($dayClosingQuery);
-
-        $dayClosing = $dayClosingQuery->with(['expenses', 'user', 'verifier'])->first();
-
-        if (! $dayClosing) {
-            return redirect()->route('owner-reports.index')
-                ->with('error', 'No reconciliation submitted for this date.');
-        }
-
-        if ($dayClosing->status !== 'verified') {
-            return redirect()->to(
-                route('day-closing.index', ['date' => $parsedDate]).'#handover-'.$dayClosing->id
-            )->with('error', 'Boss must verify this reconciliation before it appears on the Master Sheet.');
-        }
-
-        $report = $this->reportService->syncReport($business, $parsedDate, $dayClosing);
-        $report->load(['ownerExpenses.recorder', 'dayClosing.expenses']);
-
-        $data = $this->reportService->buildReportData($business, $parsedDate, $dayClosing);
-        $data['payment_breakdown'] = $this->enrichBreakdownLabels($data['payment_breakdown'], $business->id, $parsedDate);
-        $displayDate = Carbon::parse($parsedDate)->format('l, F d, Y');
-
-        return view('owner-reports.show', compact('report', 'dayClosing', 'data', 'displayDate', 'parsedDate'));
+        return redirect()->route('owner-reports.index', [
+            'start_date' => $parsedDate,
+            'end_date' => $parsedDate,
+            'highlight_date' => $parsedDate,
+        ]);
     }
 
     public function storeExpense(Request $request, string $date)
@@ -167,8 +145,11 @@ class OwnerDailyReportController extends Controller
 
             DB::commit();
 
-            return redirect()->route('owner-reports.show', $parsedDate)
-                ->with('success', 'Expense recorded. Circulation and profit updated.');
+            return redirect()->route('owner-reports.index', [
+                'start_date' => $parsedDate,
+                'end_date' => $parsedDate,
+                'highlight_date' => $parsedDate,
+            ])->with('success', 'Expense recorded. Circulation and profit updated.');
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -199,7 +180,11 @@ class OwnerDailyReportController extends Controller
         $dayClosing = DayClosing::where('business_id', $business->id)->whereDate('closing_date', $parsedDate)->first();
         $this->reportService->syncReport($business, $parsedDate, $dayClosing);
 
-        return redirect()->route('owner-reports.show', $parsedDate)->with('success', 'Expense removed.');
+        return redirect()->route('owner-reports.index', [
+            'start_date' => $parsedDate,
+            'end_date' => $parsedDate,
+            'highlight_date' => $parsedDate,
+        ])->with('success', 'Expense removed.');
     }
 
     public function finalize(Request $request, string $date)

@@ -62,7 +62,7 @@
                 <td>{{ $closing->submitted_at?->format('M d, Y h:i A') }}</td>
                 <td>
                   @if($closing->status === 'verified')
-                  <a href="{{ route('owner-reports.show', $closing->closing_date->format('Y-m-d')) }}" class="btn btn-sm btn-primary mr-1">
+                  <a href="{{ route('owner-reports.index', ['start_date' => $closing->closing_date->format('Y-m-d'), 'end_date' => $closing->closing_date->format('Y-m-d'), 'highlight_date' => $closing->closing_date->format('Y-m-d')]) }}" class="btn btn-sm btn-primary mr-1">
                     <i class="fa fa-list-alt"></i> Master Sheet
                   </a>
                   @endif

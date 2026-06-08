@@ -124,7 +124,7 @@
   @else
     closed at {{ $shift->closed_at->format('M d, Y h:i A') }}
   @endif
-  — {{ $shift->sales_count }} sale(s), {{ money($shift->gross_sales) }} gross.
+  — {{ $summary['sales_count'] ?? $shift->sales_count }} sale(s), {{ money($summary['gross_sales'] ?? $shift->gross_sales) }} gross.
   Submit handover below to close your shift and send collections to your boss.
 </div>
 @endif
@@ -515,7 +515,9 @@
                     @endif
                   </td>
                   <td class="text-center">
-                    @if($data['status'] === 'paid')
+                    @if($data['status'] === 'posted')
+                      <span class="status-pill badge-success">Posted</span>
+                    @elseif($data['status'] === 'paid')
                       <span class="status-pill badge-success">Paid</span>
                     @elseif($data['status'] === 'partial')
                       <span class="status-pill badge-warning">Partial</span>
@@ -529,43 +531,90 @@
             </table>
           </div>
         @endif
+        @if(!($ownerDirectClosing ?? null))
         <div class="alert alert-light border mb-3">
           <i class="fa fa-info-circle"></i>
-          Your direct POS sales are included above and do not require a shift handover. Sales officers submit handover when they end their shift.
+          @if($canPostOwnerDirectSales ?? false)
+            When you sell yourself, use <strong>Close Day &amp; Post to Master Sheet</strong> below — no separate staff handover is needed.
+          @else
+            Your direct POS sales are included above and do not require a shift handover. Sales officers submit handover when they end their shift.
+          @endif
         </div>
+        @endif
 
         @if($canPostOwnerDirectSales ?? false)
           <div class="alert alert-warning border mb-0">
-            <div class="d-flex flex-wrap justify-content-between align-items-center">
-              <div class="mb-2 mb-md-0">
-                <strong><i class="fa fa-book"></i> Post to Master Sheet</strong><br>
+            <form method="POST" action="{{ route('day-closing.post-owner-sales') }}" id="postOwnerSalesForm">
+              @csrf
+              <input type="hidden" name="closing_date" value="{{ $date }}">
+
+              <div class="mb-3">
+                <strong><i class="fa fa-book"></i> Close your day</strong><br>
                 <span class="small">
-                  Confirm {{ $ownerDirectSummary['sales_count'] ?? 0 }} direct sale(s),
+                  Confirm {{ $ownerDirectSummary['sales_count'] ?? 0 }} sale(s),
                   TZS {{ number_format($ownerDirectSummary['gross_sales'] ?? 0, 0) }} gross /
-                  TZS {{ number_format($ownerDirectSummary['amount_collected'] ?? 0, 0) }} collected.
+                  TZS {{ number_format($ownerDirectSummary['amount_collected'] ?? 0, 0) }} collected on orders.
                 </span>
               </div>
-              <form method="POST" action="{{ route('day-closing.post-owner-sales') }}" id="postOwnerSalesForm" class="mb-0">
-                @csrf
-                <input type="hidden" name="closing_date" value="{{ $date }}">
+
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label class="font-weight-bold text-muted small text-uppercase mb-1">Expected Handover</label>
+                  <div class="form-control bg-light font-weight-bold">{{ money($ownerDirectExpectedHandover ?? 0) }}</div>
+                  <small class="text-muted">Total payments recorded for your sales today</small>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="ownerActualReceived" class="font-weight-bold mb-1">Actual Amount Received <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    <div class="input-group-prepend"><span class="input-group-text">TZS</span></div>
+                    <input type="number"
+                           id="ownerActualReceived"
+                           name="actual_received"
+                           class="form-control font-weight-bold"
+                           min="0"
+                           step="1"
+                           required
+                           value="{{ old('actual_received', round($ownerDirectExpectedHandover ?? 0)) }}"
+                           data-expected="{{ round($ownerDirectExpectedHandover ?? 0) }}">
+                  </div>
+                  <small class="text-muted">Enter a lower amount if you are short</small>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label class="font-weight-bold text-muted small text-uppercase mb-1">Money Short</label>
+                  <div class="form-control bg-light font-weight-bold text-danger" id="ownerMoneyShortDisplay">—</div>
+                </div>
+              </div>
+
+              <div class="form-group mb-3" id="ownerShortageNoteWrap" style="display: none;">
+                <label for="ownerShortageNote" class="font-weight-bold">Shortage Explanation <span class="text-danger">*</span></label>
+                <textarea id="ownerShortageNote"
+                          name="shortage_note"
+                          class="form-control"
+                          rows="2"
+                          placeholder="Explain why the amount received is less than expected...">{{ old('shortage_note') }}</textarea>
+              </div>
+
+              <div class="form-group mb-3">
+                <label for="ownerReportNotes" class="font-weight-bold">Note (Optional)</label>
+                <textarea id="ownerReportNotes"
+                          name="report_notes"
+                          class="form-control"
+                          rows="2"
+                          placeholder="Any other notes for this day...">{{ old('report_notes') }}</textarea>
+              </div>
+
+              <div class="d-flex flex-wrap justify-content-between align-items-center">
+                <p class="small text-muted mb-2 mb-md-0">
+                  This posts your sales to the Master Sheet and closes any open shift you used today.
+                </p>
                 <button type="button" class="btn btn-primary" id="postOwnerSalesBtn">
-                  <i class="fa fa-check"></i> Post to Master Sheet
+                  <i class="fa fa-check"></i> Close Day &amp; Post to Master Sheet
                 </button>
-              </form>
-            </div>
-            <p class="small text-muted mb-0 mt-2">
-              Step 1: Post your direct sales here.
-              Step 2: Verify any staff handovers below.
-              Step 3: Open <a href="{{ route('owner-reports.index') }}">Master Sheet</a> and finalize the day to carry circulation forward.
-            </p>
+              </div>
+            </form>
           </div>
-        @elseif(($ownerDirectClosing ?? null) && ($ownerDirectClosing->status ?? '') === 'verified')
-          <div class="alert alert-success border mb-0">
-            <i class="fa fa-check-circle"></i>
-            Your direct POS sales for this date are <strong>posted to the Master Sheet</strong>.
-            <a href="{{ route('owner-reports.show', $date) }}" class="alert-link font-weight-bold ml-1">View day report</a>
-            · <a href="{{ route('owner-reports.index') }}" class="alert-link font-weight-bold">Master Sheet</a>
-          </div>
+        @elseif($ownerDirectCloseCard ?? null)
+          @include('day-closing.partials.owner-direct-close-summary', ['date' => $date])
         @endif
       </div>
     </div>
@@ -1007,19 +1056,66 @@ jQuery(function($) {
   });
 
   $('#postOwnerSalesBtn').on('click', function() {
+    const $input = $('#ownerActualReceived');
+    const expected = parseFloat($input.data('expected')) || 0;
+    const actual = parseFloat($input.val()) || 0;
+    const short = Math.max(0, Math.round(expected - actual));
+    const note = ($('#ownerShortageNote').val() || '').trim();
+
+    if (actual < 0 || $input.val() === '') {
+      Swal.fire({ icon: 'warning', title: 'Amount required', text: 'Enter the actual amount you received.' });
+      return;
+    }
+
+    if (short > 0 && !note) {
+      Swal.fire({ icon: 'warning', title: 'Shortage note required', text: 'Explain why the amount received is less than expected.' });
+      return;
+    }
+
+    const confirmHtml = short > 0
+      ? 'Expected <strong>TZS ' + expected.toLocaleString() + '</strong>, received <strong>TZS ' + actual.toLocaleString() + '</strong>.<br><br>Record a money short of <strong>TZS ' + short.toLocaleString() + '</strong> and post to the Master Sheet?'
+      : 'Confirm handover of <strong>TZS ' + actual.toLocaleString() + '</strong> for <strong>{{ $displayDate }}</strong> and post to the Master Sheet?';
+
     Swal.fire({
-      title: 'Post to Master Sheet?',
-      html: 'Confirm your direct POS sales for <strong>{{ $displayDate }}</strong>.<br><br>This records circulation and profit for your sales only (not staff shift handovers).',
-      icon: 'question',
+      title: short > 0 ? 'Close Day With Money Short?' : 'Close Day & Post to Master Sheet?',
+      html: confirmHtml,
+      icon: short > 0 ? 'warning' : 'question',
       showCancelButton: true,
       confirmButtonColor: '#940000',
-      confirmButtonText: 'Yes, post now'
+      confirmButtonText: short > 0 ? 'Yes, record short & post' : 'Yes, close day'
     }).then((result) => {
       if (result.isConfirmed) {
         $('#postOwnerSalesForm').submit();
       }
     });
   });
+
+  function updateOwnerMoneyShortDisplay() {
+    const $input = $('#ownerActualReceived');
+    if (!$input.length) {
+      return;
+    }
+
+    const expected = parseFloat($input.data('expected')) || 0;
+    const actual = parseFloat($input.val()) || 0;
+    const short = Math.max(0, Math.round(expected - actual));
+    const $display = $('#ownerMoneyShortDisplay');
+    const $noteWrap = $('#ownerShortageNoteWrap');
+    const $note = $('#ownerShortageNote');
+
+    if (short > 0) {
+      $display.text('TZS ' + short.toLocaleString());
+      $noteWrap.show();
+      $note.prop('required', true);
+    } else {
+      $display.text('—').removeClass('text-danger');
+      $noteWrap.hide();
+      $note.prop('required', false);
+    }
+  }
+
+  $('#ownerActualReceived').on('input', updateOwnerMoneyShortDisplay);
+  updateOwnerMoneyShortDisplay();
 
   function updateMoneyShortDisplay($input) {
     const closingId = $input.closest('.verify-handover-form').data('closing-id');

@@ -47,7 +47,7 @@ class MoneyShortController extends Controller
             ->where('status', 'verified')
             ->with(['user', 'shift', 'verifier', 'settlements.recorder', 'settlements.voider', 'business']);
 
-        $this->scopeToActiveBranchUsers($query);
+        $this->scopeDayClosingsForActiveBranch($query);
 
         if ($activeBusinessType) {
             $this->settlementService->scopeClosingsForBusinessType($query, $businessId, $activeBusinessType);
@@ -126,7 +126,7 @@ class MoneyShortController extends Controller
             ->with(['dayClosing.shift', 'staff', 'recorder', 'voider'])
             ->whereHas('dayClosing', function ($q) use ($activeBusinessType, $businessId) {
                 $q->where('status', 'verified')->where('money_short', '>', 0);
-                $this->scopeToActiveBranchUsers($q);
+                $this->scopeDayClosingsForActiveBranch($q);
 
                 if ($activeBusinessType) {
                     $this->settlementService->scopeClosingsForBusinessType($q, $businessId, $activeBusinessType);

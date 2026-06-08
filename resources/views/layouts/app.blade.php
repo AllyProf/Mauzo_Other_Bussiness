@@ -26,6 +26,148 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        /* Desktop: icon-btn inherits normal nav link styling */
+        @media (min-width: 768px) {
+            .app-nav__icon-btn .fa {
+                font-size: 1.33333333em;
+            }
+            .app-nav__badge {
+                position: absolute;
+                top: 8px;
+                right: 2px;
+                font-size: 0.65rem;
+            }
+            .app-nav__icon-btn--badge {
+                position: relative;
+            }
+        }
+        @media (max-width: 767.98px) {
+            .app-header {
+                display: flex;
+                align-items: center;
+                height: 50px;
+                padding: 0 6px 0 0;
+                gap: 0;
+            }
+            .app-sidebar__toggle {
+                flex: 0 0 42px;
+                width: 42px;
+                height: 50px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+                line-height: 1;
+            }
+            .app-sidebar__toggle:before {
+                font-size: 20px;
+            }
+            .app-header__logo {
+                flex: 1 1 auto;
+                min-width: 0;
+                max-width: none;
+                text-align: left;
+                font-size: 14px;
+                font-weight: 800 !important;
+                padding: 0 8px 0 2px;
+                line-height: 50px;
+            }
+            .app-nav--toolbar {
+                flex: 0 0 auto;
+                display: flex;
+                align-items: center;
+                gap: 1px;
+                margin: 0;
+                padding: 3px;
+                background: rgba(0, 0, 0, 0.15);
+                border-radius: 10px;
+            }
+            .app-nav--toolbar > li {
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+            }
+            .app-nav__branch { order: 1; }
+            .app-nav__business { order: 2; }
+            .app-nav__language { order: 3; }
+            .app-nav__notify { order: 4; }
+            .app-nav__profile { order: 5; }
+            .app-nav__icon-btn {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                width: 36px;
+                height: 36px;
+                padding: 0 !important;
+                margin: 0;
+                border-radius: 8px;
+                line-height: 1;
+            }
+            .app-nav__icon-btn .fa {
+                font-size: 17px;
+                width: 17px;
+                text-align: center;
+            }
+            .app-nav__icon-btn:hover,
+            .app-nav__icon-btn:focus {
+                background: rgba(255, 255, 255, 0.14);
+            }
+            .app-nav__profile .app-nav__icon-btn {
+                background: rgba(255, 255, 255, 0.1);
+            }
+            .app-nav__icon-btn--badge {
+                position: relative;
+            }
+            .app-nav__badge {
+                position: absolute;
+                top: 2px;
+                right: 2px;
+                min-width: 16px;
+                height: 16px;
+                padding: 0 4px;
+                font-size: 0.6rem;
+                line-height: 16px;
+                border-radius: 999px;
+            }
+            .app-search {
+                display: none !important;
+            }
+        }
+        @media (max-width: 575.98px) {
+            .app-header__logo {
+                font-size: 13px;
+            }
+            .app-nav--toolbar {
+                gap: 0;
+                padding: 2px;
+            }
+            .app-nav__icon-btn {
+                width: 34px;
+                height: 34px;
+            }
+            .app-nav__icon-btn .fa {
+                font-size: 16px;
+                width: 16px;
+            }
+        }
+        @media (max-width: 380px) {
+            .app-header__logo {
+                font-size: 12px;
+                padding-right: 4px;
+            }
+            .app-sidebar__toggle {
+                flex: 0 0 38px;
+                width: 38px;
+            }
+            .app-nav__icon-btn {
+                width: 32px;
+                height: 32px;
+            }
+            .app-nav__icon-btn .fa {
+                font-size: 15px;
+                width: 15px;
+            }
+        }
         .app-sidebar__user-name {
             font-weight: 600 !important;
         }
@@ -262,6 +404,5 @@
     
     @stack('scripts')
     @yield('scripts')
-    @include('partials.system-tour')
   </body>
 </html>

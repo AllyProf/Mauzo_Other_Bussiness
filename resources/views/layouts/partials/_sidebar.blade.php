@@ -284,9 +284,6 @@
         @can('view_audit_logs')
         <li><a class="app-menu__item {{ Request::is('activity-log*') ? 'active' : '' }}" href="{{ route('business.activity-log') }}" data-tour="menu-activity-log"><i class="app-menu__icon fa fa-history"></i><span class="app-menu__label">{{ __('menu.activity_log') }}</span></a></li>
         @endcan
-        @if(!empty($canReplaySystemTour))
-        <li><a class="app-menu__item" href="{{ route('system-tour.replay') }}" data-tour="menu-guide"><i class="app-menu__icon fa fa-map-signs"></i><span class="app-menu__label">{{ __('menu.system_guide') }}</span></a></li>
-        @endif
         <li><a class="app-menu__item {{ Request::is('support*') ? 'active' : '' }}" href="{{ route('tickets.index') }}" data-tour="menu-support"><i class="app-menu__icon fa fa-life-ring"></i><span class="app-menu__label">{{ __('menu.my_support') }}</span></a></li>
     @endif
   </ul>

@@ -81,13 +81,6 @@ class AppServiceProvider extends ServiceProvider
                     }
                 }
 
-                if ($user) {
-                    $tourService = app(\App\Services\SystemTourService::class);
-                    $data['showSystemTour'] = $tourService->shouldShow($user);
-                    $data['systemTourSteps'] = $data['showSystemTour'] ? $tourService->stepsFor($user) : [];
-                    $data['canReplaySystemTour'] = (bool) $tourService->resolveTourKey($user);
-                }
-
                 if ($user && $user->role !== 'super_admin' && $user->role !== 'platform_staff') {
                     $notesBusinessId = $businessService->activeBusinessId() ?? $user->business_id;
 

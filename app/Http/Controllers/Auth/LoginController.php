@@ -70,13 +70,6 @@ class LoginController extends Controller
 
         AuditLog::logLogin($user);
 
-        $isFirstLogin = $user->first_login_at === null;
-
-        if ($isFirstLogin) {
-            $user->update(['first_login_at' => now()]);
-            app(\App\Services\SystemTourService::class)->queueForNextPage($user->fresh());
-        }
-
         return redirect()->intended($user->defaultLandingUrl());
     }
 

@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Models\PlatformSmsLog;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\PlatformAdminService;
 use Illuminate\Support\Facades\Log;
 
 class PlatformSmsService
@@ -95,13 +96,15 @@ class PlatformSmsService
         );
     }
 
-    public function sendPasswordReset(Business $business, string $password): bool
+    public function sendPasswordReset(Business $business, string $password, ?string $loginEmail = null): bool
     {
+        $supportPhone = $this->supportContactPhone();
+        $loginEmail = $loginEmail ?: $business->email;
         $platformName = $this->platformName();
 
         return $this->sendToBusiness(
             $business,
-            "{$platformName}: Your password was reset. Sign in with your phone number. New password: {$password}",
+            "{$platformName}: Nenosiri lako limewekwa upya. Ingia kupitia email yako ambayo ni {$loginEmail}. Nenosiri jipya: {$password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {$supportPhone}",
             'password_reset',
             'password_reset',
         );
@@ -206,24 +209,67 @@ class PlatformSmsService
         $ticket->loadMissing('business');
         $platformName = $this->platformName();
         $businessName = $ticket->business?->name ?? 'Unknown';
+        $message = "{$platformName}: New support ticket from {$businessName}: ".mb_substr($ticket->subject, 0, 60);
 
-        return $this->sendToAdmin(
-            "{$platformName}: New support ticket from {$businessName}: ".mb_substr($ticket->subject, 0, 60),
-            'ticket_new_admin',
-            'ticket_new_admin',
-        );
+        if (! $this->actionEnabled('ticket_new_admin')) {
+            return false;
+        }
+
+        $sent = false;
+        $seenPhones = [];
+
+        foreach (app(PlatformAdminService::class)->ticketNotificationStaff() as $staff) {
+            $phone = trim((string) ($staff->phone ?? ''));
+            if ($phone === '') {
+                continue;
+            }
+
+            $normalized = $this->formatPhoneNumber($phone);
+            if (in_array($normalized, $seenPhones, true)) {
+                continue;
+            }
+
+            $seenPhones[] = $normalized;
+
+            if ($this->sendToPhone(
+                $phone,
+                $message,
+                'ticket_new_admin',
+                'ticket_new_admin',
+                null,
+                $staff->id,
+                $staff->name,
+            )) {
+                $sent = true;
+            }
+        }
+
+        if (! $sent) {
+            $sent = $this->sendToAdmin($message, 'ticket_new_admin', 'ticket_new_admin');
+        }
+
+        return $sent;
     }
 
     public function notifyBusinessTicketReply(Ticket $ticket): bool
     {
-        $ticket->loadMissing('business');
+        $ticket->loadMissing(['business', 'user']);
         $platformName = $this->platformName();
+        $message = "{$platformName}: Support replied to your ticket \"{$ticket->subject}\". Sign in to read the response.";
 
-        return $this->sendToBusiness(
-            $ticket->business,
-            "{$platformName}: Support replied to your ticket \"{$ticket->subject}\". Sign in to read the response.",
+        $phone = trim((string) ($ticket->user?->phone ?? ''));
+        if ($phone === '') {
+            $phone = trim((string) ($ticket->business?->phone ?? ''));
+        }
+
+        return $this->sendToPhone(
+            $phone,
+            $message,
             'ticket_reply_business',
             'ticket_reply_business',
+            $ticket->business_id,
+            $ticket->user_id,
+            $ticket->user?->name ?? $ticket->business?->name,
         );
     }
 

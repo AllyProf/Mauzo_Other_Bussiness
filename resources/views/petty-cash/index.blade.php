@@ -67,18 +67,6 @@
   <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
-@if($viewingAllBranches ?? false)
-<div class="alert alert-light border py-2 mb-3">
-  <i class="fa fa-building"></i>
-  Viewing petty cash from <strong>all branches</strong>. Switch branch in the header to filter by location.
-</div>
-@elseif(!empty($activeBranchName))
-<div class="alert alert-info py-2 mb-3">
-  <i class="fa fa-map-marker"></i>
-  Petty cash for branch <strong>{{ $activeBranchName }}</strong> — switch branch in the header to change location.
-</div>
-@endif
-
 @if($multiBusiness ?? false)
 <div class="tile mb-3 py-2">
   <div class="d-flex align-items-center flex-wrap">

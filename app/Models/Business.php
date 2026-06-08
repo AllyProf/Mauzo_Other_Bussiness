@@ -138,7 +138,7 @@ class Business extends Model
         string $legacyAccountName = ''
     ): array {
         if (! empty($savedAccounts)) {
-            return collect($savedAccounts)
+            $saved = collect($savedAccounts)
                 ->map(fn ($account) => [
                     'name' => trim($account['name'] ?? ''),
                     'pay_number' => trim($account['pay_number'] ?? ''),
@@ -147,6 +147,8 @@ class Business extends Model
                 ->filter(fn ($account) => $account['name'] !== '')
                 ->values()
                 ->all();
+
+            return self::mergeProviderAccountLists($defaultAccounts, $saved);
         }
 
         if (! empty($legacyProviders)) {
@@ -186,6 +188,40 @@ class Business extends Model
             ->filter(fn ($account) => $account['name'] !== '')
             ->values()
             ->all();
+    }
+
+    public static function mergeProviderAccountLists(array $defaults, array $saved): array
+    {
+        $merged = [];
+
+        foreach ($defaults as $account) {
+            $name = trim($account['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+
+            $merged[strtolower($name)] = [
+                'name' => $name,
+                'pay_number' => trim($account['pay_number'] ?? ''),
+                'account_name' => trim($account['account_name'] ?? ''),
+            ];
+        }
+
+        foreach ($saved as $account) {
+            $name = trim($account['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+
+            $key = strtolower($name);
+            $merged[$key] = [
+                'name' => $name,
+                'pay_number' => trim($account['pay_number'] ?? ($merged[$key]['pay_number'] ?? '')),
+                'account_name' => trim($account['account_name'] ?? ($merged[$key]['account_name'] ?? '')),
+            ];
+        }
+
+        return array_values($merged);
     }
 
     public function findProviderAccount(string $methodKey, ?string $providerName): ?array

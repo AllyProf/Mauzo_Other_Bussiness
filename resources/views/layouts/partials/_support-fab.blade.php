@@ -1,16 +1,13 @@
 @if(Auth::check() && Auth::user()->role !== 'super_admin' && Auth::user()->business_id)
-<button type="button" class="support-fab" id="supportFabBtn" title="Contact Support" aria-label="Contact Support">
-  <span class="support-fab-inner">
-    <img src="{{ asset('landing/img/support.png') }}" alt="" class="support-fab-icon" width="64" height="64" aria-hidden="true">
-  </span>
-  <span class="support-fab-label">Support</span>
+<button type="button" class="support-fab" id="supportFabBtn" title="{{ __('common.contact_support') }}" aria-label="{{ __('common.contact_support') }}">
+  <i class="fa fa-life-ring support-fab-icon" aria-hidden="true"></i>
 </button>
 
 <div class="modal fade" id="supportQuickModal" tabindex="-1" role="dialog" aria-labelledby="supportQuickModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
     <div class="modal-content">
       <div class="modal-header py-2">
-        <h5 class="modal-title" id="supportQuickModalLabel"><i class="fa fa-life-ring text-primary"></i> Contact Support</h5>
+        <h5 class="modal-title" id="supportQuickModalLabel"><i class="fa fa-life-ring text-primary"></i> {{ __('common.contact_support') }}</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
@@ -40,83 +37,44 @@
 <style>
   .support-fab {
     position: fixed;
-    bottom: 28px;
-    right: 28px;
+    bottom: 24px;
+    right: 24px;
     z-index: 1040;
-    width: auto;
-    height: auto;
+    width: 46px;
+    height: 46px;
     padding: 0;
     border: none;
-    background: transparent;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    transition: transform 0.2s ease;
-    outline: none;
-  }
-  .support-fab-inner {
-    width: 72px;
-    height: 72px;
     border-radius: 50%;
-    background: #fff;
-    border: 3px solid #940000;
-    box-shadow:
-      0 8px 22px rgba(0, 0, 0, 0.28),
-      0 0 0 5px rgba(148, 0, 0, 0.12);
+    background: #940000;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    outline: none;
   }
   .support-fab-icon {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    display: block;
-    transform: scale(1.35);
+    font-size: 20px;
+    line-height: 1;
     pointer-events: none;
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.15));
-  }
-  .support-fab-label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    color: #fff;
-    background: #940000;
-    padding: 3px 10px;
-    border-radius: 12px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-    line-height: 1.2;
-    pointer-events: none;
-  }
-  .support-fab:hover .support-fab-inner,
-  .support-fab:focus .support-fab-inner {
-    transform: scale(1.06);
-    box-shadow:
-      0 10px 28px rgba(0, 0, 0, 0.32),
-      0 0 0 6px rgba(148, 0, 0, 0.18);
   }
   .support-fab:hover,
   .support-fab:focus {
+    background: #7a0000;
     transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
   }
   @media (max-width: 576px) {
     .support-fab {
-      bottom: 20px;
+      bottom: 18px;
       right: 16px;
+      width: 42px;
+      height: 42px;
     }
-    .support-fab-inner {
-      width: 64px;
-      height: 64px;
-    }
-    .support-fab-label {
-      font-size: 10px;
-      padding: 2px 8px;
+    .support-fab-icon {
+      font-size: 18px;
     }
   }
   #supportQuickModal .modal-title {

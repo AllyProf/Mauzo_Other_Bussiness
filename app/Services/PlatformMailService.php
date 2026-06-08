@@ -8,6 +8,7 @@ use App\Mail\PlatformNotificationMail;
 use App\Models\Business;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\PlatformAdminService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -163,36 +164,71 @@ class PlatformMailService
             return false;
         }
 
-        $email = $this->adminEmail();
+        $sent = false;
+        $seenEmails = [];
+
+        foreach (app(PlatformAdminService::class)->ticketNotificationStaff() as $staff) {
+            $email = strtolower(trim((string) ($staff->email ?? '')));
+            if (! $this->isDeliverableEmail($email) || in_array($email, $seenEmails, true)) {
+                continue;
+            }
+
+            $seenEmails[] = $email;
+
+            try {
+                Mail::to($email)->send(new NewSupportTicketMail($ticket));
+                $sent = true;
+            } catch (\Throwable $exception) {
+                Log::warning('Platform ticket staff email failed', [
+                    'ticket_id' => $ticket->id,
+                    'email' => $email,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        $adminEmail = $this->adminEmail();
+        if ($adminEmail && ! in_array(strtolower($adminEmail), $seenEmails, true)) {
+            try {
+                Mail::to($adminEmail)->send(new NewSupportTicketMail($ticket));
+                $sent = true;
+            } catch (\Throwable $exception) {
+                Log::warning('Platform ticket admin email failed', [
+                    'ticket_id' => $ticket->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return $sent;
+    }
+
+    public function notifyBusinessTicketReply(Ticket $ticket): bool
+    {
+        $ticket->loadMissing(['business.ownerUser', 'user']);
+        $platformName = $this->platformName();
+        $body = "Support replied to your ticket \"{$ticket->subject}\". Sign in to read the response.";
+
+        $email = null;
+        $recipientName = $ticket->user?->name;
+
+        if ($ticket->user && $this->isDeliverableEmail($ticket->user->email)) {
+            $email = strtolower(trim((string) $ticket->user->email));
+        } else {
+            $email = $this->resolveBusinessEmail($ticket->business);
+            $recipientName = $recipientName ?: ($ticket->business?->contact_person ?: $ticket->business?->name);
+        }
 
         if (! filled($email)) {
             return false;
         }
 
-        try {
-            Mail::to($email)->send(new NewSupportTicketMail($ticket));
-
-            return true;
-        } catch (\Throwable $exception) {
-            Log::warning('Platform ticket admin email failed', [
-                'ticket_id' => $ticket->id,
-                'error' => $exception->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
-
-    public function notifyBusinessTicketReply(Ticket $ticket): bool
-    {
-        $ticket->loadMissing('business');
-        $platformName = $this->platformName();
-
-        return $this->sendToBusiness(
-            $ticket->business,
+        return $this->send(
+            $email,
             "{$platformName} — Support Reply",
-            "Support replied to your ticket \"{$ticket->subject}\". Sign in to read the response.",
+            $body,
             'ticket_reply_business',
+            $recipientName,
         );
     }
 

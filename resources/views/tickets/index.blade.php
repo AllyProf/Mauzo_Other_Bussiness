@@ -60,7 +60,7 @@
               @empty
               <tr>
                 <td colspan="6" class="text-center text-muted py-4">
-                  No support requests yet. Use the <strong>Support</strong> button at the bottom-right of the screen to contact us.
+                  No support requests yet. Use the <strong><i class="fa fa-life-ring"></i> Support</strong> button at the bottom-right of the screen to contact us.
                 </td>
               </tr>
               @endforelse

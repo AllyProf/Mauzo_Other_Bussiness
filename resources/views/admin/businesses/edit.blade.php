@@ -146,10 +146,13 @@
             </div>
             <div class="col-md-6">
               @if($business->phone)
-              <div class="custom-control custom-checkbox mt-4 pt-2">
-                <input type="checkbox" class="custom-control-input" id="send_sms_password" name="send_sms" value="1">
-                <label class="custom-control-label" for="send_sms_password">Send new password by SMS to {{ $business->phone }}</label>
-              </div>
+              <p class="text-muted mt-4 pt-2 mb-0">
+                <i class="fa fa-mobile"></i> The new password will be sent by SMS to <strong>{{ $business->phone }}</strong>.
+              </p>
+              @else
+              <p class="text-warning mt-4 pt-2 mb-0">
+                <i class="fa fa-exclamation-triangle"></i> No business phone on file — SMS cannot be sent. Add a phone number above and save first.
+              </p>
               @endif
             </div>
           </div>

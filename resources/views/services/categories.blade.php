@@ -22,10 +22,6 @@
 <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
-@if($branchFilterId ?? null)
-<div class="alert alert-info py-2">Viewing branch: <strong>{{ $activeBranchName }}</strong></div>
-@endif
-
 <div class="row mb-3">
   <div class="col-md-12">
     <div class="btn-group">

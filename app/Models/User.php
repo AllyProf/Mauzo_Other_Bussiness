@@ -34,6 +34,9 @@ class User extends Authenticatable
         'platform_admin_role_id',
         'is_active',
         'locale',
+        'first_login_at',
+        'tour_completed_at',
+        'tour_skipped_at',
     ];
 
     /**

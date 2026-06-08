@@ -9,12 +9,12 @@
   $statusLabel = __($statusKey) !== $statusKey ? __($statusKey) : strtoupper($sale->payment_status);
 @endphp
 <div class="media border-bottom py-3 px-1 live-feed-item" data-sale-id="{{ $sale->id }}">
-  <div class="mr-3 text-center" style="min-width: 52px;">
+  <div class="mr-3 text-center live-feed-side" style="min-width: 52px;">
     <div class="small text-muted">{{ $sale->created_at->format('H:i') }}</div>
     <span class="badge badge-{{ $statusClass }}">{{ strtoupper($statusLabel) }}</span>
   </div>
-  <div class="media-body">
-    <div class="d-flex justify-content-between align-items-start">
+  <div class="media-body live-feed-main">
+    <div class="d-flex justify-content-between align-items-start live-feed-top">
       <div>
         <strong>{{ $sale->reference_no }}</strong>
         <span class="text-muted small"> · {{ $sale->user?->name ?? __('live_sales.feed.staff') }}</span>
@@ -22,7 +22,7 @@
         <br><small class="text-muted">{{ $sale->customer_name }}</small>
         @endif
       </div>
-      <strong class="text-nowrap ml-2">{{ money($sale->total_amount) }}</strong>
+      <strong class="text-nowrap ml-2 live-feed-amount">{{ money($sale->total_amount) }}</strong>
     </div>
     <small class="text-muted d-block mt-1">{{ Str::limit($sale->soldItemsSummary(), 80) }}</small>
     <small class="text-muted">

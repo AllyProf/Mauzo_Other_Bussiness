@@ -100,18 +100,6 @@
 
 @include('reports.partials.business-type-tabs')
 
-@if($viewingAllBranches ?? false)
-<div class="alert alert-light border py-2 mb-3">
-  <i class="fa fa-building"></i>
-  Viewing reports from <strong>all branches</strong>. Switch branch in the header to filter by location.
-</div>
-@elseif(!empty($activeBranchName))
-<div class="alert alert-info py-2 mb-3">
-  <i class="fa fa-map-marker"></i>
-  Reports for branch <strong>{{ $activeBranchName }}</strong> — sales filtered by item categories in this branch.
-</div>
-@endif
-
 @yield('report-content')
 @endsection
 

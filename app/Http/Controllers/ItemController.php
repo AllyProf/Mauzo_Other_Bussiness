@@ -284,6 +284,7 @@ class ItemController extends Controller
                 'reference_url' => route('receivings.show', $receiving->id),
                 'quantity' => $stockQty,
                 'quantity_label' => '+' . $this->formatQty($stockQty),
+                'quantity_unit' => $unitName,
                 'quantity_class' => $cancelled ? 'text-muted' : 'text-success',
                 'by' => $receiving->user->name ?? 'N/A',
                 'party' => $receiving->supplier->name ?? 'N/A',
@@ -297,12 +298,15 @@ class ItemController extends Controller
 
         $saleItems = SaleItem::where('item_id', $item->id)
             ->whereHas('sale', fn ($q) => $q->where('business_id', Auth::user()->business_id))
-            ->with(['sale.user'])
+            ->with(['sale.user', 'itemPackaging.packagingType'])
             ->get();
 
         foreach ($saleItems as $saleItem) {
             $sale = $saleItem->sale;
             $cancelled = $sale->payment_status === 'cancelled';
+            $packaging = $saleItem->itemPackaging;
+            $soldUnitName = $packaging?->packagingType?->name ?? $unitName;
+            $piecesSold = $item->stockUnitsForPackaging((int) $saleItem->quantity, $packaging);
 
             $movements->push([
                 'sort_date' => $sale->sale_date . ' ' . ($sale->created_at?->format('H:i:s') ?? '00:00:00'),
@@ -313,14 +317,19 @@ class ItemController extends Controller
                 'badge' => $cancelled ? 'secondary' : 'primary',
                 'reference' => $sale->reference_no,
                 'reference_url' => route('sales.show', $sale->id),
-                'quantity' => $saleItem->quantity,
+                'quantity' => $piecesSold,
                 'quantity_label' => '-' . $this->formatQty($saleItem->quantity),
+                'quantity_unit' => $soldUnitName,
                 'quantity_class' => $cancelled ? 'text-muted' : 'text-danger',
                 'by' => $sale->user->name ?? 'N/A',
                 'party' => $sale->customer_name ?: 'Walk-in Customer',
                 'party_label' => 'Customer',
                 'details' => 'TZS ' . number_format($saleItem->unit_price, 2) . ' × '
-                    . $this->formatQty($saleItem->quantity) . ' = TZS ' . number_format($saleItem->subtotal, 2)
+                    . $this->formatQty($saleItem->quantity) . ' ' . $soldUnitName
+                    . ($piecesSold !== (float) $saleItem->quantity
+                        ? ' (' . $this->formatQty($piecesSold) . ' ' . $unitName . '(s))'
+                        : '')
+                    . ' = TZS ' . number_format($saleItem->subtotal, 2)
                     . ($cancelled ? ' — sale cancelled, stock restored' : ''),
                 'status' => ucfirst(str_replace('_', ' ', $sale->payment_status)),
                 'counts_toward_totals' => ! $cancelled,
@@ -347,6 +356,7 @@ class ItemController extends Controller
                 'reference_url' => route('stock-losses.show', $loss->id),
                 'quantity' => $lossItem->quantity,
                 'quantity_label' => '-' . $this->formatQty($lossItem->quantity),
+                'quantity_unit' => $unitName,
                 'quantity_class' => $cancelled ? 'text-muted' : 'text-warning',
                 'by' => $loss->user->name ?? 'N/A',
                 'party' => $loss->reasonLabel(),

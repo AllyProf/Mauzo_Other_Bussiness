@@ -278,7 +278,7 @@
               </tr>
               @endif
               @else
-              <tr class="main-row {{ $rowClass }} {{ ($ledger['is_business_type_row'] ?? false) ? 'business-type-row' : '' }}" data-toggle="collapse" data-target="#details-{{ $ledger['id'] }}" aria-expanded="false">
+              <tr class="main-row {{ $rowClass }} {{ ($ledger['is_business_type_row'] ?? false) ? 'business-type-row' : '' }}" data-ledger-date="{{ $ledger['ledger_date'] }}" data-toggle="collapse" data-target="#details-{{ $ledger['id'] }}" aria-expanded="false">
                 <td class="text-center text-muted"><i class="fa fa-chevron-down"></i></td>
                 <td class="font-weight-bold text-primary">{{ \Carbon\Carbon::parse($ledger['ledger_date'])->format('d M, Y') }}</td>
                 @if($multiBusiness ?? false)
@@ -511,10 +511,33 @@
                             <small class="text-muted d-block mt-1">{{ __('owner_reports.labels.finalize_note') }}</small>
                           </div>
 
-                          <div class="text-right mt-3">
-                            <a href="{{ route('day-closing.show', $closingRouteId) }}" class="btn btn-primary btn-sm">
+                          <div class="text-right mt-3 d-flex flex-wrap justify-content-end align-items-start">
+                            <a href="{{ route('day-closing.index', ['date' => $ledger['ledger_date']]) }}#{{ ($ledger['shift_id'] ?? null) ? 'handover-'.$closingRouteId : 'owner-day-close' }}" class="btn btn-outline-secondary btn-sm mr-2 mb-2">
                               <i class="fa fa-external-link"></i> {{ __('owner_reports.view_reconciliation') }}
                             </a>
+
+                            @if(Auth::user()->role === 'owner' && ($ledger['is_last_handover_of_day'] ?? false) && !($ledger['is_finalized'] ?? false) && !($ledger['is_business_type_row'] ?? false))
+                              <div class="text-left border rounded p-3 bg-white mb-2" style="min-width: 280px; max-width: 420px;">
+                                <h6 class="font-weight-bold mb-2"><i class="fa fa-check"></i> {{ __('owner_reports.show.finalize_button') }}</h6>
+                                <p class="small text-muted mb-2">{{ __('owner_reports.show.petty_cash_hint') }}</p>
+                                <a href="{{ route('petty-cash.index', ['date' => $ledger['ledger_date']]) }}" class="btn btn-outline-primary btn-sm btn-block mb-2">
+                                  <i class="fa fa-money"></i> {{ __('owner_reports.show.manage_petty_cash') }}
+                                </a>
+                                <form method="POST" action="{{ route('owner-reports.finalize', $ledger['ledger_date']) }}" class="finalize-day-form" data-closing-id="{{ $ledger['id'] }}">
+                                  @csrf
+                                  <div class="form-group mb-2">
+                                    <label class="small font-weight-bold mb-1">{{ __('owner_reports.show.owner_notes_optional') }}</label>
+                                    <textarea name="owner_notes" class="form-control form-control-sm" rows="2" placeholder="{{ __('owner_reports.show.owner_notes_placeholder') }}">{{ old('owner_notes', $ledger['report']?->owner_notes ?? '') }}</textarea>
+                                  </div>
+                                  <button type="button"
+                                          class="btn btn-success btn-sm btn-block finalize-day-btn"
+                                          data-circulation="{{ round($ledger['carried_forward'] ?? 0) }}"
+                                          data-profit="{{ round($ledger['profit_rollover'] ?? 0) }}">
+                                    <i class="fa fa-check"></i> {{ __('owner_reports.show.finalize_button') }}
+                                  </button>
+                                </form>
+                              </div>
+                            @endif
                           </div>
                         </div>
                       </div>
@@ -544,11 +567,54 @@
 @endsection
 
 @section('scripts')
+@php
+  $finalizeConfirmText = __('owner_reports.show.finalize_confirm_text', [
+    'circulation' => ':circulation',
+    'profit' => ':profit',
+  ]);
+@endphp
 <script>
 jQuery(function($) {
   $('.main-row').on('click', function() {
     const expanded = $(this).attr('aria-expanded') === 'true';
     $(this).attr('aria-expanded', expanded ? 'false' : 'true');
+  });
+
+  @if(request('highlight_date'))
+    const highlightDate = @json(request('highlight_date'));
+    const $targetRow = $('.main-row[data-ledger-date="' + highlightDate + '"]').first();
+
+    if ($targetRow.length) {
+      $targetRow.attr('aria-expanded', 'true');
+      const targetId = $targetRow.data('target');
+      if (targetId) {
+        $(targetId).addClass('show');
+      }
+      $('html, body').animate({ scrollTop: $targetRow.offset().top - 80 }, 400);
+      $targetRow.addClass('table-warning');
+    }
+  @endif
+
+  $('.finalize-day-btn').on('click', function() {
+    const $form = $(this).closest('.finalize-day-form');
+    const circulation = parseFloat($(this).data('circulation')) || 0;
+    const profit = parseFloat($(this).data('profit')) || 0;
+    const confirmText = @json($finalizeConfirmText)
+      .replace(':circulation', circulation.toLocaleString())
+      .replace(':profit', profit.toLocaleString());
+
+    Swal.fire({
+      title: @json(__('owner_reports.show.finalize_confirm_title')),
+      text: confirmText,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#940000',
+      confirmButtonText: @json(__('owner_reports.show.yes_finalize'))
+    }).then((result) => {
+      if (result.isConfirmed) {
+        $form.trigger('submit');
+      }
+    });
   });
 });
 </script>

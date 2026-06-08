@@ -16,7 +16,7 @@ return [
     'construction' => ['Bag', 'Tonne (T)', 'Kilogram (Kg)', 'Piece (Pcs)', 'Metre (M)', 'Bundle', 'Carton', 'Sheet'],
     'agriculture' => ['Kilogram (Kg)', 'Bag', 'Litre (L)', 'Piece (Pcs)', 'Sachet', 'Bottle', 'Carton', 'Box'],
     'toys' => ['Piece (Pcs)', 'Box', 'Set', 'Pair', 'Carton'],
-    'liquor' => ['Bottle', 'Crate', 'Carton', 'Case', 'Piece (Pcs)', 'Can'],
+    'liquor' => ['Crate', 'Carton', 'Case', 'Piece (Pcs)', 'Can'],
     'furniture' => ['Piece (Pcs)', 'Set', 'Carton', 'Box'],
     'auto_garage' => ['Piece (Pcs)', 'Box', 'Set', 'Bottle', 'Litre (L)', 'Pair', 'Carton', 'Packet'],
     'pet_shop' => ['Kilogram (Kg)', 'Bag', 'Piece (Pcs)', 'Bottle', 'Box', 'Packet'],

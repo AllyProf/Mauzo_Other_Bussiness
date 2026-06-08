@@ -26,18 +26,6 @@
   <a href="{{ route('debts.history') }}" class="btn btn-outline-primary ml-2"><i class="fa fa-history"></i> {{ __('pages.debts.debt_history') }}</a>
 </div>
 
-@if(!empty($activeBranchName))
-<div class="alert alert-info mb-3 py-2">
-  <i class="fa fa-map-marker"></i>
-  Showing debts for sales from <strong>{{ $activeBranchName }}</strong> categories.
-</div>
-@elseif($viewingAllBranches ?? false)
-<div class="alert alert-light border mb-3 py-2">
-  <i class="fa fa-building"></i>
-  Viewing debts from <strong>all branches</strong>. Switch branch in the header to filter.
-</div>
-@endif
-
 <div class="row mb-3">
   <div class="col-md-3">
     <div class="widget-small danger coloured-icon">

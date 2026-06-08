@@ -84,10 +84,13 @@
 
                 <div id="providerFields" style="display: none;">
                     <div class="form-group">
-                        <label class="control-label required">Provider Name</label>
-                        <select name="payment_provider" id="paymentProvider" class="form-control">
+                        <label class="control-label required">Provider / Platform</label>
+                        <select id="paymentProvider" class="form-control">
                             <option value="">-- Select Provider --</option>
                         </select>
+                        <input type="hidden" name="payment_provider" id="paymentProviderValue">
+                        <input type="text" id="paymentProviderCustom" class="form-control mt-2" placeholder="Or type another provider (e.g. Mixx by Yas)">
+                        <small class="text-muted">Choose from the list or enter a custom provider name.</small>
                     </div>
                     <div class="form-group mb-0">
                         <label class="control-label required">Transaction Reference No.</label>

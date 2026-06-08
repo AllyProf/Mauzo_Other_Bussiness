@@ -33,4 +33,5 @@ return [
     'password_updated' => 'Nenosiri limesasishwa kwa mafanikio.',
     'could_not_save' => 'Imeshindikana kuhifadhi',
     'language_updated' => 'Lugha imebadilishwa.',
+    'contact_support' => 'Wasiliana na Msaada',
 ];

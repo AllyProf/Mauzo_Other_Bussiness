@@ -147,17 +147,6 @@
   <strong>Multi-department shop:</strong> pick a department to filter items, then choose a category.
 </div>
 @endif
-@if(!empty($activeBranchName))
-<div class="alert alert-info mb-3 py-2">
-  <i class="fa fa-map-marker"></i>
-  Showing items for <strong>{{ $activeBranchName }}</strong>. Department tabs reflect this branch only.
-</div>
-@elseif($viewingAllBranches ?? false)
-<div class="alert alert-light border mb-3 py-2">
-  <i class="fa fa-building"></i>
-  Viewing <strong>all branches</strong>. Switch branch in the header to filter POS items.
-</div>
-@endif
 <div class="pos-container">
     <!-- LEFT SIDE: ITEMS GRID -->
     <div class="pos-left">

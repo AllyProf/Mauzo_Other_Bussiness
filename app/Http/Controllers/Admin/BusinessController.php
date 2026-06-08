@@ -553,7 +553,6 @@ class BusinessController extends Controller
 
         $request->validate([
             'password' => "nullable|string|min:{$minLength}|max:64",
-            'send_sms' => 'nullable|boolean',
         ]);
 
         $password = $request->filled('password')
@@ -568,10 +567,9 @@ class BusinessController extends Controller
             $business->id
         );
 
-        $smsSent = false;
-        if ($request->boolean('send_sms') && $business->phone) {
-            $smsSent = app(\App\Services\PlatformSmsService::class)->sendPasswordReset($business, $password);
-        }
+        $smsSent = filled($business->phone)
+            ? app(PlatformSmsService::class)->sendPasswordReset($business, $password, $owner->email)
+            : false;
 
         $emailSent = app(\App\Services\PlatformMailService::class)->sendPasswordReset($business, $password, $owner->email);
 

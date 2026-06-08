@@ -13,7 +13,7 @@ return [
     'construction' => ['Gunia', 'Toni (T)', 'Kilogramu (Kg)', 'Kipande (Pcs)', 'Mita (M)', 'Fungu', 'Kareti', 'Karatasi'],
     'agriculture' => ['Kilogramu (Kg)', 'Gunia', 'Lita (L)', 'Kipande (Pcs)', 'Pakiti', 'Chupa', 'Kareti', 'Sanduku'],
     'toys' => ['Kipande (Pcs)', 'Sanduku', 'Seti', 'Jozi', 'Kareti'],
-    'liquor' => ['Chupa', 'Sanduku la Pombe', 'Kareti', 'Kesi', 'Kipande (Pcs)', 'Kopo'],
+    'liquor' => ['Sanduku la Pombe', 'Kareti', 'Kesi', 'Kipande (Pcs)', 'Kopo'],
     'furniture' => ['Kipande (Pcs)', 'Seti', 'Kareti', 'Sanduku'],
     'auto_garage' => ['Kipande (Pcs)', 'Sanduku', 'Seti', 'Chupa', 'Lita (L)', 'Jozi', 'Kareti', 'Pakiti'],
     'pet_shop' => ['Kilogramu (Kg)', 'Gunia', 'Kipande (Pcs)', 'Chupa', 'Sanduku', 'Pakiti'],

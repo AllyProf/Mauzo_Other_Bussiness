@@ -33,4 +33,5 @@ return [
     'password_updated' => 'Password updated successfully.',
     'could_not_save' => 'Could not save',
     'language_updated' => 'Language preference saved.',
+    'contact_support' => 'Contact Support',
 ];

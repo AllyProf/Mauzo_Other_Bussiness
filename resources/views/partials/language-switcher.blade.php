@@ -3,9 +3,9 @@
   $currentLocale = $currentLocale ?? app()->getLocale();
   $compact = $compact ?? false;
 @endphp
-<li class="dropdown">
-  <a class="app-nav__item d-flex align-items-center" href="#" data-toggle="dropdown" aria-label="{{ __('common.language') }}" title="{{ __('common.language') }}">
-    <i class="fa fa-globe fa-lg"></i>
+<li class="dropdown app-nav__action app-nav__language">
+  <a class="app-nav__item app-nav__icon-btn" href="#" data-toggle="dropdown" aria-label="{{ __('common.language') }}" title="{{ __('common.language') }}">
+    <i class="fa fa-globe"></i>
     @unless($compact)
       <span class="d-none d-md-inline ml-2">{{ strtoupper($currentLocale) }}</span>
       <i class="fa fa-caret-down ml-1 d-none d-md-inline"></i>

@@ -33,10 +33,6 @@
 <div class="alert alert-warning">{{ session('warning') }}</div>
 @endif
 
-@if($branchFilterId ?? null)
-<div class="alert alert-info py-2">Importing for branch: <strong>{{ $activeBranchName }}</strong></div>
-@endif
-
 @can('add_items')
 <div class="tile mb-3">
   <h3 class="tile-title">Import service business template</h3>

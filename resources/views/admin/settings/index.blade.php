@@ -379,7 +379,7 @@
                 'sms_registration_verification' => ['Registration verification code', 'Sent when a business verifies their phone during signup.'],
                 'sms_registration_approved' => ['Registration approved', 'Login password sent when you approve a pending business.'],
                 'sms_registration_rejected' => ['Registration rejected', 'Notice when a pending registration is rejected.'],
-                'sms_password_reset' => ['Owner password reset', 'When admin resets a business owner password with SMS checked.'],
+                'sms_password_reset' => ['Owner password reset', 'When admin resets a business owner password from the edit page.'],
                 'sms_account_suspended' => ['Manual account suspend', 'When you suspend a business from admin.'],
                 'sms_account_reactivated' => ['Account reactivated', 'When a suspended business is turned back on.'],
                 'sms_auto_suspend' => ['Auto-suspend notice', 'When overdue subscription or unpaid invoice triggers auto-suspend.'],

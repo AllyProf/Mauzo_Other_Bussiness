@@ -164,7 +164,7 @@
                     @endif
                   </td>
                   @endif
-                  <td>{{ $closing->shift ? '#'.$closing->shift->id : '—' }}</td>
+                  <td>{{ $closing->shift ? '#'.$closing->shift->id : 'Owner direct' }}</td>
                   <td>{{ $closing->closing_date->format('M d, Y') }}</td>
                   <td class="text-danger font-weight-bold">
                     {{ money($closing->display_short ?? $closing->money_short) }}
@@ -216,7 +216,7 @@
                         <i class="fa fa-list"></i>
                       </button>
                     @endif
-                    <a href="{{ route('day-closing.index', ['date' => $closing->closing_date->format('Y-m-d')]) }}#handover-{{ $closing->id }}" class="btn btn-sm btn-outline-primary" title="View handover">
+                    <a href="{{ route('day-closing.index', ['date' => $closing->closing_date->format('Y-m-d')]) }}#{{ $closing->shift ? 'handover-'.$closing->id : 'owner-day-close' }}" class="btn btn-sm btn-outline-primary" title="View handover">
                       <i class="fa fa-eye"></i>
                     </a>
                   </td>

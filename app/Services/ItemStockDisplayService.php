@@ -55,18 +55,19 @@ class ItemStockDisplayService
         $packagingBreakdown = collect($packagingPrices)
             ->sortBy('quantity_per_unit')
             ->map(function ($pkg) use ($pieces) {
-                $qpu = max(1, (int) $pkg['quantity_per_unit']);
-                $count = (int) floor($pieces / $qpu);
-
-                return [
-                    'name' => $pkg['name'],
-                    'quantity_per_unit' => $qpu,
-                    'count' => $count,
-                    'formatted_count' => (string) $count,
-                ];
+                return $this->buildPackagingStockRow($pkg['name'], (int) $pkg['quantity_per_unit'], $pieces);
             })
-            ->values()
-            ->all();
+            ->values();
+
+        $hasBulkPackaging = $packagingBreakdown->contains(fn ($row) => ($row['quantity_per_unit'] ?? 1) > 1);
+
+        if ($hasBulkPackaging) {
+            $packagingBreakdown = $packagingBreakdown
+                ->reject(fn ($row) => ($row['quantity_per_unit'] ?? 1) === 1)
+                ->values();
+        }
+
+        $packagingBreakdown = $packagingBreakdown->all();
 
         return [
             'pieces' => $pieces,
@@ -79,5 +80,41 @@ class ItemStockDisplayService
             'pack_size' => $packSize,
             'packaging_breakdown' => $packagingBreakdown,
         ];
+    }
+
+    private function buildPackagingStockRow(string $name, int $quantityPerUnit, float $pieces): array
+    {
+        $qpu = max(1, $quantityPerUnit);
+        $count = (int) floor($pieces / $qpu);
+        $remainder = $qpu > 1 ? (int) round(fmod($pieces, $qpu)) : 0;
+
+        return [
+            'name' => $name,
+            'quantity_per_unit' => $qpu,
+            'count' => $count,
+            'remainder_pieces' => $remainder,
+            'formatted_count' => $this->formatPackagingCount($name, $count, $qpu, $remainder),
+        ];
+    }
+
+    private function formatPackagingCount(string $name, int $count, int $quantityPerUnit, int $remainder): string
+    {
+        if ($quantityPerUnit <= 1) {
+            return (string) $count;
+        }
+
+        if ($count > 0 && $remainder > 0) {
+            return $count . ' ' . $name . ' · ' . $remainder . ' pcs';
+        }
+
+        if ($count > 0) {
+            return $count . ' ' . $name;
+        }
+
+        if ($remainder > 0) {
+            return '0 ' . $name . ' · ' . $remainder . ' pcs';
+        }
+
+        return '0 ' . $name;
     }
 }

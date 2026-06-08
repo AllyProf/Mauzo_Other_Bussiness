@@ -4,19 +4,135 @@
 
 @section('styles')
 <style>
-  .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; flex: 1; min-width: 0; }
-  .business-type-tab {
-    cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
-    font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
-    transition: all .15s ease; line-height: 1.5;
+  .receivings-page .business-type-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    flex: 1;
+    min-width: 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
-  .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
-  .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
-  .business-type-tab i { margin-right: 5px; }
+  .receivings-page .business-type-tabs::-webkit-scrollbar { display: none; }
+  .receivings-page .business-type-tab {
+    cursor: pointer;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: #fff;
+    color: #495057;
+    font-size: 11px;
+    white-space: nowrap;
+    border: 1px solid #dee2e6;
+    font-weight: 600;
+    transition: all .15s ease;
+    line-height: 1.5;
+    flex-shrink: 0;
+  }
+  .receivings-page .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
+  .receivings-page .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
+  .receivings-page .business-type-tab i { margin-right: 5px; }
+
+  .receivings-page .receiving-ref-cell strong {
+    display: block;
+    line-height: 1.35;
+  }
+  .receivings-page .receiving-mobile-meta {
+    margin-top: 5px;
+    line-height: 1.45;
+  }
+  .receivings-page .receiving-actions {
+    white-space: nowrap;
+  }
+  .receivings-page .receiving-actions .btn {
+    padding: 0.35rem 0.5rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .receivings-page .app-title {
+      flex-wrap: wrap;
+      align-items: flex-start !important;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .receivings-page .app-title h1 {
+      font-size: 1.35rem;
+      line-height: 1.35;
+    }
+    .receivings-page .app-title p {
+      display: block !important;
+      font-size: 0.88rem;
+      font-style: normal;
+    }
+    .receivings-page .app-title > .btn {
+      width: 100%;
+      margin-left: 0 !important;
+    }
+    .receivings-page .receivings-filters .col-md-5,
+    .receivings-page .receivings-filters .col-md-3,
+    .receivings-page .receivings-filters .col-md-4 {
+      flex: 0 0 100%;
+      max-width: 100%;
+      margin-bottom: 12px;
+    }
+    .receivings-page .receivings-filters .col-md-4 {
+      margin-bottom: 0;
+    }
+    .receivings-page .receivings-result-count {
+      display: block;
+      padding-top: 0;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .receivings-page .app-title h1 {
+      font-size: 1.2rem;
+    }
+    .receivings-page .app-title p {
+      font-size: 0.82rem;
+    }
+    .receivings-page .tile {
+      padding: 14px;
+    }
+    .receivings-page .alert {
+      font-size: 0.88rem;
+      padding: 0.65rem 0.85rem;
+    }
+    .receivings-page .receivings-col-hide-mobile {
+      display: none !important;
+    }
+    .receivings-page #receivingsTable {
+      font-size: 13px;
+    }
+    .receivings-page #receivingsTable thead th {
+      font-size: 11px;
+    }
+    .receivings-page .receivings-table-wrap {
+      margin: 0 -4px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .receivings-page .receiving-actions {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+    }
+    .receivings-page .receiving-actions form {
+      display: inline-block !important;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .receivings-page .business-type-tab {
+      padding: 5px 10px;
+      font-size: 10px;
+    }
+  }
 </style>
 @endsection
 
 @section('content')
+<div class="receivings-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-truck"></i> {{ __('pages.receivings.title') }}</h1>
@@ -31,18 +147,6 @@
 <div class="alert alert-light border mb-3 py-2">
   <i class="fa fa-info-circle text-primary"></i>
   <strong>{{ __('pages.receivings.multi_department') }}</strong> {{ __('pages.receivings.multi_department_hint') }}
-</div>
-@endif
-
-@if(!empty($activeBranchName))
-<div class="alert alert-info mb-3 py-2">
-  <i class="fa fa-map-marker"></i>
-  {{ __('pages.receivings.showing_branch') }} <strong>{{ $activeBranchName }}</strong>.
-</div>
-@elseif($viewingAllBranches ?? false)
-<div class="alert alert-light border mb-3 py-2">
-  <i class="fa fa-building"></i>
-  {{ __('pages.receivings.viewing_all_branches') }}
 </div>
 @endif
 
@@ -62,7 +166,7 @@
       </div>
       @endif
 
-      <div class="row mb-3">
+      <div class="row mb-3 receivings-filters">
         <div class="col-md-5">
           <label class="control-label font-weight-bold small text-uppercase text-muted">{{ __('tables.filters.search') }}</label>
           <div class="input-group">
@@ -80,22 +184,23 @@
             <option value="cancelled">{{ __('tables.filters.cancelled') }}</option>
           </select>
         </div>
-        <div class="col-md-4 d-flex align-items-end">
+        <div class="col-md-4 d-flex align-items-end receivings-result-count">
           <small class="text-muted" id="receivingResultCount">{{ __('tables.counts.records', ['count' => $receivings->count()]) }}</small>
         </div>
       </div>
 
       <div class="tile-body px-0 pt-0">
+        <div class="table-responsive receivings-table-wrap">
         <table class="table table-hover table-bordered mb-0" id="receivingsTable">
           <thead>
             <tr>
               <th>{{ __('tables.columns.ref_no') }}</th>
-              <th>{{ __('tables.columns.branch') }}</th>
-              <th>{{ __('tables.columns.supplier') }}</th>
-              <th>{{ __('tables.columns.date') }}</th>
-              <th>{{ __('tables.columns.total_amount') }}</th>
-              <th>{{ __('tables.columns.received_by') }}</th>
-              <th>{{ __('tables.columns.status') }}</th>
+              <th class="receivings-col-hide-mobile">{{ __('tables.columns.branch') }}</th>
+              <th class="receivings-col-hide-mobile">{{ __('tables.columns.supplier') }}</th>
+              <th class="receivings-col-hide-mobile">{{ __('tables.columns.date') }}</th>
+              <th class="receivings-col-hide-mobile">{{ __('tables.columns.total_amount') }}</th>
+              <th class="receivings-col-hide-mobile">{{ __('tables.columns.received_by') }}</th>
+              <th class="receivings-col-hide-mobile">{{ __('tables.columns.status') }}</th>
               <th>{{ __('tables.columns.action') }}</th>
             </tr>
           </thead>
@@ -121,20 +226,38 @@
                     data-search="{{ $searchText }}"
                     data-status="{{ $status }}"
                     data-business-types="{{ $businessTypeKeys->implode(',') }}">
-                    <td><strong>{{ $receiving->reference_no }}</strong></td>
-                    <td>{{ $receiving->branch->name ?? __('tables.misc.dash') }}</td>
-                    <td>{{ $receiving->supplier->name ?? __('tables.misc.not_available') }}</td>
-                    <td>{{ \Carbon\Carbon::parse($receiving->received_date)->format('M d, Y') }}</td>
-                    <td>TZS {{ number_format($receiving->total_amount, 2) }}</td>
-                    <td>{{ $receiving->user->name }}</td>
                     <td>
+                      <div class="receiving-ref-cell">
+                        <strong>{{ $receiving->reference_no }}</strong>
+                        <div class="d-md-none receiving-mobile-meta">
+                          <small class="text-muted d-block">{{ $receiving->supplier->name ?? __('tables.misc.not_available') }}</small>
+                          <small class="text-muted d-block">
+                            {{ $receiving->branch->name ?? __('tables.misc.dash') }}
+                            · {{ \Carbon\Carbon::parse($receiving->received_date)->format('M d, Y') }}
+                          </small>
+                          <small class="d-block font-weight-bold text-dark">TZS {{ number_format($receiving->total_amount, 2) }}</small>
+                          <small class="text-muted d-block">{{ $receiving->user->name }}</small>
+                          @if($status === 'cancelled')
+                            <span class="badge badge-secondary mt-1">{{ __('tables.status.cancelled') }}</span>
+                          @else
+                            <span class="badge badge-success mt-1">{{ __('tables.status.completed') }}</span>
+                          @endif
+                        </div>
+                      </div>
+                    </td>
+                    <td class="receivings-col-hide-mobile">{{ $receiving->branch->name ?? __('tables.misc.dash') }}</td>
+                    <td class="receivings-col-hide-mobile">{{ $receiving->supplier->name ?? __('tables.misc.not_available') }}</td>
+                    <td class="receivings-col-hide-mobile">{{ \Carbon\Carbon::parse($receiving->received_date)->format('M d, Y') }}</td>
+                    <td class="receivings-col-hide-mobile">TZS {{ number_format($receiving->total_amount, 2) }}</td>
+                    <td class="receivings-col-hide-mobile">{{ $receiving->user->name }}</td>
+                    <td class="receivings-col-hide-mobile">
                         @if($status === 'cancelled')
                             <span class="badge badge-secondary">{{ __('tables.status.cancelled') }}</span>
                         @else
                             <span class="badge badge-success">{{ __('tables.status.completed') }}</span>
                         @endif
                     </td>
-                    <td class="text-center text-nowrap">
+                    <td class="text-center receiving-actions">
                         <a href="{{ route('receivings.show', $receiving->id) }}" class="btn btn-sm btn-info" title="{{ __('tables.actions.view') }}">
                             <i class="fa fa-eye"></i>
                         </a>
@@ -157,9 +280,11 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   </div>
+</div>
 </div>
 
 @include('receivings.partials.cancel-prompt-form')

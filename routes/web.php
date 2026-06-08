@@ -24,9 +24,6 @@ Route::get('/register', fn () => redirect()->route('register.business'))->name('
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->middleware(['auth', 'check.user.active']);
 
 Route::middleware(['auth', 'check.user.active'])->group(function () {
-    Route::post('/system-tour/complete', [App\Http\Controllers\SystemTourController::class, 'complete'])->name('system-tour.complete');
-    Route::post('/system-tour/skip', [App\Http\Controllers\SystemTourController::class, 'skip'])->name('system-tour.skip');
-    Route::get('/system-tour/replay', [App\Http\Controllers\SystemTourController::class, 'replay'])->name('system-tour.replay');
     Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
     Route::post('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.update-password');

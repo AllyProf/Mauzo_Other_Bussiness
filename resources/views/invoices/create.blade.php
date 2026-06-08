@@ -20,18 +20,6 @@
 </div>
 @endif
 
-@if(!empty($activeBranchName))
-<div class="alert alert-info py-2 mb-3">
-  <i class="fa fa-map-marker"></i>
-  Showing items for <strong>{{ $activeBranchName }}</strong>. Switch branch in the header to change location.
-</div>
-@elseif($viewingAllBranches ?? false)
-<div class="alert alert-light border py-2 mb-3">
-  <i class="fa fa-building"></i>
-  Viewing items from <strong>all branches</strong>. Switch branch in the header to filter invoice items.
-</div>
-@endif
-
 <div class="row">
   <div class="col-md-12">
     <div class="tile">

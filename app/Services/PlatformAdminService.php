@@ -117,6 +117,22 @@ class PlatformAdminService
             ->count();
     }
 
+    /**
+     * Platform admins who should receive new-ticket alerts (support role / tickets permission).
+     *
+     * @return Collection<int, User>
+     */
+    public function ticketNotificationStaff(): Collection
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->whereIn('role', ['super_admin', 'platform_staff'])
+            ->with('platformAdminRole')
+            ->get()
+            ->filter(fn (User $user) => $this->canAccess($user, 'tickets'))
+            ->values();
+    }
+
     public function assignableRoles(): Collection
     {
         return PlatformAdminRole::query()

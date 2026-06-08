@@ -102,10 +102,157 @@
     padding: 1rem 1.15rem;
     height: 100%;
   }
+
+  .stock-losses-page .loss-ref-cell strong {
+    display: block;
+    line-height: 1.35;
+  }
+  .stock-losses-page .loss-mobile-meta {
+    margin-top: 5px;
+    line-height: 1.45;
+  }
+  .stock-losses-page .loss-actions {
+    white-space: nowrap;
+  }
+  .stock-losses-page .loss-actions .btn {
+    padding: 0.35rem 0.5rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .stock-losses-page .app-title {
+      flex-wrap: wrap;
+      align-items: flex-start !important;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .stock-losses-page .app-title h1 {
+      font-size: 1.35rem;
+      line-height: 1.35;
+    }
+    .stock-losses-page .app-title p {
+      display: block !important;
+      font-size: 0.88rem;
+      font-style: normal;
+    }
+    .stock-losses-page .app-title > .btn {
+      width: 100%;
+      margin-left: 0 !important;
+    }
+    .stock-losses-page .widget-small {
+      height: auto;
+      min-height: 88px;
+      margin-bottom: 12px;
+    }
+    .stock-losses-page .widget-small .icon {
+      width: 52px;
+      min-width: 52px;
+      line-height: 1;
+      font-size: 26px;
+      padding: 12px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .stock-losses-page .widget-small .icon .fa-3x {
+      font-size: 1.6em;
+    }
+    .stock-losses-page .widget-small .info {
+      padding: 10px 12px 10px 8px;
+    }
+    .stock-losses-page .widget-small .info h4 {
+      font-size: 0.68rem;
+    }
+    .stock-losses-page .widget-small .info p {
+      font-size: 0.95rem;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .stock-losses-page .app-title h1 {
+      font-size: 1.2rem;
+    }
+    .stock-losses-page .app-title p {
+      font-size: 0.82rem;
+    }
+    .stock-losses-page .tile {
+      padding: 14px;
+    }
+    .stock-losses-page .alert {
+      font-size: 0.88rem;
+    }
+    .stock-losses-page .losses-col-hide-mobile,
+    .stock-losses-page .shortages-col-hide-mobile {
+      display: none !important;
+    }
+    .stock-losses-page .losses-table-wrap,
+    .stock-losses-page .stock-losses-shortages-wrap .table-responsive {
+      margin: 0 -4px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .stock-losses-page #lossesTable,
+    .stock-losses-page .stock-losses-shortages-wrap table {
+      font-size: 13px;
+    }
+    .stock-losses-page .loss-actions {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+    }
+    .stock-losses-page .loss-actions form {
+      display: inline-block !important;
+    }
+    .stock-losses-page .stock-shortages-section .tile-title small {
+      display: block;
+      margin-top: 4px;
+    }
+    .stock-losses-page .pagination {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .stock-loss-modal-dialog {
+      max-width: calc(100vw - 1rem);
+      margin: 0.5rem auto;
+    }
+    .stock-loss-modal-body {
+      padding: 1rem;
+    }
+    .stock-loss-modal-footer {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .stock-loss-modal-footer .btn {
+      flex: 1 1 auto;
+    }
+    .stock-loss-step {
+      flex: 1 1 100%;
+    }
+    #loss-items-table .qty-input {
+      max-width: none;
+      width: 100%;
+    }
+    .stock-loss-table-wrap {
+      max-height: 220px;
+    }
+    .stock-loss-table-wrap thead th:nth-child(4),
+    .stock-loss-table-wrap thead th:nth-child(6),
+    .stock-loss-table-wrap tbody td:nth-child(4),
+    .stock-loss-table-wrap tbody td:nth-child(6) {
+      display: none;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .stock-losses-page .widget-small .info p {
+      font-size: 0.88rem;
+    }
+  }
 </style>
 @endsection
 
 @section('content')
+<div class="stock-losses-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-minus-circle"></i> Stock Losses</h1>
@@ -129,12 +276,14 @@
 @include('partials.branch-business-filters', ['filterHint' => 'Select a business tab to filter stock loss records by department.'])
 
 @if($showStaffShortages ?? false)
-  @include('home.partials.my-stock-shortages', ['alwaysShowShortageSection' => true])
+<div class="stock-losses-shortages-wrap">
+  @include('home.partials.my-stock-shortages', ['alwaysShowShortageSection' => true, 'mobileTable' => true])
+</div>
 @endif
 
 @if($canViewManualLosses ?? false)
 <div class="row mb-3">
-  <div class="col-md-4">
+  <div class="col-6 col-md-4">
     <div class="widget-small danger coloured-icon">
       <i class="icon fa fa-file-text-o fa-3x"></i>
       <div class="info">
@@ -143,7 +292,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-6 col-md-4">
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-cubes fa-3x"></i>
       <div class="info">
@@ -152,7 +301,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-12 col-md-4">
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
@@ -167,38 +316,54 @@
   <div class="col-md-12">
     <div class="tile">
       <div class="tile-body">
-        <table class="table table-hover table-bordered">
+        <div class="table-responsive losses-table-wrap">
+        <table class="table table-hover table-bordered" id="lossesTable">
           <thead>
             <tr>
               <th>{{ __('tables.columns.reference') }}</th>
-              <th>{{ __('tables.columns.date') }}</th>
-              <th>{{ __('tables.columns.reason') }}</th>
-              <th>Items</th>
-              <th>Qty Lost</th>
-              <th>Cost Value</th>
-              <th>Recorded By</th>
-              <th>{{ __('tables.columns.status') }}</th>
+              <th class="losses-col-hide-mobile">{{ __('tables.columns.date') }}</th>
+              <th class="losses-col-hide-mobile">{{ __('tables.columns.reason') }}</th>
+              <th class="losses-col-hide-mobile">Items</th>
+              <th class="losses-col-hide-mobile">Qty Lost</th>
+              <th class="losses-col-hide-mobile">Cost Value</th>
+              <th class="losses-col-hide-mobile">Recorded By</th>
+              <th class="losses-col-hide-mobile">{{ __('tables.columns.status') }}</th>
               <th>{{ __('tables.columns.action') }}</th>
             </tr>
           </thead>
           <tbody>
             @forelse($losses as $loss)
               <tr>
-                <td><strong>{{ $loss->reference_no }}</strong></td>
-                <td>{{ $loss->loss_date->format('M d, Y') }}</td>
-                <td>{{ $loss->reasonLabel() }}</td>
-                <td>{{ $loss->items_count }}</td>
-                <td>{{ number_format($loss->total_quantity, 2) }}</td>
-                <td>{{ money($loss->total_cost_value) }}</td>
-                <td>{{ $loss->user->name ?? 'N/A' }}</td>
                 <td>
+                  <div class="loss-ref-cell">
+                    <strong>{{ $loss->reference_no }}</strong>
+                    <div class="d-md-none loss-mobile-meta">
+                      <small class="text-muted d-block">{{ $loss->loss_date->format('M d, Y') }} · {{ $loss->reasonLabel() }}</small>
+                      <small class="text-muted d-block">{{ $loss->items_count }} item(s) · Qty {{ number_format($loss->total_quantity, 2) }}</small>
+                      <small class="d-block font-weight-bold text-dark">{{ money($loss->total_cost_value) }}</small>
+                      <small class="text-muted d-block">{{ $loss->user->name ?? 'N/A' }}</small>
+                      @if($loss->isCancelled())
+                        <span class="badge badge-secondary mt-1">{{ __('tables.status.cancelled') }}</span>
+                      @else
+                        <span class="badge badge-danger mt-1">Recorded</span>
+                      @endif
+                    </div>
+                  </div>
+                </td>
+                <td class="losses-col-hide-mobile">{{ $loss->loss_date->format('M d, Y') }}</td>
+                <td class="losses-col-hide-mobile">{{ $loss->reasonLabel() }}</td>
+                <td class="losses-col-hide-mobile">{{ $loss->items_count }}</td>
+                <td class="losses-col-hide-mobile">{{ number_format($loss->total_quantity, 2) }}</td>
+                <td class="losses-col-hide-mobile">{{ money($loss->total_cost_value) }}</td>
+                <td class="losses-col-hide-mobile">{{ $loss->user->name ?? 'N/A' }}</td>
+                <td class="losses-col-hide-mobile">
                   @if($loss->isCancelled())
                     <span class="badge badge-secondary">{{ __('tables.status.cancelled') }}</span>
                   @else
                     <span class="badge badge-danger">Recorded</span>
                   @endif
                 </td>
-                <td class="text-nowrap">
+                <td class="text-nowrap loss-actions">
                   <a href="{{ route('stock-losses.show', $loss) }}" class="btn btn-sm btn-info"><i class="fa fa-eye"></i></a>
                   @if(!$loss->isCancelled())
                     @canany(['cancel_stock_loss', 'record_stock_loss'])
@@ -219,12 +384,14 @@
             @endforelse
           </tbody>
         </table>
+        </div>
         {{ $losses->links() }}
       </div>
     </div>
   </div>
 </div>
 @endif
+</div>
 
 @if($form ?? null)
 @include('stock-losses.partials.record-modal')

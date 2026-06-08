@@ -152,18 +152,6 @@
         </div>
       </div>
 
-      @if(!empty($activeBranchName))
-      <div class="alert alert-info py-2 mb-3">
-        <i class="fa fa-map-marker"></i>
-        {!! __('stock.branch.showing_for', ['branch' => '<strong>'.e($activeBranchName).'</strong>']) !!}
-      </div>
-      @elseif($viewingAllBranches ?? false)
-      <div class="alert alert-light border py-2 mb-3">
-        <i class="fa fa-building"></i>
-        {{ __('stock.branch.viewing_all') }}
-      </div>
-      @endif
-
       <!-- Search & Filters -->
       <div class="row mb-4">
         <div class="col-md-3">
@@ -237,21 +225,15 @@
                   <div class="bg-white border rounded p-2 shadow-xs">
                     <div class="smallest text-muted text-uppercase font-weight-bold mb-1">{{ __('stock.card.available') }}</div>
                     @if(!empty($item['packaging_breakdown']))
-                      <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
-                        <div class="smallest text-muted">{{ __('stock.card.pieces') }}</div>
-                        <div class="font-weight-bold text-{{ $item['status_color'] }}">
-                          {{ $item['formatted_quantity'] }} {{ __('stock.card.pcs') }}
-                        </div>
-                      </div>
                       @foreach($item['packaging_breakdown'] as $pkgStock)
-                        <div class="d-flex justify-content-between align-items-center {{ $loop->last ? '' : 'mb-1' }}">
+                        <div class="d-flex justify-content-between align-items-center {{ $loop->last ? '' : 'mb-1 pb-1 border-bottom' }}">
                           <div class="smallest text-muted">
                             {{ $pkgStock['name'] }}
                             @if(($pkgStock['quantity_per_unit'] ?? 1) > 1)
                               <span class="text-muted">({{ $pkgStock['quantity_per_unit'] }} {{ __('stock.card.pcs') }})</span>
                             @endif
                           </div>
-                          <div class="font-weight-bold text-{{ $item['status_color'] }}">
+                          <div class="font-weight-bold text-{{ $item['status_color'] }} text-right">
                             {{ $pkgStock['formatted_count'] }}
                           </div>
                         </div>
@@ -369,16 +351,17 @@
                   <td><span class="badge badge-secondary">{{ $item['unit'] }}</span></td>
                   <td>
                     @if(!empty($item['packaging_breakdown']))
-                      <strong class="text-{{ $item['status_color'] }}">{{ $item['formatted_quantity'] }} {{ __('stock.card.pcs') }}</strong>
                       @foreach($item['packaging_breakdown'] as $pkgStock)
-                        <br>
-                        <span class="smallest text-muted">
-                          {{ $pkgStock['name'] }}:
+                        <div class="{{ $loop->last ? 'mb-0' : 'mb-1' }}">
+                          <span class="smallest text-muted">
+                            {{ $pkgStock['name'] }}
+                            @if(($pkgStock['quantity_per_unit'] ?? 1) > 1)
+                              <span>({{ $pkgStock['quantity_per_unit'] }} {{ __('stock.card.pcs_each') }})</span>
+                            @endif
+                            :
+                          </span>
                           <strong class="text-{{ $item['status_color'] }}">{{ $pkgStock['formatted_count'] }}</strong>
-                          @if(($pkgStock['quantity_per_unit'] ?? 1) > 1)
-                            <span>({{ $pkgStock['quantity_per_unit'] }} {{ __('stock.card.pcs_each') }})</span>
-                          @endif
-                        </span>
+                        </div>
                       @endforeach
                     @elseif($item['has_bulk_stock'])
                       <strong class="text-{{ $item['status_color'] }}">{{ $item['formatted_quantity'] }} {{ __('stock.card.pcs') }}</strong>

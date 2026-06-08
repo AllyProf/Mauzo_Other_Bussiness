@@ -171,24 +171,17 @@ class SaleController extends Controller
             : null;
         $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
 
-        $categoriesQuery = Category::where('business_id', $business->id)->has('items');
-        if ($branchFilterId) {
-            $categoriesQuery->where('branch_id', $branchFilterId);
-        }
-        if (! $this->actsAsBusinessWideViewer() && ($typeKeys = Auth::user()->assignedBusinessTypeKeys()) !== []) {
-            $categoriesQuery->whereIn('source_business_type_key', $typeKeys);
-        }
-        $categories = $categoriesQuery->get();
-
-        $stockContext = app(SaleStockService::class)->shiftStockContext($openShift);
-
-        $itemsByCategory = Category::where('business_id', $business->id)
+        $categoryRecords = Category::where('business_id', $business->id)
             ->has('items')
             ->when($branchFilterId, fn ($query) => $query->where('branch_id', $branchFilterId))
             ->when(! $this->actsAsBusinessWideViewer() && ($typeKeys = Auth::user()->assignedBusinessTypeKeys()) !== [], fn ($query) => $query->whereIn('source_business_type_key', $typeKeys))
             ->with(['items.packagings.packagingType'])
-            ->get()
-            ->mapWithKeys(function ($cat) use ($openShift, $stockContext) {
+            ->orderBy('name')
+            ->get();
+
+        $stockContext = app(SaleStockService::class)->shiftStockContext($openShift);
+
+        $itemsByCategory = $categoryRecords->mapWithKeys(function ($cat) use ($openShift, $stockContext) {
                 $typeKey = $cat->source_business_type_key ?: 'other';
                 $stockService = app(SaleStockService::class);
                 $items = $cat->items->map(function ($item) use ($openShift, $stockContext, $typeKey, $stockService) {
@@ -235,7 +228,12 @@ class SaleController extends Controller
                 })->filter()->values();
 
                 return [$cat->id => $items];
-            });
+            })
+            ->filter(fn ($items) => $items->isNotEmpty());
+
+        $categories = $categoryRecords
+            ->filter(fn ($cat) => $itemsByCategory->has($cat->id))
+            ->values();
 
         $customers = $this->activeCustomers();
 

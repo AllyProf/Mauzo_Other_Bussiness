@@ -92,7 +92,7 @@
                 <td>
                   <a href="{{ $movement['reference_url'] }}">{{ $movement['reference'] }}</a>
                 </td>
-                <td class="font-weight-bold {{ $movement['quantity_class'] }}">{{ $movement['quantity_label'] }} {{ $unitName }}(s)</td>
+                <td class="font-weight-bold {{ $movement['quantity_class'] }}">{{ $movement['quantity_label'] }} {{ $movement['quantity_unit'] ?? $unitName }}(s)</td>
                 <td>{{ $movement['by'] }}</td>
                 <td>
                   <small class="text-muted d-block">{{ $movement['party_label'] }}</small>

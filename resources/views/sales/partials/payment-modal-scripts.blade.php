@@ -38,6 +38,20 @@
 
     function setProviderFieldRequirements(requiresRef) {
         $('#paymentProvider, #transactionReference').prop('required', requiresRef);
+        $('#paymentProviderCustom').prop('required', false);
+    }
+
+    function resolvedPaymentProvider() {
+        const custom = ($('#paymentProviderCustom').val() || '').trim();
+        if (custom) {
+            return custom;
+        }
+
+        return ($('#paymentProvider').val() || '').trim();
+    }
+
+    function syncPaymentProviderValue() {
+        $('#paymentProviderValue').val(resolvedPaymentProvider());
     }
 
     function setCustomerFieldRequirements(mode) {
@@ -358,6 +372,8 @@
         $('#paymentAmountSection, #providerFields').hide();
         $('#payReceiveDetailsBox').hide();
         $('#paymentProvider').empty().append('<option value="">-- Select Provider --</option>');
+        $('#paymentProviderCustom').val('');
+        $('#paymentProviderValue').val('');
         $('#transactionReference').val('');
         $('#amountPaid').prop('required', false);
         setProviderFieldRequirements(false);
@@ -387,10 +403,13 @@
     });
 
     function updatePayReceiveDetails() {
+        syncPaymentProviderValue();
+
         const method = $('#paymentMethod').val();
+        const customProvider = ($('#paymentProviderCustom').val() || '').trim();
         const $providerOpt = $('#paymentProvider option:selected');
-        const payNumber = $providerOpt.attr('data-pay-number') || '';
-        const accountName = $providerOpt.attr('data-account-name') || '';
+        const payNumber = customProvider ? '' : ($providerOpt.attr('data-pay-number') || '');
+        const accountName = customProvider ? '' : ($providerOpt.attr('data-account-name') || '');
 
         if (!payNumber && !accountName) {
             $('#payReceiveDetailsBox').hide();
@@ -412,7 +431,7 @@
         }
     }
 
-    $('#paymentProvider').on('change', updatePayReceiveDetails);
+    $('#paymentProvider, #paymentProviderCustom').on('input change', updatePayReceiveDetails);
 
     $('#amountPaid').on('input', function() {
         $(this).data('user-edited', true);
@@ -441,15 +460,22 @@
         }
 
         if ($('#providerFields').is(':visible')) {
-            if (!$('#paymentProvider').val()) {
+            syncPaymentProviderValue();
+            const provider = resolvedPaymentProvider();
+
+            if (!provider) {
                 e.preventDefault();
                 Swal.fire({
                     icon: 'warning',
                     title: 'Provider required',
-                    text: 'Please select the payment provider (e.g. M-Pesa, Tigo Pesa).',
+                    text: 'Select a provider from the list or type a custom provider name.',
                     confirmButtonColor: '#940000'
                 });
-                $('#paymentProvider').focus();
+                if (!$('#paymentProvider').val()) {
+                    $('#paymentProviderCustom').focus();
+                } else {
+                    $('#paymentProvider').focus();
+                }
                 return false;
             }
 

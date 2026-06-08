@@ -5,7 +5,7 @@
 @endphp
 
 @if(($myShortageStats['total'] ?? 0) > 0 || $alwaysShowShortageSection)
-<div class="row {{ $alwaysShowShortageSection ? 'mb-3' : 'mt-2' }}">
+<div class="row stock-shortages-section {{ $alwaysShowShortageSection ? 'mb-3' : 'mt-2' }}">
   <div class="col-md-12">
     @if(($myShortageStats['will_be_paid'] ?? 0) > 0)
       <div class="alert alert-warning mb-3">
@@ -31,12 +31,12 @@
           <table class="table table-sm table-hover mb-0">
             <thead class="thead-light">
               <tr>
-                <th>{{ __('tables.columns.date') }}</th>
-                <th>{{ __('tables.columns.shift') }}</th>
+                <th class="{{ ($mobileTable ?? false) ? 'shortages-col-hide-mobile' : '' }}">{{ __('tables.columns.date') }}</th>
+                <th class="{{ ($mobileTable ?? false) ? 'shortages-col-hide-mobile' : '' }}">{{ __('tables.columns.shift') }}</th>
                 <th>{{ __('tables.columns.item') }}</th>
-                <th class="text-right">{{ __('tables.columns.short_by') }}</th>
-                <th>Your Reason</th>
-                <th>Owner Decision</th>
+                <th class="text-right {{ ($mobileTable ?? false) ? 'shortages-col-hide-mobile' : '' }}">{{ __('tables.columns.short_by') }}</th>
+                <th class="{{ ($mobileTable ?? false) ? 'shortages-col-hide-mobile' : '' }}">Your Reason</th>
+                <th class="{{ ($mobileTable ?? false) ? 'shortages-col-hide-mobile' : '' }}">Owner Decision</th>
                 <th class="text-right">Amount</th>
               </tr>
             </thead>
@@ -44,20 +44,42 @@
               @foreach($myStockShortages as $check)
                 @php $impact = $check->financial_impact ?? []; @endphp
                 <tr class="{{ $check->isWillBePaid() ? 'table-warning' : ($check->isVerified() ? 'table-light' : '') }}">
-                  <td nowrap>{{ $check->recorded_at->format('d M, Y h:i A') }}</td>
-                  <td>
+                  <td nowrap class="{{ ($mobileTable ?? false) ? 'shortages-col-hide-mobile' : '' }}">{{ $check->recorded_at->format('d M, Y h:i A') }}</td>
+                  <td class="{{ ($mobileTable ?? false) ? 'shortages-col-hide-mobile' : '' }}">
                     <a href="{{ route('shifts.show', $check->shift) }}">#{{ $check->shift_id }}</a>
                     <br><small class="text-muted">{{ ucfirst($check->check_type) }}</small>
                   </td>
                   <td>
                     <strong>{{ $check->item->name ?? 'Item' }}</strong>
+                    @if($mobileTable ?? false)
+                    <div class="d-md-none shortage-mobile-meta mt-1">
+                      <small class="text-muted d-block">{{ $check->recorded_at->format('d M, Y h:i A') }}</small>
+                      <small class="text-muted d-block">
+                        <a href="{{ route('shifts.show', $check->shift) }}">Shift #{{ $check->shift_id }}</a>
+                        · {{ ucfirst($check->check_type) }}
+                      </small>
+                      <small class="text-danger d-block font-weight-bold">Short: {{ number_format($check->shortageAmount(), 2) }}</small>
+                      @if($check->notes)
+                        <small class="text-muted d-block">{{ Str::limit($check->notes, 60) }}</small>
+                      @endif
+                      @if($check->isWillBePaid())
+                        <span class="badge badge-primary mt-1">Will be paid</span>
+                      @elseif($check->isWaived())
+                        <span class="badge badge-success mt-1">Waived</span>
+                      @elseif($check->isVerified())
+                        <span class="badge badge-secondary mt-1">Reviewed</span>
+                      @else
+                        <span class="badge badge-warning mt-1">Awaiting review</span>
+                      @endif
+                    </div>
+                    @endif
                     @if($check->item?->category)
                       <br><small class="text-muted">{{ $check->item->category->name }}</small>
                     @endif
                   </td>
-                  <td class="text-right font-weight-bold text-danger">{{ number_format($check->shortageAmount(), 2) }}</td>
-                  <td style="max-width:180px;">{{ $check->notes ?: '—' }}</td>
-                  <td>
+                  <td class="text-right font-weight-bold text-danger {{ ($mobileTable ?? false) ? 'shortages-col-hide-mobile' : '' }}">{{ number_format($check->shortageAmount(), 2) }}</td>
+                  <td style="max-width:180px;" class="{{ ($mobileTable ?? false) ? 'shortages-col-hide-mobile' : '' }}">{{ $check->notes ?: '—' }}</td>
+                  <td class="{{ ($mobileTable ?? false) ? 'shortages-col-hide-mobile' : '' }}">
                     @if($check->isWillBePaid())
                       <span class="badge badge-primary"><i class="fa fa-money"></i> Will be paid</span>
                       @if($check->owner_notes)

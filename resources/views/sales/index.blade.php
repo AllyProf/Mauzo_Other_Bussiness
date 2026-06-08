@@ -56,16 +56,6 @@
   <i class="fa fa-clock-o"></i> Shift #{{ $openShift->id }} is open.
   <a href="{{ route('shifts.show', $openShift) }}" class="alert-link">View</a>
 </div>
-@elseif(!empty($activeBranchName))
-<div class="alert alert-info py-2 mb-3">
-  <i class="fa fa-map-marker"></i>
-  Showing sales for items sold from <strong>{{ $activeBranchName }}</strong> categories.
-</div>
-@elseif($viewingAllBranches ?? false)
-<div class="alert alert-light border py-2 mb-3">
-  <i class="fa fa-building"></i>
-  Viewing sales from <strong>all branches</strong>. Switch branch in the header to filter.
-</div>
 @endif
 
 @if($multiBusiness ?? false)

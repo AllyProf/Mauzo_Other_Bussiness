@@ -5,6 +5,7 @@
   .product-bar-label {
     font-size: 14px; font-weight: 500; color: #2c3e50; margin-bottom: 6px;
     display: flex; justify-content: space-between; align-items: center;
+    gap: 8px;
   }
   .product-bar-track { height: 10px; background: #eaecf4; border-radius: 10px; }
   .product-bar-fill { height: 10px; background: #940000; border-radius: 10px; transition: width 1s ease; }
@@ -15,12 +16,13 @@
   .widget-small .icon { width: 65px; line-height: 100px; font-size: 35px; }
   .widget-small .info {
     padding: 10px 15px; display: flex; flex-direction: column; justify-content: center;
+    min-width: 0;
   }
   .widget-small .info h4 {
     text-transform: uppercase; font-size: 13px; margin-bottom: 5px; font-weight: 600;
   }
   .widget-small .info p { margin-bottom: 1px; font-size: 18px; }
-  .widget-small .info small { display: block; margin-top: 2px; }
+  .widget-small .info small { display: block; margin-top: 2px; line-height: 1.3; }
   .owner-empty { text-align: center; color: #999; padding: 30px 15px; }
   .owner-empty i { font-size: 2rem; display: block; margin-bottom: 8px; opacity: 0.5; }
   .pulse { animation: ownerPulse 2s infinite; }
@@ -28,12 +30,206 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }
   }
+
+  .owner-dashboard .owner-chart-wrap {
+    position: relative;
+    width: 100%;
+    min-height: 220px;
+  }
+  .owner-dashboard .owner-doughnut-wrap {
+    position: relative;
+    height: 200px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  .owner-dashboard .owner-staff-item {
+    gap: 10px;
+  }
+  .owner-dashboard .owner-quick-link {
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+  }
+  .owner-dashboard .owner-quick-link .fa-2x {
+    font-size: 1.6em;
+  }
+
+  /* Tablet */
+  @media (max-width: 991.98px) {
+    .app-title {
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .app-title h1 {
+      font-size: 1.35rem;
+      line-height: 1.35;
+    }
+    .app-title p {
+      font-size: 0.88rem;
+      font-style: normal;
+    }
+    .app-breadcrumb {
+      width: 100%;
+      margin-top: 0;
+    }
+
+    .owner-dashboard .tile-title {
+      font-size: 1.05rem;
+    }
+    .owner-dashboard .tile {
+      margin-bottom: 1rem;
+    }
+    .owner-dashboard .owner-chart-wrap {
+      min-height: 260px;
+    }
+    .owner-dashboard .owner-doughnut-wrap {
+      height: 180px;
+    }
+    .owner-dashboard .product-bar-label {
+      font-size: 13px;
+      flex-wrap: wrap;
+    }
+  }
+
+  /* Mobile */
+  @media (max-width: 767.98px) {
+    .app-title h1 {
+      font-size: 1.25rem;
+      line-height: 1.3;
+    }
+    .app-title p {
+      display: block !important;
+      font-size: 0.82rem;
+      font-style: normal;
+      margin-top: 6px;
+      line-height: 1.45;
+    }
+    .app-title .badge {
+      display: inline-block;
+      margin-top: 4px;
+      white-space: normal;
+      text-align: left;
+    }
+
+    .owner-dashboard .widget-small {
+      height: auto;
+      min-height: 88px;
+      margin-bottom: 12px;
+    }
+    .owner-dashboard .widget-small .icon {
+      width: 52px;
+      min-width: 52px;
+      line-height: 1;
+      font-size: 26px;
+      padding: 12px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .owner-dashboard .widget-small .icon .fa-3x {
+      font-size: 1.6em;
+    }
+    .owner-dashboard .widget-small .info {
+      padding: 10px 12px 10px 8px;
+    }
+    .owner-dashboard .widget-small .info h4 {
+      font-size: 0.68rem;
+      margin-bottom: 3px;
+      letter-spacing: 0.02em;
+    }
+    .owner-dashboard .widget-small .info p {
+      font-size: 0.95rem;
+      word-break: break-word;
+    }
+    .owner-dashboard .widget-small .info small {
+      font-size: 0.68rem;
+    }
+
+    .owner-dashboard .tile {
+      padding: 14px;
+    }
+    .owner-dashboard .tile-title {
+      font-size: 0.98rem;
+      margin-bottom: 12px;
+    }
+    .owner-dashboard .tile-body {
+      padding: 0;
+    }
+
+    .owner-dashboard .owner-chart-wrap {
+      min-height: 240px;
+      margin: 0 -4px;
+    }
+    #revenueTrendChart {
+      max-height: none;
+    }
+
+    .owner-dashboard .owner-doughnut-wrap {
+      height: 160px;
+      margin-bottom: 10px;
+    }
+    .owner-dashboard .category-legend-item {
+      font-size: 12px !important;
+    }
+
+    .owner-dashboard .product-bar-label span:first-child {
+      max-width: 65%;
+    }
+    .owner-dashboard .owner-staff-item {
+      flex-direction: column;
+      align-items: flex-start !important;
+    }
+    .owner-dashboard .owner-staff-item .text-right {
+      text-align: left !important;
+      width: 100%;
+    }
+
+    .owner-dashboard .owner-quick-link {
+      padding: 0.85rem 0.5rem !important;
+      min-height: 88px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .owner-dashboard .owner-quick-link .fa-2x {
+      font-size: 1.35em;
+      margin-bottom: 0.35rem !important;
+    }
+
+    .owner-dashboard .owner-target-header {
+      width: 100%;
+    }
+    .owner-dashboard .owner-target-header .badge {
+      margin-top: 6px;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .owner-dashboard .owner-kpi-col {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+    .owner-dashboard .widget-small .info p {
+      font-size: 0.88rem;
+    }
+    .owner-dashboard .owner-quick-link {
+      font-size: 0.62rem;
+      min-height: 82px;
+    }
+  }
 </style>
 @endpush
 
+<div class="owner-dashboard">
+
 {{-- KPI Row --}}
-<div class="row">
-  <div class="col-md-3 col-sm-6" data-tour="today-revenue">
+<div class="row owner-kpi-row">
+  <div class="col-6 col-md-3 owner-kpi-col" data-tour="today-revenue">
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
@@ -42,7 +238,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3 col-sm-6" data-tour="month-revenue">
+  <div class="col-6 col-md-3 owner-kpi-col" data-tour="month-revenue">
     <div class="widget-small info coloured-icon">
       <i class="icon fa fa-line-chart fa-3x"></i>
       <div class="info">
@@ -52,7 +248,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3 col-sm-6" data-tour="stock-alerts">
+  <div class="col-6 col-md-3 owner-kpi-col" data-tour="stock-alerts">
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-warning fa-3x"></i>
       <div class="info">
@@ -62,7 +258,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3 col-sm-6" data-tour="month-purchases">
+  <div class="col-6 col-md-3 owner-kpi-col" data-tour="month-purchases">
     <div class="widget-small danger coloured-icon">
       <i class="icon fa fa-shopping-bag fa-3x"></i>
       <div class="info">
@@ -80,9 +276,9 @@
     @php $targetColors = ['#940000', '#009688', '#1565C0', '#f6c23e', '#6f42c1', '#e65100']; @endphp
     @foreach($targetProgress->take(4) as $index => $row)
       @php $color = $targetColors[$index % count($targetColors)]; @endphp
-      <div class="col-md-6 mb-4">
+      <div class="col-md-6 col-12 mb-4">
         <div class="tile pb-2">
-          <div class="d-flex justify-content-between align-items-start flex-wrap">
+          <div class="d-flex justify-content-between align-items-start flex-wrap owner-target-header">
             <div>
               <h6 class="text-muted small font-weight-bold mb-1">
                 <i class="fa fa-bullseye mr-1"></i> {{ __('dashboard.period_goal', ['period' => strtoupper($row['period_type'])]) }}
@@ -121,7 +317,9 @@
     <div class="tile h-100 mb-0">
       <h3 class="tile-title"><i class="fa fa-area-chart"></i> {{ __('dashboard.revenue_last_7_days') }}</h3>
       <div class="tile-body">
-        <canvas id="revenueTrendChart" style="max-height: 300px;"></canvas>
+        <div class="owner-chart-wrap">
+          <canvas id="revenueTrendChart"></canvas>
+        </div>
         @if(collect($revenueTrend)->sum('revenue') <= 0)
           <div class="owner-empty"><i class="fa fa-bar-chart"></i> {{ __('dashboard.no_revenue_data') }}</div>
         @endif
@@ -132,13 +330,13 @@
     <div class="tile h-100 mb-0">
       <h3 class="tile-title"><i class="fa fa-pie-chart"></i> {{ __('dashboard.category_sales') }}</h3>
       <div class="tile-body text-center">
-        <div style="position:relative;height:200px;width:100%;display:flex;justify-content:center;align-items:center;margin-bottom:15px;">
+        <div class="owner-doughnut-wrap">
           <canvas id="categoryDistributionChart"></canvas>
         </div>
         @if($categoryDistribution->count() > 0)
-          <ul class="list-group list-group-flush text-left" style="font-size:13px;">
+          <ul class="list-group list-group-flush text-left category-legend-list" style="font-size:13px;">
             @foreach($categoryDistribution as $cat)
-            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1" style="border:none;border-bottom:1px solid #f0f0f0;">
+            <li class="list-group-item category-legend-item d-flex justify-content-between align-items-center px-0 py-1" style="border:none;border-bottom:1px solid #f0f0f0;">
               <span class="text-truncate" style="max-width:60%;">
                 <i class="fa fa-circle mr-2" style="font-size:8px;color:#940000;"></i>
                 {{ $cat['category'] ?? __('dashboard.uncategorized') }}
@@ -166,7 +364,7 @@
           <div class="row">
             @foreach($topProducts as $tp)
               @php $pct = round(((float) $tp['qty'] / $maxQty) * 100); @endphp
-              <div class="col-md-6 mb-3">
+              <div class="col-md-6 col-12 mb-3">
                 <div class="product-bar-label">
                   <span class="text-truncate pr-3" title="{{ $tp['name'] }}">{{ $tp['name'] }}</span>
                   <span style="color:#940000;font-weight:bold;">{{ number_format($tp['qty']) }} <small>{{ __('dashboard.sold') }}</small></span>
@@ -191,7 +389,7 @@
         @if($topStaff->count() > 0)
           <ul class="list-group list-group-flush">
             @foreach($topStaff as $staff)
-            <li class="list-group-item px-0 d-flex justify-content-between align-items-center" style="font-size:13px;">
+            <li class="list-group-item px-0 d-flex justify-content-between align-items-center owner-staff-item" style="font-size:13px;">
               <div>
                 <div class="font-weight-bold">{{ $staff['name'] }}</div>
                 <small class="text-muted">{{ __('dashboard.orders_count', ['count' => $staff['orders_count']]) }}</small>
@@ -227,43 +425,43 @@
       <div class="tile-body">
         <div class="row">
           @can('process_sales')
-          <div class="col-md-3 col-sm-6 mb-3">
-            <a href="{{ route('sales.create') }}" class="btn btn-primary btn-block p-3 text-center shadow-sm" style="background:#940000;border:none;">
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('sales.create') }}" class="btn btn-primary btn-block p-3 text-center shadow-sm owner-quick-link" style="background:#940000;border:none;">
               <i class="fa fa-shopping-cart fa-2x mb-2"></i><br>{{ strtoupper(__('menu.store_pos')) }}
             </a>
           </div>
           @endcan
           @can('manage_business_settings')
-          <div class="col-md-3 col-sm-6 mb-3">
-            <a href="{{ route('sales-targets.index') }}" class="btn btn-outline-primary btn-block p-3 text-center" style="border-color:#940000;color:#940000;">
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('sales-targets.index') }}" class="btn btn-outline-primary btn-block p-3 text-center owner-quick-link" style="border-color:#940000;color:#940000;">
               <i class="fa fa-bullseye fa-2x mb-2"></i><br>{{ strtoupper(__('menu.sales_targets')) }}
             </a>
           </div>
           @endcan
           @can('view_reports')
-          <div class="col-md-3 col-sm-6 mb-3">
-            <a href="{{ route('reports.daily-sales') }}" class="btn btn-outline-primary btn-block p-3 text-center" style="border-color:#940000;color:#940000;">
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('reports.daily-sales') }}" class="btn btn-outline-primary btn-block p-3 text-center owner-quick-link" style="border-color:#940000;color:#940000;">
               <i class="fa fa-line-chart fa-2x mb-2"></i><br>{{ strtoupper(__('menu.daily_sales')) }}
             </a>
           </div>
           @endcan
           @can('receive_stock')
-          <div class="col-md-3 col-sm-6 mb-3">
-            <a href="{{ route('receivings.index') }}" class="btn btn-outline-success btn-block p-3 text-center">
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('receivings.index') }}" class="btn btn-outline-success btn-block p-3 text-center owner-quick-link">
               <i class="fa fa-truck fa-2x mb-2"></i><br>{{ strtoupper(__('menu.receiving')) }}
             </a>
           </div>
           @endcan
           @can('view_inventory')
-          <div class="col-md-3 col-sm-6 mb-3">
-            <a href="{{ route('items.stock') }}" class="btn btn-outline-info btn-block p-3 text-center">
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('items.stock') }}" class="btn btn-outline-info btn-block p-3 text-center owner-quick-link">
               <i class="fa fa-cubes fa-2x mb-2"></i><br>{{ strtoupper(__('menu.item_stock')) }}
             </a>
           </div>
           @endcan
           @canany(['verify_stock_shortages', 'view_reports'])
-          <div class="col-md-3 col-sm-6 mb-3">
-            <a href="{{ route('stock-shortages.index') }}" class="btn btn-outline-warning btn-block p-3 text-center">
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('stock-shortages.index') }}" class="btn btn-outline-warning btn-block p-3 text-center owner-quick-link">
               <i class="fa fa-warning fa-2x mb-2"></i><br>{{ strtoupper(__('menu.stock_shortages')) }}
               @if($pendingShortages > 0)
                 <span class="badge badge-danger ml-1">{{ $pendingShortages }}</span>
@@ -272,28 +470,28 @@
           </div>
           @endcanany
           @canany(['manage_debts', 'collect_payments'])
-          <div class="col-md-3 col-sm-6 mb-3">
-            <a href="{{ route('debts.index') }}" class="btn btn-outline-danger btn-block p-3 text-center">
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('debts.index') }}" class="btn btn-outline-danger btn-block p-3 text-center owner-quick-link">
               <i class="fa fa-credit-card fa-2x mb-2"></i><br>{{ strtoupper(__('pages.debts.title')) }}
             </a>
           </div>
           @endcanany
           @canany(['view_reports', 'finalize_reports'])
-          <div class="col-md-3 col-sm-6 mb-3">
-            <a href="{{ route('owner-reports.index') }}" class="btn btn-outline-dark btn-block p-3 text-center">
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('owner-reports.index') }}" class="btn btn-outline-dark btn-block p-3 text-center owner-quick-link">
               <i class="fa fa-file-text-o fa-2x mb-2"></i><br>{{ strtoupper(__('menu.master_sheet')) }}
             </a>
           </div>
           @endcanany
           @can('view_reports')
-          <div class="col-md-3 col-sm-6 mb-3">
-            <a href="{{ route('reports.profit') }}" class="btn btn-outline-secondary btn-block p-3 text-center">
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('reports.profit') }}" class="btn btn-outline-secondary btn-block p-3 text-center owner-quick-link">
               <i class="fa fa-money fa-2x mb-2"></i><br>{{ strtoupper(__('settings.profit_report')) }}
             </a>
           </div>
           @endcan
-          <div class="col-md-3 col-sm-6 mb-3">
-            <a href="{{ route('settings.index') }}" class="btn btn-outline-secondary btn-block p-3 text-center">
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('settings.index') }}" class="btn btn-outline-secondary btn-block p-3 text-center owner-quick-link">
               <i class="fa fa-gears fa-2x mb-2"></i><br>{{ strtoupper(__('menu.business_settings')) }}
             </a>
           </div>
@@ -302,6 +500,8 @@
     </div>
   </div>
 </div>
+
+</div>{{-- /.owner-dashboard --}}
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
@@ -315,6 +515,8 @@
   const ordersChartLabel = @json(__('dashboard.orders_chart_label'));
   const ordersTooltipTemplate = @json(__('dashboard.orders_tooltip'));
   const chartLocale = @json(app()->getLocale() === 'sw' ? 'sw-TZ' : 'en-US');
+  const isCompactChart = window.matchMedia('(max-width: 991.98px)').matches;
+  const isMobileChart = window.matchMedia('(max-width: 767.98px)').matches;
 
   const labels = [];
   const ordersSeries = [];
@@ -323,7 +525,11 @@
     const d = new Date();
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().slice(0, 10);
-    labels.push(d.toLocaleDateString(chartLocale, { weekday: 'short', month: 'short', day: 'numeric' }));
+    labels.push(d.toLocaleDateString(chartLocale, {
+      weekday: isMobileChart ? 'short' : 'short',
+      month: 'short',
+      day: 'numeric'
+    }));
     const match = trendData.find(r => r.date === dateStr);
     ordersSeries.push(match ? parseInt(match.orders) : 0);
   }
@@ -391,9 +597,17 @@
       data: { labels: labels, datasets: datasets },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { position: 'top', labels: { font: { size: 11 } } },
+          legend: {
+            position: isMobileChart ? 'bottom' : 'top',
+            labels: {
+              font: { size: isMobileChart ? 9 : 11 },
+              boxWidth: isMobileChart ? 10 : 40,
+              padding: isMobileChart ? 8 : 12,
+            }
+          },
           tooltip: {
             callbacks: {
               label: function(c) {
@@ -406,15 +620,26 @@
           }
         },
         scales: {
-          x: { stacked: true },
+          x: {
+            stacked: true,
+            ticks: {
+              font: { size: isMobileChart ? 9 : 10 },
+              maxRotation: isMobileChart ? 45 : 0,
+              minRotation: isMobileChart ? 45 : 0,
+            }
+          },
           y: {
             type: 'linear', position: 'left', stacked: true,
-            ticks: { callback: v => 'TZS ' + (v >= 1000 ? Math.round(v/1000) + 'K' : v), font: { size: 10 } },
+            ticks: {
+              callback: v => 'TZS ' + (v >= 1000 ? Math.round(v/1000) + 'K' : v),
+              font: { size: isMobileChart ? 9 : 10 },
+              maxTicksLimit: isCompactChart ? 5 : 8,
+            },
             grid: { color: 'rgba(0,0,0,0.04)' }
           },
           y1: {
             type: 'linear', position: 'right',
-            ticks: { font: { size: 10 } },
+            ticks: { font: { size: isMobileChart ? 9 : 10 }, maxTicksLimit: isCompactChart ? 5 : 8 },
             grid: { drawOnChartArea: false }
           }
         },

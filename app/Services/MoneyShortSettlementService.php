@@ -52,16 +52,16 @@ class MoneyShortSettlementService
 
     public function closingSales(DayClosing $closing)
     {
-        if (! $closing->shift_id) {
-            return collect();
-        }
-
-        return Sale::where('business_id', $closing->business_id)
-            ->where('shift_id', $closing->shift_id)
+        $query = Sale::where('business_id', $closing->business_id)
             ->whereDate('sale_date', $closing->closing_date)
             ->where('payment_status', '!=', 'cancelled')
-            ->with(['items.item.category'])
-            ->get();
+            ->with(['items.item.category']);
+
+        if ($closing->shift_id) {
+            return $query->where('shift_id', $closing->shift_id)->get();
+        }
+
+        return $query->where('user_id', $closing->user_id)->get();
     }
 
     public function closingBusinessTypeKeys(DayClosing $closing): array
@@ -131,17 +131,34 @@ class MoneyShortSettlementService
 
     public function scopeClosingsForBusinessType($query, int $businessId, string $businessTypeKey)
     {
-        return $query->whereNotNull('shift_id')->whereExists(function ($sub) use ($businessId, $businessTypeKey) {
-            $sub->from('sales')
-                ->join('sale_items', 'sale_items.sale_id', '=', 'sales.id')
-                ->join('items', 'items.id', '=', 'sale_items.item_id')
-                ->join('categories', 'categories.id', '=', 'items.category_id')
-                ->whereColumn('sales.shift_id', 'day_closings.shift_id')
-                ->where('sales.business_id', $businessId)
-                ->where('sales.payment_status', '!=', 'cancelled')
-                ->where('categories.source_business_type_key', $businessTypeKey)
-                ->whereRaw('DATE(sales.sale_date) = DATE(day_closings.closing_date)')
-                ->selectRaw('1');
+        return $query->where(function ($outer) use ($businessId, $businessTypeKey) {
+            $outer->where(function ($shiftQuery) use ($businessId, $businessTypeKey) {
+                $shiftQuery->whereNotNull('shift_id')->whereExists(function ($sub) use ($businessId, $businessTypeKey) {
+                    $sub->from('sales')
+                        ->join('sale_items', 'sale_items.sale_id', '=', 'sales.id')
+                        ->join('items', 'items.id', '=', 'sale_items.item_id')
+                        ->join('categories', 'categories.id', '=', 'items.category_id')
+                        ->whereColumn('sales.shift_id', 'day_closings.shift_id')
+                        ->where('sales.business_id', $businessId)
+                        ->where('sales.payment_status', '!=', 'cancelled')
+                        ->where('categories.source_business_type_key', $businessTypeKey)
+                        ->whereRaw('DATE(sales.sale_date) = DATE(day_closings.closing_date)')
+                        ->selectRaw('1');
+                });
+            })->orWhere(function ($ownerQuery) use ($businessId, $businessTypeKey) {
+                $ownerQuery->whereNull('shift_id')->whereExists(function ($sub) use ($businessId, $businessTypeKey) {
+                    $sub->from('sales')
+                        ->join('sale_items', 'sale_items.sale_id', '=', 'sales.id')
+                        ->join('items', 'items.id', '=', 'sale_items.item_id')
+                        ->join('categories', 'categories.id', '=', 'items.category_id')
+                        ->whereColumn('sales.user_id', 'day_closings.user_id')
+                        ->where('sales.business_id', $businessId)
+                        ->where('sales.payment_status', '!=', 'cancelled')
+                        ->where('categories.source_business_type_key', $businessTypeKey)
+                        ->whereRaw('DATE(sales.sale_date) = DATE(day_closings.closing_date)')
+                        ->selectRaw('1');
+                });
+            });
         });
     }
 

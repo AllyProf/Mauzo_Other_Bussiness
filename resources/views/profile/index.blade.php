@@ -198,6 +198,14 @@
 @endsection
 
 @section('scripts')
+@php
+    $strengthLabels = [
+        'weak' => __('profile.weak'),
+        'moderate' => __('profile.moderate'),
+        'strong' => __('profile.strong'),
+        'very_strong' => __('profile.very_strong'),
+    ];
+@endphp
 <script>
     document.querySelectorAll('.toggle-password').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -220,12 +228,7 @@
     const passwordInput = document.getElementById('password');
     const strengthBar = document.getElementById('strength-bar');
     const strengthText = document.getElementById('strength-text');
-    const strengthLabels = @json([
-        'weak' => __('profile.weak'),
-        'moderate' => __('profile.moderate'),
-        'strong' => __('profile.strong'),
-        'very_strong' => __('profile.very_strong'),
-    ]);
+    const strengthLabels = @json($strengthLabels);
 
     passwordInput?.addEventListener('input', function () {
         const val = this.value;
