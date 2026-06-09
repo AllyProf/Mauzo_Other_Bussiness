@@ -86,33 +86,13 @@
 <div class="row">
   <div class="col-md-12">
     <div class="tile invoice-document">
-      <div class="invoice-header row mb-4">
-        <div class="col-7">
-          <h2 class="invoice-brand mb-1">{{ $business->name }}</h2>
-          @if($branch)
-            <div class="text-muted">{{ $branch->name }}</div>
-            @if($branch->address)<div>{{ $branch->address }}</div>@endif
-            @if($branch->phone)<div>Tel: {{ $branch->phone }}</div>@endif
-          @else
-            @if($business->address)<div>{{ $business->address }}</div>@endif
-            @if($business->phone)<div>Tel: {{ $business->phone }}</div>@endif
-          @endif
-          @if($business->email)<div>{{ $business->email }}</div>@endif
-          <div><strong>TIN:</strong> {{ $business->tin_number ?? 'N/A' }}</div>
-        </div>
-        <div class="col-5 text-right">
-          <h1 class="invoice-title">INVOICE</h1>
-          <table class="invoice-meta-table ml-auto">
-            <tr><td class="text-muted pr-3">Invoice No.</td><td><strong>{{ $sale->reference_no }}</strong></td></tr>
-            <tr><td class="text-muted pr-3">Date</td><td>{{ \Carbon\Carbon::parse($sale->sale_date)->format('d M Y') }}</td></tr>
-            <tr><td class="text-muted pr-3">Prepared by</td><td>{{ $sale->user->name }}</td></tr>
-            <tr>
-              <td class="text-muted pr-3">Status</td>
-              <td><span class="badge badge-{{ $statusClass }}">{{ $statusLabel }}</span></td>
-            </tr>
-          </table>
-        </div>
-      </div>
+      @include('invoices.partials.header-brand', [
+        'sale' => $sale,
+        'business' => $business,
+        'branch' => $branch ?? null,
+        'statusClass' => $statusClass,
+        'statusLabel' => $statusLabel,
+      ])
 
       <div class="row invoice-info mb-4">
         <div class="col-md-6">
@@ -166,26 +146,11 @@
             @endforeach
           </tbody>
           <tfoot>
-            <tr>
-              <th colspan="5" class="text-right">Subtotal</th>
-              <th class="text-right">{{ money($sale->total_amount) }}</th>
-            </tr>
-            @if((float) $sale->amount_paid > 0)
-            <tr>
-              <th colspan="5" class="text-right text-success">Amount Paid</th>
-              <th class="text-right text-success">{{ money($sale->amount_paid) }}</th>
-            </tr>
-            @endif
-            @if($balanceDue > 0)
-            <tr>
-              <th colspan="5" class="text-right text-danger">Balance Due</th>
-              <th class="text-right text-danger">{{ money($balanceDue) }}</th>
-            </tr>
-            @endif
-            <tr class="invoice-grand-total">
-              <th colspan="5" class="text-right">Total (TZS)</th>
-              <th class="text-right">{{ money($sale->total_amount) }}</th>
-            </tr>
+            @include('invoices.partials.totals-footer', [
+              'sale' => $sale,
+              'business' => $business,
+              'balanceDue' => $balanceDue,
+            ])
           </tfoot>
         </table>
       </div>
@@ -251,7 +216,8 @@
       @endif
 
       <div class="invoice-footer mt-4 pt-3 border-top text-center text-muted">
-        <small>Thank you for your business.</small>
+        <small>Thank you for your business.</small><br>
+        <small>Powered By <strong>EmCa Technologies</strong> — <a href="https://www.emca.tech" target="_blank" rel="noopener">www.emca.tech</a></small>
       </div>
     </div>
   </div>

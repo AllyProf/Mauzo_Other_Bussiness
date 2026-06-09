@@ -46,6 +46,9 @@ class InvoiceDocumentService
             })
             ->values();
 
+        $vatBreakdown = $business?->invoiceVatBreakdown((float) $sale->total_amount);
+        $logoDataUri = $business?->invoiceLogoDataUri();
+
         return compact(
             'sale',
             'business',
@@ -54,6 +57,8 @@ class InvoiceDocumentService
             'statusLabel',
             'statusClass',
             'paymentReceiveDetails',
+            'vatBreakdown',
+            'logoDataUri',
         );
     }
 

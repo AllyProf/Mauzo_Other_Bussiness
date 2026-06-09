@@ -52,7 +52,7 @@ class ReportController extends Controller
     {
         return $this->renderReport($request, 'profit', 'Profit Report', function ($business, $from, $to, $businessTypeKey) use ($request) {
             $data = $this->reports->profitReport($business, $from, $to, $businessTypeKey);
-            $data['tableRows'] = $this->paginateReportRows($request, collect($data['rows']), 15);
+            $data['tableRows'] = $this->paginateReportRows($request, collect($data['rows']), 31);
 
             return $data;
         });
@@ -105,6 +105,7 @@ class ReportController extends Controller
             'multiBusiness' => $filter['multiBusiness'],
             'activeBusinessType' => $activeBusinessType,
             'businessTypeNote' => $data['business_type_note'] ?? null,
+            'dateRange' => $range,
         ] + $filter);
     }
 

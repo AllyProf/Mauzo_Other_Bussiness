@@ -56,7 +56,12 @@ class BusinessInvoiceNotificationService
             $emailError = $emailResult['error'] ?? null;
         }
 
-        return compact('sms_sent', 'email_sent', 'sms_error', 'email_error');
+        return [
+            'sms_sent' => $smsSent,
+            'email_sent' => $emailSent,
+            'sms_error' => $smsError,
+            'email_error' => $emailError,
+        ];
     }
 
     /**
@@ -123,7 +128,7 @@ class BusinessInvoiceNotificationService
         $body = $this->renderTemplate(
             $business,
             'email_invoice_created_body',
-            "Dear {customer},\n\nPlease find invoice {reference} attached.\n\nTotal: TZS {amount}\nDate: {date}\nBalance due: TZS {balance}\n\nThank you for your business.",
+            'Your invoice {reference} is attached. Open the PDF for the full invoice details.',
             $vars,
         );
         $attachmentPdf = $this->invoiceDocuments->renderPdf($sale, $business);

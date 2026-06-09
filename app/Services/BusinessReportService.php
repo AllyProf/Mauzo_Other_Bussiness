@@ -24,17 +24,23 @@ class BusinessReportService
     ) {
     }
 
-    public function parseDateRange(Request $request): array
+    public function parseDateRange(Request $request, int $defaultDays = 7, int $minDays = 5): array
     {
+        $defaultDays = max($minDays, $defaultDays);
+
         $to = $request->filled('end_date')
             ? Carbon::parse($request->end_date)->startOfDay()
             : now()->startOfDay();
         $from = $request->filled('start_date')
             ? Carbon::parse($request->start_date)->startOfDay()
-            : $to->copy()->subDays(29);
+            : $to->copy()->subDays($defaultDays - 1);
 
         if ($from->gt($to)) {
             [$from, $to] = [$to->copy(), $from->copy()];
+        }
+
+        if ($from->diffInDays($to) + 1 < $minDays) {
+            $from = $to->copy()->subDays($minDays - 1);
         }
 
         return [
@@ -301,11 +307,6 @@ class BusinessReportService
 
     public function profitReport(Business $business, string $from, string $to, ?string $businessTypeKey = null): array
     {
-        $labels = [];
-        $grossSalesSeries = [];
-        $grossProfitSeries = [];
-        $netProfitSeries = [];
-        $cogsSeries = [];
         $rows = [];
 
         foreach (CarbonPeriod::create($from, $to) as $day) {
@@ -320,11 +321,6 @@ class BusinessReportService
                 $netProfit = $built['net_profit'];
             }
 
-            $labels[] = $day->format('d M');
-            $grossSalesSeries[] = round($profit['gross_sales'], 2);
-            $grossProfitSeries[] = round($profit['gross_profit'], 2);
-            $netProfitSeries[] = $netProfit !== null ? round($netProfit, 2) : null;
-            $cogsSeries[] = round($profit['cost_of_goods'], 2);
             $rows[] = [
                 'date' => $date,
                 'date_label' => $day->format('d M, Y'),
@@ -344,13 +340,22 @@ class BusinessReportService
             ? null
             : array_sum(array_filter(array_column($rows, 'net_profit'), fn ($v) => $v !== null));
 
+        $displayRows = $this->compactProfitDisplayRows($rows, 5);
+        $displayRowsChronological = array_values($displayRows);
+
         return [
-            'labels' => $labels,
-            'gross_sales' => $grossSalesSeries,
-            'gross_profit' => $grossProfitSeries,
-            'net_profit' => $netProfitSeries,
-            'cogs' => $cogsSeries,
-            'rows' => array_reverse($rows),
+            'labels' => array_map(
+                fn (array $row) => Carbon::parse($row['date'])->format('d M'),
+                $displayRowsChronological,
+            ),
+            'gross_sales' => array_map(fn (array $row) => round((float) $row['gross_sales'], 2), $displayRowsChronological),
+            'gross_profit' => array_map(fn (array $row) => round((float) $row['gross_profit'], 2), $displayRowsChronological),
+            'net_profit' => array_map(
+                fn (array $row) => $row['net_profit'] !== null ? round((float) $row['net_profit'], 2) : null,
+                $displayRowsChronological,
+            ),
+            'cogs' => array_map(fn (array $row) => round((float) $row['cost_of_goods'], 2), $displayRowsChronological),
+            'rows' => array_reverse($displayRowsChronological),
             'summary' => [
                 'gross_sales' => $totalGrossSales,
                 'gross_profit' => $totalGrossProfit,
@@ -993,5 +998,27 @@ class BusinessReportService
         $key = $line->item?->category?->source_business_type_key ?: 'other';
 
         return $key === $businessTypeKey;
+    }
+
+    /**
+     * Prefer days with sales or profit activity; always return at least $minRows recent days.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function compactProfitDisplayRows(array $rows, int $minRows = 5): array
+    {
+        $collection = collect($rows);
+        $active = $collection->filter(function (array $row) {
+            return (float) ($row['gross_sales'] ?? 0) > 0
+                || (float) ($row['gross_profit'] ?? 0) !== 0.0
+                || (float) ($row['net_profit'] ?? 0) !== 0.0;
+        })->values();
+
+        if ($active->count() >= $minRows) {
+            return $active->all();
+        }
+
+        return $collection->sortByDesc('date')->take(max($minRows, $active->count()))->sortBy('date')->values()->all();
     }
 }

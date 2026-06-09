@@ -32,6 +32,11 @@ class Business extends Model
         'expiry_date',
         'tin_number',
         'contact_person',
+        'logo_path',
+        'vat_number',
+        'vat_rate',
+        'invoice_show_vat',
+        'invoice_vat_inclusive',
         'is_active',
         'pending_approval',
         'expense_deduct_from',
@@ -49,6 +54,9 @@ class Business extends Model
         'billing_price' => 'decimal:2',
         'profit_share_percent' => 'decimal:2',
         'minimum_monthly_fee' => 'decimal:2',
+        'vat_rate' => 'decimal:2',
+        'invoice_show_vat' => 'boolean',
+        'invoice_vat_inclusive' => 'boolean',
         'automation_settings' => 'array',
         'payment_methods' => 'array',
         'category_business_types' => 'array',
@@ -341,7 +349,7 @@ class Business extends Model
             'email_invoice_created_enabled' => true,
             'sms_invoice_created_template' => '{business}: Dear {customer}, invoice {reference} for TZS {amount} dated {date} has been created. Please check your email for the attached invoice.',
             'email_invoice_created_subject' => '{business} — Invoice {reference}',
-            'email_invoice_created_body' => "Dear {customer},\n\nPlease find invoice {reference} attached.\n\nTotal: TZS {amount}\nDate: {date}\nBalance due: TZS {balance}\n\nThank you for your business.",
+            'email_invoice_created_body' => 'Your invoice {reference} is attached. Open the PDF for the full invoice details.',
             ...self::defaultDebtSmsTemplates(),
             ...self::defaultStaffSmsTemplates(),
         ];
@@ -840,6 +848,67 @@ class Business extends Model
             self::OPERATION_RETAIL => 'Retail / shop (inventory & store POS)',
             self::OPERATION_SERVICES => 'Services only (no inventory menus)',
             self::OPERATION_BOTH => 'Both retail and services',
+        ];
+    }
+
+    public function logoUrl(): ?string
+    {
+        if (! filled($this->logo_path)) {
+            return null;
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->logo_path);
+    }
+
+    public function invoiceLogoDataUri(): ?string
+    {
+        if (! filled($this->logo_path)) {
+            return null;
+        }
+
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+
+        if (! $disk->exists($this->logo_path)) {
+            return null;
+        }
+
+        $mime = $disk->mimeType($this->logo_path) ?: 'image/png';
+
+        return 'data:'.$mime.';base64,'.base64_encode($disk->get($this->logo_path));
+    }
+
+    /**
+     * @return array{subtotal_excl: float, vat: float, total: float, rate: float, inclusive: bool}|null
+     */
+    public function invoiceVatBreakdown(float $totalAmount): ?array
+    {
+        if (! $this->invoice_show_vat || ! $this->vat_rate || (float) $this->vat_rate <= 0) {
+            return null;
+        }
+
+        $rate = (float) $this->vat_rate;
+
+        if ($this->invoice_vat_inclusive) {
+            $vat = round($totalAmount * $rate / (100 + $rate), 2);
+            $subtotalExcl = round($totalAmount - $vat, 2);
+
+            return [
+                'subtotal_excl' => $subtotalExcl,
+                'vat' => $vat,
+                'total' => round($totalAmount, 2),
+                'rate' => $rate,
+                'inclusive' => true,
+            ];
+        }
+
+        $vat = round($totalAmount * $rate / 100, 2);
+
+        return [
+            'subtotal_excl' => round($totalAmount, 2),
+            'vat' => $vat,
+            'total' => round($totalAmount + $vat, 2),
+            'rate' => $rate,
+            'inclusive' => false,
         ];
     }
 }

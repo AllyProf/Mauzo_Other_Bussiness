@@ -59,7 +59,8 @@
         {{-- PROFILE --}}
         <div class="tab-pane fade {{ $activeTab === 'profile' ? 'show active' : '' }}" id="tab-profile">
           <h5 class="mb-3 text-muted"><i class="fa fa-id-card"></i> Shop &amp; Contact Information</h5>
-          <form method="POST" action="{{ route('settings.profile.update') }}" class="settings-form">
+          <p class="text-muted small mb-3">These details appear on printed and PDF invoices (name, address, phone, email, TIN, VAT, and logo).</p>
+          <form method="POST" action="{{ route('settings.profile.update') }}" class="settings-form" enctype="multipart/form-data">
             @csrf @method('PUT')
             <div class="row">
               <div class="col-md-6">
@@ -72,7 +73,7 @@
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Business Email <span class="text-danger">*</span></label>
                   <input type="email" name="email" class="form-control" value="{{ old('email', $business->email) }}" required>
-                  <small class="text-muted">Used on receipts and business correspondence.</small>
+                  <small class="text-muted">Shown on invoices and business correspondence.</small>
                 </div>
               </div>
               <div class="col-md-6">
@@ -85,12 +86,13 @@
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Contact Person</label>
                   <input type="text" name="contact_person" class="form-control" value="{{ old('contact_person', $business->contact_person) }}" placeholder="Primary business contact">
+                  <small class="text-muted">Shown on invoices as the main contact name.</small>
                 </div>
               </div>
               <div class="col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">TIN Number</label>
-                  <input type="text" name="tin_number" class="form-control" value="{{ old('tin_number', $business->tin_number) }}" placeholder="Tax identification">
+                  <input type="text" name="tin_number" class="form-control" value="{{ old('tin_number', $business->tin_number) }}" placeholder="Tax identification number">
                 </div>
               </div>
               <div class="col-md-12">
@@ -98,6 +100,46 @@
                   <label class="control-label font-weight-bold">Address</label>
                   <textarea name="address" class="form-control" rows="3" placeholder="Shop location / postal address">{{ old('address', $business->address) }}</textarea>
                 </div>
+              </div>
+            </div>
+
+            <hr class="my-4">
+            <h6 class="text-muted mb-3"><i class="fa fa-file-text-o"></i> Invoice Branding</h6>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Business Logo</label>
+                  @if($business->logoUrl())
+                    <div class="mb-2">
+                      <img src="{{ $business->logoUrl() }}" alt="Business logo" style="max-height:80px;max-width:200px;object-fit:contain;border:1px solid #eee;padding:6px;border-radius:4px;">
+                    </div>
+                    <div class="custom-control custom-checkbox mb-2">
+                      <input type="checkbox" class="custom-control-input" id="remove_logo" name="remove_logo" value="1" {{ old('remove_logo') ? 'checked' : '' }}>
+                      <label class="custom-control-label" for="remove_logo">Remove current logo</label>
+                    </div>
+                  @endif
+                  <input type="file" name="logo" class="form-control-file" accept="image/jpeg,image/png,image/webp">
+                  <small class="text-muted">PNG or JPG, max 2 MB. Displayed at the top of invoices.</small>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">VAT Registration Number</label>
+                  <input type="text" name="vat_number" class="form-control" value="{{ old('vat_number', $business->vat_number) }}" placeholder="VRN / VAT number">
+                </div>
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">VAT Rate (%)</label>
+                  <input type="number" name="vat_rate" class="form-control" value="{{ old('vat_rate', $business->vat_rate) }}" min="0" max="100" step="0.01" placeholder="e.g. 18">
+                </div>
+                <div class="custom-control custom-checkbox mb-2">
+                  <input type="checkbox" class="custom-control-input" id="invoice_show_vat" name="invoice_show_vat" value="1" {{ old('invoice_show_vat', $business->invoice_show_vat) ? 'checked' : '' }}>
+                  <label class="custom-control-label" for="invoice_show_vat">Show VAT breakdown on invoices</label>
+                </div>
+                <div class="custom-control custom-checkbox">
+                  <input type="checkbox" class="custom-control-input" id="invoice_vat_inclusive" name="invoice_vat_inclusive" value="1" {{ old('invoice_vat_inclusive', $business->invoice_vat_inclusive ?? true) ? 'checked' : '' }}>
+                  <label class="custom-control-label" for="invoice_vat_inclusive">Prices already include VAT</label>
+                </div>
+                <small class="text-muted d-block mt-1">When checked, VAT is calculated from the invoice total. Uncheck if your prices are before VAT.</small>
               </div>
             </div>
             <button type="submit" class="btn btn-primary settings-save-btn" style="background-color:#940000;border-color:#940000;">
@@ -578,7 +620,13 @@
           @include('partials.subscription-billing', ['overview' => $billingOverview, 'business' => $business])
 
           <table class="table table-bordered mb-4">
-            <tr><th style="width:38%;">Account Status</th><td>{!! $business->is_active ? '<span class="badge badge-success">{{ __('tables.status.active') }}</span>' : '<span class="badge badge-danger">Suspended</span>' !!}</td></tr>
+            <tr><th style="width:38%;">Account Status</th><td>
+              @if($business->is_active)
+                <span class="badge badge-success">{{ __('tables.status.active') }}</span>
+              @else
+                <span class="badge badge-danger">Suspended</span>
+              @endif
+            </td></tr>
             <tr><th>Staff Limit</th><td>{{ $business->plan->max_users ?? 'Unlimited' }}</td></tr>
             <tr><th>Business Types Limit</th><td>{{ ($business->plan->max_business_types ?? 1) === 0 ? 'Unlimited' : ($business->plan->max_business_types ?? 1) }}</td></tr>
             <tr><th>Business Types Used</th><td>{{ $business->categoryBusinessTypesUsed() }}</td></tr>
@@ -607,7 +655,7 @@
     <div class="tile">
       <h3 class="tile-title">Settings Guide</h3>
       <div class="tile-body small text-muted">
-        <p><strong>Profile</strong> — shop name and contact details shown across the system.</p>
+        <p><strong>Profile</strong> — shop name, contact details, logo, TIN/VAT — all shown on invoices.</p>
         <p><strong>Finance</strong> — how staff reconciliation expenses affect circulation vs profit.</p>
         <p><strong>Payment Methods</strong> — payment options with a pay number per platform (M-Pesa, CRDB, etc.).</p>
         <p><strong>Automation</strong> — dashboard reminders you want as business owner.</p>

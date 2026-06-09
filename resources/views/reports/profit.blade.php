@@ -45,6 +45,11 @@
   <div class="col-md-12">
     <div class="tile mb-0">
       <h3 class="tile-title">Daily Profit Breakdown</h3>
+      <p class="text-muted small mb-2">
+        Period {{ \Carbon\Carbon::parse($dateRange['from'])->format('d M Y') }}
+        &ndash; {{ \Carbon\Carbon::parse($dateRange['to'])->format('d M Y') }}.
+        Showing recent days with activity (at least 5 days). Use the date filter above for a wider range.
+      </p>
       <div class="tile-body">
         <div class="table-responsive">
           <table class="table table-hover table-bordered report-table mb-0">

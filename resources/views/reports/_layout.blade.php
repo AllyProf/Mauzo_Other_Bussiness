@@ -100,6 +100,8 @@
 
 @include('reports.partials.business-type-tabs')
 
+@include('reports.partials.date-range-filter')
+
 @yield('report-content')
 @endsection
 

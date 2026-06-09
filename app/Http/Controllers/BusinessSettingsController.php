@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Services\BusinessSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class BusinessSettingsController extends Controller
 {
@@ -43,16 +44,40 @@ class BusinessSettingsController extends Controller
             'address' => 'nullable|string|max:500',
             'tin_number' => 'nullable|string|max:50',
             'contact_person' => 'nullable|string|max:255',
+            'vat_number' => 'nullable|string|max:50',
+            'vat_rate' => 'nullable|numeric|min:0|max:100',
+            'logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
+            'remove_logo' => 'nullable|boolean',
         ]);
 
-        $business->update($request->only([
+        $payload = $request->only([
             'name',
             'email',
             'phone',
             'address',
             'tin_number',
             'contact_person',
-        ]));
+            'vat_number',
+        ]);
+
+        $payload['invoice_show_vat'] = $request->boolean('invoice_show_vat');
+        $payload['invoice_vat_inclusive'] = $request->boolean('invoice_vat_inclusive');
+        $payload['vat_rate'] = filled($request->vat_rate) ? $request->vat_rate : null;
+
+        if ($request->boolean('remove_logo') && $business->logo_path) {
+            Storage::disk('public')->delete($business->logo_path);
+            $payload['logo_path'] = null;
+        }
+
+        if ($request->hasFile('logo')) {
+            if ($business->logo_path) {
+                Storage::disk('public')->delete($business->logo_path);
+            }
+
+            $payload['logo_path'] = $request->file('logo')->store('business-logos', 'public');
+        }
+
+        $business->update($payload);
 
         return redirect()->route('settings.index', ['tab' => 'profile'])
             ->with('success', 'Business profile updated successfully.');
@@ -200,6 +225,8 @@ class BusinessSettingsController extends Controller
     public function updatePaymentMethods(Request $request)
     {
         $this->authorizeAny(['manage_payment_methods', 'manage_business_settings']);
+
+        $defaults = collect(Business::defaultPaymentMethods())->keyBy('key');
         $keys = $defaults->keys()->all();
 
         $request->validate([
