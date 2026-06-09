@@ -43,10 +43,42 @@
   .business-type-tab i { margin-right: 5px; }
   .issue-form-disabled { opacity: 0.65; pointer-events: none; }
   .btn.is-loading { pointer-events: none; }
+  .petty-cash-page .widget-small { min-height: 90px; border-radius: 8px !important; margin-bottom: 15px; }
+  .petty-cash-page .widget-small .icon { min-width: 70px !important; padding: 10px !important; font-size: 2rem !important; }
+  .petty-cash-page .widget-small .info h4 { font-size: 0.85rem !important; }
+  .petty-cash-page .widget-small .info p { font-size: 15px !important; word-break: break-word; }
+  .petty-cash-page .pc-filter-form .form-group { margin-bottom: 0.75rem; }
+  .petty-cash-page .pc-mobile-card {
+    border: 1px solid #dee2e6; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: #fff;
+  }
+  .petty-cash-page .pc-mobile-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .petty-cash-page .pc-mobile-date { font-weight: 700; color: #940000; }
+  .petty-cash-page .pc-mobile-meta { font-size: 0.82rem; color: #6c757d; margin-top: 2px; }
+  .petty-cash-page .pc-mobile-desc { font-size: 0.9rem; margin-bottom: 10px; line-height: 1.4; word-break: break-word; }
+  .petty-cash-page .pc-mobile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin-bottom: 10px; }
+  .petty-cash-page .pc-mobile-stat span { display: block; font-size: 0.72rem; text-transform: uppercase; color: #6c757d; font-weight: 600; letter-spacing: 0.02em; }
+  .petty-cash-page .pc-mobile-stat strong { display: block; font-size: 0.88rem; margin-top: 2px; word-break: break-word; }
+  .petty-cash-page .pc-mobile-actions { display: flex; align-items: center; padding-top: 8px; border-top: 1px solid #eee; }
+
+  @media (max-width: 991.98px) {
+    .petty-cash-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
+    .petty-cash-page .app-title p { font-size: 0.88rem; }
+    .petty-cash-page .business-type-tabs { padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  }
+
+  @media (max-width: 767.98px) {
+    .petty-cash-page .app-title h1 { font-size: 1.15rem; }
+    .petty-cash-page .app-title p { font-size: 0.82rem; }
+    .petty-cash-page .widget-small .icon { min-width: 58px !important; font-size: 1.6rem !important; }
+    .petty-cash-page .widget-small .info p { font-size: 14px !important; }
+    .petty-cash-page .fund-option-card .d-flex { flex-direction: column; align-items: flex-start !important; gap: 4px; }
+    .petty-cash-page .fund-option-card .available-amount { align-self: flex-end; }
+  }
 </style>
 @endsection
 
 @section('content')
+<div class="petty-cash-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-money"></i> Petty Cash</h1>
@@ -93,7 +125,7 @@
 @endif
 
 <div class="row mb-3">
-  <div class="col-md-6">
+  <div class="col-12 col-md-6">
     <div class="widget-small primary coloured-icon balance-card">
       <i class="icon fa fa-refresh fa-3x"></i>
       <div class="info">
@@ -109,7 +141,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-6">
+  <div class="col-12 col-md-6">
     <div class="widget-small info coloured-icon balance-card profit">
       <i class="icon fa fa-line-chart fa-3x"></i>
       <div class="info">
@@ -129,7 +161,7 @@
 </div>
 
 <div class="row">
-  <div class="col-lg-5">
+  <div class="col-12 col-lg-5 mb-3 mb-lg-0">
     <div class="tile">
       <h3 class="tile-title"><i class="fa fa-plus-circle"></i> Issue Petty Cash</h3>
       <div class="tile-body">
@@ -254,24 +286,24 @@
     </div>
   </div>
 
-  <div class="col-lg-7">
+  <div class="col-12 col-lg-7">
     <div class="tile">
       <h3 class="tile-title"><i class="fa fa-list"></i> Petty Cash History</h3>
       <div class="tile-body">
-        <form method="GET" action="{{ route('petty-cash.index') }}" class="row mb-3" id="historyFilterForm">
+        <form method="GET" action="{{ route('petty-cash.index') }}" class="row mb-3 pc-filter-form" id="historyFilterForm">
           <input type="hidden" name="date" value="{{ $selectedDate }}">
           @if($activeBusinessType ?? false)
             <input type="hidden" name="business_type" value="{{ $activeBusinessType }}">
           @endif
-          <div class="col-md-3 mb-2 mb-md-0">
+          <div class="col-12 col-sm-6 col-md-3 form-group">
             <label class="small font-weight-bold mb-1">From</label>
             <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
           </div>
-          <div class="col-md-3 mb-2 mb-md-0">
+          <div class="col-12 col-sm-6 col-md-3 form-group">
             <label class="small font-weight-bold mb-1">To</label>
             <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
           </div>
-          <div class="col-md-3 mb-2 mb-md-0">
+          <div class="col-12 col-sm-6 col-md-3 form-group">
             <label class="small font-weight-bold mb-1">Source</label>
             <select name="fund_source" class="form-control form-control-sm">
               <option value="">All sources</option>
@@ -279,12 +311,21 @@
               <option value="profit" {{ request('fund_source') === 'profit' ? 'selected' : '' }}>Profit</option>
             </select>
           </div>
-          <div class="col-md-3 d-flex align-items-end">
+          <div class="col-12 col-sm-6 col-md-3 form-group d-flex align-items-end">
             <button type="submit" class="btn btn-sm btn-primary btn-block" id="filterHistoryBtn"><i class="fa fa-filter"></i> Filter</button>
           </div>
         </form>
 
-        <div class="table-responsive">
+        <div class="d-lg-none mb-3">
+          @include('petty-cash.partials.expense-mobile-list', [
+            'expenses' => $expenses,
+            'business' => $business,
+            'multiBusiness' => $multiBusiness ?? false,
+            'activeBusinessType' => $activeBusinessType ?? false,
+          ])
+        </div>
+
+        <div class="table-responsive d-none d-lg-block">
           <table class="table table-hover table-bordered table-sm">
             <thead class="thead-dark">
               <tr>
@@ -343,6 +384,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 @endsection
 

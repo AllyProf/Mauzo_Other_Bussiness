@@ -130,10 +130,246 @@
         opacity: 0.9;
         margin-top: 2px;
     }
+
+    /* Mobile / tablet only — desktop rules above are unchanged */
+    .pos-page .pos-mobile-tabs,
+    .pos-page .pos-mobile-bar { display: none; }
+
+    @media (max-width: 991.98px) {
+        .pos-page {
+            padding-bottom: 0;
+        }
+        .pos-page.pos-products-tab-active.has-cart-items {
+            padding-bottom: 76px;
+        }
+        .pos-page .pos-mobile-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            background: #fff;
+            padding: 6px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+        .pos-page .pos-mobile-tab {
+            flex: 1;
+            border: 1px solid #dee2e6;
+            background: #f8f9fa;
+            color: #495057;
+            border-radius: 6px;
+            padding: 10px 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            line-height: 1.2;
+        }
+        .pos-page .pos-mobile-tab.active {
+            background: #940000;
+            border-color: #940000;
+            color: #fff;
+        }
+        .pos-page .pos-mobile-tab .pos-tab-badge {
+            display: inline-block;
+            min-width: 20px;
+            padding: 1px 6px;
+            margin-left: 4px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.25);
+            font-size: 11px;
+        }
+        .pos-page .pos-mobile-tab:not(.active) .pos-tab-badge {
+            background: #940000;
+            color: #fff;
+        }
+        .pos-page .pos-mobile-bar {
+            display: none;
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1050;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+            background: #fff;
+            border-top: 2px solid #940000;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.12);
+        }
+        .pos-page .pos-mobile-bar.is-visible {
+            display: flex;
+        }
+        .pos-page .pos-mobile-bar-total small {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #6c757d;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+        }
+        .pos-page .pos-mobile-bar-total strong {
+            display: block;
+            font-size: 17px;
+            color: #940000;
+            line-height: 1.2;
+        }
+        .pos-page .pos-mobile-bar-btn {
+            background: #940000;
+            border-color: #940000;
+            font-weight: 700;
+            white-space: nowrap;
+            padding: 10px 16px;
+        }
+        .pos-page .pos-container {
+            flex-direction: column;
+            height: auto;
+            min-height: 0;
+            gap: 0;
+        }
+        .pos-page .pos-left,
+        .pos-page .pos-right {
+            display: none !important;
+            flex: none;
+            width: 100%;
+            overflow: visible;
+        }
+        .pos-page.pos-products-tab-active .pos-left {
+            display: flex !important;
+            flex-direction: column;
+            min-height: calc(100dvh - 200px);
+        }
+        .pos-page.pos-cart-tab-active .pos-right {
+            display: flex !important;
+            flex-direction: column;
+            min-height: calc(100dvh - 160px);
+        }
+        .pos-page .pos-left .items-grid,
+        .pos-page .pos-left .items-list {
+            flex: 1;
+            max-height: none;
+            min-height: 240px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .pos-page .cart-body {
+            flex: 1;
+            max-height: none;
+            min-height: 120px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .pos-page .cart-empty {
+            margin-top: 24px;
+        }
+        .pos-page .cart-empty i {
+            font-size: 42px;
+            margin-bottom: 10px;
+        }
+        .pos-page .business-type-pills,
+        .pos-page .category-pills {
+            -webkit-overflow-scrolling: touch;
+            flex-shrink: 0;
+        }
+        .pos-page .search-bar {
+            flex-shrink: 0;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .pos-page.pos-products-tab-active .pos-left {
+            min-height: calc(100dvh - 210px);
+        }
+        .pos-page .pos-left > .d-flex.justify-content-between {
+            flex-direction: column;
+            align-items: stretch;
+            flex-shrink: 0;
+        }
+        .pos-page .pos-left > .d-flex .category-pills {
+            margin-bottom: 8px !important;
+            width: 100%;
+        }
+        .pos-page .view-toggles {
+            justify-content: flex-end;
+            margin-bottom: 0;
+        }
+        .pos-page .items-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .pos-page .item-card {
+            padding: 8px;
+        }
+        .pos-page .item-icon {
+            font-size: 24px;
+        }
+        .pos-page .item-title {
+            height: auto;
+            min-height: 28px;
+            font-size: 11px;
+        }
+        .pos-page .item-row {
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .pos-page .item-row-title {
+            flex: 1 1 100%;
+        }
+        .pos-page .item-row-stock,
+        .pos-page .item-row-price {
+            flex: 1 1 auto;
+            text-align: left;
+        }
+        .pos-page .cart-header {
+            font-size: 16px;
+            padding: 12px 15px;
+            flex-shrink: 0;
+        }
+        .pos-page .cart-footer {
+            flex-shrink: 0;
+        }
+        .pos-page .payable-amount {
+            font-size: 18px;
+        }
+        .pos-page .place-order-btn {
+            font-size: 15px;
+            padding: 14px;
+        }
+        .pos-page #posCustomerManual .col-6 {
+            flex: 0 0 100%;
+            max-width: 100%;
+            padding-left: 15px !important;
+            padding-right: 15px !important;
+            margin-bottom: 8px;
+        }
+        .pos-page .alert {
+            font-size: 0.82rem;
+            padding: 8px 10px;
+            margin-bottom: 8px !important;
+        }
+        .pos-page .alert .alert-link {
+            display: inline-block;
+            margin-top: 2px;
+        }
+        .pos-page .packaging-switch-btn {
+            font-size: 11px;
+            padding: 8px 4px;
+        }
+        .pos-page .cart-item {
+            flex-wrap: wrap;
+        }
+        .pos-page .cart-item-subtotal {
+            width: auto;
+            margin-left: auto;
+        }
+    }
 </style>
 @endsection
 
 @section('content')
+<div class="pos-page pos-products-tab-active">
 @if($openShift ?? false)
 <div class="alert alert-success mb-3 py-2">
   <i class="fa fa-clock-o"></i> <strong>Shift #{{ $openShift->id }}</strong> open since {{ $openShift->opened_at->format('h:i A') }}
@@ -147,6 +383,17 @@
   <strong>Multi-department shop:</strong> pick a department to filter items, then choose a category.
 </div>
 @endif
+
+<div class="pos-mobile-tabs d-lg-none" id="posMobileTabs">
+  <button type="button" class="pos-mobile-tab active" data-pos-tab="products">
+    <i class="fa fa-th"></i> Products
+  </button>
+  <button type="button" class="pos-mobile-tab" data-pos-tab="cart">
+    <i class="fa fa-shopping-basket"></i> Cart
+    <span class="pos-tab-badge" id="mobileCartBadge">0</span>
+  </button>
+</div>
+
 <div class="pos-container">
     <!-- LEFT SIDE: ITEMS GRID -->
     <div class="pos-left">
@@ -251,6 +498,16 @@
     </div>
 </div>
 
+<div class="pos-mobile-bar d-lg-none" id="posMobileBar">
+  <div class="pos-mobile-bar-total">
+    <small>Grand Total</small>
+    <strong id="mobileBarTotal">TZS 0</strong>
+  </div>
+  <button type="button" class="btn btn-primary pos-mobile-bar-btn" id="posMobileViewCart">
+    View Cart (<span id="mobileBarCount">0</span>)
+  </button>
+</div>
+
 <!-- Add to Order Modal -->
 <div class="modal fade" id="addToCartModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 400px;">
@@ -290,6 +547,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 
 @endsection
@@ -368,6 +626,38 @@
 
     function formatTZS(amount) {
         return amount.toLocaleString(undefined, {minimumFractionDigits: 0});
+    }
+
+    function isMobilePos() {
+        return window.matchMedia('(max-width: 991.98px)').matches;
+    }
+
+    function setPosMobileTab(tab) {
+        const $page = $('.pos-page');
+        $page.toggleClass('pos-products-tab-active', tab === 'products');
+        $page.toggleClass('pos-cart-tab-active', tab === 'cart');
+        $('.pos-mobile-tab').removeClass('active');
+        $('.pos-mobile-tab[data-pos-tab="' + tab + '"]').addClass('active');
+        updateMobilePosChrome();
+        if (tab === 'cart') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    function updateMobilePosChrome(grandTotal) {
+        const count = cart.length;
+        const total = grandTotal !== undefined ? grandTotal : (cart.reduce((sum, item) => sum + item.qty * item.price, 0));
+        $('#mobileCartBadge, #mobileBarCount').text(count);
+        $('#mobileBarTotal').text('TZS ' + formatTZS(total));
+
+        const $page = $('.pos-page');
+        $page.toggleClass('has-cart-items', count > 0);
+
+        if (isMobilePos() && count > 0 && $page.hasClass('pos-products-tab-active')) {
+            $('#posMobileBar').addClass('is-visible');
+        } else {
+            $('#posMobileBar').removeClass('is-visible');
+        }
     }
 
     function packagingLabel(item, packaging) {
@@ -635,6 +925,9 @@
         
         $('#addToCartModal').modal('hide');
         renderCart();
+        if (isMobilePos()) {
+            $('#posMobileBar').addClass('is-visible');
+        }
     });
 
     // Cart Logic
@@ -648,6 +941,7 @@
             $('#emptyCartMessage').show();
             $('#placeOrderBtn').prop('disabled', true);
             updateTotals(0);
+            updateMobilePosChrome(0);
             return;
         }
 
@@ -682,6 +976,7 @@
         });
 
         updateTotals(grandTotal);
+        updateMobilePosChrome(grandTotal);
     }
 
     window.removeFromCart = function(index) {
@@ -727,6 +1022,18 @@
 
     $('#searchInput').on('input', filterItems);
 
+    $('#posMobileTabs .pos-mobile-tab').on('click', function () {
+        setPosMobileTab(String($(this).data('pos-tab') || 'products'));
+    });
+
+    $('#posMobileViewCart').on('click', function () {
+        setPosMobileTab('cart');
+    });
+
+    $(window).on('resize', function () {
+        updateMobilePosChrome();
+    });
+
     syncCategoryPillsVisibility();
     filterItems();
 
@@ -742,5 +1049,7 @@
         phoneInput: '#posCustomerPhone',
         phoneHidden: '#posCustomerPhoneHidden',
     });
+
+    updateMobilePosChrome(0);
 </script>
 @endsection

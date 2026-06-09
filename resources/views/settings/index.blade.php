@@ -11,12 +11,147 @@
   .setting-switch-row:last-child { border-bottom: none; }
   .setting-switch-row .custom-control-label { cursor: pointer; }
   .plan-badge { font-size: 0.85rem; }
+
+  @media (max-width: 991.98px) {
+    .settings-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
+    .settings-page .app-title p { font-size: 0.88rem; }
+    .settings-page .settings-tabs {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-left: 8px !important;
+      padding-right: 8px !important;
+    }
+    .settings-page .settings-tabs .nav-item { flex-shrink: 0; }
+    .settings-page .settings-tabs .nav-link {
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+    .settings-page .tab-content.p-4 { padding: 16px !important; }
+    .settings-page .settings-sidebar-tile { margin-top: 0; }
+  }
+
+  @media (max-width: 767.98px) {
+    .settings-page .app-title { flex-direction: column; align-items: flex-start !important; }
+    .settings-page .app-title h1 { font-size: 1.15rem; }
+    .settings-page .app-breadcrumb { font-size: 0.85rem; }
+    .settings-page .settings-save-btn { width: 100%; }
+    .settings-page .border.rounded.p-3.mb-3 { padding: 12px !important; }
+    .settings-page .provider-accounts-table { border: none; }
+    .settings-page .provider-accounts-table thead { display: none; }
+    .settings-page .provider-accounts-table tbody tr {
+      display: block;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      background: #fff;
+    }
+    .settings-page .provider-accounts-table tbody td {
+      display: block;
+      width: 100% !important;
+      border: none !important;
+      padding: 6px 0 !important;
+    }
+    .settings-page .provider-accounts-table tbody td[data-label]:not([data-label=""])::before {
+      content: attr(data-label);
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      color: #6c757d;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .settings-page .provider-accounts-table tbody td.provider-remove-cell {
+      padding-top: 8px !important;
+      border-top: 1px solid #eee !important;
+      margin-top: 4px;
+    }
+    .settings-page .provider-accounts-table tbody td.provider-remove-cell::before { display: none; }
+    .settings-page .provider-accounts-table tbody td.provider-remove-cell .btn {
+      width: 100%;
+    }
+    .settings-page .provider-accounts-table tbody td.provider-remove-cell .btn::after {
+      content: ' Remove';
+    }
+    .settings-page .settings-info-table tr {
+      display: block;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      background: #fff;
+    }
+    .settings-page .settings-info-table th,
+    .settings-page .settings-info-table td {
+      display: block;
+      width: 100% !important;
+      border: none !important;
+      padding: 2px 0 !important;
+    }
+    .settings-page .settings-info-table th,
+    .settings-page .settings-stack-table th {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      color: #6c757d;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .settings-page .settings-stack-table tr {
+      display: block;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      background: #fff;
+    }
+    .settings-page .settings-stack-table th,
+    .settings-page .settings-stack-table td {
+      display: block;
+      width: 100% !important;
+      border: none !important;
+      padding: 2px 0 !important;
+    }
+    .settings-page .settings-invoices-table { border: none; }
+    .settings-page .settings-invoices-table thead { display: none; }
+    .settings-page .settings-invoices-table tbody tr {
+      display: block;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      background: #fff;
+    }
+    .settings-page .settings-invoices-table tbody td {
+      display: block;
+      width: 100% !important;
+      border: none !important;
+      padding: 4px 0 !important;
+      text-align: left !important;
+    }
+    .settings-page .settings-invoices-table tbody td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      color: #6c757d;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .settings-page #shiftScheduledFields .custom-checkbox {
+      width: 100%;
+      margin-right: 0 !important;
+    }
+  }
 </style>
 @endsection
 
 @section('content')
 @php $activeTab = request('tab', 'profile'); @endphp
 
+<div class="settings-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-gears"></i> {{ __('settings.title') }}</h1>
@@ -30,7 +165,7 @@
 </div>
 
 <div class="row">
-  <div class="col-lg-9">
+  <div class="col-12 col-lg-9">
     <div class="tile">
       <ul class="nav nav-tabs settings-tabs border-bottom mb-0 px-3 pt-2" role="tablist">
         <li class="nav-item">
@@ -63,33 +198,33 @@
           <form method="POST" action="{{ route('settings.profile.update') }}" class="settings-form" enctype="multipart/form-data">
             @csrf @method('PUT')
             <div class="row">
-              <div class="col-md-6">
+              <div class="col-12 col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Business Name <span class="text-danger">*</span></label>
                   <input type="text" name="name" class="form-control" value="{{ old('name', $business->name) }}" required>
                 </div>
               </div>
-              <div class="col-md-6">
+              <div class="col-12 col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Business Email <span class="text-danger">*</span></label>
                   <input type="email" name="email" class="form-control" value="{{ old('email', $business->email) }}" required>
                   <small class="text-muted">Shown on invoices and business correspondence.</small>
                 </div>
               </div>
-              <div class="col-md-6">
+              <div class="col-12 col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Phone</label>
                   <input type="text" name="phone" class="form-control" value="{{ old('phone', $business->phone) }}" placeholder="+255...">
                 </div>
               </div>
-              <div class="col-md-6">
+              <div class="col-12 col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Contact Person</label>
                   <input type="text" name="contact_person" class="form-control" value="{{ old('contact_person', $business->contact_person) }}" placeholder="Primary business contact">
                   <small class="text-muted">Shown on invoices as the main contact name.</small>
                 </div>
               </div>
-              <div class="col-md-6">
+              <div class="col-12 col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">TIN Number</label>
                   <input type="text" name="tin_number" class="form-control" value="{{ old('tin_number', $business->tin_number) }}" placeholder="Tax identification number">
@@ -106,7 +241,7 @@
             <hr class="my-4">
             <h6 class="text-muted mb-3"><i class="fa fa-file-text-o"></i> Invoice Branding</h6>
             <div class="row">
-              <div class="col-md-6">
+              <div class="col-12 col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Business Logo</label>
                   @if($business->logoUrl())
@@ -122,7 +257,7 @@
                   <small class="text-muted">PNG or JPG, max 2 MB. Displayed at the top of invoices.</small>
                 </div>
               </div>
-              <div class="col-md-6">
+              <div class="col-12 col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">VAT Registration Number</label>
                   <input type="text" name="vat_number" class="form-control" value="{{ old('vat_number', $business->vat_number) }}" placeholder="VRN / VAT number">
@@ -242,17 +377,17 @@
                       <tbody>
                         @forelse($accounts as $i => $account)
                         <tr>
-                          <td><input type="text" name="methods[{{ $key }}][accounts][{{ $i }}][name]" class="form-control form-control-sm" value="{{ $account['name'] ?? '' }}" placeholder="{{ $key === 'bank' ? 'CRDB' : 'M-Pesa' }}"></td>
-                          <td><input type="text" name="methods[{{ $key }}][accounts][{{ $i }}][pay_number]" class="form-control form-control-sm" value="{{ $account['pay_number'] ?? '' }}" placeholder="{{ $key === 'bank' ? '0150...' : '123456' }}"></td>
-                          <td><input type="text" name="methods[{{ $key }}][accounts][{{ $i }}][account_name]" class="form-control form-control-sm" value="{{ $account['account_name'] ?? '' }}"></td>
-                          <td class="text-center align-middle"><button type="button" class="btn btn-sm btn-outline-danger remove-provider-row" title="Remove">&times;</button></td>
+                          <td data-label="{{ $platformLabel }}"><input type="text" name="methods[{{ $key }}][accounts][{{ $i }}][name]" class="form-control form-control-sm" value="{{ $account['name'] ?? '' }}" placeholder="{{ $key === 'bank' ? 'CRDB' : 'M-Pesa' }}"></td>
+                          <td data-label="{{ $payNumberLabel }}"><input type="text" name="methods[{{ $key }}][accounts][{{ $i }}][pay_number]" class="form-control form-control-sm" value="{{ $account['pay_number'] ?? '' }}" placeholder="{{ $key === 'bank' ? '0150...' : '123456' }}"></td>
+                          <td data-label="{{ $nameLabel }}"><input type="text" name="methods[{{ $key }}][accounts][{{ $i }}][account_name]" class="form-control form-control-sm" value="{{ $account['account_name'] ?? '' }}"></td>
+                          <td class="text-center align-middle provider-remove-cell" data-label=""><button type="button" class="btn btn-sm btn-outline-danger remove-provider-row" title="Remove">&times;</button></td>
                         </tr>
                         @empty
                         <tr>
-                          <td><input type="text" name="methods[{{ $key }}][accounts][0][name]" class="form-control form-control-sm" placeholder="{{ $key === 'bank' ? 'CRDB' : 'M-Pesa' }}"></td>
-                          <td><input type="text" name="methods[{{ $key }}][accounts][0][pay_number]" class="form-control form-control-sm"></td>
-                          <td><input type="text" name="methods[{{ $key }}][accounts][0][account_name]" class="form-control form-control-sm"></td>
-                          <td class="text-center align-middle"><button type="button" class="btn btn-sm btn-outline-danger remove-provider-row" title="Remove">&times;</button></td>
+                          <td data-label="{{ $platformLabel }}"><input type="text" name="methods[{{ $key }}][accounts][0][name]" class="form-control form-control-sm" placeholder="{{ $key === 'bank' ? 'CRDB' : 'M-Pesa' }}"></td>
+                          <td data-label="{{ $payNumberLabel }}"><input type="text" name="methods[{{ $key }}][accounts][0][pay_number]" class="form-control form-control-sm"></td>
+                          <td data-label="{{ $nameLabel }}"><input type="text" name="methods[{{ $key }}][accounts][0][account_name]" class="form-control form-control-sm"></td>
+                          <td class="text-center align-middle provider-remove-cell" data-label=""><button type="button" class="btn btn-sm btn-outline-danger remove-provider-row" title="Remove">&times;</button></td>
                         </tr>
                         @endforelse
                       </tbody>
@@ -299,11 +434,11 @@
               </div>
             </div>
             <div class="row mb-3">
-              <div class="col-md-3">
+              <div class="col-12 col-sm-6 col-md-3">
                 <label class="small font-weight-bold">1st reminder (days before due)</label>
                 <input type="number" name="debt_due_reminder_days" class="form-control form-control-sm" min="1" max="30" value="{{ old('debt_due_reminder_days', $automation['debt_due_reminder_days']) }}">
               </div>
-              <div class="col-md-3">
+              <div class="col-12 col-sm-6 col-md-3">
                 <label class="small font-weight-bold">Reminder frequency</label>
                 @php $debtFrequency = old('debt_reminder_frequency', $automation['debt_reminder_frequency'] ?? 'once'); @endphp
                 <select name="debt_reminder_frequency" id="debt_reminder_frequency" class="form-control form-control-sm">
@@ -311,19 +446,19 @@
                   <option value="twice" {{ $debtFrequency === 'twice' ? 'selected' : '' }}>Twice (1st + 2nd reminder)</option>
                 </select>
               </div>
-              <div class="col-md-3" id="debtSecondReminderField" style="{{ $debtFrequency === 'twice' ? '' : 'display:none;' }}">
+              <div class="col-12 col-sm-6 col-md-3" id="debtSecondReminderField" style="{{ $debtFrequency === 'twice' ? '' : 'display:none;' }}">
                 <label class="small font-weight-bold">2nd reminder (days before due)</label>
                 <input type="number" name="debt_due_reminder_days_second" class="form-control form-control-sm" min="1" max="29" value="{{ old('debt_due_reminder_days_second', $automation['debt_due_reminder_days_second'] ?? 1) }}">
                 <small class="text-muted">Must be fewer days than the 1st reminder.</small>
               </div>
-              <div class="col-md-3">
+              <div class="col-12 col-sm-6 col-md-3">
                 <label class="small font-weight-bold">Send SMS at</label>
                 <input type="time" name="debt_reminder_send_time" class="form-control form-control-sm" value="{{ old('debt_reminder_send_time', $automation['debt_reminder_send_time'] ?? '08:00') }}">
                 <small class="text-muted">Daily time for due-soon, due-today, and overdue SMS.</small>
               </div>
             </div>
             <div class="row mb-3">
-              <div class="col-md-4">
+              <div class="col-12 col-md-4">
                 <label class="small font-weight-bold">Default credit term (days)</label>
                 <input type="number" name="default_debt_due_days" class="form-control form-control-sm" min="1" max="365" value="{{ old('default_debt_due_days', $automation['default_debt_due_days']) }}">
                 <small class="text-muted">Suggested due period for new credit sales.</small>
@@ -557,11 +692,11 @@
 
             <div id="shiftScheduledFields" class="border rounded p-3 mb-4 bg-light" style="{{ $shiftOpenMode === 'scheduled' ? '' : 'display:none;' }}">
               <div class="row mb-3">
-                <div class="col-md-4">
+                <div class="col-12 col-md-4">
                   <label class="small font-weight-bold">Earliest open time</label>
                   <input type="time" name="shift_open_time_from" class="form-control form-control-sm" value="{{ old('shift_open_time_from', $automation['shift_open_time_from'] ?? '06:00') }}">
                 </div>
-                <div class="col-md-4">
+                <div class="col-12 col-md-4">
                   <label class="small font-weight-bold">Latest open time</label>
                   <input type="time" name="shift_open_time_to" class="form-control form-control-sm" value="{{ old('shift_open_time_to', $automation['shift_open_time_to'] ?? '22:00') }}">
                 </div>
@@ -580,11 +715,11 @@
             <h6 class="font-weight-bold text-dark mt-4"><i class="fa fa-sign-out text-danger"></i> When must a shift be closed?</h6>
             <p class="small text-muted">A shift must be ended and handed over within this period after it was opened.</p>
             <div class="row mb-3">
-              <div class="col-md-3">
+              <div class="col-12 col-sm-6 col-md-3">
                 <label class="small font-weight-bold">Maximum open period</label>
                 <input type="number" name="shift_max_open_duration" class="form-control form-control-sm" min="1" max="365" value="{{ old('shift_max_open_duration', $automation['shift_max_open_duration'] ?? 1) }}" required>
               </div>
-              <div class="col-md-3">
+              <div class="col-12 col-sm-6 col-md-3">
                 <label class="small font-weight-bold">Unit</label>
                 <select name="shift_max_open_unit" class="form-control form-control-sm">
                   <option value="days" {{ old('shift_max_open_unit', $automation['shift_max_open_unit'] ?? 'days') === 'days' ? 'selected' : '' }}>Day(s)</option>
@@ -617,9 +752,14 @@
         <div class="tab-pane fade {{ $activeTab === 'subscription' ? 'show active' : '' }}" id="tab-subscription">
           <h5 class="mb-3 text-muted"><i class="fa fa-credit-card"></i> Plan &amp; Subscription</h5>
 
-          @include('partials.subscription-billing', ['overview' => $billingOverview, 'business' => $business])
+          @include('partials.subscription-billing', [
+            'overview' => $billingOverview,
+            'business' => $business,
+            'infoTableClass' => 'settings-stack-table',
+            'invoicesTableClass' => 'settings-invoices-table',
+          ])
 
-          <table class="table table-bordered mb-4">
+          <table class="table table-bordered mb-4 settings-info-table">
             <tr><th style="width:38%;">Account Status</th><td>
               @if($business->is_active)
                 <span class="badge badge-success">{{ __('tables.status.active') }}</span>
@@ -641,8 +781,8 @@
     </div>
   </div>
 
-  <div class="col-lg-3">
-    <div class="tile">
+  <div class="col-12 col-lg-3">
+    <div class="tile settings-sidebar-tile">
       <h3 class="tile-title">Quick Links</h3>
       <div class="tile-body list-group list-group-flush">
         <a href="{{ route('petty-cash.index') }}" class="list-group-item list-group-item-action"><i class="fa fa-money text-primary"></i> Petty Cash</a>
@@ -664,6 +804,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 @endsection
 
@@ -712,10 +853,10 @@ jQuery(function($) {
     const platformLabel = $table.data('platform-label');
     const placeholder = method === 'bank' ? 'CRDB' : 'M-Pesa';
     const $row = $('<tr>' +
-      '<td><input type="text" name="methods[' + method + '][accounts][' + idx + '][name]" class="form-control form-control-sm" placeholder="' + placeholder + '"></td>' +
-      '<td><input type="text" name="methods[' + method + '][accounts][' + idx + '][pay_number]" class="form-control form-control-sm"></td>' +
-      '<td><input type="text" name="methods[' + method + '][accounts][' + idx + '][account_name]" class="form-control form-control-sm"></td>' +
-      '<td class="text-center align-middle"><button type="button" class="btn btn-sm btn-outline-danger remove-provider-row" title="Remove">&times;</button></td>' +
+      '<td data-label="' + platformLabel + '"><input type="text" name="methods[' + method + '][accounts][' + idx + '][name]" class="form-control form-control-sm" placeholder="' + placeholder + '"></td>' +
+      '<td data-label="' + payLabel + '"><input type="text" name="methods[' + method + '][accounts][' + idx + '][pay_number]" class="form-control form-control-sm"></td>' +
+      '<td data-label="' + nameLabel + '"><input type="text" name="methods[' + method + '][accounts][' + idx + '][account_name]" class="form-control form-control-sm"></td>' +
+      '<td class="text-center align-middle provider-remove-cell" data-label=""><button type="button" class="btn btn-sm btn-outline-danger remove-provider-row" title="Remove">&times;</button></td>' +
       '</tr>');
     $table.find('tbody').append($row);
     reindexProviderRows($table);

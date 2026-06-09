@@ -2,7 +2,7 @@
 {{-- Each widget: icon, color (primary|success|warning|danger|info), label, value --}}
 <div class="row mb-3">
   @foreach($widgets as $widget)
-  <div class="col-md-3 col-sm-6">
+  <div class="col-6 col-md-3 col-sm-6">
     <div class="widget-small {{ $widget['color'] ?? 'primary' }} coloured-icon">
       <i class="icon fa {{ $widget['icon'] }} fa-3x"></i>
       <div class="info">

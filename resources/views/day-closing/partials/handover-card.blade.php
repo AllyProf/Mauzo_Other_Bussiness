@@ -57,7 +57,10 @@
       <i class="fa fa-eye"></i> View All Sales ({{ count($allDaySales) }})
     </button>
   </h5>
-  <div class="table-responsive mb-4">
+  <div class="d-lg-none mb-3">
+    @include('day-closing.partials.staff-mobile-cards', ['staffRows' => $staffRows, 'showDiff' => true])
+  </div>
+  <div class="table-responsive mb-4 d-none d-lg-block">
     <table class="table table-bordered table-sm">
       <thead>
         <tr>
@@ -93,7 +96,21 @@
 
   @if(($debtCollections['count'] ?? 0) > 0)
   <h5 class="mt-2"><i class="fa fa-history"></i> Debt Collections ({{ $debtCollections['count'] }})</h5>
-  <div class="table-responsive mb-4">
+  <div class="d-lg-none mb-3">
+    @foreach($debtCollections['items'] as $item)
+    <div class="dc-mobile-card">
+      <div class="dc-mobile-head">
+        <div>
+          <div class="dc-mobile-title">{{ $item['customer'] }}</div>
+          <div class="dc-mobile-meta">{{ $item['collected_at'] }}</div>
+        </div>
+        <strong class="text-success">{{ money($item['amount']) }}</strong>
+      </div>
+      <div class="dc-mobile-meta">{{ $item['sale_ref'] }} · {{ ucfirst(str_replace('_', ' ', $item['method'])) }}</div>
+    </div>
+    @endforeach
+  </div>
+  <div class="table-responsive mb-4 d-none d-lg-block">
     <table class="table table-bordered table-sm">
       <thead>
         <tr>
@@ -127,7 +144,7 @@
   @endif
 
   <div class="row">
-    <div class="col-md-6">
+    <div class="col-12 col-md-6 mb-3 mb-md-0">
       <h5>Payment Breakdown (Submitted)</h5>
       <table class="table table-bordered table-sm">
         @php $submittedBreakdown = $dayClosing->payment_breakdown ?? []; @endphp
@@ -157,7 +174,7 @@
         </tr>
       </table>
     </div>
-    <div class="col-md-6">
+    <div class="col-12 col-md-6">
       <h5>Expenses</h5>
       @if($dayClosing->expenses->isNotEmpty())
       <table class="table table-bordered table-sm">
@@ -182,20 +199,20 @@
   @if($canViewBossFinancials ?? false)
   <div class="border-top pt-4 mt-2">
     <h5><i class="fa fa-calculator"></i> Boss Financial Review</h5>
-    <div class="row text-center mt-3 p-3 bg-light rounded">
-      <div class="col-md-4 mb-3 mb-md-0">
+    <div class="row text-center mt-3 p-3 bg-light rounded boss-finance-cols">
+      <div class="col-12 col-md-4 mb-3 mb-md-0">
         <small class="text-uppercase font-weight-bold text-muted">Credit / Debt</small>
         <h4 class="{{ ($financeData['outstanding_debt'] ?? 0) > 0 ? 'text-danger' : 'text-success' }} mb-0">
           {{ money($financeData['outstanding_debt'] ?? 0) }}
         </h4>
         <small class="text-muted">Unpaid sales this shift</small>
       </div>
-      <div class="col-md-4 mb-3 mb-md-0" style="border-left: 1px solid #dee2e6;">
+      <div class="col-12 col-md-4 mb-3 mb-md-0" style="border-left: 1px solid #dee2e6;">
         <small class="text-uppercase font-weight-bold text-muted">Profit</small>
         <h4 class="text-success mb-0">{{ money($financeData['net_profit'] ?? 0) }}</h4>
         <small class="text-muted">{{ ($financeData['shift_scoped'] ?? false) ? 'From this shift only' : 'Generated for this day' }}</small>
       </div>
-      <div class="col-md-4" style="border-left: 1px solid #dee2e6;">
+      <div class="col-12 col-md-4" style="border-left: 1px solid #dee2e6;">
         <small class="text-uppercase font-weight-bold text-muted">Money in Circulation</small>
         <h4 class="text-primary mb-0">{{ money($financeData['closing_circulation'] ?? 0) }}</h4>
         <small class="text-muted">
@@ -238,11 +255,11 @@
       <form action="{{ route('day-closing.verify', $dayClosing) }}" method="POST" class="verify-handover-form" data-closing-id="{{ $dayClosing->id }}">
         @csrf
         <div class="row">
-          <div class="col-md-4 mb-3">
+          <div class="col-12 col-md-4 mb-3">
             <label class="font-weight-bold text-muted small text-uppercase">Expected Handover</label>
             <div class="form-control bg-light font-weight-bold">{{ money($handoverSummary['final_handover'] ?? $dayClosing->net_amount) }}</div>
           </div>
-          <div class="col-md-4 mb-3">
+          <div class="col-12 col-md-4 mb-3">
             <label for="actual-received-{{ $dayClosing->id }}" class="font-weight-bold">Actual Amount Received <span class="text-danger">*</span></label>
             <div class="input-group">
               <div class="input-group-prepend"><span class="input-group-text">TZS</span></div>
@@ -257,7 +274,7 @@
                      data-expected="{{ round($handoverSummary['final_handover'] ?? $dayClosing->net_amount) }}">
             </div>
           </div>
-          <div class="col-md-4 mb-3">
+          <div class="col-12 col-md-4 mb-3">
             <label class="font-weight-bold text-muted small text-uppercase">Money Short</label>
             <div class="form-control bg-light text-danger font-weight-bold money-short-display" id="money-short-display-{{ $dayClosing->id }}">—</div>
           </div>

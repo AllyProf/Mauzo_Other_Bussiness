@@ -19,10 +19,40 @@
   .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
   .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
   .business-type-tab i { margin-right: 5px; }
+  .sales-page .widget-small { min-height: 88px; border-radius: 8px !important; margin-bottom: 12px; }
+  .sales-page .widget-small .icon { min-width: 64px !important; padding: 10px !important; font-size: 2rem !important; }
+  .sales-page .widget-small .info h4 { font-size: 0.82rem !important; }
+  .sales-page .widget-small .info p { font-size: 15px !important; word-break: break-word; }
+  .sales-page .sales-title-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .sales-page .sales-mobile-card {
+    border: 1px solid #dee2e6; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: #fff;
+  }
+  .sales-page .sales-mobile-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .sales-page .sales-mobile-ref { font-weight: 700; color: #940000; font-size: 0.9rem; line-height: 1.35; }
+  .sales-page .sales-mobile-meta { font-size: 0.82rem; color: #6c757d; margin-top: 2px; }
+  .sales-page .sales-mobile-items { font-size: 0.88rem; line-height: 1.4; margin-bottom: 8px; word-break: break-word; }
+  .sales-page .sales-mobile-payment { margin-bottom: 10px; line-height: 1.4; }
+  .sales-page .sales-mobile-actions { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; border-top: 1px solid #eee; }
+
+  @media (max-width: 991.98px) {
+    .sales-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
+    .sales-page .app-title p { font-size: 0.88rem; }
+    .sales-page .business-type-tabs { padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  }
+
+  @media (max-width: 767.98px) {
+    .sales-page .app-title { flex-direction: column; align-items: flex-start !important; }
+    .sales-page .app-title h1 { font-size: 1.15rem; }
+    .sales-page .app-title p { font-size: 0.82rem; }
+    .sales-page .sales-title-actions { width: 100%; }
+    .sales-page .sales-title-actions .btn { flex: 1 1 100%; text-align: center; }
+    .sales-page .widget-small .icon { min-width: 52px !important; font-size: 1.5rem !important; }
+  }
 </style>
 @endsection
 
 @section('content')
+<div class="sales-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-shopping-cart"></i> {{ __('pages.sales.title') }}</h1>
@@ -37,12 +67,14 @@
         View all completed sales
       @endif
     </p>
+    <div class="sales-title-actions d-print-none">
+      @if(($requiresOpenShift ?? false) && !($openShift ?? null))
+        <a href="{{ route('shifts.create') }}" class="btn btn-warning btn-sm"><i class="fa fa-clock-o"></i> {{ __('pages.sales.open_shift_first') }}</a>
+      @else
+        <a href="{{ route('sales.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> {{ __('pages.sales.new_sale') }}</a>
+      @endif
+    </div>
   </div>
-  @if(($requiresOpenShift ?? false) && !($openShift ?? null))
-    <a href="{{ route('shifts.create') }}" class="btn btn-warning"><i class="fa fa-clock-o"></i> {{ __('pages.sales.open_shift_first') }}</a>
-  @else
-    <a href="{{ route('sales.create') }}" class="btn btn-primary"><i class="fa fa-plus"></i> {{ __('pages.sales.new_sale') }}</a>
-  @endif
 </div>
 
 @if(($requiresOpenShift ?? false) && !($openShift ?? null))
@@ -66,7 +98,7 @@
 @endif
 
 <div class="row mb-3">
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-shopping-cart fa-3x"></i>
       <div class="info">
@@ -75,7 +107,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="widget-small info coloured-icon">
       <i class="icon fa fa-line-chart fa-3x"></i>
       <div class="info">
@@ -84,7 +116,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="widget-small success coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
@@ -93,7 +125,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="widget-small danger coloured-icon">
       <i class="icon fa fa-credit-card fa-3x"></i>
       <div class="info">
@@ -120,6 +152,10 @@
       </div>
       @endif
       <div class="tile-body">
+        <div class="d-lg-none mb-3" id="salesMobileList">
+          @include('sales.partials.sale-mobile-list', ['sales' => $sales, 'shiftContext' => $shiftContext ?? ''])
+        </div>
+        <div class="sales-desktop-table d-none d-lg-block">
         <table class="table table-hover table-bordered" id="salesTable">
           <thead>
             <tr>
@@ -242,6 +278,7 @@
             @endif
           </tbody>
         </table>
+        </div>
         {{ $sales->links() }}
       </div>
     </div>
@@ -249,6 +286,7 @@
 </div>
 
 @include('sales.partials.payment-modal')
+</div>
 @endsection
 
 @section('scripts')
@@ -261,9 +299,24 @@
             const hasMultipleBusinessTypes = @json($multiBusiness ?? false);
             let activeBusinessType = 'all';
 
+            function filterMobileSalesCards() {
+                let visible = 0;
+                $('.sales-mobile-card').each(function () {
+                    const keys = String($(this).data('business-types') || '').split(',').filter(Boolean);
+                    const show = activeBusinessType === 'all' || keys.indexOf(String(activeBusinessType)) !== -1;
+                    $(this).toggle(show);
+                    if (show) {
+                        visible++;
+                    }
+                });
+                $('#salesMobileNoMatch').toggleClass('d-none', visible > 0 || $('.sales-mobile-card').length === 0);
+            }
+
             const table = $('#salesTable').DataTable({
                 order: [[0, 'desc']],
             });
+
+            $(table.table().container()).addClass('sales-datatable-wrap');
 
             if (hasMultipleBusinessTypes) {
                 $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
@@ -286,7 +339,10 @@
                     $(this).addClass('active');
                     activeBusinessType = String($(this).attr('data-business-type') || 'all');
                     table.draw();
+                    filterMobileSalesCards();
                 });
+
+                filterMobileSalesCards();
             }
         });
     </script>

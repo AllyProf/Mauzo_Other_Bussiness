@@ -52,7 +52,10 @@
         </p>
       </div>
       <div class="tile-body">
-        <div class="table-responsive">
+        <div class="d-lg-none mb-3">
+          @include('reports.partials.expense-summary-mobile-list', ['tableRows' => $tableRows])
+        </div>
+        <div class="table-responsive d-none d-lg-block">
           <table class="table table-hover table-bordered report-table mb-0">
             <thead>
               <tr>

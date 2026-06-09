@@ -27,7 +27,7 @@
 
 @if($plan)
 <div class="table-responsive mb-4">
-  <table class="table table-bordered text-left mb-0">
+  <table class="table table-bordered text-left mb-0 {{ $infoTableClass ?? '' }}">
     <tr><th style="width:38%;">Plan</th><td>{{ $plan->name ?? '—' }} · {{ $business->billingModelLabel() }}</td></tr>
     <tr><th>Billing</th><td>{{ $business->billingSummary() }}</td></tr>
     <tr>
@@ -68,7 +68,7 @@
 @if($invoices->isNotEmpty())
 <h6 class="text-left font-weight-bold mb-2">Recent Invoices</h6>
 <div class="table-responsive mb-3">
-  <table class="table table-sm table-bordered text-left mb-0">
+  <table class="table table-sm table-bordered text-left mb-0 {{ $invoicesTableClass ?? '' }}">
     <thead class="thead-light">
       <tr>
         <th>Month</th>
@@ -80,10 +80,10 @@
     <tbody>
       @foreach($invoices as $invoice)
       <tr>
-        <td>{{ $invoice->billingMonthLabel() }}</td>
-        <td>{{ $invoice->invoice_number }}</td>
-        <td class="text-right">TZS {{ number_format((float) $invoice->amount, 0) }}</td>
-        <td>{{ $invoice->statusLabel() }}</td>
+        <td data-label="Month">{{ $invoice->billingMonthLabel() }}</td>
+        <td data-label="Invoice">{{ $invoice->invoice_number }}</td>
+        <td class="text-right" data-label="Amount">TZS {{ number_format((float) $invoice->amount, 0) }}</td>
+        <td data-label="{{ __('tables.columns.status') }}">{{ $invoice->statusLabel() }}</td>
       </tr>
       @endforeach
     </tbody>

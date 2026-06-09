@@ -82,10 +82,48 @@
     margin-top: 1rem;
   }
   .report-table-footer .pagination { margin-bottom: 0; }
+
+  @media (max-width: 991.98px) {
+    .report-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
+    .report-page .app-title p { font-size: 0.88rem; }
+    .report-page .business-type-tabs { padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+    .report-page .report-chart-row > [class*="col-"] { margin-bottom: 0; }
+    .report-page .report-chart-wrap { min-height: 220px; }
+    .report-page .tile-title-w-btn { flex-direction: column; align-items: flex-start !important; }
+    .report-page .tile-title-w-btn .title { margin-bottom: 8px !important; }
+    .report-page .report-table-footer { flex-direction: column; align-items: stretch; text-align: center; }
+    .report-page .report-filter-form .form-group { margin-bottom: 0.75rem; }
+    .report-page .widget-small { min-height: 84px; border-radius: 8px !important; }
+    .report-page .widget-small .icon { min-width: 58px !important; font-size: 1.75rem !important; }
+    .report-page .widget-small .info h4 { font-size: 0.8rem !important; }
+    .report-page .widget-small .info p { font-size: 14px !important; word-break: break-word; }
+    .report-page .report-mobile-card {
+      border: 1px solid #dee2e6; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: #fff;
+    }
+    .report-page .report-mobile-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #eee;
+    }
+    .report-page .report-mobile-head strong { color: #940000; }
+    .report-page .report-mobile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+    .report-page .report-mobile-stat span {
+      display: block; font-size: 0.72rem; text-transform: uppercase; color: #6c757d;
+      font-weight: 600; letter-spacing: 0.02em;
+    }
+    .report-page .report-mobile-stat strong {
+      display: block; font-size: 0.9rem; margin-top: 2px; font-family: 'Courier New', Courier, monospace;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .report-page .app-title h1 { font-size: 1.15rem; }
+    .report-page .app-breadcrumb { font-size: 0.85rem; }
+  }
 </style>
 @endsection
 
 @section('content')
+<div class="report-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-bar-chart"></i> {{ $title ?? 'Report' }}</h1>
@@ -103,6 +141,7 @@
 @include('reports.partials.date-range-filter')
 
 @yield('report-content')
+</div>
 @endsection
 
 @section('scripts')

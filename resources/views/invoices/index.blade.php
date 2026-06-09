@@ -2,7 +2,40 @@
 
 @section('title', 'Invoices')
 
+@section('styles')
+<style>
+  .invoices-page .widget-small { min-height: 88px; border-radius: 8px !important; margin-bottom: 12px; }
+  .invoices-page .widget-small .icon { min-width: 64px !important; padding: 10px !important; font-size: 2rem !important; }
+  .invoices-page .widget-small .info h4 { font-size: 0.82rem !important; }
+  .invoices-page .widget-small .info p { font-size: 15px !important; word-break: break-word; }
+  .invoices-page .inv-title-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .invoices-page .inv-mobile-card {
+    border: 1px solid #dee2e6; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: #fff;
+  }
+  .invoices-page .inv-mobile-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .invoices-page .inv-mobile-ref { font-weight: 700; color: #940000; font-size: 0.9rem; }
+  .invoices-page .inv-mobile-meta { font-size: 0.82rem; color: #6c757d; margin-top: 2px; }
+  .invoices-page .inv-mobile-customer { font-size: 0.9rem; margin-bottom: 10px; line-height: 1.4; word-break: break-word; }
+  .invoices-page .inv-mobile-actions { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; border-top: 1px solid #eee; }
+
+  @media (max-width: 991.98px) {
+    .invoices-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
+    .invoices-page .app-title p { font-size: 0.88rem; }
+  }
+
+  @media (max-width: 767.98px) {
+    .invoices-page .app-title { flex-direction: column; align-items: flex-start !important; }
+    .invoices-page .app-title h1 { font-size: 1.15rem; }
+    .invoices-page .app-title p { font-size: 0.82rem; }
+    .invoices-page .inv-title-actions { width: 100%; }
+    .invoices-page .inv-title-actions .btn { width: 100%; text-align: center; }
+    .invoices-page .widget-small .icon { min-width: 52px !important; font-size: 1.5rem !important; }
+  }
+</style>
+@endsection
+
 @section('content')
+<div class="invoices-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-file-text-o"></i> Invoices</h1>
@@ -13,14 +46,16 @@
         Formal invoices only · POS orders (including partial pay) stay under Store / POS
       @endif
     </p>
+    @can('process_sales')
+    <div class="inv-title-actions d-print-none">
+      <a href="{{ route('invoices.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> Create Invoice</a>
+    </div>
+    @endcan
   </div>
-  @can('process_sales')
-    <a href="{{ route('invoices.create') }}" class="btn btn-primary"><i class="fa fa-plus"></i> Create Invoice</a>
-  @endcan
 </div>
 
 <div class="row mb-3">
-  <div class="col-md-4">
+  <div class="col-12 col-sm-4">
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-file-text-o fa-3x"></i>
       <div class="info">
@@ -29,7 +64,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-12 col-sm-4">
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-clock-o fa-3x"></i>
       <div class="info">
@@ -38,7 +73,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-12 col-sm-4">
     <div class="widget-small info coloured-icon">
       <i class="icon fa fa-line-chart fa-3x"></i>
       <div class="info">
@@ -54,6 +89,10 @@
     <div class="tile">
       <div class="tile-body">
         @if($sales->count() > 0)
+        <div class="d-lg-none mb-3">
+          @include('invoices.partials.invoice-mobile-list', ['sales' => $sales])
+        </div>
+        <div class="table-responsive d-none d-lg-block">
         <table class="table table-hover table-bordered">
           <thead>
             <tr>
@@ -135,6 +174,7 @@
             @endforeach
           </tbody>
         </table>
+        </div>
         {{ $sales->links() }}
         @else
         <div class="text-center py-5 text-muted">
@@ -151,6 +191,7 @@
 </div>
 
 @include('sales.partials.payment-modal')
+</div>
 @endsection
 
 @section('scripts')

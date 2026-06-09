@@ -27,6 +27,51 @@
   .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
   .business-type-tab i { margin-right: 5px; }
   .business-type-row td:first-child + td + td { font-weight: 600; color: #940000; }
+  .owner-reports-page .or-filter-form .form-group { margin-bottom: 0.75rem; }
+  .owner-reports-page .or-mobile-card {
+    border: 1px solid #dee2e6; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;
+    background: #fff; cursor: pointer; transition: background 0.2s;
+  }
+  .owner-reports-page .or-mobile-card:hover { background: #f8f9fa; }
+  .owner-reports-page .or-mobile-card.border-warning { border-color: #ffc107 !important; background: #fffdf5; }
+  .owner-reports-page .or-mobile-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .owner-reports-page .or-mobile-date { font-weight: 700; color: #940000; line-height: 1.35; }
+  .owner-reports-page .or-mobile-meta { font-size: 0.82rem; color: #6c757d; margin-top: 2px; }
+  .owner-reports-page .or-mobile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+  .owner-reports-page .or-mobile-stat span { display: block; font-size: 0.72rem; text-transform: uppercase; color: #6c757d; font-weight: 600; letter-spacing: 0.02em; }
+  .owner-reports-page .or-mobile-stat strong { display: block; font-size: 0.92rem; margin-top: 2px; word-break: break-word; font-family: 'Courier New', Courier, monospace; }
+  .owner-reports-page .or-mobile-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+  .owner-reports-page .or-mobile-expand-hint { margin-left: auto; font-size: 0.78rem; color: #6c757d; }
+  .owner-reports-page .or-mobile-detail { margin: -6px 0 10px; }
+  .owner-reports-page .or-mobile-detail .detail-container { border-radius: 0 0 8px 8px; }
+  .owner-reports-page .or-pending-card {
+    border: 1px solid #ffc107; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: #fffdf5;
+  }
+  .owner-reports-page .or-pending-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+  .owner-reports-page .or-detail-col-border { border-right: none !important; }
+  .owner-reports-page .or-detail-alert { font-size: 0.85rem; border-left: 5px solid #940000; }
+  .owner-reports-page .or-detail-actions { margin-top: 12px; }
+  .owner-reports-page .or-finalize-box { max-width: 100%; }
+
+  @media (max-width: 991.98px) {
+    .owner-reports-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
+    .owner-reports-page .app-title p { font-size: 0.88rem; }
+    .owner-reports-page .detail-container { padding: 14px 16px; }
+    .owner-reports-page .business-type-tabs { padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  }
+
+  @media (max-width: 767.98px) {
+    .owner-reports-page .app-title h1 { font-size: 1.15rem; }
+    .owner-reports-page .app-title p { font-size: 0.82rem; }
+    .owner-reports-page .or-filter-form .btn-block { width: 100%; }
+    .owner-reports-page .detail-container { padding: 12px; }
+    .owner-reports-page .nested-table { font-size: 0.8rem; }
+  }
+
+  @media (min-width: 768px) {
+    .owner-reports-page .or-detail-col-border { border-right: 1px solid #dee2e6 !important; }
+  }
+
   @media print {
     .d-print-none { display: none !important; }
     .excel-table { font-size: 10pt; width: 100% !important; }
@@ -39,6 +84,7 @@
 @endsection
 
 @section('content')
+<div class="owner-reports-page">
 <div class="app-title d-print-none">
   <div>
     <h1><i class="fa fa-list-alt"></i> {{ __('owner_reports.archive_title') }}</h1>
@@ -53,23 +99,23 @@
 </div>
 
 <div class="tile d-print-none mb-3 py-2">
-  <form method="GET" action="{{ route('owner-reports.index') }}" class="row align-items-center">
-    <div class="col-md-3">
+  <form method="GET" action="{{ route('owner-reports.index') }}" class="row align-items-end or-filter-form">
+    <div class="col-12 col-sm-6 col-md-3 form-group">
       <label class="small font-weight-bold mb-0">{{ __('owner_reports.from_date') }}</label>
       <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
     </div>
-    <div class="col-md-3">
+    <div class="col-12 col-sm-6 col-md-3 form-group">
       <label class="small font-weight-bold mb-0">{{ __('owner_reports.to_date') }}</label>
       <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request('end_date') }}">
     </div>
-    <div class="col-md-2 mt-3">
+    <div class="col-6 col-md-2 form-group">
       <button type="submit" class="btn btn-primary btn-sm btn-block"><i class="fa fa-search"></i> {{ __('common.search') }}</button>
     </div>
-    <div class="col-md-2 mt-3">
+    <div class="col-6 col-md-2 form-group">
       <a href="{{ route('owner-reports.index') }}" class="btn btn-outline-secondary btn-sm btn-block"><i class="fa fa-refresh"></i> {{ __('tables.filters.reset') }}</a>
     </div>
     @if(Auth::user()->role === 'owner')
-    <div class="col-md-2 mt-3 text-right">
+    <div class="col-12 col-md-2 form-group">
       <a href="{{ route('settings.index') }}" class="btn btn-outline-dark btn-sm btn-block"><i class="fa fa-gears"></i> {{ __('common.settings') }}</a>
     </div>
     @endif
@@ -80,23 +126,41 @@
 <div class="tile d-print-none mb-3 border-warning">
   <h3 class="tile-title text-warning"><i class="fa fa-hourglass-half"></i> {{ __('owner_reports.awaiting_verification', ['count' => $pendingClosings->count()]) }}</h3>
   <div class="tile-body p-0">
-    <table class="table table-sm mb-0">
-      <thead><tr><th>{{ __('tables.columns.date') }}</th><th>{{ __('owner_reports.submitted_by') }}</th><th>{{ __('tables.columns.collected') }}</th><th>{{ __('tables.columns.action') }}</th></tr></thead>
-      <tbody>
-        @foreach($pendingClosings as $pending)
-        <tr>
-          <td><strong>{{ $pending->closing_date->format('M d, Y') }}</strong></td>
-          <td>{{ $pending->user->name }}</td>
-          <td>TZS {{ number_format($pending->payments_received, 0) }}</td>
-          <td>
-            <a href="{{ route('day-closing.index', ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning">
-              <i class="fa fa-check"></i> {{ __('owner_reports.review') }}
-            </a>
-          </td>
-        </tr>
-        @endforeach
-      </tbody>
-    </table>
+    <div class="d-none d-md-block">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>{{ __('tables.columns.date') }}</th><th>{{ __('owner_reports.submitted_by') }}</th><th>{{ __('tables.columns.collected') }}</th><th>{{ __('tables.columns.action') }}</th></tr></thead>
+        <tbody>
+          @foreach($pendingClosings as $pending)
+          <tr>
+            <td><strong>{{ $pending->closing_date->format('M d, Y') }}</strong></td>
+            <td>{{ $pending->user->name }}</td>
+            <td>TZS {{ number_format($pending->payments_received, 0) }}</td>
+            <td>
+              <a href="{{ route('day-closing.index', ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning">
+                <i class="fa fa-check"></i> {{ __('owner_reports.review') }}
+              </a>
+            </td>
+          </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+    <div class="d-md-none px-3 pt-2">
+      @foreach($pendingClosings as $pending)
+      <div class="or-pending-card">
+        <div class="or-pending-head">
+          <div>
+            <strong>{{ $pending->closing_date->format('M d, Y') }}</strong>
+            <div class="small text-muted">{{ $pending->user->name }}</div>
+          </div>
+          <strong>TZS {{ number_format($pending->payments_received, 0) }}</strong>
+        </div>
+        <a href="{{ route('day-closing.index', ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning btn-block">
+          <i class="fa fa-check"></i> {{ __('owner_reports.review') }}
+        </a>
+      </div>
+      @endforeach
+    </div>
     <p class="small text-muted px-3 py-2 mb-0">{{ __('owner_reports.verify_hint') }}</p>
   </div>
 </div>
@@ -126,7 +190,16 @@
 <div class="row">
   <div class="col-md-12">
     <div class="tile p-0" style="overflow:hidden;">
-      <div class="table-responsive">
+      <div class="d-lg-none p-3 pb-0">
+        @include('owner-reports.partials.ledger-mobile-list', [
+          'ledgers' => $ledgers,
+          'multiBusiness' => $multiBusiness ?? false,
+          'canSwitchBranch' => $canSwitchBranch ?? false,
+          'viewingAllBranches' => $viewingAllBranches ?? false,
+          'activeBranchLabel' => $activeBranchLabel ?? null,
+        ])
+      </div>
+      <div class="table-responsive d-none d-lg-block">
         <table class="table table-bordered excel-table mb-0">
           <thead>
             <tr>
@@ -564,6 +637,7 @@
     </div>
   </div>
 </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -575,14 +649,17 @@
 @endphp
 <script>
 jQuery(function($) {
-  $('.main-row').on('click', function() {
+  $('.owner-reports-page').on('click', '.main-row[data-toggle="collapse"]', function(e) {
+    if ($(e.target).closest('a, button, form, .btn-group, .or-mobile-actions').length) {
+      return;
+    }
     const expanded = $(this).attr('aria-expanded') === 'true';
     $(this).attr('aria-expanded', expanded ? 'false' : 'true');
   });
 
   @if(request('highlight_date'))
     const highlightDate = @json(request('highlight_date'));
-    const $targetRow = $('.main-row[data-ledger-date="' + highlightDate + '"]').first();
+    const $targetRow = $('.owner-reports-page .main-row[data-ledger-date="' + highlightDate + '"]').first();
 
     if ($targetRow.length) {
       $targetRow.attr('aria-expanded', 'true');
@@ -591,7 +668,7 @@ jQuery(function($) {
         $(targetId).addClass('show');
       }
       $('html, body').animate({ scrollTop: $targetRow.offset().top - 80 }, 400);
-      $targetRow.addClass('table-warning');
+      $targetRow.addClass($targetRow.is('tr') ? 'table-warning' : 'border-warning');
     }
   @endif
 

@@ -32,10 +32,57 @@
   }
   .impact-metric .value { font-size: 1rem; font-weight: 700; color: #212529; }
   .impact-metric.highlight .value { color: #940000; }
+  .stock-shortages-page .ss-filter-form .form-group { margin-bottom: 0.75rem; }
+  .stock-shortages-page .shortage-mobile-card {
+    border: 1px solid #dee2e6; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;
+    background: #fff; cursor: pointer; transition: background 0.15s ease;
+  }
+  .stock-shortages-page .shortage-mobile-card.is-pending { border-color: #f5c6cb; background: #fff5f5; }
+  .stock-shortages-page .shortage-mobile-card.is-expanded { background: #fff9f1; border-color: #940000; }
+  .stock-shortages-page .shortage-mobile-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .stock-shortages-page .shortage-mobile-item { font-weight: 700; color: #212529; line-height: 1.35; }
+  .stock-shortages-page .shortage-mobile-meta { font-size: 0.82rem; color: #6c757d; margin-top: 2px; line-height: 1.4; }
+  .stock-shortages-page .shortage-mobile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin-bottom: 8px; }
+  .stock-shortages-page .shortage-mobile-stat span { display: block; font-size: 0.72rem; text-transform: uppercase; color: #6c757d; font-weight: 600; }
+  .stock-shortages-page .shortage-mobile-stat strong { display: block; font-size: 0.9rem; margin-top: 2px; }
+  .stock-shortages-page .shortage-mobile-notes { margin-bottom: 8px; line-height: 1.4; }
+  .stock-shortages-page .shortage-mobile-status { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .stock-shortages-page .shortage-mobile-expand { color: #940000; transition: transform 0.2s ease; }
+  .stock-shortages-page .shortage-mobile-card.is-expanded .shortage-mobile-expand { transform: rotate(180deg); }
+  .stock-shortages-page .shortage-mobile-actions { padding-top: 8px; border-top: 1px solid #eee; }
+  .stock-shortages-page .shortage-mobile-actions .btn { margin-right: 4px; margin-bottom: 4px; }
+  .stock-shortages-page .shortage-mobile-detail { margin: -4px 0 10px; }
+  .stock-shortages-page .shortage-mobile-detail .shortage-impact-panel { border-radius: 0 0 8px 8px; margin: 0; }
+  .stock-shortages-page .widget-small { min-height: 84px; border-radius: 8px !important; margin-bottom: 12px; }
+  .stock-shortages-page .widget-small .icon { min-width: 58px !important; font-size: 1.75rem !important; }
+  .stock-shortages-page .widget-small .info h4 { font-size: 0.8rem !important; }
+  .stock-shortages-page .widget-small .info p { font-size: 14px !important; }
+
+  @media (max-width: 991.98px) {
+    .stock-shortages-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
+    .stock-shortages-page .app-title p { font-size: 0.88rem; }
+    .stock-shortages-page .business-type-tabs { padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+    .stock-shortages-page .shortage-impact-panel .row > [class*="col-"] { margin-bottom: 8px; }
+  }
+
+  @media (max-width: 767.98px) {
+    .stock-shortages-page .app-title { flex-direction: column; align-items: flex-start !important; }
+    .stock-shortages-page .app-title h1 { font-size: 1.15rem; }
+    .stock-shortages-page .app-breadcrumb { font-size: 0.85rem; }
+    .stock-shortages-page .ss-mobile-actions-row {
+      display: flex;
+      gap: 8px;
+    }
+    .stock-shortages-page .ss-mobile-actions-row .btn {
+      flex: 1 1 50%;
+      margin: 0 !important;
+    }
+  }
 </style>
 @endsection
 
 @section('content')
+<div class="stock-shortages-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-warning"></i> Stock Shortages</h1>
@@ -62,7 +109,7 @@
 @include('partials.branch-business-filters', ['filterHint' => 'Select a business tab to filter shortage records by department.'])
 
 <div class="row mb-3">
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="widget-small danger coloured-icon">
       <i class="icon fa fa-arrow-down fa-3x"></i>
       <div class="info">
@@ -71,7 +118,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-arrow-down fa-3x"></i>
       <div class="info">
@@ -80,7 +127,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-clock-o fa-3x"></i>
       <div class="info">
@@ -89,7 +136,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="widget-small info coloured-icon">
       <i class="icon fa fa-hourglass-half fa-3x"></i>
       <div class="info">
@@ -103,15 +150,15 @@
 <div class="tile">
   <h3 class="tile-title">Shortage Log</h3>
   <div class="tile-body">
-    <form method="GET" action="{{ route('stock-shortages.index') }}" class="row mb-3">
+    <form method="GET" action="{{ route('stock-shortages.index') }}" class="row mb-3 ss-filter-form">
       @if($activeBusinessType ?? false)
         <input type="hidden" name="business_type" value="{{ $activeBusinessType }}">
       @endif
-      <div class="col-md-4 mb-2 mb-md-0">
+      <div class="col-12 col-md-4 form-group">
         <label class="small font-weight-bold">Search</label>
         <input type="text" name="search" class="form-control form-control-sm" value="{{ request('search') }}" placeholder="Item, staff, or notes...">
       </div>
-      <div class="col-md-3 mb-2 mb-md-0">
+      <div class="col-12 col-sm-6 col-md-3 form-group">
         <label class="small font-weight-bold">Review</label>
         <select name="status" class="form-control form-control-sm">
           <option value="">All</option>
@@ -121,7 +168,7 @@
           <option value="verified" {{ request('status') === 'verified' ? 'selected' : '' }}>All reviewed</option>
         </select>
       </div>
-      <div class="col-md-3 mb-2 mb-md-0">
+      <div class="col-12 col-sm-6 col-md-3 form-group">
         <label class="small font-weight-bold">Staff</label>
         <select name="staff_id" class="form-control form-control-sm">
           <option value="">All staff</option>
@@ -130,14 +177,19 @@
           @endforeach
         </select>
       </div>
-      <div class="col-md-2 d-flex align-items-end">
+      <div class="col-12 col-md-2 form-group d-flex align-items-end">
         <button type="submit" class="btn btn-sm btn-primary btn-block"><i class="fa fa-search"></i> Search</button>
       </div>
     </form>
 
-    <p class="text-muted small mb-2"><i class="fa fa-hand-pointer-o"></i> Click any row to expand financial impact (revenue, cost, profit).</p>
+    <p class="text-muted small mb-2 d-none d-lg-block"><i class="fa fa-hand-pointer-o"></i> Click any row to expand financial impact (revenue, cost, profit).</p>
+    <p class="text-muted small mb-2 d-lg-none"><i class="fa fa-hand-pointer-o"></i> Tap a card to see financial impact.</p>
 
-    <div class="table-responsive">
+    <div class="d-lg-none mb-3">
+      @include('shifts.partials.shortage-mobile-list', ['shortages' => $shortages])
+    </div>
+
+    <div class="table-responsive d-none d-lg-block">
       <table class="table table-hover table-bordered table-sm" id="shortagesTable">
         <thead class="thead-dark">
           <tr>
@@ -235,65 +287,7 @@
             </tr>
             <tr class="collapse shortage-detail" id="shortage-detail-{{ $check->id }}">
               <td colspan="12">
-                <div class="shortage-impact-panel">
-                  <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
-                    <strong class="text-dark"><i class="fa fa-calculator text-primary"></i> Financial impact — {{ $check->item->name ?? 'Item' }}</strong>
-                    <small class="text-muted">Based on selling price &amp; cost per piece × quantity short</small>
-                  </div>
-                  <div class="row">
-                    <div class="col-md-2 col-6 mb-2 mb-md-0">
-                      <div class="impact-metric">
-                        <div class="label">Qty Short</div>
-                        <div class="value">{{ number_format($impact['shortage_qty'] ?? $check->shortageAmount(), 2) }} pcs</div>
-                      </div>
-                    </div>
-                    <div class="col-md-2 col-6 mb-2 mb-md-0">
-                      <div class="impact-metric">
-                        <div class="label">Unit Cost</div>
-                        <div class="value">{{ ($impact['unit_cost'] ?? 0) > 0 ? money($impact['unit_cost']) : '—' }}</div>
-                      </div>
-                    </div>
-                    <div class="col-md-2 col-6 mb-2 mb-md-0">
-                      <div class="impact-metric">
-                        <div class="label">Unit Sell</div>
-                        <div class="value">{{ ($impact['unit_sell'] ?? 0) > 0 ? money($impact['unit_sell']) : '—' }}</div>
-                      </div>
-                    </div>
-                    <div class="col-md-2 col-6 mb-2 mb-md-0">
-                      <div class="impact-metric highlight">
-                        <div class="label">Lost Revenue</div>
-                        <div class="value">{{ money($impact['revenue_value'] ?? 0) }}</div>
-                      </div>
-                    </div>
-                    <div class="col-md-2 col-6 mb-2 mb-md-0">
-                      <div class="impact-metric">
-                        <div class="label">Lost Cost</div>
-                        <div class="value">{{ money($impact['cost_value'] ?? 0) }}</div>
-                      </div>
-                    </div>
-                    <div class="col-md-2 col-6">
-                      <div class="impact-metric highlight">
-                        <div class="label">Lost Profit</div>
-                        <div class="value">{{ money($impact['profit_value'] ?? 0) }}</div>
-                      </div>
-                    </div>
-                  </div>
-                  @if($check->isVerified())
-                    <div class="mt-3 pt-2 border-top small">
-                      <strong>Owner decision:</strong>
-                      @if($check->isWillBePaid())
-                        <span class="badge badge-primary">Will be paid</span>
-                        <span class="text-muted ml-1">Recorded for collection from staff — collect {{ money($impact['cost_value'] ?? 0) }} (cost) or {{ money($impact['revenue_value'] ?? 0) }} (sales value) outside the system or at handover.</span>
-                      @elseif($check->isWaived())
-                        <span class="badge badge-success">Waived</span>
-                        <span class="text-muted ml-1">No payment required from staff.</span>
-                      @endif
-                      @if($check->owner_notes)
-                        <div class="text-muted mt-1"><strong>Note:</strong> {{ $check->owner_notes }}</div>
-                      @endif
-                    </div>
-                  @endif
-                </div>
+                @include('shifts.partials.shortage-impact-panel', ['check' => $check, 'impact' => $impact])
               </td>
             </tr>
           @empty
@@ -308,13 +302,14 @@
     </div>
   </div>
 </div>
+</div>
 @endsection
 
 @section('scripts')
 <script>
 jQuery(function($) {
   $('.shortage-row').on('click', function(e) {
-    if ($(e.target).closest('.shortage-no-toggle, .shortage-decision-btn, .shortage-revert-btn, a').length) {
+    if ($(e.target).closest('.shortage-no-toggle, .shortage-decision-btn, .shortage-revert-btn, a, button, form').length) {
       return;
     }
 
@@ -349,6 +344,7 @@ jQuery(function($) {
 
   $('.shortage-decision-btn').on('click', function(e) {
     e.stopPropagation();
+    e.preventDefault();
     const form = $(this).closest('form');
     const btn = $(this);
     const decision = btn.data('decision');

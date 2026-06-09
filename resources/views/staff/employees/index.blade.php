@@ -4,18 +4,73 @@
 
 @section('styles')
 <style>
-  .employee-actions {
+  .employees-page .employee-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
   }
-  .employee-actions form {
+  .employees-page .employee-actions form {
     margin: 0;
     display: inline-flex;
   }
-  .employee-actions .btn {
+  .employees-page .employee-actions .btn {
     min-width: 34px;
+  }
+  .employees-page .emp-title-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .employees-page .emp-mobile-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: #fff;
+  }
+  .employees-page .emp-mobile-card.is-inactive {
+    background: #f8f9fa;
+    opacity: 0.92;
+  }
+  .employees-page .emp-mobile-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .employees-page .emp-mobile-name {
+    font-weight: 700;
+    color: #940000;
+    font-size: 0.95rem;
+    line-height: 1.35;
+  }
+  .employees-page .emp-mobile-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.82rem;
+    color: #6c757d;
+    margin-top: 4px;
+    word-break: break-word;
+  }
+  .employees-page .emp-mobile-details {
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .employees-page .emp-mobile-actions {
+    padding-top: 8px;
+    border-top: 1px solid #eee;
+  }
+
+  @media (max-width: 991.98px) {
+    .employees-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
+    .employees-page .app-title p { font-size: 0.88rem; }
+    .employees-page .staff-limit-bar { max-width: 100% !important; }
+  }
+
+  @media (max-width: 767.98px) {
+    .employees-page .app-title { flex-direction: column; align-items: flex-start !important; }
+    .employees-page .app-title h1 { font-size: 1.15rem; }
+    .employees-page .emp-title-actions { width: 100%; }
+    .employees-page .emp-title-actions .btn { width: 100%; text-align: center; }
   }
 </style>
 @endsection
@@ -31,23 +86,26 @@
     $hasBranches = \App\Models\Branch::where('business_id', $business->id)->where('is_active', true)->exists();
 @endphp
 
+<div class="employees-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-users"></i> Staff Management</h1>
     <p>Manage your shop employees and their access</p>
+    @can('manage_staff')
+    <div class="emp-title-actions d-print-none">
+      <a href="{{ route('employees.create') }}" class="btn btn-primary btn-sm {{ ($canAddStaff && $hasBranches) ? '' : 'disabled' }}" title="{{ $hasBranches ? '' : 'Register a branch first' }}"><i class="fa fa-plus"></i> Add Employee</a>
+    </div>
+    @endcan
   </div>
-  @can('manage_staff')
-  <a href="{{ route('employees.create') }}" class="btn btn-primary {{ ($canAddStaff && $hasBranches) ? '' : 'disabled' }}" title="{{ $hasBranches ? '' : 'Register a branch first' }}"><i class="fa fa-plus"></i> Add Employee</a>
-  @endcan
 </div>
 
 <div class="row">
   <div class="col-md-12">
     <div class="tile">
       <div class="tile-body">
-        
+
         @if($maxUsers > 0)
-            <div class="mb-4" style="max-width: 300px;">
+            <div class="mb-4 staff-limit-bar" style="max-width: 300px;">
                 <small>Staff Limit: <strong>{{ $currentUsers }}/{{ $maxUsers }}</strong> accounts used</small>
                 <div class="progress" style="height: 10px;">
                     <div class="progress-bar bg-{{ $progressColor }}" role="progressbar" style="width: {{ $percentage }}%" aria-valuenow="{{ $percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
@@ -61,6 +119,11 @@
             </div>
         @endif
 
+        <div class="d-lg-none mb-3">
+          @include('staff.employees.partials.employee-mobile-list', ['staff' => $staff])
+        </div>
+
+        <div class="table-responsive d-none d-lg-block">
         <table class="table table-hover table-bordered" id="sampleTable">
           <thead>
             <tr>
@@ -153,9 +216,11 @@
             @endforeach
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   </div>
+</div>
 </div>
 @endsection
 

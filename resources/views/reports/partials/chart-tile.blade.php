@@ -1,5 +1,5 @@
 {{-- Usage: @include('reports.partials.chart-tile', ['title' => '...', 'id' => 'chartId', 'cols' => 12, 'fixedHeight' => 280]) --}}
-<div class="col-md-{{ $cols ?? 12 }} mb-3{{ !empty($fixedHeight) ? ' d-flex' : '' }}">
+<div class="col-12 col-md-{{ $cols ?? 12 }} mb-3{{ !empty($fixedHeight) ? ' d-flex' : '' }}">
   <div class="tile mb-0{{ !empty($fixedHeight) ? ' flex-fill d-flex flex-column' : '' }}">
     <h3 class="tile-title">{{ $title }}</h3>
     <div class="tile-body{{ !empty($fixedHeight) ? ' flex-fill d-flex flex-column' : '' }}">

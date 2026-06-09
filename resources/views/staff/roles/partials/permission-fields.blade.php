@@ -3,8 +3,8 @@
     $currentPermissions = $currentPermissions ?? [];
 @endphp
 
-<div class="mb-3 d-flex flex-wrap align-items-center">
-  <span class="text-muted small mr-2">Quick presets:</span>
+<div class="mb-3 d-flex flex-wrap align-items-center role-preset-bar">
+  <span class="text-muted small mr-2 mb-1">Quick presets:</span>
   @foreach(config('permissions.presets', []) as $presetName => $presetKeys)
     <button type="button" class="btn btn-sm btn-outline-secondary mr-2 mb-1 role-preset-btn" data-preset="{{ $presetName }}">
       {{ $presetName }}
@@ -15,18 +15,18 @@
 
 @foreach($permissionGroups as $groupName => $permissions)
   <div class="mb-4 permission-group" data-group="{{ $groupName }}">
-    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 permission-group-header">
       <h6 class="text-uppercase text-muted mb-0">
         <i class="fa fa-folder-open-o"></i> {{ $groupName }}
       </h6>
-      <div class="btn-group btn-group-sm">
+      <div class="btn-group btn-group-sm permission-group-actions">
         <button type="button" class="btn btn-outline-primary select-group-btn" data-action="all">Select all</button>
         <button type="button" class="btn btn-outline-secondary select-group-btn" data-action="none">Clear</button>
       </div>
     </div>
     <div class="row">
       @foreach($permissions as $key => $label)
-        <div class="col-md-6 mb-2">
+        <div class="col-12 col-md-6 mb-2">
           <div class="animated-checkbox">
             <label>
               <input

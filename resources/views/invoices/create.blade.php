@@ -2,16 +2,110 @@
 
 @section('title', 'Create Invoice')
 
+@section('styles')
+<style>
+  .invoice-create-page .ic-title-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+  @media (max-width: 991.98px) {
+    .invoice-create-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
+    .invoice-create-page .app-title p { font-size: 0.88rem; }
+    .invoice-create-page .table-responsive { overflow: visible; }
+    .invoice-create-page #linesTable { border: none; margin-bottom: 0; }
+    .invoice-create-page #linesTable thead { display: none; }
+    .invoice-create-page #linesTable tbody tr.line-row {
+      display: block;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      padding: 12px;
+      background: #fff;
+    }
+    .invoice-create-page #linesTable tbody td {
+      display: block;
+      width: 100% !important;
+      border: none !important;
+      padding: 8px 0 !important;
+      text-align: left !important;
+    }
+    .invoice-create-page #linesTable tbody td[data-label]:not([data-label=""])::before {
+      content: attr(data-label);
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      color: #6c757d;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      margin-bottom: 4px;
+    }
+    .invoice-create-page #linesTable tbody td.line-total {
+      font-size: 1rem;
+      padding-top: 4px !important;
+    }
+    .invoice-create-page #linesTable tbody td.ic-line-actions {
+      padding-top: 10px !important;
+      margin-top: 4px;
+      border-top: 1px solid #eee !important;
+    }
+    .invoice-create-page #linesTable tbody td.ic-line-actions .btn {
+      width: 100%;
+    }
+    .invoice-create-page #linesTable tbody td.ic-line-actions .btn::after {
+      content: ' Remove line';
+    }
+    .invoice-create-page #linesTable tfoot tr {
+      display: block;
+      border: 2px solid #940000;
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #fffdf5;
+    }
+    .invoice-create-page #linesTable tfoot td {
+      display: block;
+      border: none !important;
+      padding: 0 !important;
+    }
+    .invoice-create-page #linesTable tfoot td.ic-total-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #6c757d;
+      margin-bottom: 4px;
+    }
+    .invoice-create-page #linesTable tfoot td.ic-total-value {
+      font-size: 1.25rem;
+      text-align: left !important;
+    }
+    .invoice-create-page #linesTable tfoot td.ic-total-spacer { display: none; }
+    .invoice-create-page .select2-container { width: 100% !important; }
+  }
+
+  @media (max-width: 767.98px) {
+    .invoice-create-page .app-title { flex-direction: column; align-items: flex-start !important; }
+    .invoice-create-page .app-title h1 { font-size: 1.15rem; }
+    .invoice-create-page .app-title p { font-size: 0.82rem; }
+    .invoice-create-page .ic-title-actions { width: 100%; }
+    .invoice-create-page .ic-title-actions .btn { width: 100%; text-align: center; }
+    .invoice-create-page .alert { font-size: 0.85rem; padding: 8px 10px; }
+    .invoice-create-page .ic-submit-wrap { text-align: center !important; }
+    .invoice-create-page .ic-submit-wrap .btn { width: 100%; }
+    .invoice-create-page #addLineBtn { width: 100%; display: block; }
+  }
+</style>
+@endsection
+
 @section('content')
 @php
   $multiBusiness = count($businessTypes ?? []) > 1;
 @endphp
+<div class="invoice-create-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-file-text-o"></i> Create Invoice</h1>
     <p>Create the invoice first — record payment later from the Invoices list (payment methods are in Settings)</p>
+    <div class="ic-title-actions d-print-none">
+      <a href="{{ route('invoices.index') }}" class="btn btn-secondary btn-sm"><i class="fa fa-arrow-left"></i> Back to Invoices</a>
+    </div>
   </div>
-  <a href="{{ route('invoices.index') }}" class="btn btn-secondary"><i class="fa fa-arrow-left"></i> Back to Invoices</a>
 </div>
 
 @if($openShift ?? false)
@@ -26,11 +120,11 @@
       <form action="{{ route('invoices.store') }}" method="POST" id="invoiceForm">
         @csrf
         <div class="row mb-4">
-          <div class="col-md-3">
+          <div class="col-12 col-md-3 mb-3 mb-md-0">
             <label class="font-weight-bold">Invoice Date</label>
             <input type="date" name="sale_date" class="form-control" value="{{ old('sale_date', date('Y-m-d')) }}" required>
           </div>
-          <div class="col-md-9">
+          <div class="col-12 col-md-9">
             <label class="font-weight-bold">Customer</label>
             <select name="customer_id" id="customerSelect" class="form-control">
               <option value="">Walk-in / enter manually below</option>
@@ -42,16 +136,16 @@
                 @endforeach
             </select>
             <div class="row mt-2" id="manualCustomerFields">
-              <div class="col-md-4">
+              <div class="col-12 col-md-4 mb-2 mb-md-0">
                 <input type="text" name="customer_name" id="customerName" class="form-control" placeholder="Customer name (optional)" value="{{ old('customer_name') }}">
               </div>
-              <div class="col-md-4">
+              <div class="col-12 col-md-4 mb-2 mb-md-0">
                 <div class="input-group">
                   <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
                   <input type="text" name="customer_phone" id="customerPhone" class="form-control" placeholder="Phone for SMS" value="{{ old('customer_phone') }}">
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-12 col-md-4">
                 <input type="email" name="customer_email" id="customerEmail" class="form-control" placeholder="Email for invoice attachment" value="{{ old('customer_email') }}">
               </div>
             </div>
@@ -86,7 +180,7 @@
             <tbody id="linesBody">
               <tr class="line-row">
                 @if($multiBusiness)
-                <td>
+                <td data-label="Business">
                   <select class="form-control line-business-type" required>
                     <option value="">Select business...</option>
                     @foreach($businessTypes as $type)
@@ -95,7 +189,7 @@
                   </select>
                 </td>
                 @endif
-                <td>
+                <td data-label="Item">
                   <select name="items[0][id]" class="form-control item-select" {{ $multiBusiness ? 'disabled' : 'required' }}>
                     <option value="">Select item...</option>
                     @if(!$multiBusiness)
@@ -107,19 +201,19 @@
                     @endif
                   </select>
                 </td>
-                <td><input type="number" name="items[0][qty]" class="form-control qty-input" min="1" value="1" required></td>
-                <td><input type="number" name="items[0][price]" class="form-control price-input" min="0" step="0.01" required></td>
-                <td class="line-total align-middle font-weight-bold text-right">0</td>
-                <td class="text-center align-middle">
+                <td data-label="Quantity"><input type="number" name="items[0][qty]" class="form-control qty-input" min="1" value="1" required></td>
+                <td data-label="Unit Price"><input type="number" name="items[0][price]" class="form-control price-input" min="0" step="0.01" required></td>
+                <td class="line-total align-middle font-weight-bold text-right" data-label="Line Total">0</td>
+                <td class="text-center align-middle ic-line-actions" data-label="">
                   <button type="button" class="btn btn-sm btn-danger remove-line" disabled><i class="fa fa-trash"></i></button>
                 </td>
               </tr>
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="{{ $multiBusiness ? 4 : 3 }}" class="text-right font-weight-bold">Invoice Total:</td>
-                <td class="font-weight-bold text-right text-success" id="invoiceTotal">TZS 0</td>
-                <td></td>
+                <td colspan="{{ $multiBusiness ? 4 : 3 }}" class="text-right font-weight-bold ic-total-label">Invoice Total:</td>
+                <td class="font-weight-bold text-right text-success ic-total-value" id="invoiceTotal">TZS 0</td>
+                <td class="ic-total-spacer"></td>
               </tr>
             </tfoot>
           </table>
@@ -132,7 +226,7 @@
           <textarea name="notes" class="form-control" rows="2" placeholder="Payment terms, delivery notes, etc.">{{ old('notes') }}</textarea>
         </div>
 
-        <div class="text-right mt-3">
+        <div class="text-right mt-3 ic-submit-wrap">
           <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
             <i class="fa fa-save"></i> Create Invoice
           </button>
@@ -140,6 +234,7 @@
       </form>
     </div>
   </div>
+</div>
 </div>
 @endsection
 
@@ -275,16 +370,16 @@
     let rowHtml = '<tr class="line-row">';
 
     if (multiBusiness) {
-      rowHtml += '<td><select class="form-control line-business-type" required>' + businessTypeOptionsHtml() + '</select></td>';
-      rowHtml += '<td><select name="items[' + idx + '][id]" class="form-control item-select" disabled><option value="">Select item...</option></select></td>';
+      rowHtml += '<td data-label="Business"><select class="form-control line-business-type" required>' + businessTypeOptionsHtml() + '</select></td>';
+      rowHtml += '<td data-label="Item"><select name="items[' + idx + '][id]" class="form-control item-select" disabled><option value="">Select item...</option></select></td>';
     } else {
-      rowHtml += '<td><select name="items[' + idx + '][id]" class="form-control item-select" required>' + itemOptionsForType('') + '</select></td>';
+      rowHtml += '<td data-label="Item"><select name="items[' + idx + '][id]" class="form-control item-select" required>' + itemOptionsForType('') + '</select></td>';
     }
 
-    rowHtml += '<td><input type="number" name="items[' + idx + '][qty]" class="form-control qty-input" min="1" value="1" required></td>'
-      + '<td><input type="number" name="items[' + idx + '][price]" class="form-control price-input" min="0" step="0.01" required></td>'
-      + '<td class="line-total align-middle font-weight-bold text-right">' + formatMoney(0) + '</td>'
-      + '<td class="text-center align-middle"><button type="button" class="btn btn-sm btn-danger remove-line"><i class="fa fa-trash"></i></button></td>'
+    rowHtml += '<td data-label="Quantity"><input type="number" name="items[' + idx + '][qty]" class="form-control qty-input" min="1" value="1" required></td>'
+      + '<td data-label="Unit Price"><input type="number" name="items[' + idx + '][price]" class="form-control price-input" min="0" step="0.01" required></td>'
+      + '<td class="line-total align-middle font-weight-bold text-right" data-label="Line Total">' + formatMoney(0) + '</td>'
+      + '<td class="text-center align-middle ic-line-actions" data-label=""><button type="button" class="btn btn-sm btn-danger remove-line"><i class="fa fa-trash"></i></button></td>'
       + '</tr>';
 
     const $row = $(rowHtml);

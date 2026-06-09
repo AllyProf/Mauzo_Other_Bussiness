@@ -4,26 +4,133 @@
 
 @section('styles')
 <style>
-  #staff-table { border-collapse: collapse !important; border-radius: 8px; overflow: hidden; border: 1px solid #dee2e6 !important; }
-  #staff-table th, #staff-table td { vertical-align: middle; padding: 12px 10px; border: 1px solid #dee2e6 !important; }
-  #staff-table thead th { background-color: #2d3436 !important; color: white !important; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
-  .table-responsive { border-radius: 8px; border: 1px solid #dee2e6; }
-  .audit-col-bg { background-color: #f1f7fe !important; }
-  .diff-col-bg { background-color: #fff9f1 !important; }
-  .status-pill { border-radius: 50px; padding: 4px 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-  .widget-small { height: 90px; border-radius: 8px !important; margin-bottom: 15px; }
-  .widget-small.coloured-icon .info,
-  .widget-small.coloured-icon .info h4,
-  .widget-small.coloured-icon .info p,
-  .widget-small.coloured-icon .info b { color: #000 !important; }
-  .widget-small .icon { min-width: 70px !important; padding: 10px !important; font-size: 2rem !important; }
-  .widget-small .info h4 { font-size: 0.8rem !important; margin-bottom: 2px !important; }
-  .widget-small .info p { font-size: 15px !important; }
-  .badge { font-weight: 600; padding: 5px 8px; }
+  .day-closing-page #staff-table { border-collapse: collapse !important; border-radius: 8px; overflow: hidden; border: 1px solid #dee2e6 !important; }
+  .day-closing-page #staff-table th, .day-closing-page #staff-table td,
+  .day-closing-page #boss-staff-table th, .day-closing-page #boss-staff-table td { vertical-align: middle; padding: 12px 10px; border: 1px solid #dee2e6 !important; }
+  .day-closing-page #staff-table thead th, .day-closing-page #boss-staff-table thead th { background-color: #2d3436 !important; color: white !important; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+  .day-closing-page .table-responsive { border-radius: 8px; border: 1px solid #dee2e6; }
+  .day-closing-page .audit-col-bg { background-color: #f1f7fe !important; }
+  .day-closing-page .diff-col-bg { background-color: #fff9f1 !important; }
+  .day-closing-page .status-pill { border-radius: 50px; padding: 4px 12px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+  .day-closing-page .widget-small { min-height: 90px; border-radius: 8px !important; margin-bottom: 15px; }
+  .day-closing-page .widget-small.coloured-icon .info,
+  .day-closing-page .widget-small.coloured-icon .info h4,
+  .day-closing-page .widget-small.coloured-icon .info p,
+  .day-closing-page .widget-small.coloured-icon .info b { color: #000 !important; }
+  .day-closing-page .widget-small .icon { min-width: 70px !important; padding: 10px !important; font-size: 2rem !important; }
+  .day-closing-page .widget-small .info h4 { font-size: 0.8rem !important; margin-bottom: 2px !important; }
+  .day-closing-page .widget-small .info p { font-size: 15px !important; word-break: break-word; }
+  .day-closing-page .badge { font-weight: 600; padding: 5px 8px; }
+  .day-closing-page .dc-filter-form .form-group { margin-bottom: 0.75rem; }
+  .day-closing-page .dc-mobile-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: #fff;
+  }
+  .day-closing-page .dc-mobile-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .day-closing-page .dc-mobile-title { font-weight: 700; line-height: 1.35; }
+  .day-closing-page .dc-mobile-meta { font-size: 0.82rem; color: #6c757d; }
+  .day-closing-page .dc-mobile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+  .day-closing-page .dc-mobile-stat span {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    color: #6c757d;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .day-closing-page .dc-mobile-stat strong {
+    display: block;
+    font-size: 0.92rem;
+    margin-top: 2px;
+    word-break: break-word;
+  }
+  .day-closing-page .final-handover-banner .display-4 { font-size: 2.2rem; }
+  .day-closing-page .handover-card .col-md-6 + .col-md-6 { margin-top: 0; }
+
+  @media (max-width: 991.98px) {
+    .day-closing-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
+    .day-closing-page .app-title p { font-size: 0.88rem; }
+    .day-closing-page .tile { padding: 14px; }
+    .day-closing-page .widget-small .icon { min-width: 58px !important; font-size: 1.6rem !important; }
+    .day-closing-page .widget-small .info p { font-size: 14px !important; }
+  }
+
+  @media (max-width: 767.98px) {
+    .day-closing-page .app-title { margin-bottom: 16px; }
+    .day-closing-page .app-title h1 { font-size: 1.15rem; }
+    .day-closing-page .app-title p { font-size: 0.82rem; }
+    .day-closing-page .app-breadcrumb { font-size: 0.85rem; }
+    .day-closing-page .dc-filter-form {
+      display: block !important;
+    }
+    .day-closing-page .dc-filter-form .form-group {
+      display: block;
+      width: 100%;
+      margin-right: 0 !important;
+    }
+    .day-closing-page .dc-filter-form .form-control,
+    .day-closing-page .dc-filter-form .btn {
+      width: 100%;
+    }
+    .day-closing-page .dc-filter-form .btn { margin-left: 0 !important; margin-top: 0.25rem; }
+    .day-closing-page .tile-title .btn { width: 100%; }
+    .day-closing-page .final-handover-banner .display-4 { font-size: 1.75rem; }
+    .day-closing-page .final-handover-banner .p-4 { padding: 1.25rem !important; }
+    .day-closing-page .handover-summary-cols > [class*="col-"] {
+      border-left: none !important;
+      margin-bottom: 0.75rem;
+    }
+    .day-closing-page #submitHandoverBtn,
+    .day-closing-page #postOwnerSalesBtn,
+    .day-closing-page .verify-handover-form .btn-lg {
+      width: 100%;
+    }
+    .day-closing-page .form-control,
+    .day-closing-page select.form-control,
+    .day-closing-page textarea.form-control,
+    .day-closing-page input[type="date"],
+    .day-closing-page input[type="number"],
+    .day-closing-page input[type="datetime-local"] {
+      font-size: 16px;
+    }
+    .day-closing-page .modal-dialog {
+      margin: 0.5rem;
+      max-width: calc(100% - 1rem);
+    }
+    .day-closing-page .boss-finance-cols > [class*="col-"] {
+      border-left: none !important;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .day-closing-page .widget-small {
+      min-height: auto;
+      display: flex;
+      align-items: stretch;
+    }
+    .day-closing-page .widget-small .info p { font-size: 13px !important; }
+    .day-closing-page .dc-mobile-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 @endsection
 
 @section('content')
+<div class="day-closing-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-balance-scale"></i> {{ ($serviceMenuContext ?? false) ? 'Service Handover' : 'Daily Reconciliation' }}</h1>
@@ -70,7 +177,24 @@
         <p class="text-muted mb-3">
           You are viewing <strong>{{ \Carbon\Carbon::parse($date)->format('M d, Y') }}</strong>, but earlier handovers still need approval before they post to the Master Sheet.
         </p>
-        <div class="table-responsive">
+        <div class="d-lg-none mb-3">
+          @foreach($pendingFromOtherDays as $pending)
+          <div class="dc-mobile-card">
+            <div class="dc-mobile-head">
+              <div>
+                <div class="dc-mobile-title">{{ $pending->closing_date->format('M d, Y') }}</div>
+                <div class="dc-mobile-meta">{{ $pending->user->name ?? 'Unknown' }} · Shift #{{ $pending->shift?->id ?? '—' }}</div>
+              </div>
+              <strong>{{ money($pending->net_amount) }}</strong>
+            </div>
+            <div class="dc-mobile-meta mb-2">Submitted {{ $pending->submitted_at?->format('M d, h:i A') ?? '—' }}</div>
+            <a href="{{ route('day-closing.index', ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning btn-block">
+              <i class="fa fa-check"></i> Review &amp; Verify
+            </a>
+          </div>
+          @endforeach
+        </div>
+        <div class="table-responsive d-none d-lg-block">
           <table class="table table-bordered table-hover mb-0">
             <thead class="thead-light">
               <tr>
@@ -143,7 +267,7 @@
 <div class="row mb-3">
   <div class="col-md-12">
     <div class="tile">
-      <form method="GET" action="{{ route('day-closing.index') }}" class="form-inline">
+      <form method="GET" action="{{ route('day-closing.index') }}" class="form-inline dc-filter-form">
         @if($shift ?? null)
           <input type="hidden" name="shift" value="{{ $shift->id }}">
           <div class="form-group mr-3">
@@ -180,25 +304,25 @@
   $handoverBank = collect($platformBreakdown)->filter(fn ($p) => ($p['method'] ?? '') === 'bank')->sum('amount');
 @endphp
 <div class="row mb-3">
-  <div class="col-md-3">
+  <div class="col-6 col-md-3 mb-3 mb-md-0">
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-users fa-3x"></i>
       <div class="info"><h4>Active Staff</h4><p><b>{{ count($staffRows) }}</b></p></div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3 mb-3 mb-md-0">
     <div class="widget-small info coloured-icon">
       <i class="icon fa fa-shopping-cart fa-3x"></i>
       <div class="info"><h4>Gross Sales</h4><p><b>TZS {{ number_format($summary['gross_sales'], 0) }}</b></p></div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3 mb-3 mb-md-0">
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info"><h4>Total Cash</h4><p><b>TZS {{ number_format($handoverCash, 0) }}</b></p></div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="widget-small success coloured-icon">
       <i class="icon fa fa-mobile fa-3x"></i>
       <div class="info"><h4>Digital + Bank</h4><p><b>TZS {{ number_format($handoverMobile + $handoverBank, 0) }}</b></p></div>
@@ -219,7 +343,10 @@
       </h3>
       <div class="tile-body">
         @if(count($staffRows) > 0)
-          <div class="table-responsive shadow-sm mb-3">
+        <div class="d-lg-none mb-3" id="staff-mobile-list">
+          @include('day-closing.partials.staff-mobile-cards', ['staffRows' => $staffRows])
+        </div>
+          <div class="table-responsive shadow-sm mb-3 d-none d-lg-block">
             <table class="table table-hover table-bordered table-striped" id="staff-table">
               <thead>
                 <tr>
@@ -304,7 +431,31 @@
               Payments collected today on credit sales outside today's shift sales — included in handover but separate from shift sales.
             @endif
           </p>
-          <div class="table-responsive shadow-sm">
+          <div class="d-lg-none mb-3">
+            @foreach($debtCollections['items'] as $item)
+            <div class="dc-mobile-card">
+              <div class="dc-mobile-head">
+                <div>
+                  <div class="dc-mobile-title">{{ $item['customer'] }}</div>
+                  <div class="dc-mobile-meta">{{ $item['collected_at'] }} · {{ $item['collected_by'] }}</div>
+                </div>
+                <strong class="text-success">{{ money($item['amount']) }}</strong>
+              </div>
+              <div class="dc-mobile-meta">
+                Ref: {{ $item['sale_ref'] }} · Sale {{ $item['sale_date'] }}<br>
+                {{ ucfirst(str_replace('_', ' ', $item['method'])) }}
+                @if($item['provider'] || $item['reference'])
+                  · {{ $item['provider'] ?: '—' }}
+                  @if($item['reference']) ({{ $item['reference'] }}) @endif
+                @endif
+              </div>
+            </div>
+            @endforeach
+            <div class="alert alert-primary py-2 mb-0">
+              <strong>Total Debt Collected:</strong> {{ money($debtCollections['total']) }}
+            </div>
+          </div>
+          <div class="table-responsive shadow-sm d-none d-lg-block">
             <table class="table table-hover table-bordered table-sm mb-0">
               <thead>
                 <tr>
@@ -358,25 +509,25 @@
 
 @if($isBossReview ?? false)
 <div class="row mb-3">
-  <div class="col-md-3">
+  <div class="col-6 col-md-3 mb-3 mb-md-0">
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-users fa-3x"></i>
       <div class="info"><h4>Active Staff</h4><p><b>{{ count($staffRows) }}</b></p></div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3 mb-3 mb-md-0">
     <div class="widget-small info coloured-icon">
       <i class="icon fa fa-shopping-cart fa-3x"></i>
       <div class="info"><h4>Gross Sales</h4><p><b>TZS {{ number_format($summary['gross_sales'], 0) }}</b></p></div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3 mb-3 mb-md-0">
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info"><h4>Total Cash</h4><p><b>TZS {{ number_format($summary['cash_received'], 0) }}</b></p></div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="widget-small success coloured-icon">
       <i class="icon fa fa-mobile fa-3x"></i>
       <div class="info"><h4>Digital + Bank</h4><p><b>TZS {{ number_format($summary['mobile_received'] + $summary['bank_received'], 0) }}</b></p></div>
@@ -408,7 +559,23 @@
               Full sale profit is counted; all collections add to circulation.
             @endif
           </p>
-          <div class="table-responsive shadow-sm mb-4">
+          <div class="d-lg-none mb-3">
+            @foreach($businessTypeBreakdown as $typeRow)
+            <div class="dc-mobile-card">
+              <div class="dc-mobile-title mb-2">{{ $typeRow['label'] }}</div>
+              <div class="dc-mobile-grid">
+                <div class="dc-mobile-stat"><span>Orders</span><strong>{{ $typeRow['orders'] }}</strong></div>
+                <div class="dc-mobile-stat"><span>Gross</span><strong>{{ money($typeRow['gross_sales']) }}</strong></div>
+                <div class="dc-mobile-stat"><span>Collected</span><strong>{{ money($typeRow['collected']) }}</strong></div>
+                <div class="dc-mobile-stat"><span>New debt</span><strong class="text-danger">{{ $typeRow['credit'] > 0 ? money($typeRow['credit']) : '—' }}</strong></div>
+                <div class="dc-mobile-stat"><span>Debt paid</span><strong class="text-primary">{{ ($typeRow['debt_collected'] ?? 0) > 0 ? money($typeRow['debt_collected']) : '—' }}</strong></div>
+                <div class="dc-mobile-stat"><span>Profit</span><strong class="text-success">{{ money($typeRow['profit_generated']) }}</strong></div>
+                <div class="dc-mobile-stat"><span>Circulation</span><strong class="text-warning">{{ money($typeRow['circulation_generated']) }}</strong></div>
+              </div>
+            </div>
+            @endforeach
+          </div>
+          <div class="table-responsive shadow-sm mb-4 d-none d-lg-block">
             <table class="table table-hover table-bordered table-sm">
               <thead class="thead-light">
                 <tr>
@@ -465,7 +632,10 @@
         @endif
 
         @if(count($staffRows) > 0)
-          <div class="table-responsive shadow-sm mb-3">
+          <div class="d-lg-none mb-3">
+            @include('day-closing.partials.staff-mobile-cards', ['staffRows' => $staffRows, 'showDiff' => false])
+          </div>
+          <div class="table-responsive shadow-sm mb-3 d-none d-lg-block">
             <table class="table table-hover table-bordered table-striped" id="boss-staff-table">
               <thead>
                 <tr>
@@ -558,12 +728,12 @@
               </div>
 
               <div class="row">
-                <div class="col-md-4 mb-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label class="font-weight-bold text-muted small text-uppercase mb-1">Expected Handover</label>
                   <div class="form-control bg-light font-weight-bold">{{ money($ownerDirectExpectedHandover ?? 0) }}</div>
                   <small class="text-muted">Total payments recorded for your sales today</small>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="ownerActualReceived" class="font-weight-bold mb-1">Actual Amount Received <span class="text-danger">*</span></label>
                   <div class="input-group">
                     <div class="input-group-prepend"><span class="input-group-text">TZS</span></div>
@@ -579,7 +749,7 @@
                   </div>
                   <small class="text-muted">Enter a lower amount if you are short</small>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label class="font-weight-bold text-muted small text-uppercase mb-1">Money Short</label>
                   <div class="form-control bg-light font-weight-bold text-danger" id="ownerMoneyShortDisplay">—</div>
                 </div>
@@ -637,7 +807,22 @@
     <div class="tile">
       <h3 class="tile-title"><i class="fa fa-clock-o"></i> Awaiting Staff Handover — {{ $displayDate }}</h3>
       <div class="tile-body">
-        <div class="table-responsive">
+        <div class="d-lg-none mb-3">
+          @foreach($awaitingHandoverShifts as $pendingShift)
+          <div class="dc-mobile-card">
+            <div class="dc-mobile-title">{{ $pendingShift->user->name ?? 'Unknown' }}</div>
+            <div class="dc-mobile-meta mt-1">Opened {{ $pendingShift->opened_at->format('M d, Y h:i A') }}</div>
+            <div class="mt-2">
+              @if($pendingShift->isOpen())
+                <span class="badge badge-primary">Shift in progress</span>
+              @else
+                <span class="badge badge-secondary">Awaiting handover</span>
+              @endif
+            </div>
+          </div>
+          @endforeach
+        </div>
+        <div class="table-responsive d-none d-lg-block">
           <table class="table table-bordered">
             <thead class="thead-light">
               <tr>
@@ -691,20 +876,20 @@
       <div class="tile-body">
         <div class="alert alert-info border-primary mb-4 p-3 shadow-sm rounded">
           <h5><i class="fa fa-calculator"></i> Handover Summary</h5>
-          <div class="row text-center mt-3">
-            <div class="col-md-3 mb-2 mb-md-0">
+          <div class="row text-center mt-3 handover-summary-cols">
+            <div class="col-6 col-md-3 mb-2 mb-md-0">
               <small class="text-uppercase font-weight-bold text-muted">Total Cash</small>
               <h4 class="text-success mb-0">TZS {{ number_format($totalCash, 0) }}</h4>
             </div>
-            <div class="col-md-3 mb-2 mb-md-0">
+            <div class="col-6 col-md-3 mb-2 mb-md-0">
               <small class="text-uppercase font-weight-bold text-muted">Mobile Money</small>
               <h4 class="text-success mb-0">TZS {{ number_format($totalMobile, 0) }}</h4>
             </div>
-            <div class="col-md-3 mb-2 mb-md-0" style="border-left: 1px solid #dee2e6;">
+            <div class="col-6 col-md-3 mb-2 mb-md-0" style="border-left: 1px solid #dee2e6;">
               <small class="text-uppercase font-weight-bold text-muted">Bank</small>
               <h4 class="text-success mb-0">TZS {{ number_format($totalBank, 0) }}</h4>
             </div>
-            <div class="col-md-3" style="border-left: 1px solid #dee2e6;">
+            <div class="col-12 col-md-3" style="border-left: 1px solid #dee2e6;">
               <small class="text-uppercase font-weight-bold text-muted">Gross Collections</small>
               <h4 class="text-primary mb-0">TZS {{ number_format($overallTotal, 0) }}</h4>
             </div>
@@ -746,7 +931,7 @@
           <div class="row">
             @forelse($platformBreakdown as $key => $platform)
               @if($platform['amount'] != 0)
-              <div class="col-md-4 form-group">
+              <div class="col-12 col-sm-6 col-md-4 form-group">
                 <label>{{ $platform['label'] }}</label>
                 <div class="input-group">
                   <div class="input-group-prepend"><span class="input-group-text">TZS</span></div>
@@ -819,7 +1004,7 @@
 @endif
 
 <div class="modal fade" id="salesModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">All Sales — {{ $displayDate }}</h5>
@@ -829,6 +1014,7 @@
       <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button></div>
     </div>
   </div>
+</div>
 </div>
 @endsection
 
@@ -1013,7 +1199,7 @@ jQuery(function($) {
 
   $('#status-filter').on('change', function() {
     const val = $(this).val();
-    $('#staff-table tbody tr').each(function() {
+    $('#staff-table tbody tr, #staff-mobile-list .dc-mobile-card').each(function() {
       if (!val || $(this).data('status') === val) $(this).show();
       else $(this).hide();
     });

@@ -2,7 +2,12 @@
 
 @section('title', 'Create Role')
 
+@section('styles')
+@include('staff.roles.partials.form-mobile-styles')
+@endsection
+
 @section('content')
+<div class="role-form-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-plus"></i> Create New Role</h1>
@@ -11,7 +16,7 @@
 </div>
 
 <div class="row justify-content-center">
-  <div class="col-md-10">
+  <div class="col-12 col-lg-10">
     <div class="tile">
       <form action="{{ route('roles.store') }}" method="POST">
         @csrf
@@ -45,5 +50,6 @@
       </form>
     </div>
   </div>
+</div>
 </div>
 @endsection
