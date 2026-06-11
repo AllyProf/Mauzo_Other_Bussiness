@@ -62,8 +62,7 @@ class OwnerDailyReportController extends Controller
         }
 
         if ($closings->currentPage() === 1 && ! $request->filled('start_date') && ! $request->filled('end_date')) {
-            $openingDayRow = $this->reportService->buildOpeningDayRow($business);
-            if ($openingDayRow) {
+            foreach ($this->reportService->buildOpenDayRows($business) as $openingDayRow) {
                 $ledgers = $ledgers->prepend($openingDayRow);
             }
         }

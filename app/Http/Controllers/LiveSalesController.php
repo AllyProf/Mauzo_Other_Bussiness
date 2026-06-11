@@ -10,7 +10,7 @@ class LiveSalesController extends Controller
 {
     public function index(Request $request, LiveSalesPulseService $pulse)
     {
-        $this->authorizeAny(['view_reports', 'view_sales_history', 'process_sales']);
+        $this->authorizeAny(['view_live_sales', 'view_reports', 'view_sales_history', 'process_sales']);
 
         $user = Auth::user();
         $business = $this->currentBusiness();

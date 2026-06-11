@@ -89,15 +89,17 @@
   }
   .receiving-remains {
     display: inline-block;
-    min-width: 48px;
-    padding: 5px 8px;
+    padding: 5px 10px;
     background: #d4edda;
     border: 1px solid #28a745;
     border-radius: 4px;
     color: #155724;
-    font-weight: 700;
-    font-size: 0.85rem;
-    text-align: center;
+    font-weight: 600;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    text-align: left;
+    max-width: 100%;
+    white-space: normal;
   }
   .item-meta-line {
     font-size: 0.72rem;
@@ -105,7 +107,8 @@
     line-height: 1.3;
     margin-top: 4px;
   }
-  .item-meta-line .toggle-price-mode {
+  .item-meta-line .toggle-price-mode,
+  .item-meta-line .toggle-receive-mode {
     color: #007bff;
     cursor: pointer;
     text-decoration: underline;
@@ -573,13 +576,23 @@
 
     function lineFigures(item) {
       const qty = cleanNum(item.quantity_received);
-      const buyPrice = cleanNum(item.buying_price_per_unit);
-      const conv = cleanNum(item.units_per_receiving_pack) || 1;
+      const packConv = cleanNum(item.units_per_receiving_pack) || 1;
+      const receiveAsPiece = item.receive_qty_mode === 'piece';
+      const conv = receiveAsPiece ? 1 : packConv;
       const pieces = qty * conv;
+      const buyPrice = cleanNum(item.buying_price_per_unit);
       const discAmt = cleanNum(item.discount_amount);
       const discType = item.discount_type || 'fixed';
 
-      let gross = item.buying_price_mode === 'unit' ? pieces * buyPrice : qty * buyPrice;
+      let gross;
+      if (item.buying_price_mode === 'unit') {
+        gross = pieces * buyPrice;
+      } else if (receiveAsPiece) {
+        gross = (pieces / packConv) * buyPrice;
+      } else {
+        gross = qty * buyPrice;
+      }
+
       let disc = discType === 'percent' ? (discAmt / 100) * gross : discAmt;
       const netCost = Math.max(0, gross - disc);
       const sellPerPiece = resolveSellPerPiece(item);
@@ -589,15 +602,17 @@
 
     function getBuyCostPerPiece(item) {
       const qty = cleanNum(item.quantity_received);
-      const buyPrice = cleanNum(item.buying_price_per_unit);
-      const conv = cleanNum(item.units_per_receiving_pack) || 1;
+      const packConv = cleanNum(item.units_per_receiving_pack) || 1;
+      const receiveAsPiece = item.receive_qty_mode === 'piece';
+      const conv = receiveAsPiece ? 1 : packConv;
       const pieces = qty * conv;
+      const buyPrice = cleanNum(item.buying_price_per_unit);
 
       if (pieces > 0) {
         return lineFigures(item).netCost / pieces;
       }
 
-      return item.buying_price_mode === 'unit' ? buyPrice : buyPrice / conv;
+      return item.buying_price_mode === 'unit' ? buyPrice : buyPrice / packConv;
     }
 
     function getMinRetailPrice(item, pkg) {
@@ -644,8 +659,10 @@
         if (qty <= 0) return;
 
         const fig = lineFigures(item);
-        totalPackages += qty;
         totalPieces += fig.pieces;
+        if (item.receive_qty_mode !== 'piece') {
+          totalPackages += qty;
+        }
         grossPurchase += fig.gross;
         totalDiscount += fig.disc;
         totalCost += fig.netCost;
@@ -680,10 +697,12 @@
         unit: item.unit,
         units_per_receiving_pack: item.units_per_receiving_pack || 1,
         current_stock: item.current_stock,
+        remains_display: item.remains_display || formatStockQty(item.current_stock) + ' pcs',
         buying_price_per_unit: item.cost_price,
         last_known_buy: item.cost_price,
         selling_price_per_unit: item.selling_price,
         quantity_received: defaultQty,
+        receive_qty_mode: 'pkg',
         buying_price_mode: 'pkg',
         discount_type: 'fixed',
         discount_amount: 0,
@@ -727,6 +746,10 @@
           <small class="text-muted d-block mt-1">Minimum allowed: ${Math.round(minRetail).toLocaleString()} TZS (based on buying cost)</small>
         </div>`;
       } else {
+        const costPerPiece = getBuyCostPerPiece(item);
+        const costHint = costPerPiece > 0
+          ? `<p class="small text-muted mb-2">Buying cost: <strong>TZS ${Math.round(costPerPiece).toLocaleString()} / piece</strong>. Enter the sell price for each sale unit (not per piece on the Crate row — that price is for the full crate).</p>`
+          : '<p class="small text-muted mb-2">Enter the sell price for each sale unit below.</p>';
         let rows = '';
         packagings.forEach(pkg => {
           const storedPrice = resolvePackagingRetailPrice(item, pkg) || '';
@@ -741,7 +764,7 @@
           </td>
           </tr>`;
         });
-        html = `<table class="table table-sm table-bordered mb-0">
+        html = `${costHint}<table class="table table-sm table-bordered mb-0">
           <thead class="thead-light">
             <tr><th>Sale unit</th><th class="text-center" width="70">Pcs</th><th width="160">Price (TZS)</th></tr>
           </thead>
@@ -764,11 +787,17 @@
       itemsTableBody.empty();
 
       receiptItems.forEach((item, index) => {
-        const remains = formatStockQty(item.current_stock);
+        const remains = item.remains_display || (formatStockQty(item.current_stock) + ' pcs');
         const conv = item.units_per_receiving_pack || 1;
-        const receiveMeta = conv > 1
-          ? `Receive as: ${item.unit} · ${conv} pcs/${item.unit}`
-          : `Receive as: ${item.unit}`;
+        const receiveAsPiece = item.receive_qty_mode === 'piece';
+        let receiveMeta;
+        if (conv > 1) {
+          const receiveLabel = receiveAsPiece ? 'Piece' : item.unit;
+          receiveMeta = `<div class="item-meta-line"><span class="toggle-receive-mode" data-index="${index}">Receive as: ${receiveLabel}</span> · ${conv} pcs/${item.unit}</div>`;
+        } else {
+          receiveMeta = `<div class="item-meta-line">Receive as: ${item.unit}</div>`;
+        }
+        const qtyHint = receiveAsPiece ? 'pieces' : item.unit;
         const modeLabel = item.buying_price_mode === 'unit' ? 'Per piece' : `Per ${item.unit}`;
         const priceSummary = retailPriceSummary(item);
         const sellCell = `<button type="button" class="btn btn-sm btn-block open-retail-modal py-1" data-index="${index}" title="Set sell price">
@@ -780,13 +809,14 @@
             <td class="px-3 product-cell">
               <div class="font-weight-bold text-dark">${item.name}</div>
               <div class="mt-1 mb-1">
-                <span class="receiving-remains" title="Current stock in pieces">Remains: ${remains}</span>
+                <span class="receiving-remains" title="Current stock on hand">Remains: ${remains}</span>
               </div>
-              <div class="item-meta-line">${receiveMeta}</div>
+              ${receiveMeta}
           </td>
             <td class="text-center">
               <input type="number" class="form-control form-control-sm item-pkg" data-index="${index}"
                      value="${item.quantity_received || ''}" min="0" placeholder="0">
+              <div class="item-meta-line text-muted">${qtyHint}</div>
           </td>
             <td class="col-money">
               <input type="number" class="form-control form-control-sm item-buy-price receiving-price-field"
@@ -862,7 +892,7 @@
       filtered.slice(0, 12).forEach(item => {
         html += `<div class="search-item-option" data-id="${item.id}">
           <strong>${item.name}</strong>
-          <small class="text-muted d-block">Stock: ${formatStockQty(item.current_stock)} · ${item.unit}</small>
+          <small class="text-muted d-block">Stock: ${item.remains_display || formatStockQty(item.current_stock) + ' pcs'}</small>
         </div>`;
       });
       searchDropdown.html(html).show();
@@ -961,6 +991,19 @@
       renderTable();
     });
 
+    $(document).on('click', '.toggle-receive-mode', function () {
+      const idx = $(this).data('index');
+      const item = receiptItems[idx];
+      const conv = item.units_per_receiving_pack || 1;
+      if (conv <= 1) return;
+
+      item.receive_qty_mode = item.receive_qty_mode === 'piece' ? 'pkg' : 'piece';
+      if (item.receive_qty_mode === 'piece') {
+        item.buying_price_mode = 'unit';
+      }
+      renderTable();
+    });
+
     $(document).on('input change', '.item-pkg, .item-buy-price, .item-discount-type, .item-discount-amount', function () {
       let idx = $(this).data('item-idx');
       if (idx === undefined) idx = $(this).data('index');
@@ -1032,6 +1075,7 @@
         activeEntries.forEach((item, index) => {
           $(form).append(`<input type="hidden" class="appended-hidden-input" name="items[${index}][id]" value="${item.id}">`);
           $(form).append(`<input type="hidden" class="appended-hidden-input" name="items[${index}][qty]" value="${item.quantity_received}">`);
+          $(form).append(`<input type="hidden" class="appended-hidden-input" name="items[${index}][qty_mode]" value="${item.receive_qty_mode || 'pkg'}">`);
           $(form).append(`<input type="hidden" class="appended-hidden-input" name="items[${index}][cost]" value="${item.buying_price_per_unit}">`);
           $(form).append(`<input type="hidden" class="appended-hidden-input" name="items[${index}][cost_mode]" value="${item.buying_price_mode || 'pkg'}">`);
           const primaryPkg = item.packagings[0];

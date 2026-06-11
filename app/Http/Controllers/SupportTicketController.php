@@ -99,6 +99,8 @@ class SupportTicketController extends Controller
             abort(403);
         }
 
+        $this->authorizeAny(['manage_support']);
+
         return $user;
     }
 

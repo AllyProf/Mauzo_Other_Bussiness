@@ -74,12 +74,23 @@
                     <div class="form-group">
                         <label class="control-label required">Amount Paying Now</label>
                         <input type="number" name="amount_paid" id="amountPaid" class="form-control" min="1" step="1">
-                        <small class="text-muted">Full balance or partial amount (whole TZS).</small>
+                        <small class="text-muted">Full balance, partial amount, or the first part of a split payment (whole TZS).</small>
                     </div>
-                    <div class="form-group">
-                        <label class="control-label">Balance After This Payment</label>
+                    <div id="splitPaymentPrompt" class="alert alert-light border py-2 mb-2" style="display: none;">
+                        <div class="custom-control custom-checkbox mb-0">
+                            <input type="checkbox" class="custom-control-input" id="splitPaymentEnabled">
+                            <label class="custom-control-label" for="splitPaymentEnabled">
+                                <strong>Pay the rest with another method now</strong>
+                                <br><small class="text-muted">Split today’s payment (e.g. 1,000 M-Pesa + 1,000 cash) without putting the customer on credit.</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="splitPaymentLines" style="display: none;"></div>
+                    <div class="form-group mb-2">
+                        <label class="control-label">Balance After Payment(s)</label>
                         <input type="text" id="remainingAfterPay" class="form-control bg-light text-danger font-weight-bold" readonly>
                     </div>
+                    <div id="splitPaymentSummary" class="small text-muted mb-2" style="display: none;"></div>
                 </div>
 
                 <div id="providerFields" style="display: none;">
@@ -89,8 +100,8 @@
                             <option value="">-- Select Provider --</option>
                         </select>
                         <input type="hidden" name="payment_provider" id="paymentProviderValue">
-                        <input type="text" id="paymentProviderCustom" class="form-control mt-2" placeholder="Or type another provider (e.g. Mixx by Yas)">
-                        <small class="text-muted">Choose from the list or enter a custom provider name.</small>
+                        <input type="text" id="paymentProviderCustom" class="form-control mt-2" placeholder="Or type a custom provider (e.g. Mixx by Yas)">
+                        <small class="text-muted">Pick from the list <strong>or</strong> type a custom name below — you do not need both.</small>
                     </div>
                     <div class="form-group mb-0">
                         <label class="control-label required">Transaction Reference No.</label>
@@ -116,7 +127,7 @@
 
                 <div id="customerInfoFields" style="display: none;">
                     <div id="partialPaymentAlert" class="alert alert-warning py-2" style="display: none;">
-                        <small><i class="fa fa-info-circle"></i> Partial payment — record customer details and repayment date for the remaining balance.</small>
+                        <small><i class="fa fa-info-circle"></i> Remaining balance will be on credit — enter customer details and when they will pay the rest.</small>
                     </div>
                     <div id="debtPaymentAlert" class="alert alert-warning py-2" style="display: none;">
                         <small><i class="fa fa-info-circle"></i> No payment now — record customer details and when they will repay.</small>
@@ -187,4 +198,23 @@
       padding-right: 15px !important;
     }
   }
+  #paymentModal .split-payment-line {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+  }
+  #paymentModal .split-payment-line h6 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #6c757d;
+    margin-bottom: 10px;
+  }
 </style>
+
+@if(!empty($paymentMethods))
+<script type="text/javascript">
+    window.salePaymentMethods = @json(collect($paymentMethods)->filter(fn ($m) => ($m['type'] ?? '') !== 'credit')->values());
+</script>
+@endif

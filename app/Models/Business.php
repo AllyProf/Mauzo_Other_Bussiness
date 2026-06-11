@@ -322,6 +322,8 @@ class Business extends Model
             'sms_staff_deactivated' => true,
             'sms_staff_handover_submitted_owner' => true,
             'sms_staff_handover_verified_staff' => true,
+            'sms_staff_stock_received_owner' => true,
+            'sms_staff_stock_received_manager' => true,
             'sms_staff_note_reminder' => true,
             'sms_debt_enabled' => true,
             'sms_debt_due_soon_customer' => true,
@@ -367,6 +369,8 @@ class Business extends Model
             'sms_staff_template_deactivated' => '{business}: Your account has been deactivated. Contact your manager if you need access restored.',
             'sms_staff_template_handover_submitted_owner' => '{business}: {submitter} submitted daily reconciliation for {date}. Handover TZS {amount}. Please verify in Daily Reconciliation.',
             'sms_staff_template_handover_verified_staff' => '{business}: Your reconciliation for {date} was verified by {verifier}.{money_short_note}',
+            'sms_staff_template_stock_received_owner' => '{business}: {receiver} received stock {reference} from {supplier} on {date}. {item_count} items ({total_pieces} pcs), cost TZS {total_cost}. {items_summary}',
+            'sms_staff_template_stock_received_manager' => '{business}: Stock-in {reference} by {receiver} from {supplier} on {date}. {item_count} items ({total_pieces} pcs), cost TZS {total_cost}. {items_summary}',
             'sms_staff_template_note_reminder' => '{business} Reminder: {title} ({when}). {preview}',
         ];
     }
@@ -383,6 +387,8 @@ class Business extends Model
             'sms_staff_template_deactivated' => 'Account deactivated',
             'sms_staff_template_handover_submitted_owner' => 'Handover submitted (owner)',
             'sms_staff_template_handover_verified_staff' => 'Handover verified (staff)',
+            'sms_staff_template_stock_received_owner' => 'Stock received (owner)',
+            'sms_staff_template_stock_received_manager' => 'Stock received (manager)',
             'sms_staff_template_note_reminder' => 'Note reminder',
         ];
     }
@@ -469,6 +475,24 @@ class Business extends Model
         }
 
         return $this->users()->where('role', 'owner')->first();
+    }
+
+    /**
+     * Active staff whose role name includes "manager" (e.g. Store Manager).
+     *
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    public function resolveManagers(): \Illuminate\Support\Collection
+    {
+        return $this->users()
+            ->where('is_active', true)
+            ->where('role', '!=', 'owner')
+            ->with('role_relation')
+            ->get()
+            ->filter(function (User $user) {
+                return str_contains(strtolower($user->displayRoleName()), 'manager');
+            })
+            ->values();
     }
 
     public function isPendingApproval(): bool

@@ -17,11 +17,7 @@ class MoneyShortController extends Controller
 
     public function index(Request $request)
     {
-        if (Auth::user()->role !== 'owner') {
-            abort(403, 'Only the business owner can view money shorts.');
-        }
-
-        $this->authorizeAny(['verify_day_closing', 'view_reports']);
+        $this->authorizeAny(['manage_money_shorts', 'verify_day_closing', 'view_reports']);
 
         $business = $this->currentBusiness() ?? Auth::user()->business;
         $businessId = $business->id;
@@ -246,9 +242,7 @@ class MoneyShortController extends Controller
 
     private function assertOwnerCanManageSettlement(MoneyShortSettlement $settlement): void
     {
-        if (Auth::user()->role !== 'owner') {
-            abort(403, 'Only the business owner can manage money shorts.');
-        }
+        $this->authorizeAny(['manage_money_shorts', 'verify_day_closing', 'view_reports']);
 
         if ($settlement->business_id !== $this->currentBusinessId()) {
             abort(403);
@@ -266,9 +260,7 @@ class MoneyShortController extends Controller
 
     private function assertOwnerCanManageShort(DayClosing $dayClosing): void
     {
-        if (Auth::user()->role !== 'owner') {
-            abort(403, 'Only the business owner can manage money shorts.');
-        }
+        $this->authorizeAny(['manage_money_shorts', 'verify_day_closing', 'view_reports']);
 
         if ($dayClosing->business_id !== $this->currentBusinessId()) {
             abort(403);

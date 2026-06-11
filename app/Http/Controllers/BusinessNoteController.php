@@ -161,6 +161,8 @@ class BusinessNoteController extends Controller
         if (! $user || $user->role === 'super_admin' || ! $user->business_id) {
             abort(403);
         }
+
+        $this->authorizeAny(['manage_notes']);
     }
 
     private function trySendDueReminder(BusinessNote $note): void

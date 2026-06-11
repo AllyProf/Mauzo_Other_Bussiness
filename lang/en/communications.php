@@ -11,6 +11,9 @@ return [
     'unlimited' => 'Unlimited',
     'left' => ':count left',
     'disabled_on_plan' => 'Disabled on plan',
+    'quota_reached' => 'Monthly :channel quota reached. Remove that channel or wait until next month.',
+    'sms_quota_reached' => 'Monthly SMS quota reached. You can still send by email if quota remains.',
+    'email_quota_reached' => 'Monthly email quota reached. You can still send by SMS if quota remains.',
 
     'recipients' => 'Recipients',
     'recipients_count' => ':count active customers with a phone number and/or email address.',

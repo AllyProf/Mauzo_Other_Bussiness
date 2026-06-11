@@ -9,74 +9,53 @@ use App\Models\Supplier;
 use App\Models\Branch;
 use App\Models\Business;
 use App\Services\ItemPackagingNormalizer;
+use App\Services\BusinessStaffSmsService;
+use App\Services\ItemStockDisplayService;
+use App\Services\ReceivingReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ReceivingController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, ReceivingReportService $reportService)
     {
         \Illuminate\Support\Facades\Gate::authorize('receive_stock');
 
-        $business = Auth::user()->business;
-        $businessId = $business->id;
+        return view('receivings.index', $reportService->build(Auth::user(), $request));
+    }
 
-        $branchFilterId = null;
-        if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
-            $branchFilterId = (int) Auth::user()->branch_id;
-        } elseif ($branchId = active_branch_id()) {
-            $branchFilterId = $branchId;
+    public function exportPdf(Request $request, ReceivingReportService $reportService)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('receive_stock');
+
+        $report = $reportService->build(Auth::user(), $request);
+
+        if ($report['receivings']->isEmpty()) {
+            return back()->with('error', __('receivings.export.empty'));
         }
 
-        $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
-        $templates = config('category_templates', []);
+        return response($reportService->renderPdf($report), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$reportService->filename('pdf', $report['dateFilter']).'"',
+        ]);
+    }
 
-        if ($branchFilterId) {
-            $businessTypes = collect($business->importedTypesForBranch($branchFilterId))
-                ->map(function ($type) use ($templates) {
-                    $key = (string) ($type['key'] ?? '');
+    public function exportExcel(Request $request, ReceivingReportService $reportService)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('receive_stock');
 
-                    return [
-                        'key' => $key,
-                        'label' => (string) ($type['label'] ?? $key),
-                        'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
-                    ];
-                })
-                ->values()
-                ->all();
-        } else {
-            $businessTypes = $business->posBusinessTypesMeta();
+        $report = $reportService->build(Auth::user(), $request);
+
+        if ($report['receivings']->isEmpty()) {
+            return back()->with('error', __('receivings.export.empty'));
         }
 
-        $multiBusiness = count($businessTypes) > 1;
-
-        $activeBranchName = $branchFilterId
-            ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? 'Branch')
-            : null;
-
-        $query = Receiving::query()
-            ->where('business_id', $businessId)
-            ->with(['supplier', 'user', 'branch', 'items.item.category']);
-
-        if (! $this->actsAsBusinessWideViewer()) {
-            if (Auth::user()->branch_id) {
-                $query->where('branch_id', Auth::user()->branch_id);
-            }
-        } elseif ($branchFilterId) {
-            $query->where('branch_id', $branchFilterId);
-        }
-
-        $receivings = $query->latest()->get();
-
-        return view('receivings.index', compact(
-            'receivings',
-            'businessTypes',
-            'multiBusiness',
-            'activeBranchName',
-            'branchFilterId',
-            'viewingAllBranches',
-        ));
+        return response($reportService->renderExcel($report), 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.$reportService->filename('xlsx', $report['dateFilter']).'"',
+        ]);
     }
 
     public function create()
@@ -122,6 +101,7 @@ class ReceivingController extends Controller
                     $packagings = $item->packagings->sortBy('quantity_per_unit')->values();
                     $receivingPkg = $packagings->firstWhere('packaging_id', $item->receiving_packaging_id)
                         ?? $packagings->sortByDesc('quantity_per_unit')->first();
+                    $stockDisplay = app(ItemStockDisplayService::class);
 
                     return [
                         'id'            => $item->id,
@@ -130,6 +110,7 @@ class ReceivingController extends Controller
                         'unit'          => optional($item->receivingPackaging)->name ?? 'Unit',
                         'units_per_receiving_pack' => (int) ($item->units_per_receiving_pack ?? 1),
                         'current_stock' => (float) $item->current_stock,
+                        'remains_display' => $stockDisplay->remainsDisplay($item),
                         'cost_price'    => (float) (optional($receivingPkg)->cost_price ?? $packagings->first()?->cost_price ?? 0),
                         'selling_price' => (float) (optional($packagings->first())->selling_price ?? 0),
                         'packagings'    => $packagings->map(fn ($p) => [
@@ -168,6 +149,7 @@ class ReceivingController extends Controller
             'items' => 'required|array|min:1',
             'items.*.id' => 'required|exists:items,id',
             'items.*.qty' => 'required|integer|min:1',
+            'items.*.qty_mode' => 'nullable|in:pkg,piece',
             'items.*.cost' => 'required|numeric|min:0',
             'items.*.cost_mode' => 'nullable|in:pkg,unit',
             'items.*.selling' => 'nullable|numeric|min:0',
@@ -200,20 +182,7 @@ class ReceivingController extends Controller
             $total_amount = 0;
             foreach ($activeItems as $i) {
                 $itemForTotal = Item::find($i['id']);
-                $unitsPerReceiving = max(1, (int) ($itemForTotal->units_per_receiving_pack ?? 1));
-                $costMode = ($i['cost_mode'] ?? 'pkg') === 'unit' ? 'unit' : 'pkg';
-                $pieces = $i['qty'] * $unitsPerReceiving;
-                $subtotal = $costMode === 'unit'
-                    ? $pieces * $i['cost']
-                    : $i['qty'] * $i['cost'];
-                if (!empty($i['discount_type']) && !empty($i['discount_value'])) {
-                    if ($i['discount_type'] === 'percent') {
-                        $subtotal -= $subtotal * ($i['discount_value'] / 100);
-                    } else {
-                        $subtotal -= $i['discount_value'];
-                    }
-                }
-                $total_amount += max(0, $subtotal);
+                $total_amount += $this->receivingLineNetCost($itemForTotal, $i);
             }
 
             $receiving = Receiving::create([
@@ -231,11 +200,9 @@ class ReceivingController extends Controller
             foreach ($activeItems as $i) {
                 $item = Item::with('packagings.packagingType')->find($i['id']);
                 $unitsPerReceiving = max(1, (int) ($item->units_per_receiving_pack ?? 1));
-                $costMode = ($i['cost_mode'] ?? 'pkg') === 'unit' ? 'unit' : 'pkg';
-                $pieces = $i['qty'] * $unitsPerReceiving;
-                $lineGross = $costMode === 'unit'
-                    ? $pieces * $i['cost']
-                    : $i['qty'] * $i['cost'];
+                $qtyMode = $this->resolveQtyMode($i);
+                $pieces = $this->receivingPieces($item, $i);
+                $lineGross = $this->receivingLineGross($item, $i);
 
                 $discountAmount = 0;
                 if (!empty($i['discount_type']) && !empty($i['discount_value'])) {
@@ -247,12 +214,15 @@ class ReceivingController extends Controller
                 }
 
                 $sellingPrices = $i['selling_prices'] ?? [];
+                $costMode = ($i['cost_mode'] ?? 'pkg') === 'unit' ? 'unit' : 'pkg';
 
                 ReceivingItem::create([
                     'receiving_id' => $receiving->id,
                     'item_id' => $i['id'],
                     'quantity' => $i['qty'],
+                    'qty_mode' => $qtyMode,
                     'cost_price' => $i['cost'],
+                    'cost_mode' => $costMode,
                     'selling_price' => $this->resolvePerPieceSellingPrice($item, $i),
                     'selling_prices_snapshot' => ! empty($sellingPrices) ? $sellingPrices : null,
                     'discount_type' => $i['discount_type'] ?? null,
@@ -261,7 +231,7 @@ class ReceivingController extends Controller
                 ]);
 
                 // Update Item Stock & Pricing
-                $item->current_stock += ($i['qty'] * $unitsPerReceiving);
+                $item->current_stock += $pieces;
                 $item->save();
 
                 $costPerPiece = $costMode === 'unit'
@@ -284,6 +254,18 @@ class ReceivingController extends Controller
             }
 
             DB::commit();
+
+            try {
+                app(BusinessStaffSmsService::class)->notifyStockReceived(
+                    $receiving->fresh(['business.plan', 'supplier', 'user', 'branch', 'items.item.receivingPackaging'])
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Stock received SMS notification failed', [
+                    'receiving_id' => $receiving->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             return redirect()->route('receivings.index')->with('success', "Stock-in record created successfully ($ref).");
 
         } catch (\Exception $e) {
@@ -305,7 +287,31 @@ class ReceivingController extends Controller
             return [$line->id => $this->buildReceivingLineMetrics($line)];
         });
 
-        return view('receivings.show', compact('receiving', 'lineMetrics'));
+        $document = app(ReceivingReportService::class)->showViewData($receiving, $lineMetrics, Auth::user());
+
+        return view('receivings.show', $document);
+    }
+
+    public function exportShowPdf(Receiving $receiving, ReceivingReportService $reportService)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('receive_stock');
+
+        if ($receiving->business_id != Auth::user()->business_id) {
+            abort(403);
+        }
+
+        $receiving->load(['items.item.packagings.packagingType', 'items.item.receivingPackaging', 'supplier', 'user', 'branch']);
+
+        $lineMetrics = $receiving->items->mapWithKeys(function ($line) {
+            return [$line->id => $this->buildReceivingLineMetrics($line)];
+        });
+
+        $document = $reportService->showViewData($receiving, $lineMetrics, Auth::user());
+
+        return response($reportService->renderShowPdf($document), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$reportService->showPdfFilename($receiving).'"',
+        ]);
     }
 
     public function cancel(Request $request, Receiving $receiving)
@@ -420,10 +426,9 @@ class ReceivingController extends Controller
         $unitsPerReceiving = max(1, (int) ($item->units_per_receiving_pack ?? 1));
         $qty = max(1, (int) ($line['qty'] ?? 0));
         $cost = (float) ($line['cost'] ?? 0);
-        $costMode = ($line['cost_mode'] ?? 'pkg') === 'unit' ? 'unit' : 'pkg';
-        $pieces = $qty * $unitsPerReceiving;
+        $pieces = $this->receivingPieces($item, $line);
 
-        $gross = $costMode === 'unit' ? $pieces * $cost : $qty * $cost;
+        $gross = $this->receivingLineGross($item, $line);
         $discountAmount = 0.0;
 
         if (! empty($line['discount_type']) && ! empty($line['discount_value'])) {
@@ -435,7 +440,7 @@ class ReceivingController extends Controller
         }
 
         $buyPerPiece = ($pieces > 0 ? max(0, $gross - $discountAmount) / $pieces : (
-            $costMode === 'unit' ? $cost : $cost / $unitsPerReceiving
+            ($line['cost_mode'] ?? 'pkg') === 'unit' ? $cost : $cost / $unitsPerReceiving
         ));
 
         $sellingPrices = $line['selling_prices'] ?? [];
@@ -479,7 +484,10 @@ class ReceivingController extends Controller
         foreach ($receiving->items as $receivingItem) {
             $item = $receivingItem->item;
             $unitsPerPack = max(1, (int) ($item->units_per_receiving_pack ?? $item->packagings->first()->quantity_per_unit ?? 1));
-            $stockToRemove = $receivingItem->quantity * $unitsPerPack;
+            $qtyMode = $receivingItem->qty_mode ?? 'pkg';
+            $stockToRemove = $qtyMode === 'piece'
+                ? (float) $receivingItem->quantity
+                : $receivingItem->quantity * $unitsPerPack;
             $reversible = min((float) $item->current_stock, (float) $stockToRemove);
 
             if ($reversible < $stockToRemove) {
@@ -534,10 +542,20 @@ class ReceivingController extends Controller
         $packagingModels = $item->packagings->sortBy('quantity_per_unit')->values();
         $normalized = $normalizer->normalizeItemPackagings($item, $packagingModels);
         $unitsPerReceiving = $normalizer->effectiveUnitsPerReceivingPack($item, $packagingModels);
-        $totalPieces = $line->quantity * $unitsPerReceiving;
-        $receivingUnit = optional($item->receivingPackaging)->name ?? 'Unit';
+        $qtyMode = $line->qty_mode ?? 'pkg';
+        $totalPieces = $qtyMode === 'piece'
+            ? (int) $line->quantity
+            : $line->quantity * $unitsPerReceiving;
+        $receivingUnit = $qtyMode === 'piece'
+            ? 'Piece'
+            : (optional($item->receivingPackaging)->name ?? 'Unit');
 
-        $grossCost = $line->quantity * $line->cost_price;
+        $grossCost = $this->receivingLineGross($item, [
+            'qty' => (int) $line->quantity,
+            'cost' => (float) $line->cost_price,
+            'qty_mode' => $qtyMode,
+            'cost_mode' => $line->cost_mode ?? 'pkg',
+        ]);
         $discountAmount = (float) ($line->discount_amount ?? 0);
         $netCost = max(0, $grossCost - $discountAmount);
 
@@ -567,9 +585,11 @@ class ReceivingController extends Controller
         $expectedRevenue = round($totalPieces * $sellPerPiece, 2);
         $expectedProfit = round($expectedRevenue - $netCost, 2);
 
-        $quantityLabel = $unitsPerReceiving > 1
-            ? "{$line->quantity} {$receivingUnit} ({$totalPieces} pcs)"
-            : (string) $line->quantity;
+        $quantityLabel = $qtyMode === 'piece'
+            ? "{$line->quantity} pcs"
+            : ($unitsPerReceiving > 1
+                ? "{$line->quantity} {$receivingUnit} ({$totalPieces} pcs)"
+                : (string) $line->quantity);
 
         return [
             'quantity_label' => $quantityLabel,
@@ -600,5 +620,54 @@ class ReceivingController extends Controller
         }
 
         return $map;
+    }
+
+    private function resolveQtyMode(array $line): string
+    {
+        return ($line['qty_mode'] ?? 'pkg') === 'piece' ? 'piece' : 'pkg';
+    }
+
+    private function receivingPieces(Item $item, array $line): int
+    {
+        $qty = max(0, (int) ($line['qty'] ?? 0));
+        $unitsPerReceiving = max(1, (int) ($item->units_per_receiving_pack ?? 1));
+
+        return $this->resolveQtyMode($line) === 'piece'
+            ? $qty
+            : $qty * $unitsPerReceiving;
+    }
+
+    private function receivingLineGross(Item $item, array $line): float
+    {
+        $qty = max(0, (int) ($line['qty'] ?? 0));
+        $cost = (float) ($line['cost'] ?? 0);
+        $unitsPerReceiving = max(1, (int) ($item->units_per_receiving_pack ?? 1));
+        $costMode = ($line['cost_mode'] ?? 'pkg') === 'unit' ? 'unit' : 'pkg';
+        $pieces = $this->receivingPieces($item, $line);
+
+        if ($costMode === 'unit') {
+            return $pieces * $cost;
+        }
+
+        if ($this->resolveQtyMode($line) === 'piece') {
+            return ($pieces / $unitsPerReceiving) * $cost;
+        }
+
+        return $qty * $cost;
+    }
+
+    private function receivingLineNetCost(Item $item, array $line): float
+    {
+        $subtotal = $this->receivingLineGross($item, $line);
+
+        if (! empty($line['discount_type']) && ! empty($line['discount_value'])) {
+            if ($line['discount_type'] === 'percent') {
+                $subtotal -= $subtotal * ((float) $line['discount_value'] / 100);
+            } else {
+                $subtotal -= (float) $line['discount_value'];
+            }
+        }
+
+        return max(0, $subtotal);
     }
 }

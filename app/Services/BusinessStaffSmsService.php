@@ -5,8 +5,11 @@ namespace App\Services;
 use App\Models\Business;
 use App\Models\BusinessNote;
 use App\Models\DayClosing;
+use App\Models\Receiving;
+use App\Models\ReceivingItem;
 use App\Models\Sale;
 use App\Models\User;
+use App\Models\Item;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -127,6 +130,81 @@ class BusinessStaffSmsService
             $recipientName,
             $owner?->id,
         );
+    }
+
+    public function notifyStockReceived(Receiving $receiving): void
+    {
+        $receiving->loadMissing([
+            'business.plan',
+            'supplier',
+            'user',
+            'branch',
+            'items.item.receivingPackaging',
+        ]);
+
+        $business = $receiving->business;
+        $receiver = $receiving->user;
+
+        if (! $business || ! $receiver) {
+            return;
+        }
+
+        $vars = $this->buildStockReceivedVars($receiving);
+        $notifiedPhones = [];
+
+        $owner = $business->resolveOwner();
+        $ownerPhone = filled($owner?->phone) ? $owner->phone : $business->phone;
+
+        if (filled($ownerPhone)) {
+            $message = $this->renderAutomationTemplate($business, 'sms_staff_template_stock_received_owner', $vars);
+            if ($this->sendInternal(
+                $business,
+                $receiver,
+                $ownerPhone,
+                $message,
+                'stock_received_owner',
+                'stock_received_owner',
+                $owner?->name ?? $business->contact_person ?? $business->name,
+                $owner?->id,
+            )) {
+                $notifiedPhones[] = $this->normalizePhoneKey($ownerPhone);
+            }
+        }
+
+        foreach ($business->resolveManagers() as $manager) {
+            if ($manager->id === $receiver->id) {
+                continue;
+            }
+
+            $phone = $this->resolveUserPhone($business, $manager);
+            if (! filled($phone)) {
+                continue;
+            }
+
+            $phoneKey = $this->normalizePhoneKey($phone);
+            if (in_array($phoneKey, $notifiedPhones, true)) {
+                continue;
+            }
+
+            $message = $this->renderAutomationTemplate($business, 'sms_staff_template_stock_received_manager', $vars);
+
+            $sent = filled($manager->phone)
+                ? $this->send($business, $receiver, $manager, $message, 'stock_received_manager', 'stock_received_manager')
+                : $this->sendInternal(
+                    $business,
+                    $receiver,
+                    $phone,
+                    $message,
+                    'stock_received_manager',
+                    'stock_received_manager',
+                    $manager->name,
+                    $manager->id,
+                );
+
+            if ($sent) {
+                $notifiedPhones[] = $phoneKey;
+            }
+        }
     }
 
     public function notifyStaffHandoverVerified(Business $business, User $verifier, DayClosing $closing): bool
@@ -436,6 +514,55 @@ class BusinessStaffSmsService
         );
 
         return (bool) ($result['success'] ?? false);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function buildStockReceivedVars(Receiving $receiving): array
+    {
+        $business = $receiving->business;
+        $receiver = $receiving->user;
+        $itemSummaries = [];
+        $totalPieces = 0;
+
+        foreach ($receiving->items as $line) {
+            $item = $line->item;
+            if (! $item) {
+                continue;
+            }
+
+            $label = $line->receivedQuantityLabel($item);
+            $itemSummaries[] = $item->name.' '.$label;
+            $totalPieces += (int) $line->receivedPieces($item);
+        }
+
+        $itemCount = count($itemSummaries);
+        $itemsSummary = $itemCount <= 3
+            ? implode(', ', $itemSummaries)
+            : implode(', ', array_slice($itemSummaries, 0, 2)).' +'.($itemCount - 2).' more';
+
+        $branchSuffix = filled($receiving->branch?->name)
+            ? ' · '.$receiving->branch->name
+            : '';
+
+        return [
+            '{receiver}' => $receiver?->name ?? 'Staff',
+            '{reference}' => $receiving->reference_no,
+            '{supplier}' => $receiving->supplier?->name ?? 'Supplier',
+            '{date}' => \Carbon\Carbon::parse($receiving->received_date)->format('d M Y'),
+            '{item_count}' => (string) $itemCount,
+            '{total_pieces}' => number_format($totalPieces, 0),
+            '{total_cost}' => number_format((float) ($receiving->total_amount ?? 0), 0),
+            '{items_summary}' => $itemsSummary,
+            '{branch}' => $receiving->branch?->name ?? '',
+            '{branch_suffix}' => $branchSuffix,
+        ];
+    }
+
+    private function normalizePhoneKey(string $phone): string
+    {
+        return preg_replace('/\D+/', '', $phone) ?? $phone;
     }
 
     private function send(

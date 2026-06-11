@@ -82,6 +82,35 @@ class ItemStockDisplayService
         ];
     }
 
+    /**
+     * Human-readable on-hand stock for receiving forms, e.g. "1 Crate · 9 pcs" or "33 pcs".
+     */
+    public function remainsDisplay(Item $item, ?float $pieces = null): string
+    {
+        $info = $this->format($item, $pieces);
+        $pieces = (float) $info['pieces'];
+        $packSize = max(1, (int) ($info['pack_size'] ?? 1));
+        $bulkName = $info['bulk_name'] ?? $info['unit_name'] ?? 'Unit';
+        $formattedPieces = $info['formatted_pieces'];
+
+        if ($packSize <= 1) {
+            return $formattedPieces.' pcs';
+        }
+
+        $bulkCount = (int) floor($pieces / $packSize);
+        $remainder = (int) round(fmod($pieces, $packSize));
+
+        if ($bulkCount > 0 && $remainder > 0) {
+            return $bulkCount.' '.$bulkName.' · '.$remainder.' pcs ('.$formattedPieces.' pcs total)';
+        }
+
+        if ($bulkCount > 0) {
+            return $bulkCount.' '.$bulkName.' ('.$formattedPieces.' pcs)';
+        }
+
+        return $formattedPieces.' pcs';
+    }
+
     private function buildPackagingStockRow(string $name, int $quantityPerUnit, float $pieces): array
     {
         $qpu = max(1, $quantityPerUnit);

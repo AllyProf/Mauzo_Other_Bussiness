@@ -5,6 +5,8 @@
     let currentPaymentMode = '';
     let payLineItems = [];
     let invoiceCustomer = { id: '', name: '', phone: '' };
+    let splitPaymentMethods = window.salePaymentMethods || [];
+    let splitLineCount = 0;
 
     function formatMoney(amount) {
         return Math.round(parseFloat(amount) || 0).toLocaleString();
@@ -37,8 +39,9 @@
     }
 
     function setProviderFieldRequirements(requiresRef) {
-        $('#paymentProvider, #transactionReference').prop('required', requiresRef);
-        $('#paymentProviderCustom').prop('required', false);
+        // Provider is validated in JS (dropdown OR custom text) — never HTML5-required on the select.
+        $('#paymentProvider, #paymentProviderCustom').prop('required', false);
+        $('#transactionReference').prop('required', requiresRef);
     }
 
     function resolvedPaymentProvider() {
@@ -98,12 +101,145 @@
         }
     }
 
+    function primaryPaymentAmount() {
+        return Math.max(0, parseFloat($('#amountPaid').val()) || 0);
+    }
+
+    function splitPaymentsTotal() {
+        let total = 0;
+        $('#splitPaymentLines .split-line-amount').each(function() {
+            total += Math.max(0, parseFloat($(this).val()) || 0);
+        });
+        return total;
+    }
+
+    function totalPayingNow() {
+        if (!$('#splitPaymentEnabled').is(':checked')) {
+            return primaryPaymentAmount();
+        }
+
+        return primaryPaymentAmount() + splitPaymentsTotal();
+    }
+
+    function isSplitPaymentActive() {
+        return $('#splitPaymentEnabled').is(':checked') && $('#splitPaymentLines .split-payment-line').length > 0;
+    }
+
+    function buildPaymentMethodOptions(selectedKey) {
+        let html = '<option value="">-- Select Option --</option>';
+        splitPaymentMethods.forEach(function(method) {
+            const selected = method.key === selectedKey ? ' selected' : '';
+            html += `<option value="${method.key}" data-type="${method.type || 'immediate'}" data-requires-reference="${method.requires_reference ? '1' : '0'}" data-provider-accounts='${JSON.stringify(method.provider_accounts || [])}'>${method.label}</option>`;
+        });
+        return html;
+    }
+
+    function renderSplitProviderFields(index, requiresRef) {
+        const display = requiresRef ? '' : 'none';
+        return `
+            <div class="split-provider-fields mt-2" style="display:${display};">
+                <div class="form-group mb-2">
+                    <label class="small font-weight-bold required">Provider / Platform</label>
+                    <select class="form-control form-control-sm split-line-provider">
+                        <option value="">-- Select Provider --</option>
+                    </select>
+                    <input type="text" class="form-control form-control-sm split-line-provider-custom mt-2" placeholder="Or type another provider">
+                </div>
+                <div class="form-group mb-0">
+                    <label class="small font-weight-bold required">Transaction Reference No.</label>
+                    <input type="text" class="form-control form-control-sm split-line-reference" placeholder="e.g. 7XG12AB9Z">
+                </div>
+            </div>
+        `;
+    }
+
+    function populateSplitProviderOptions($line, methodKey) {
+        const $select = $line.find('.split-line-method');
+        const $opt = $select.find(`option[value="${methodKey}"]`);
+        let providerAccounts = [];
+        try {
+            providerAccounts = JSON.parse($opt.attr('data-provider-accounts') || '[]');
+        } catch (error) {
+            providerAccounts = [];
+        }
+        const $provider = $line.find('.split-line-provider');
+        $provider.empty().append('<option value="">-- Select Provider --</option>');
+        providerAccounts.forEach(function(account) {
+            if (!account.name) return;
+            $provider.append($('<option></option>').val(account.name).text(account.name));
+        });
+    }
+
+    function renderSplitPaymentLine(index, presetAmount) {
+        const amount = Math.max(0, Math.round(parseFloat(presetAmount) || 0));
+        return `
+            <div class="split-payment-line" data-split-index="${index}">
+                <h6><i class="fa fa-plus-circle"></i> Payment ${index + 2}</h6>
+                <div class="form-group mb-2">
+                    <label class="small font-weight-bold required">Payment Option</label>
+                    <select name="split_payments[${index}][payment_method]" class="form-control form-control-sm split-line-method" required>
+                        ${buildPaymentMethodOptions('')}
+                    </select>
+                </div>
+                <div class="form-group mb-2">
+                    <label class="small font-weight-bold required">Amount</label>
+                    <input type="number" name="split_payments[${index}][amount]" class="form-control form-control-sm split-line-amount" min="1" step="1" value="${amount}" required>
+                </div>
+                ${renderSplitProviderFields(index, false)}
+                <input type="hidden" name="split_payments[${index}][payment_provider]" class="split-line-provider-value">
+            </div>
+        `;
+    }
+
+    function resetSplitPayments() {
+        $('#splitPaymentEnabled').prop('checked', false);
+        $('#splitPaymentLines').hide().empty();
+        $('#splitPaymentSummary').hide().text('');
+        splitLineCount = 0;
+    }
+
+    function syncSplitPaymentLines() {
+        if (!$('#splitPaymentEnabled').is(':checked')) {
+            $('#splitPaymentLines').hide().empty();
+            splitLineCount = 0;
+            return;
+        }
+
+        const remainder = Math.max(0, currentBalance - primaryPaymentAmount());
+        if ($('#splitPaymentLines .split-payment-line').length === 0) {
+            splitLineCount = 1;
+            $('#splitPaymentLines').html(renderSplitPaymentLine(0, remainder)).show();
+        } else {
+            const $firstAmount = $('#splitPaymentLines .split-payment-line').first().find('.split-line-amount');
+            if (!$firstAmount.data('user-edited')) {
+                $firstAmount.val(Math.round(remainder));
+            }
+        }
+
+        updatePaymentPreview();
+    }
+
+    function updateSplitPaymentPrompt() {
+        const method = $('#paymentMethod').val();
+        const $selected = $('#paymentMethod option:selected');
+        const methodType = $selected.data('type');
+        const paying = primaryPaymentAmount();
+        const isPartialAmount = paying > 0 && paying < currentBalance;
+
+        if (method && methodType !== 'credit' && isPartialAmount) {
+            $('#splitPaymentPrompt').show();
+        } else {
+            resetSplitPayments();
+            $('#splitPaymentPrompt').hide();
+        }
+    }
+
     function updateCustomerInfoVisibility() {
         const $selected = $('#paymentMethod option:selected');
         const method = $('#paymentMethod').val();
         const methodType = $selected.data('type');
-        const paying = parseFloat($('#amountPaid').val()) || 0;
-        const applied = Math.min(Math.max(paying, 0), currentBalance);
+        const payingTotal = totalPayingNow();
+        const applied = Math.min(Math.max(payingTotal, 0), currentBalance);
         const isPartialAmount = applied > 0 && applied < currentBalance;
         const onInvoice = hasInvoiceCustomer();
 
@@ -129,6 +265,7 @@
         }
 
         setCustomerFieldRequirements(currentPaymentMode);
+        updateSplitPaymentPrompt();
     }
 
     function computeLineSubtotal(item) {
@@ -265,12 +402,19 @@
     }
 
     function updatePaymentPreview() {
-        const method = $('#paymentMethod').val();
-        const paying = parseFloat($('#amountPaid').val()) || 0;
-        const applied = Math.min(Math.max(paying, 0), currentBalance);
+        const payingTotal = totalPayingNow();
+        const applied = Math.min(Math.max(payingTotal, 0), currentBalance);
         const remaining = Math.max(0, currentBalance - applied);
 
         $('#remainingAfterPay').val(formatMoneyLabel(remaining));
+
+        if (isSplitPaymentActive()) {
+            $('#splitPaymentSummary').show().html(
+                `<strong>Paying now:</strong> ${formatMoneyLabel(applied)} of ${formatMoneyLabel(currentBalance)}`
+            );
+        } else {
+            $('#splitPaymentSummary').hide().text('');
+        }
 
         updateCustomerInfoVisibility();
     }
@@ -308,6 +452,8 @@
 
         $('#paymentMethod').val('');
         $('#amountPaid').val(Math.round(currentBalance)).attr('max', Math.ceil(currentBalance)).removeData('user-edited');
+        resetSplitPayments();
+        $('#splitPaymentPrompt').hide();
         $('#payNotes').val('');
         $('#payDueDate').val(dueDate || '');
         $('#payCustomerSelect').val('').trigger('change');
@@ -431,19 +577,127 @@
         }
     }
 
-    $('#paymentProvider, #paymentProviderCustom').on('input change', updatePayReceiveDetails);
+    $('#paymentProvider').on('change', function() {
+        if ($(this).val()) {
+            $('#paymentProviderCustom').val('');
+        }
+        updatePayReceiveDetails();
+    });
+
+    $('#paymentProviderCustom').on('input change', function() {
+        if (($(this).val() || '').trim()) {
+            $('#paymentProvider').val('');
+        }
+        updatePayReceiveDetails();
+    });
 
     $('#amountPaid').on('input', function() {
         $(this).data('user-edited', true);
+        if ($('#splitPaymentEnabled').is(':checked')) {
+            syncSplitPaymentLines();
+        }
         updatePaymentPreview();
+    });
+
+    $('#splitPaymentEnabled').on('change', function() {
+        if ($(this).is(':checked')) {
+            syncSplitPaymentLines();
+        } else {
+            resetSplitPayments();
+            updatePaymentPreview();
+        }
+    });
+
+    $(document).on('change', '.split-line-method', function() {
+        const $line = $(this).closest('.split-payment-line');
+        const methodKey = $(this).val();
+        const $opt = $(this).find(':selected');
+        const requiresRef = String($opt.data('requires-reference')) === '1';
+        $line.find('.split-provider-fields').toggle(requiresRef);
+        $line.find('.split-line-provider, .split-line-provider-custom').prop('required', false);
+        $line.find('.split-line-reference').prop('required', requiresRef);
+        populateSplitProviderOptions($line, methodKey);
+    });
+
+    $(document).on('change', '.split-line-provider', function() {
+        const $line = $(this).closest('.split-payment-line');
+        if ($(this).val()) {
+            $line.find('.split-line-provider-custom').val('');
+        }
+        $line.trigger('split-provider-sync');
+    });
+
+    $(document).on('input change', '.split-line-provider-custom', function() {
+        const $line = $(this).closest('.split-payment-line');
+        if (($(this).val() || '').trim()) {
+            $line.find('.split-line-provider').val('');
+        }
+        $line.trigger('split-provider-sync');
+    });
+
+    $(document).on('input change', '.split-line-amount', function() {
+        $(this).data('user-edited', true);
+        updatePaymentPreview();
+    });
+
+    $(document).on('split-provider-sync input change', '.split-line-provider, .split-line-provider-custom, .split-line-reference', function() {
+        const $line = $(this).closest('.split-payment-line');
+        const custom = ($line.find('.split-line-provider-custom').val() || '').trim();
+        const provider = custom || ($line.find('.split-line-provider').val() || '').trim();
+        $line.find('.split-line-provider-value').val(provider);
     });
     $('#payCustomerPhoneLocal').on('input', syncCustomerPhoneField);
 
     $('#paymentForm').on('submit', function(e) {
         syncCustomerPhoneField();
+        syncPaymentProviderValue();
         syncPayLineItemsFromDom();
         syncPayLineItemHiddenInputs();
         updateCustomerInfoVisibility();
+
+        if (isSplitPaymentActive()) {
+            let splitValid = true;
+            $('#splitPaymentLines .split-payment-line').each(function() {
+                const $line = $(this);
+                const methodKey = $line.find('.split-line-method').val();
+                const $opt = $line.find('.split-line-method option:selected');
+                const requiresRef = String($opt.data('requires-reference')) === '1';
+                const custom = ($line.find('.split-line-provider-custom').val() || '').trim();
+                const provider = custom || ($line.find('.split-line-provider').val() || '').trim();
+                $line.find('.split-line-provider-value').val(provider);
+
+                if (!methodKey || !(parseFloat($line.find('.split-line-amount').val()) > 0)) {
+                    splitValid = false;
+                }
+
+                if (requiresRef && (!provider || !$line.find('.split-line-reference').val().trim())) {
+                    splitValid = false;
+                }
+            });
+
+            const payingTotal = totalPayingNow();
+            if (payingTotal <= 0 || payingTotal > currentBalance + 0.001) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Invalid split payment',
+                    text: 'Split payments must total more than zero and cannot exceed the balance due.',
+                    confirmButtonColor: '#940000'
+                });
+                return false;
+            }
+
+            if (!splitValid) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Split payment incomplete',
+                    text: 'Fill payment method, amount, and reference details for each extra payment line.',
+                    confirmButtonColor: '#940000'
+                });
+                return false;
+            }
+        }
 
         if (currentPaymentMode === 'partial' || currentPaymentMode === 'debt') {
             if (!$('#payDueDate').val()) {

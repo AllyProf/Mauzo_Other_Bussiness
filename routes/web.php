@@ -122,7 +122,11 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
 
     Route::middleware('check.business.retail')->group(function () {
     // Items Management
+    Route::get('/price-list', [App\Http\Controllers\PriceListController::class, 'index'])->name('price-list.index');
+
     Route::get('/items/stock', [App\Http\Controllers\ItemController::class, 'stock'])->name('items.stock');
+    Route::get('/items/stock/export/pdf', [App\Http\Controllers\ItemController::class, 'exportStockPdf'])->name('items.stock.export.pdf');
+    Route::get('/items/stock/export/excel', [App\Http\Controllers\ItemController::class, 'exportStockExcel'])->name('items.stock.export.excel');
     Route::get('/items/{item}/history', [App\Http\Controllers\ItemController::class, 'history'])->name('items.history');
     Route::resource('/items', App\Http\Controllers\ItemController::class);
     
@@ -143,8 +147,11 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
 
     // Receiving Routes
     Route::get('/receivings', [App\Http\Controllers\ReceivingController::class, 'index'])->name('receivings.index');
+    Route::get('/receivings/export/pdf', [App\Http\Controllers\ReceivingController::class, 'exportPdf'])->name('receivings.export.pdf');
+    Route::get('/receivings/export/excel', [App\Http\Controllers\ReceivingController::class, 'exportExcel'])->name('receivings.export.excel');
     Route::get('/receivings/create', [App\Http\Controllers\ReceivingController::class, 'create'])->name('receivings.create');
     Route::post('/receivings', [App\Http\Controllers\ReceivingController::class, 'store'])->name('receivings.store');
+    Route::get('/receivings/{receiving}/export/pdf', [App\Http\Controllers\ReceivingController::class, 'exportShowPdf'])->name('receivings.show.export.pdf');
     Route::get('/receivings/{receiving}', [App\Http\Controllers\ReceivingController::class, 'show'])->name('receivings.show');
     Route::post('/receivings/{receiving}/cancel', [App\Http\Controllers\ReceivingController::class, 'cancel'])->name('receivings.cancel');
 

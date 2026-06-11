@@ -162,6 +162,24 @@
 <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
+@php
+  $smsQuotaExhausted = ($quota['sms']['enabled'] ?? false) && $quota['sms']['remaining'] === 0;
+  $emailQuotaExhausted = ($quota['email']['enabled'] ?? false) && $quota['email']['remaining'] === 0;
+  $defaultChannels = old('channels');
+  if ($defaultChannels === null) {
+      $defaultChannels = $smsQuotaExhausted
+          ? ($emailQuotaExhausted ? [] : ['email'])
+          : ['sms'];
+  }
+@endphp
+
+@if($smsQuotaExhausted)
+<div class="alert alert-warning">{{ __('communications.sms_quota_reached') }}</div>
+@endif
+@if($emailQuotaExhausted)
+<div class="alert alert-warning">{{ __('communications.email_quota_reached') }}</div>
+@endif
+
 <div class="row mb-3">
   <div class="col-sm-6 col-12 mb-3 mb-sm-0">
     <div class="tile comms-stat-tile h-100 mb-0">
@@ -298,14 +316,24 @@
             <div class="comms-channel-group">
               @if($quota['sms']['enabled'])
               <div class="custom-control custom-checkbox custom-control-inline">
-                <input type="checkbox" class="custom-control-input channel-checkbox" id="channel_sms" name="channels[]" value="sms" {{ in_array('sms', old('channels', ['sms'])) ? 'checked' : '' }}>
-                <label class="custom-control-label" for="channel_sms">{{ __('communications.sms') }}</label>
+                <input type="checkbox" class="custom-control-input channel-checkbox" id="channel_sms" name="channels[]" value="sms" {{ in_array('sms', $defaultChannels, true) ? 'checked' : '' }} {{ $smsQuotaExhausted ? 'disabled' : '' }}>
+                <label class="custom-control-label {{ $smsQuotaExhausted ? 'text-muted' : '' }}" for="channel_sms">
+                  {{ __('communications.sms') }}
+                  @if($smsQuotaExhausted)
+                    <small class="text-danger d-block">{{ __('communications.quota_reached', ['channel' => 'SMS']) }}</small>
+                  @endif
+                </label>
               </div>
               @endif
               @if($quota['email']['enabled'])
               <div class="custom-control custom-checkbox custom-control-inline">
-                <input type="checkbox" class="custom-control-input channel-checkbox" id="channel_email" name="channels[]" value="email" {{ in_array('email', old('channels', [])) ? 'checked' : '' }}>
-                <label class="custom-control-label" for="channel_email">{{ __('communications.email') }}</label>
+                <input type="checkbox" class="custom-control-input channel-checkbox" id="channel_email" name="channels[]" value="email" {{ in_array('email', $defaultChannels, true) ? 'checked' : '' }} {{ $emailQuotaExhausted ? 'disabled' : '' }}>
+                <label class="custom-control-label {{ $emailQuotaExhausted ? 'text-muted' : '' }}" for="channel_email">
+                  {{ __('communications.email') }}
+                  @if($emailQuotaExhausted)
+                    <small class="text-danger d-block">{{ __('communications.quota_reached', ['channel' => 'Email']) }}</small>
+                  @endif
+                </label>
               </div>
               @endif
               @if(! $quota['sms']['enabled'] && ! $quota['email']['enabled'])
@@ -372,6 +400,7 @@
           </div>
           <div class="comms-compose-actions mt-3">
             <button type="submit" class="btn btn-primary" id="send-button" {{ $customers->isEmpty() ? 'disabled' : '' }}><i class="fa fa-send"></i> {{ __('communications.send_message') }}</button>
+            <small id="send-button-hint" class="text-muted d-block mt-2" style="display:none;"></small>
           </div>
         </form>
       </div>
@@ -444,11 +473,19 @@
     $commI18n = [
         'send_message' => __('communications.send_message'),
         'schedule_message' => __('communications.schedule_message'),
+        'sms_quota_reached' => __('communications.sms_quota_reached'),
+        'email_quota_reached' => __('communications.email_quota_reached'),
+        'select_channel' => __('communications.delivery_channels'),
+    ];
+    $commQuota = [
+        'smsExhausted' => $smsQuotaExhausted,
+        'emailExhausted' => $emailQuotaExhausted,
     ];
 @endphp
 <script>
 (function () {
   var commI18n = @json($commI18n);
+  var commQuota = @json($commQuota);
   var selectAll = document.getElementById('select_all_customers');
   var boxes = document.querySelectorAll('.customer-checkbox');
   var channelBoxes = document.querySelectorAll('.channel-checkbox');
@@ -457,6 +494,59 @@
   var sendNow = document.getElementById('send_now');
   var sendScheduled = document.getElementById('send_scheduled');
   var sendButton = document.getElementById('send-button');
+  var sendButtonHint = document.getElementById('send-button-hint');
+
+  function channelIsUsable(channel) {
+    if (channel === 'sms') {
+      return !commQuota.smsExhausted;
+    }
+    if (channel === 'email') {
+      return !commQuota.emailExhausted;
+    }
+    return false;
+  }
+
+  function hasSelectedUsableChannel() {
+    var usable = false;
+    channelBoxes.forEach(function (box) {
+      if (box.checked && !box.disabled && channelIsUsable(box.value)) {
+        usable = true;
+      }
+    });
+    return usable;
+  }
+
+  function updateSubmitState() {
+    if (!sendButton) {
+      return;
+    }
+
+    var hasCustomers = boxes.length > 0;
+    var canSend = hasCustomers && hasSelectedUsableChannel();
+
+    sendButton.disabled = !canSend;
+
+    if (sendButtonHint) {
+      if (!hasCustomers) {
+        sendButtonHint.style.display = 'none';
+        sendButtonHint.textContent = '';
+      } else if (!canSend) {
+        sendButtonHint.style.display = 'block';
+        if (commQuota.smsExhausted && commQuota.emailExhausted) {
+          sendButtonHint.textContent = commI18n.sms_quota_reached;
+        } else if (commQuota.smsExhausted) {
+          sendButtonHint.textContent = commI18n.sms_quota_reached;
+        } else if (commQuota.emailExhausted) {
+          sendButtonHint.textContent = commI18n.email_quota_reached;
+        } else {
+          sendButtonHint.textContent = commI18n.select_channel;
+        }
+      } else {
+        sendButtonHint.style.display = 'none';
+        sendButtonHint.textContent = '';
+      }
+    }
+  }
 
   function updateSubjectVisibility() {
     var emailSelected = document.getElementById('channel_email') && document.getElementById('channel_email').checked;
@@ -466,7 +556,7 @@
   function updateScheduleVisibility() {
     var scheduled = sendScheduled && sendScheduled.checked;
     scheduleGroup.style.display = scheduled ? 'block' : 'none';
-    if (sendButton) {
+    if (sendButton && sendButton.disabled === false) {
       sendButton.innerHTML = scheduled
         ? '<i class="fa fa-clock-o"></i> ' + commI18n.schedule_message
         : '<i class="fa fa-send"></i> ' + commI18n.send_message;
@@ -480,7 +570,11 @@
   }
 
   channelBoxes.forEach(function (box) {
-    box.addEventListener('change', updateSubjectVisibility);
+    box.addEventListener('change', function () {
+      updateSubjectVisibility();
+      updateSubmitState();
+      updateScheduleVisibility();
+    });
   });
 
   if (sendNow) sendNow.addEventListener('change', updateScheduleVisibility);
@@ -488,6 +582,7 @@
 
   updateSubjectVisibility();
   updateScheduleVisibility();
+  updateSubmitState();
 })();
 </script>
 @endsection

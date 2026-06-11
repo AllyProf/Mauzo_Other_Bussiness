@@ -414,6 +414,10 @@ class OwnerDailyReportService
     {
         $data = $this->buildDayEndTotals($business, $date);
 
+        if (($data['verified_handover_count'] ?? 0) === 0) {
+            $data = $this->buildOpenDayTotalsForDate($business, $date);
+        }
+
         return OwnerDailyReport::updateOrCreate(
             [
                 'business_id' => $business->id,
@@ -893,16 +897,34 @@ class OwnerDailyReportService
 
     public function buildOpeningDayRow(Business $business): ?array
     {
+        $rows = $this->buildOpenDayRows($business);
+
+        return $rows[0] ?? null;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function buildOpenDayRows(Business $business): array
+    {
         $latestVerifiedQuery = DayClosing::where('business_id', $business->id)
             ->where('status', 'verified');
         $this->scopeBranchDayClosings($latestVerifiedQuery);
         $latestVerified = $latestVerifiedQuery->orderByDesc('closing_date')->first();
 
         if (! $latestVerified) {
-            return null;
+            return [];
         }
 
-        $cursor = Carbon::parse($latestVerified->closing_date)->addDay();
+        $latestVerifiedDate = $latestVerified->closing_date->toDateString();
+        $latestVerifiedTotals = $this->buildDayEndTotals($business, $latestVerifiedDate);
+        $carryForward = [
+            'closing_circulation' => (float) $latestVerifiedTotals['closing_circulation'],
+            'closing_profit' => (float) $latestVerifiedTotals['closing_profit'],
+        ];
+
+        $rows = [];
+        $cursor = Carbon::parse($latestVerifiedDate)->addDay();
         $today = Carbon::today();
 
         while ($cursor->lte($today)) {
@@ -913,89 +935,234 @@ class OwnerDailyReportService
                 ->where('status', 'verified');
             $this->scopeBranchDayClosings($hasVerifiedQuery);
 
-            if (! $hasVerifiedQuery->exists()) {
-                $data = $this->buildReportData($business, $dateString, null);
-                $report = $this->isBranchScoped()
-                    ? null
-                    : $this->syncReport($business, $dateString, null);
+            if ($hasVerifiedQuery->exists()) {
+                $dayEnd = $this->buildDayEndTotals($business, $dateString);
+                $carryForward = [
+                    'closing_circulation' => (float) $dayEnd['closing_circulation'],
+                    'closing_profit' => (float) $dayEnd['closing_profit'],
+                ];
+            } else {
+                $data = $this->applyCarryForwardToReportData(
+                    $this->buildReportData($business, $dateString, null),
+                    $carryForward
+                );
 
-                $platformBreakdown = $data['payment_breakdown'];
-                $cashCollected = (float) collect($platformBreakdown)->where('method', 'cash')->sum('amount');
-                $digitalCollected = (float) collect($platformBreakdown)->filter(fn ($p) => ($p['method'] ?? '') !== 'cash')->sum('amount');
-                $subTotal = (float) $data['total_collected'];
-                $grossProfit = (float) $data['gross_profit'];
-                $circulationRefill = max(0, $subTotal - $grossProfit);
+                $carryForward = [
+                    'closing_circulation' => (float) $data['closing_circulation'],
+                    'closing_profit' => (float) $data['closing_profit'],
+                ];
 
-                $expenseList = collect();
-                foreach ($this->branchScopedOwnerExpenses($business->id, $dateString)->get() as $ex) {
-                    $expenseList->push([
-                        'description' => $ex->description,
-                        'amount' => (float) $ex->amount,
-                        'category' => $ex->categoryLabel(),
-                        'fund_source' => $ex->fund_source ?? 'circulation',
-                    ]);
+                $row = $this->formatOpenDayPlaceholderRow($business, $dateString, $data, null);
+
+                if ($row['has_open_day_activity'] ?? false) {
+                    if (! $this->isBranchScoped()) {
+                        $row['report'] = $this->syncOpenDayReport($business, $dateString, $data);
+                        $row['report_id'] = $row['report']?->id;
+                    }
+
+                    $rows[] = $row;
                 }
+            }
 
-                $hasOpenShift = $this->hasOpenShiftForDate($business, $dateString);
-                $hasSalesOrExpenses = $subTotal > 0
-                    || (float) $data['total_expenses'] > 0
-                    || $grossProfit > 0;
-                $hasActivity = $hasOpenShift || $hasSalesOrExpenses;
+            $cursor->addDay();
+        }
 
-                [$businessStatus, $statusColor] = $hasActivity
-                    ? ['OPEN', '#ffc107']
-                    : ['NOT STARTED', '#6c757d'];
+        return array_reverse($rows);
+    }
 
-                return [
-                    'id' => 'open-'.$dateString,
-                    'report_id' => $report?->id,
-                    'ledger_date' => $dateString,
-                    'opening_cash' => (float) $data['opening_circulation'],
-                    'total_cash_received' => $cashCollected,
-                    'total_digital_received' => $digitalCollected,
-                    'sub_total' => $subTotal,
-                    'total_assets' => (float) $data['opening_circulation'] + $subTotal,
-                    'combined_expenses' => (float) $data['total_expenses'],
-                    'profit_generated' => $grossProfit,
-                    'daily_net_profit' => (float) $data['net_profit'],
-                    'opening_profit' => (float) $data['opening_profit'],
-                    'net_available_profit' => (float) $data['net_profit'],
-                    'profit_rollover' => (float) $data['closing_profit'],
-                    'circulation_refill' => $circulationRefill,
-                    'money_in_circulation' => (float) $data['closing_circulation'],
-                    'carried_forward' => (float) $data['closing_circulation'],
-                    'outstanding_debt' => (float) $data['outstanding_debt'],
-                    'gross_sales' => (float) $data['gross_sales'],
-                    'cost_of_goods' => (float) $data['cost_of_goods'],
-                    'expense_list' => $expenseList,
-                    'platform_breakdown' => $platformBreakdown,
-                    'business_status' => $businessStatus,
-                    'status_color' => $statusColor,
-                    'is_finalized' => false,
-                    'is_manager_received' => false,
-                    'is_placeholder' => true,
-                    'has_open_day_activity' => $hasActivity,
-                    'has_open_shift' => $hasOpenShift,
-                    'expense_deduct_from' => $data['expense_deduct_from'],
-                    'submitted_by' => '—',
-                    'staff_short_recoveries' => 0,
-                    'staff_profit_recoveries' => 0,
-                    'staff_circulation_recoveries' => 0,
-                    'report' => $report,
-                    'closing' => null,
+    private function applyCarryForwardToReportData(array $data, array $carryForward): array
+    {
+        $data['opening_circulation'] = (float) $carryForward['closing_circulation'];
+        $data['opening_profit'] = (float) $carryForward['closing_profit'];
+        $data['closing_profit'] = $data['opening_profit'] + (float) $data['net_profit'];
+
+        $deductFrom = $data['expense_deduct_from'] ?? 'circulation';
+        if ($deductFrom === 'circulation') {
+            $data['closing_circulation'] = $data['opening_circulation']
+                + max(0, (float) $data['total_collected'] - (float) $data['staff_expenses'] - (float) $data['gross_profit'])
+                - (float) ($data['owner_circulation_expenses'] ?? 0);
+        } else {
+            $data['closing_circulation'] = $data['opening_circulation']
+                + (float) $data['total_collected']
+                - (float) ($data['owner_circulation_expenses'] ?? 0);
+        }
+
+        $data['closing_circulation'] = max(0, (float) $data['closing_circulation']);
+
+        return $data;
+    }
+
+    private function syncOpenDayReport(Business $business, string $date, array $data): OwnerDailyReport
+    {
+        return OwnerDailyReport::updateOrCreate(
+            [
+                'business_id' => $business->id,
+                'report_date' => $date,
+            ],
+            [
+                'day_closing_id' => $data['day_closing']?->id,
+                'opening_circulation' => $data['opening_circulation'],
+                'gross_sales' => $data['gross_sales'],
+                'cost_of_goods' => $data['cost_of_goods'],
+                'gross_profit' => $data['gross_profit'],
+                'total_collected' => $data['total_collected'],
+                'payment_breakdown' => collect($data['payment_breakdown'])->mapWithKeys(fn ($p, $k) => [$k => $p['amount']])->all(),
+                'outstanding_debt' => $data['outstanding_debt'],
+                'staff_expenses' => $data['staff_expenses'],
+                'owner_expenses' => $data['owner_expenses'],
+                'expense_deduct_from' => $data['expense_deduct_from'],
+                'net_profit' => $data['net_profit'],
+                'opening_profit' => $data['opening_profit'],
+                'closing_profit' => $data['closing_profit'],
+                'closing_circulation' => $data['closing_circulation'],
+            ]
+        );
+    }
+
+    public function buildOpenDayTotalsForDate(Business $business, string $date): array
+    {
+        $targetDate = Carbon::parse($date)->toDateString();
+
+        $previousVerifiedQuery = DayClosing::where('business_id', $business->id)
+            ->where('status', 'verified')
+            ->whereDate('closing_date', '<', $targetDate);
+        $this->scopeBranchDayClosings($previousVerifiedQuery);
+        $previousVerified = $previousVerifiedQuery->orderByDesc('closing_date')->first();
+
+        if (! $previousVerified) {
+            return $this->applyMoneyShortRecoveries(
+                $business,
+                $targetDate,
+                $this->buildReportData($business, $targetDate, null)
+            );
+        }
+
+        $previousVerifiedDate = $previousVerified->closing_date->toDateString();
+        $previousTotals = $this->buildDayEndTotals($business, $previousVerifiedDate);
+        $carryForward = [
+            'closing_circulation' => (float) $previousTotals['closing_circulation'],
+            'closing_profit' => (float) $previousTotals['closing_profit'],
+        ];
+
+        $cursor = Carbon::parse($previousVerifiedDate)->addDay();
+        $target = Carbon::parse($targetDate);
+        $data = $this->buildReportData($business, $targetDate, null);
+
+        while ($cursor->lte($target)) {
+            $dateString = $cursor->toDateString();
+
+            $verifiedOnDayQuery = DayClosing::where('business_id', $business->id)
+                ->whereDate('closing_date', $dateString)
+                ->where('status', 'verified');
+            $this->scopeBranchDayClosings($verifiedOnDayQuery);
+
+            if ($verifiedOnDayQuery->exists()) {
+                $dayEnd = $this->buildDayEndTotals($business, $dateString);
+                $carryForward = [
+                    'closing_circulation' => (float) $dayEnd['closing_circulation'],
+                    'closing_profit' => (float) $dayEnd['closing_profit'],
+                ];
+
+                if ($dateString === $targetDate) {
+                    $data = $dayEnd;
+                }
+            } else {
+                $data = $this->applyCarryForwardToReportData(
+                    $this->buildReportData($business, $dateString, null),
+                    $carryForward
+                );
+                $carryForward = [
+                    'closing_circulation' => (float) $data['closing_circulation'],
+                    'closing_profit' => (float) $data['closing_profit'],
                 ];
             }
 
             $cursor->addDay();
         }
 
-        return null;
+        $data['verified_handover_count'] = 0;
+
+        return $this->applyMoneyShortRecoveries($business, $targetDate, $data);
+    }
+
+    private function formatOpenDayPlaceholderRow(Business $business, string $dateString, array $data, ?OwnerDailyReport $report): array
+    {
+        $platformBreakdown = $data['payment_breakdown'];
+        $cashCollected = (float) collect($platformBreakdown)->where('method', 'cash')->sum('amount');
+        $digitalCollected = (float) collect($platformBreakdown)->filter(fn ($p) => ($p['method'] ?? '') !== 'cash')->sum('amount');
+        $subTotal = (float) $data['total_collected'];
+        $grossProfit = (float) $data['gross_profit'];
+        $circulationRefill = max(0, $subTotal - $grossProfit);
+
+        $expenseList = collect();
+        foreach ($this->branchScopedOwnerExpenses($business->id, $dateString)->get() as $ex) {
+            $expenseList->push([
+                'description' => $ex->description,
+                'amount' => (float) $ex->amount,
+                'category' => $ex->categoryLabel(),
+                'fund_source' => $ex->fund_source ?? 'circulation',
+            ]);
+        }
+
+        $hasOpenShift = $this->hasOpenShiftForDate($business, $dateString);
+        $hasSalesOrExpenses = $subTotal > 0
+            || (float) $data['total_expenses'] > 0
+            || $grossProfit > 0;
+        $hasActivity = $hasOpenShift || $hasSalesOrExpenses;
+
+        [$businessStatus, $statusColor] = $hasActivity
+            ? ['OPEN', '#ffc107']
+            : ['NOT STARTED', '#6c757d'];
+
+        return [
+            'id' => 'open-'.$dateString,
+            'report_id' => $report?->id,
+            'ledger_date' => $dateString,
+            'opening_cash' => (float) $data['opening_circulation'],
+            'total_cash_received' => $cashCollected,
+            'total_digital_received' => $digitalCollected,
+            'sub_total' => $subTotal,
+            'total_assets' => (float) $data['opening_circulation'] + $subTotal,
+            'combined_expenses' => (float) $data['total_expenses'],
+            'profit_generated' => $grossProfit,
+            'daily_net_profit' => (float) $data['net_profit'],
+            'opening_profit' => (float) $data['opening_profit'],
+            'net_available_profit' => (float) $data['net_profit'],
+            'profit_rollover' => (float) $data['closing_profit'],
+            'circulation_refill' => $circulationRefill,
+            'money_in_circulation' => (float) $data['closing_circulation'],
+            'carried_forward' => (float) $data['closing_circulation'],
+            'outstanding_debt' => (float) $data['outstanding_debt'],
+            'gross_sales' => (float) $data['gross_sales'],
+            'cost_of_goods' => (float) $data['cost_of_goods'],
+            'expense_list' => $expenseList,
+            'platform_breakdown' => $platformBreakdown,
+            'business_status' => $businessStatus,
+            'status_color' => $statusColor,
+            'is_finalized' => false,
+            'is_manager_received' => false,
+            'is_placeholder' => true,
+            'has_open_day_activity' => $hasActivity,
+            'has_open_shift' => $hasOpenShift,
+            'expense_deduct_from' => $data['expense_deduct_from'],
+            'submitted_by' => '—',
+            'staff_short_recoveries' => 0,
+            'staff_profit_recoveries' => 0,
+            'staff_circulation_recoveries' => 0,
+            'report' => $report,
+            'closing' => null,
+        ];
     }
 
     public function getPettyCashBalances(Business $business, ?string $date = null, ?string $businessTypeKey = null): array
     {
         $date = $date ?? now()->toDateString();
         $data = $this->buildDayEndTotals($business, $date);
+
+        if (($data['verified_handover_count'] ?? 0) === 0) {
+            $data = $this->buildOpenDayTotalsForDate($business, $date);
+        }
+
         $report = OwnerDailyReport::where('business_id', $business->id)
             ->whereDate('report_date', $date)
             ->first();

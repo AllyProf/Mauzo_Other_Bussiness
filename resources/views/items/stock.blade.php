@@ -85,7 +85,7 @@
 
 <!-- Statistics -->
 <div class="row">
-  <div class="col-md-{{ $canViewValue ? 4 : 6 }}">
+  <div class="col-md-3 col-sm-6">
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-cubes fa-3x"></i>
       <div class="info">
@@ -94,7 +94,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-{{ $canViewValue ? 4 : 6 }}">
+  <div class="col-md-3 col-sm-6">
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-exclamation-triangle fa-3x"></i>
       <div class="info">
@@ -104,12 +104,21 @@
     </div>
   </div>
   @if($canViewValue)
-  <div class="col-md-4">
+  <div class="col-md-3 col-sm-6">
+    <div class="widget-small info coloured-icon">
+      <i class="icon fa fa-line-chart fa-3x"></i>
+      <div class="info">
+        <h4>{{ __('stock.stats.expected_revenue') }}</h4>
+        <p><b id="expectedRevenueDisplay">{{ money($totalExpectedRevenue ?? $totalValue) }}</b></p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
     <div class="widget-small success coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
-        <h4>{{ __('stock.stats.total_stock_value') }}</h4>
-        <p><b>{{ money($totalValue) }}</b></p>
+        <h4>{{ __('stock.stats.expected_profit') }}</h4>
+        <p><b id="expectedProfitDisplay">{{ money($totalExpectedProfit ?? $totalMargin ?? 0) }}</b></p>
       </div>
     </div>
   </div>
@@ -133,6 +142,14 @@
         </div>
         @endif
         <div class="d-flex align-items-center flex-wrap {{ $multiBusiness ? 'ml-auto' : 'w-100 justify-content-end' }}">
+          @if($stockItems->count() > 0)
+          <a href="{{ route('items.stock.export.pdf') }}" class="btn btn-sm btn-outline-danger mr-2 mb-2" style="border-color:#940000;color:#940000;">
+            <i class="fa fa-file-pdf-o"></i> {{ __('stock.export.pdf') }}
+          </a>
+          <a href="{{ route('items.stock.export.excel') }}" class="btn btn-sm btn-outline-success mr-2 mb-2">
+            <i class="fa fa-file-excel-o"></i> {{ __('stock.export.excel') }}
+          </a>
+          @endif
           <div class="btn-group mr-2 mb-2" role="group">
             <button type="button" class="btn btn-sm btn-outline-secondary active view-btn" data-view="grid">
               <i class="fa fa-th"></i>
@@ -205,7 +222,9 @@
                  data-name="{{ $searchName }}"
                  data-item-id="{{ $item['id'] }}"
                  data-is-low-stock="{{ $item['is_low_stock'] ? 'true' : 'false' }}"
-                 data-holding-value="{{ $item['holding_value'] }}">
+                 data-holding-value="{{ $item['holding_value'] }}"
+                 data-expected-revenue="{{ $item['expected_revenue'] }}"
+                 data-expected-profit="{{ $item['expected_profit'] }}">
 
               <div class="tile p-3 h-100 mb-0 shadow-sm border-0 inventory-item-card transition-all"
                    style="border-radius: 15px; {{ $item['status_color'] === 'warning' ? 'background-color: #fffde7 !important;' : '' }}">
@@ -291,15 +310,25 @@
                   </div>
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center mt-auto">
+                <div class="d-flex justify-content-between align-items-center mt-auto flex-wrap">
                   @if($canViewValue)
-                  <div class="smallest">
-                    <span class="text-muted">{{ __('stock.card.holding_value') }}</span><br>
-                    @if($item['holding_value'] > 0)
-                      <strong class="text-success">{{ money($item['holding_value']) }}</strong>
-                    @else
-                      <strong class="text-muted">—</strong>
-                    @endif
+                  <div class="smallest mb-2">
+                    <div class="mb-1">
+                      <span class="text-muted">{{ __('stock.card.expected_revenue') }}</span><br>
+                      @if($item['expected_revenue'] > 0)
+                        <strong class="text-primary">{{ money($item['expected_revenue']) }}</strong>
+                      @else
+                        <strong class="text-muted">—</strong>
+                      @endif
+                    </div>
+                    <div>
+                      <span class="text-muted">{{ __('stock.card.expected_profit') }}</span><br>
+                      @if($item['expected_profit'] != 0)
+                        <strong class="text-success">{{ money($item['expected_profit']) }}</strong>
+                      @else
+                        <strong class="text-muted">—</strong>
+                      @endif
+                    </div>
                   </div>
                   @endif
                   <a href="{{ $item['history_url'] }}" class="btn btn-sm btn-outline-primary ml-auto" title="{{ __('stock.card.view_history') }}">
@@ -322,7 +351,8 @@
                   <th>{{ __('tables.columns.current_stock') }}</th>
                   <th>{{ __('tables.columns.selling_price') }}</th>
                   @if($canViewValue)
-                  <th>{{ __('tables.columns.holding_value') }}</th>
+                  <th>{{ __('stock.export.col_expected_revenue') }}</th>
+                  <th>{{ __('stock.export.col_expected_profit') }}</th>
                   @endif
                   <th>{{ __('tables.columns.status') }}</th>
                   <th>{{ __('tables.columns.actions') }}</th>
@@ -340,7 +370,9 @@
                     data-name="{{ $searchName }}"
                     data-item-id="{{ $item['id'] }}"
                     data-is-low-stock="{{ $item['is_low_stock'] ? 'true' : 'false' }}"
-                    data-holding-value="{{ $item['holding_value'] }}">
+                    data-holding-value="{{ $item['holding_value'] }}"
+                 data-expected-revenue="{{ $item['expected_revenue'] }}"
+                 data-expected-profit="{{ $item['expected_profit'] }}">
                   <td>
                     <strong class="text-primary">{{ $item['name'] }}</strong>
                   </td>
@@ -389,8 +421,15 @@
                   </td>
                   @if($canViewValue)
                   <td>
-                    @if($item['holding_value'] > 0)
-                      <strong class="text-success">{{ money($item['holding_value']) }}</strong>
+                    @if($item['expected_revenue'] > 0)
+                      <strong class="text-primary">{{ money($item['expected_revenue']) }}</strong>
+                    @else
+                      <span class="text-muted">—</span>
+                    @endif
+                  </td>
+                  <td>
+                    @if($item['expected_profit'] != 0)
+                      <strong class="text-success">{{ money($item['expected_profit']) }}</strong>
                     @else
                       <span class="text-muted">—</span>
                     @endif
@@ -409,14 +448,23 @@
           </div>
 
           @if($canViewValue)
-          <div class="mt-4 p-4 rounded d-flex justify-content-between align-items-center shadow flex-wrap"
+          <div class="mt-4 p-4 rounded shadow flex-wrap"
                id="totalValueBar"
                style="background: linear-gradient(135deg, #940000, #7a0000); color:white; border-radius: 15px;">
-            <div class="mb-2 mb-md-0">
-              <h5 class="mb-0 font-weight-bold"><i class="fa fa-calculator mr-2"></i> {{ __('stock.summary.total_value') }}</h5>
-              <small class="opacity-75">{{ __('stock.summary.total_value_hint') }}</small>
+            <div class="row align-items-center w-100">
+              <div class="col-md-4 mb-3 mb-md-0">
+                <h5 class="mb-0 font-weight-bold"><i class="fa fa-calculator mr-2"></i> {{ __('stock.summary.totals_title') }}</h5>
+                <small class="opacity-75">{{ __('stock.summary.total_value_hint') }}</small>
+              </div>
+              <div class="col-md-4 text-md-center mb-3 mb-md-0">
+                <div class="smallest opacity-75 text-uppercase">{{ __('stock.stats.expected_revenue') }}</div>
+                <h3 class="mb-0 font-weight-bold" id="totalRevenueDisplay">{{ money($totalExpectedRevenue ?? $totalValue) }}</h3>
+              </div>
+              <div class="col-md-4 text-md-right">
+                <div class="smallest opacity-75 text-uppercase">{{ __('stock.stats.expected_profit') }}</div>
+                <h3 class="mb-0 font-weight-bold" id="totalProfitDisplay">{{ money($totalExpectedProfit ?? $totalMargin ?? 0) }}</h3>
+              </div>
             </div>
-            <h3 class="mb-0 font-weight-bold" id="totalValueDisplay">{{ money($totalValue) }}</h3>
           </div>
           @endif
 
@@ -491,21 +539,34 @@ $(document).ready(function () {
     function updateSummaryStats() {
         let total = 0;
         let lowStock = 0;
-        let value = 0;
+        let revenue = 0;
+        let profit = 0;
 
         $('.product-card-wrapper:visible').each(function () {
             total++;
             if (String($(this).data('is-low-stock')) === 'true') {
                 lowStock++;
             }
-            value += parseFloat($(this).data('holding-value')) || 0;
+            revenue += parseFloat($(this).data('expected-revenue')) || 0;
+            profit += parseFloat($(this).data('expected-profit')) || 0;
         });
 
         $('.widget-small.primary .info p b').first().text(total);
         $('.widget-small.warning .info p b').first().text(lowStock);
 
-        if ($('#totalValueDisplay').length) {
-            $('#totalValueDisplay').text('TZS ' + value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+        const formatMoney = (value) => 'TZS ' + value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+        if ($('#expectedRevenueDisplay').length) {
+            $('#expectedRevenueDisplay').text(formatMoney(revenue));
+        }
+        if ($('#expectedProfitDisplay').length) {
+            $('#expectedProfitDisplay').text(formatMoney(profit));
+        }
+        if ($('#totalRevenueDisplay').length) {
+            $('#totalRevenueDisplay').text(formatMoney(revenue));
+        }
+        if ($('#totalProfitDisplay').length) {
+            $('#totalProfitDisplay').text(formatMoney(profit));
         }
     }
 

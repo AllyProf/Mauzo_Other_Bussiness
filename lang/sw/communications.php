@@ -11,6 +11,9 @@ return [
     'unlimited' => 'Bila kikomo',
     'left' => ':count zimesalia',
     'disabled_on_plan' => 'Imezimwa kwenye kifurushi',
+    'quota_reached' => 'Kiasi cha mwezi cha :channel kimefikia. Ondoa njia hiyo au subiri mwezi ujao.',
+    'sms_quota_reached' => 'Kiasi cha SMS cha mwezi kimefikia. Bado unaweza kutuma kwa barua pepe ikiwa kiasi kimesalia.',
+    'email_quota_reached' => 'Kiasi cha barua pepe cha mwezi kimefikia. Bado unaweza kutuma kwa SMS ikiwa kiasi kimesalia.',
 
     'recipients' => 'Wapokeaji',
     'recipients_count' => 'Wateja :count hai wenye nambari ya simu na/au barua pepe.',

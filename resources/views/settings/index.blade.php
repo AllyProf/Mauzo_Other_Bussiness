@@ -609,6 +609,8 @@
                 'sms_staff_deactivated' => ['Account deactivated', 'Notice when an employee account is suspended.'],
                 'sms_staff_handover_submitted_owner' => ['Handover submitted (owner)', 'Alert owner when staff submits daily reconciliation.'],
                 'sms_staff_handover_verified_staff' => ['Handover verified (staff)', 'Notify staff when owner verifies their reconciliation.'],
+                'sms_staff_stock_received_owner' => ['Stock received (owner)', 'Alert owner when stock is posted from Stock Reception.'],
+                'sms_staff_stock_received_manager' => ['Stock received (manager)', 'Alert store managers when stock is posted from Stock Reception.'],
                 'sms_staff_note_reminder' => ['Note reminders', 'SMS when a note reminder time is reached on Notes & Reminders.'],
               ];
             @endphp
@@ -634,6 +636,8 @@
                   <code>{business}</code>, <code>{staff_name}</code>, <code>{email}</code>, <code>{password}</code>,
                   <code>{submitter}</code>, <code>{verifier}</code>, <code>{owner}</code>, <code>{date}</code>,
                   <code>{amount}</code>, <code>{money_short}</code>, <code>{money_short_note}</code>,
+                  <code>{receiver}</code>, <code>{reference}</code>, <code>{supplier}</code>,
+                  <code>{item_count}</code>, <code>{total_pieces}</code>, <code>{total_cost}</code>, <code>{items_summary}</code>,
                   <code>{title}</code>, <code>{when}</code>, <code>{preview}</code>
                 </p>
                 @php

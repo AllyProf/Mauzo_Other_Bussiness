@@ -18,7 +18,7 @@ class SalesTargetController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeAny(['manage_business_settings']);
+        $this->authorizeAny(['manage_sales_targets', 'manage_business_settings']);
 
         $business = Auth::user()->business;
         $filter = $this->branchBusinessFilterContext($request);
@@ -79,7 +79,7 @@ class SalesTargetController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeAny(['manage_business_settings']);
+        $this->authorizeAny(['manage_sales_targets', 'manage_business_settings']);
 
         $business = Auth::user()->business;
         $this->validateTarget($request, $business);
@@ -93,7 +93,7 @@ class SalesTargetController extends Controller
 
     public function update(Request $request, SalesTarget $salesTarget)
     {
-        $this->authorizeAny(['manage_business_settings']);
+        $this->authorizeAny(['manage_sales_targets', 'manage_business_settings']);
 
         if ($salesTarget->business_id !== Auth::user()->business_id) {
             abort(403);
@@ -111,7 +111,7 @@ class SalesTargetController extends Controller
 
     public function destroy(SalesTarget $salesTarget)
     {
-        $this->authorizeAny(['manage_business_settings']);
+        $this->authorizeAny(['manage_sales_targets', 'manage_business_settings']);
 
         if ($salesTarget->business_id !== Auth::user()->business_id) {
             abort(403);

@@ -433,6 +433,10 @@ class SaleController extends Controller
 
         $method = $business->findPaymentMethod($request->payment_method);
 
+        if ($request->has('split_payments') && is_array($request->split_payments) && count($request->split_payments) > 0) {
+            return $this->processSplitPayments($request, $sale, $balanceDue, $business, $businessId);
+        }
+
         if (($method['type'] ?? '') === 'credit') {
             $request->validate([
                 'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', $businessId)],
@@ -696,6 +700,169 @@ class SaleController extends Controller
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'phone']);
+    }
+
+    private function processSplitPayments(Request $request, Sale $sale, float $balanceDue, $business, int $businessId)
+    {
+        $enabledKeys = $business->enabledPaymentMethodKeys();
+
+        $request->validate([
+            'amount_paid' => 'required|numeric|min:0.01',
+            'payment_method' => ['required', 'string', Rule::in($enabledKeys)],
+            'split_payments' => 'required|array|min:1|max:4',
+            'split_payments.*.payment_method' => ['required', 'string', Rule::in($enabledKeys)],
+            'split_payments.*.amount' => 'required|numeric|min:0.01',
+            'split_payments.*.payment_provider' => 'nullable|string|max:255',
+            'split_payments.*.transaction_reference' => 'nullable|string|max:255',
+        ]);
+
+        $primaryMethod = $business->findPaymentMethod($request->payment_method);
+        if (! $primaryMethod || ($primaryMethod['type'] ?? '') === 'credit') {
+            return redirect()->back()->with('error', 'Split payment cannot use Pay Later (Credit) as a payment line.');
+        }
+
+        $lines = [[
+            'method' => $primaryMethod,
+            'amount' => (float) $request->amount_paid,
+            'payment_provider' => $request->payment_provider,
+            'transaction_reference' => $request->transaction_reference,
+        ]];
+
+        foreach ($request->split_payments as $split) {
+            $splitMethod = $business->findPaymentMethod($split['payment_method'] ?? '');
+            if (! $splitMethod || ($splitMethod['type'] ?? '') === 'credit') {
+                return redirect()->back()->with('error', 'One of the split payment methods is invalid.');
+            }
+
+            $lines[] = [
+                'method' => $splitMethod,
+                'amount' => (float) ($split['amount'] ?? 0),
+                'payment_provider' => $split['payment_provider'] ?? null,
+                'transaction_reference' => $split['transaction_reference'] ?? null,
+            ];
+        }
+
+        foreach ($lines as $line) {
+            if (! empty($line['method']['requires_reference'])) {
+                if (! filled(trim((string) ($line['payment_provider'] ?? ''))) || ! filled(trim((string) ($line['transaction_reference'] ?? '')))) {
+                    return redirect()->back()->with('error', 'Provider and transaction reference are required for '.$line['method']['label'].'.');
+                }
+            }
+        }
+
+        $totalRequested = array_sum(array_map(fn ($line) => $line['amount'], $lines));
+        if ($totalRequested <= 0 || $totalRequested > $balanceDue + 0.001) {
+            return redirect()->back()->with('error', 'Split payment total must be greater than zero and cannot exceed the balance due.');
+        }
+
+        $willBePartial = $totalRequested < $balanceDue - 0.001;
+
+        if ($willBePartial) {
+            $request->validate([
+                'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', $businessId)],
+                'customer_name' => 'required|string|max:255',
+                'customer_phone' => 'required|string|max:50',
+                'due_date' => 'required|date',
+                'notes' => 'required|string|max:1000',
+            ]);
+        }
+
+        if (! empty($primaryMethod['requires_reference'])) {
+            $request->validate([
+                'payment_provider' => 'required|string|max:255',
+                'transaction_reference' => 'required|string|max:255',
+            ]);
+        }
+
+        DB::beginTransaction();
+        try {
+            $amountApplied = 0.0;
+            $lastMethodKey = $primaryMethod['key'];
+
+            foreach ($lines as $line) {
+                $amountToPay = min($line['amount'], $balanceDue - $amountApplied);
+                if ($amountToPay <= 0) {
+                    break;
+                }
+
+                SalePayment::create([
+                    'sale_id' => $sale->id,
+                    'user_id' => Auth::id(),
+                    'amount' => $amountToPay,
+                    'payment_method' => $line['method']['key'],
+                    'payment_provider' => $line['payment_provider'] ?? null,
+                    'transaction_reference' => $line['transaction_reference'] ?? null,
+                ]);
+
+                $amountApplied += $amountToPay;
+                $lastMethodKey = $line['method']['key'];
+            }
+
+            $newAmountPaid = (float) $sale->amount_paid + $amountApplied;
+            $status = $newAmountPaid >= (float) $sale->total_amount ? 'paid' : 'partial';
+
+            $updateData = [
+                'amount_paid' => $newAmountPaid,
+                'payment_status' => $status,
+                'payment_method' => $lastMethodKey,
+            ];
+
+            if ($willBePartial) {
+                $customerFields = $this->resolveCustomerFields($request);
+                $updateData['customer_id'] = $customerFields['customer_id'];
+                $updateData['customer_name'] = $customerFields['customer_name'];
+                $updateData['customer_phone'] = $customerFields['customer_phone'];
+                $updateData['due_date'] = $request->due_date;
+                $updateData['notes'] = $this->appendSaleNote($sale, $request->notes);
+                if ($sale->due_date != $request->due_date) {
+                    $updateData['debt_due_soon_sms_sent_at'] = null;
+                    $updateData['debt_due_soon_second_sms_sent_at'] = null;
+                    $updateData['debt_due_today_sms_sent_at'] = null;
+                    $updateData['debt_overdue_sms_sent_at'] = null;
+                }
+            } elseif ($status === 'paid') {
+                $updateData['due_date'] = null;
+                if ($request->filled('customer_id')) {
+                    $customerFields = $this->resolveCustomerFields($request);
+                    $updateData['customer_id'] = $customerFields['customer_id'];
+                    $updateData['customer_name'] = $customerFields['customer_name'];
+                    $updateData['customer_phone'] = $customerFields['customer_phone'];
+                }
+            }
+
+            $sale->update($updateData);
+
+            $sale->refresh();
+            app(SaleStockService::class)->assertInvoiceStockAvailable(
+                $sale,
+                $sale->shift_id ? Shift::find($sale->shift_id) : null
+            );
+            app(SaleStockService::class)->deductInvoiceIfPaid($sale);
+
+            DB::commit();
+
+            if ($sale->shift_id) {
+                Shift::find($sale->shift_id)?->refreshTotals();
+            }
+
+            $methodsUsed = collect($lines)->map(fn ($line) => $line['method']['label'])->unique()->implode(' + ');
+            $message = 'Split payment of '.money($amountApplied).' recorded ('.$methodsUsed.').';
+
+            if ($status === 'partial') {
+                $remaining = (float) $sale->total_amount - $newAmountPaid;
+                $message .= ' Balance remaining: '.money($remaining).' — due '.$request->due_date.'.';
+            }
+
+            return redirect()->back()->with('success', $message);
+        } catch (\InvalidArgumentException $e) {
+            DB::rollBack();
+
+            return redirect()->back()->with('error', $e->getMessage());
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->back()->with('error', 'Error processing split payment: '.$e->getMessage());
+        }
     }
 
     private function resolveCustomerFields(Request $request): array

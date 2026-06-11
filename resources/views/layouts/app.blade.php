@@ -171,6 +171,13 @@
         .app-sidebar__user-name {
             font-weight: 600 !important;
         }
+        .app-sidebar__user {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            margin-bottom: 0 !important;
+        }
+        .app-menu > li {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        }
         .app-menu__item.active, .app-menu__item:hover {
             border-left-color: #940000 !important;
         }

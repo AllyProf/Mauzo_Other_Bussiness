@@ -1,169 +1,95 @@
 @extends('layouts.app')
 
-@section('title', 'Receiving Details')
+@section('title', __('receivings.show.title').' #'.$receiving->reference_no)
 
 @section('content')
-<div class="app-title">
-  <div>
-    <h1><i class="fa fa-truck"></i> Receiving #{{ $receiving->reference_no }}</h1>
-    <p>Details for stock-in transaction</p>
-  </div>
-  <a href="{{ route('receivings.index') }}" class="btn btn-secondary"><i class="fa fa-arrow-left"></i> Back to History</a>
-  @if(($receiving->status ?? 'completed') !== 'cancelled')
-  <form action="{{ route('receivings.cancel', $receiving->id) }}" method="POST" style="display:inline-block;">
-      @csrf
-      <button type="submit" class="btn btn-danger" onclick="confirmAction(event, 'Cancel Receiving?', 'Stock added by this record will be removed from inventory.')"><i class="fa fa-times"></i> Cancel Receiving</button>
-  </form>
-  @endif
-</div>
+@include('partials.official-report-styles')
 
-<div class="row">
-  <div class="col-md-12">
-    <div class="tile">
-      <div class="row mb-4">
-        <div class="col-6">
-          <h2 class="page-header"><i class="fa fa-file-text-o"></i> Stock-In Record</h2>
+@php
+    $logoUrl = $business->logo_path
+        ? asset('storage/'.$business->logo_path)
+        : 'https://ui-avatars.com/api/?name='.urlencode($business->name).'&background=940000&color=fff&size=120';
+    $stampClass = $isCancelled ? 'stamp-cancelled' : 'stamp-paid';
+    $stampLabel = $isCancelled ? __('receivings.show.stamp_cancelled') : __('receivings.show.stamp_completed');
+@endphp
+
+<div class="official-report">
+    <div class="app-title d-print-none">
+        <div>
+            <h1><i class="fa fa-truck"></i> {{ __('receivings.show.title') }} #{{ $receiving->reference_no }}</h1>
+            <p>{{ __('receivings.show.subtitle') }}</p>
         </div>
-        <div class="col-6">
-          <h5 class="text-right">Date: {{ \Carbon\Carbon::parse($receiving->received_date)->format('M d, Y') }}</h5>
+        <ul class="app-breadcrumb breadcrumb">
+            <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+            <li class="breadcrumb-item"><a href="{{ url('/home') }}">{{ __('menu.dashboard') }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ route('receivings.index') }}">{{ __('pages.receivings.title') }}</a></li>
+            <li class="breadcrumb-item active">#{{ $receiving->reference_no }}</li>
+        </ul>
+        <div class="mt-2">
+            <a href="{{ route('receivings.index') }}" class="btn btn-secondary btn-sm"><i class="fa fa-arrow-left"></i> {{ __('receivings.show.back') }}</a>
+            @if(! $isCancelled)
+            <form action="{{ route('receivings.cancel', $receiving->id) }}" method="POST" class="d-inline">
+                @csrf
+                <button type="submit" class="btn btn-danger btn-sm" onclick="confirmAction(event, @json(__('receivings.show.cancel_confirm_title')), @json(__('receivings.show.cancel_confirm_text')))">
+                    <i class="fa fa-times"></i> {{ __('receivings.show.cancel') }}
+                </button>
+            </form>
+            @endif
         </div>
-      </div>
-      <div class="row invoice-info">
-        <div class="col-4">
-          From Supplier:
-          <address>
-            <strong>{{ $receiving->supplier->name ?? 'N/A' }}</strong><br>
-            {{ $receiving->supplier->address ?? '' }}<br>
-            Phone: {{ $receiving->supplier->phone ?? '' }}<br>
-            Email: {{ $receiving->supplier->email ?? '' }}
-          </address>
-        </div>
-        <div class="col-4">
-          Received By:
-          <address>
-            <strong>{{ $receiving->user->name }}</strong><br>
-            {{ Auth::user()->business->name }}<br>
-            Email: {{ $receiving->user->email }}
-          </address>
-        </div>
-        <div class="col-4">
-          <b>Reference:</b> {{ $receiving->reference_no }}<br>
-          <b>Branch:</b> {{ $receiving->branch->name ?? '—' }}<br>
-          <b>Status:</b>
-          @if(($receiving->status ?? 'completed') === 'cancelled')
-              <span class="badge badge-secondary">{{ __('tables.status.cancelled') }}</span>
-          @else
-              <span class="badge badge-success">{{ __('tables.status.completed') }}</span>
-          @endif
-          <br>
-          <b>Notes:</b> {{ $receiving->notes ?? 'N/A' }}
-        </div>
-      </div>
-      <div class="row mt-4">
-        <div class="col-12 table-responsive">
-          <table class="table table-striped table-bordered">
-            <thead>
-              <tr>
-                <th>{{ __('tables.columns.item_name') }}</th>
-                <th>{{ __('tables.columns.sku') }}</th>
-                <th>Quantity</th>
-                <th>Unit Cost</th>
-                <th>Discount</th>
-                <th>Sell Price</th>
-                <th>Total Cost</th>
-                <th>Expected Revenue</th>
-                <th>Expected Profit</th>
-              </tr>
-            </thead>
-            <tbody>
-              @php
-                $totalNetCost = 0;
-                $totalExpectedRevenue = 0;
-                $totalExpectedProfit = 0;
-              @endphp
-              @foreach($receiving->items as $item)
-                @php
-                  $metrics = $lineMetrics[$item->id] ?? null;
-                  $netCost = $metrics['net_cost'] ?? max(0, ($item->quantity * $item->cost_price) - (float) ($item->discount_amount ?? 0));
-                  $expectedRevenue = $metrics['expected_revenue'] ?? ($item->quantity * $item->selling_price);
-                  $expectedProfit = $metrics['expected_profit'] ?? ($expectedRevenue - $netCost);
-                  $discountAmount = $metrics['discount_amount'] ?? (float) ($item->discount_amount ?? 0);
-                  $totalNetCost += $netCost;
-                  $totalExpectedRevenue += $expectedRevenue;
-                  $totalExpectedProfit += $expectedProfit;
-                @endphp
-                <tr>
-                  <td>{{ $item->item->name }}</td>
-                  <td>{{ $item->item->sku }}</td>
-                  <td>{{ $metrics['quantity_label'] ?? $item->quantity }}</td>
-                  <td>TZS {{ number_format($item->cost_price, 2) }}<br><small class="text-muted">per {{ $metrics['receiving_unit'] ?? 'unit' }}</small></td>
-                  <td>
-                    @if($discountAmount > 0)
-                      @if($item->discount_type === 'percent')
-                        {{ number_format($item->discount_value, 0) }}% (TZS {{ number_format($discountAmount, 2) }})
-                      @else
-                        TZS {{ number_format($discountAmount, 2) }}
-                      @endif
-                    @else
-                      —
-                    @endif
-                  </td>
-                  <td>
-                    @php
-                      $packagingPrices = $metrics['packaging_prices'] ?? [];
-                      $sellPerPiece = $metrics['sell_per_piece'] ?? (float) $item->selling_price;
-                      $singlePieceOnly = count($packagingPrices) === 1
-                        && (($packagingPrices[0]['quantity_per_unit'] ?? 1) === 1);
-                    @endphp
-                    @if(!empty($packagingPrices))
-                      @if($singlePieceOnly)
-                        <strong>TZS {{ number_format($packagingPrices[0]['selling_price'], 2) }}</strong>
-                        <br><small class="text-muted">per {{ $packagingPrices[0]['name'] }}</small>
-                      @else
-                        @foreach($packagingPrices as $pkgPrice)
-                          <div class="small {{ $loop->last ? '' : 'mb-1' }}">
-                            <strong>{{ $pkgPrice['name'] }}</strong>
-                            @if($pkgPrice['quantity_per_unit'] > 1)
-                              ({{ $pkgPrice['quantity_per_unit'] }} pcs):
-                            @else
-                              :
-                            @endif
-                            TZS {{ number_format($pkgPrice['selling_price'], 2) }}
-                          </div>
-                        @endforeach
-                        @if($sellPerPiece > 0 && collect($packagingPrices)->contains(fn ($p) => ($p['quantity_per_unit'] ?? 1) > 1))
-                          <small class="text-muted d-block mt-1">Revenue basis: TZS {{ number_format($sellPerPiece, 2) }} / piece</small>
-                        @endif
-                      @endif
-                    @else
-                      <strong>TZS {{ number_format($item->selling_price, 2) }}</strong>
-                      <br><small class="text-muted">per piece</small>
-                    @endif
-                  </td>
-                  <td>TZS {{ number_format($netCost, 2) }}</td>
-                  <td>TZS {{ number_format($expectedRevenue, 2) }}</td>
-                  <td class="{{ $expectedProfit >= 0 ? 'text-success' : 'text-danger' }}">TZS {{ number_format($expectedProfit, 2) }}</td>
-                </tr>
-              @endforeach
-            </tbody>
-            <tfoot>
-              <tr>
-                <th colspan="6" class="text-right">Totals:</th>
-                <th>TZS {{ number_format($totalNetCost, 2) }}</th>
-                <th>TZS {{ number_format($totalExpectedRevenue, 2) }}</th>
-                <th class="{{ $totalExpectedProfit >= 0 ? 'text-success' : 'text-danger' }}">TZS {{ number_format($totalExpectedProfit, 2) }}</th>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-      <div class="row d-print-none mt-2">
-        <div class="col-12 text-right">
-          <button class="btn btn-primary" onclick="window.print();"><i class="fa fa-print"></i> Print Receipt</button>
-        </div>
-      </div>
     </div>
-  </div>
+
+    <div class="tile report-sheet">
+        <div class="report-header-center">
+            <img src="{{ $logoUrl }}" alt="">
+            <h1>{{ $business->name }}</h1>
+            @if($business->phone)
+            <div class="biz-contact-info">{{ $business->phone }}</div>
+            @endif
+            <div class="operations-title">{{ strtoupper($receiving->branch->name ?? $business->name) }} — {{ __('receivings.show.document_title') }}</div>
+            <hr class="accent-divider">
+        </div>
+
+        <div class="report-stats-grid">
+            <div>
+                <div class="stats-row"><strong>{{ __('receivings.show.reference') }}:</strong> <span>{{ $receiving->reference_no }}</span></div>
+                <div class="stats-row"><strong>{{ __('receivings.show.date') }}:</strong> <span>{{ \Carbon\Carbon::parse($receiving->received_date)->format('d M Y') }}</span></div>
+                <div class="stats-row"><strong>{{ __('tables.columns.supplier') }}:</strong> <span>{{ $receiving->supplier->name ?? '—' }}</span></div>
+            </div>
+            <div>
+                <div class="stats-row"><strong>{{ __('receivings.show.received_by') }}:</strong> <span>{{ $receiving->user->name }}</span></div>
+                <div class="stats-row"><strong>{{ __('receivings.show.status') }}:</strong> <span>{{ $isCancelled ? __('tables.status.cancelled') : __('tables.status.completed') }}</span></div>
+                <div class="stats-row"><strong>{{ __('receivings.show.expected_revenue') }}:</strong> <span class="amount-accent">{{ money($totals['expected_revenue']) }}</span></div>
+                <div class="stats-row"><strong>{{ __('receivings.show.expected_profit') }}:</strong> <span class="{{ ($totals['expected_profit'] ?? 0) >= 0 ? 'text-success' : 'text-danger' }}">{{ money($totals['expected_profit']) }}</span></div>
+            </div>
+        </div>
+
+        <div class="title-area">
+            <div class="official-stamp {{ $stampClass }}">{{ $stampLabel }}</div>
+        </div>
+
+        <div class="text-center mb-4 d-print-none">
+            <button type="button" onclick="window.print()" class="btn btn-print shadow-sm mr-2">
+                <i class="fa fa-print"></i> {{ __('receivings.show.print_pdf') }}
+            </button>
+            <a href="{{ route('receivings.show.export.pdf', $receiving) }}" class="btn btn-outline-danger btn-sm shadow-sm" style="border-color:#940000;color:#940000;">
+                <i class="fa fa-file-pdf-o"></i> {{ __('receivings.show.download_pdf') }}
+            </a>
+        </div>
+
+        <div class="stats-card-title mb-2">{{ __('receivings.show.items_received') }}</div>
+        <div class="table-responsive">
+            @include('receivings.partials.document-items-table')
+        </div>
+
+        @if($receiving->notes)
+        <p class="small text-muted mt-3 mb-0"><strong>{{ __('receivings.show.notes') }}:</strong> {{ $receiving->notes }}</p>
+        @endif
+
+        <div class="mt-4 pt-3 border-top">
+            <small class="font-weight-bold text-uppercase" style="letter-spacing:1px;">{{ __('price_list.staff_signature') }}</small>
+            <div class="mt-3 text-muted">_______________________________________</div>
+        </div>
+    </div>
 </div>
 
 @include('receivings.partials.cancel-prompt-form')

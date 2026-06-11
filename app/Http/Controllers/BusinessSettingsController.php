@@ -157,6 +157,8 @@ class BusinessSettingsController extends Controller
                     'sms_staff_deactivated' => $request->boolean('sms_staff_deactivated'),
                     'sms_staff_handover_submitted_owner' => $request->boolean('sms_staff_handover_submitted_owner'),
                     'sms_staff_handover_verified_staff' => $request->boolean('sms_staff_handover_verified_staff'),
+                    'sms_staff_stock_received_owner' => $request->boolean('sms_staff_stock_received_owner'),
+                    'sms_staff_stock_received_manager' => $request->boolean('sms_staff_stock_received_manager'),
                     'sms_staff_note_reminder' => $request->boolean('sms_staff_note_reminder'),
                     'sms_debt_enabled' => $request->boolean('sms_debt_enabled'),
                     'sms_debt_due_soon_customer' => $request->boolean('sms_debt_due_soon_customer'),

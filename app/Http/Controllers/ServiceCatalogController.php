@@ -20,14 +20,14 @@ class ServiceCatalogController extends Controller
 
     public function register()
     {
-        $this->authorizeAny(['manage_categories', 'view_inventory', 'process_sales', 'add_items']);
+        $this->authorizeAny(['manage_services', 'manage_categories', 'view_inventory', 'process_sales', 'add_items']);
 
         return view('services.register', $this->buildPageContext());
     }
 
     public function categories()
     {
-        $this->authorizeAny(['manage_categories', 'view_inventory', 'process_sales']);
+        $this->authorizeAny(['manage_services', 'manage_categories', 'view_inventory', 'process_sales']);
 
         return view('services.categories', $this->buildPageContext());
     }
@@ -96,7 +96,7 @@ class ServiceCatalogController extends Controller
 
     public function storeCategory(Request $request)
     {
-        $this->authorizeAny(['manage_categories', 'add_items']);
+        $this->authorizeAny(['manage_services', 'manage_categories', 'add_items']);
 
         $business = $this->currentBusinessForWrite();
         $branchId = $this->resolveBranchIdFromRequest($request);
@@ -130,7 +130,7 @@ class ServiceCatalogController extends Controller
 
     public function storeService(Request $request)
     {
-        $this->authorizeAny(['manage_categories', 'add_items', 'edit_items']);
+        $this->authorizeAny(['manage_services', 'manage_categories', 'add_items', 'edit_items']);
 
         $business = $this->currentBusinessForWrite();
         $branchId = $this->resolveBranchIdFromRequest($request) ?? $this->branchFilterId();
@@ -167,7 +167,7 @@ class ServiceCatalogController extends Controller
 
     public function updateService(Request $request, Service $service)
     {
-        $this->authorizeAny(['manage_categories', 'edit_items']);
+        $this->authorizeAny(['manage_services', 'manage_categories', 'edit_items']);
         $this->ensureServiceAccess($service);
 
         $request->validate([
@@ -199,7 +199,7 @@ class ServiceCatalogController extends Controller
 
     public function destroyService(Service $service)
     {
-        $this->authorizeAny(['manage_categories', 'delete_items']);
+        $this->authorizeAny(['manage_services', 'manage_categories', 'delete_items']);
         $this->ensureServiceAccess($service);
         $business = $this->currentBusinessForWrite();
         $service->delete();
@@ -210,7 +210,7 @@ class ServiceCatalogController extends Controller
 
     public function importTemplates(Request $request)
     {
-        $this->authorizeAny(['manage_categories', 'add_items']);
+        $this->authorizeAny(['manage_services', 'manage_categories', 'add_items']);
 
         $business = $this->currentBusinessForWrite();
         $businessId = $business->id;
