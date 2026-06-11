@@ -46,6 +46,24 @@
     .filter-pill[data-filter="low_stock"].active { background-color: #dc3545 !important; border-color: #dc3545 !important; color: white !important; }
     .filter-pill[data-filter-type="business"].active { background-color: #343a40 !important; border-color: #343a40 !important; color: white !important; }
 
+    .category-tabs-wrapper {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    #categoryContainer {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        max-width: 100%;
+    }
+
+    .stock-filters-row > [class*="col-"] {
+        min-width: 0;
+    }
+
     .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; flex: 1; min-width: 0; }
     .business-type-tab {
         cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
@@ -170,7 +188,7 @@
       </div>
 
       <!-- Search & Filters -->
-      <div class="row mb-4">
+      <div class="row mb-4 stock-filters-row">
         <div class="col-md-3">
           <div class="form-group mb-0">
             <label class="control-label font-weight-bold">{{ __('stock.search.label') }}</label>
@@ -185,15 +203,15 @@
         <div class="col-md-9">
           <label class="control-label font-weight-bold">{{ __('stock.filters.quick_categories') }}</label>
           <div class="category-tabs-wrapper">
-            <div class="d-flex align-items-center overflow-auto no-scrollbar py-1" id="categoryContainer">
-              <button class="btn btn-sm btn-outline-primary active filter-pill mr-1 mb-1" data-filter="all" data-filter-type="category">
+            <div id="categoryContainer">
+              <button class="btn btn-sm btn-outline-primary active filter-pill" data-filter="all" data-filter-type="category">
                 {{ __('stock.filters.all_items') }}
               </button>
-              <button class="btn btn-sm btn-outline-danger filter-pill mr-1 mb-1" data-filter="low_stock" data-filter-type="category">
+              <button class="btn btn-sm btn-outline-danger filter-pill" data-filter="low_stock" data-filter-type="category">
                 <i class="fa fa-exclamation-triangle"></i> {{ __('stock.filters.low_stock') }}
               </button>
               @foreach($categoryFilters as $cat)
-                <button class="btn btn-sm btn-outline-primary filter-pill mr-1 mb-1"
+                <button class="btn btn-sm btn-outline-primary filter-pill"
                         data-filter="{{ $cat['slug'] }}"
                         data-filter-type="category"
                         data-business-type="{{ $cat['business_type_key'] }}">
