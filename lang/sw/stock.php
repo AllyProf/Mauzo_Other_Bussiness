@@ -41,7 +41,7 @@ return [
         'pieces' => 'Vipande',
         'pcs' => 'vipande',
         'pcs_each' => 'vipande kila moja',
-        'received_at_branch' => 'Imepokelewa tawini:',
+        'total_on_hand' => 'vipande :count vinapatikana',
         'selling_prices' => 'Bei za Uuzaji',
         'selling_price' => 'Bei ya Uuzaji',
         'not_set' => 'Haijawekwa',

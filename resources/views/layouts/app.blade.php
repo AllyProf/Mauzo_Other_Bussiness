@@ -181,6 +181,20 @@
         .app-menu__item.active, .app-menu__item:hover {
             border-left-color: #940000 !important;
         }
+        .danger-zone-menu > .danger-zone-menu__toggle,
+        .danger-zone-menu > .danger-zone-menu__toggle .app-menu__icon,
+        .danger-zone-menu > .danger-zone-menu__toggle .app-menu__label {
+            color: #ff6b6b !important;
+        }
+        .danger-zone-menu.is-expanded > .danger-zone-menu__toggle,
+        .danger-zone-menu > .danger-zone-menu__toggle:hover {
+            background: rgba(220, 53, 69, 0.18) !important;
+            border-left-color: #dc3545 !important;
+        }
+        .danger-zone-menu__items .treeview-item.active,
+        .danger-zone-menu__items .treeview-item:hover {
+            color: #dc3545 !important;
+        }
         .btn-primary, .bg-primary, .badge-primary { background-color: #940000 !important; border-color: #940000 !important; }
         .text-primary { color: #940000 !important; }
         .sweet-overlay {

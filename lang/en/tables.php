@@ -55,6 +55,7 @@ return [
         'opening_short' => 'Opening Short',
         'short_by' => 'Short By',
         'reason_notes' => 'Reason / Notes',
+        'notes' => 'Notes',
         'reason' => 'Reason',
         'check' => 'Check',
         'period' => 'Period',

@@ -41,7 +41,7 @@ return [
         'pieces' => 'Pieces',
         'pcs' => 'pcs',
         'pcs_each' => 'pcs each',
-        'received_at_branch' => 'Received at branch:',
+        'total_on_hand' => ':count pcs on hand',
         'selling_prices' => 'Selling Prices',
         'selling_price' => 'Selling Price',
         'not_set' => 'Not set',

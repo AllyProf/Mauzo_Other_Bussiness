@@ -54,7 +54,7 @@
               <div class="tile bg-light p-3">
                 <h5 class="mb-3"><i class="fa fa-archive"></i> Unit & Packaging Setup</h5>
                 
-                @include('items.partials.receiving-package-field', ['item' => null])
+                @include('items.partials.receiving-package-field', ['item' => $item])
 
                 @include('items.partials.selling-packages-field', ['item' => $item])
 

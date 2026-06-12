@@ -31,6 +31,8 @@ return [
     'suppliers' => 'Suppliers',
     'receiving' => 'Receiving',
     'stock_losses' => 'Stock Losses',
+    'danger_zone' => 'Danger Zone',
+    'stock_adjustments' => 'Stock Adjustments',
     'sales_shifts' => 'Sales Shifts',
     'live_sales_pulse' => 'Live Sales Pulse',
     'store_pos' => 'Store / POS',

@@ -10,6 +10,7 @@ use App\Models\ItemPackaging;
 use App\Models\ReceivingItem;
 use App\Models\SaleItem;
 use App\Models\StockLossItem;
+use App\Models\StockAdjustmentItem;
 use App\Services\ItemPackagingNormalizer;
 use App\Services\ItemStockDisplayService;
 use App\Services\ItemStockReportService;
@@ -232,6 +233,41 @@ class ItemController extends Controller
                 'details' => ($lossItem->line_notes ?: $loss->reasonLabel())
                     . ($cancelled ? ' — record cancelled, stock restored' : ''),
                 'status' => $cancelled ? 'Cancelled' : 'Recorded',
+                'counts_toward_totals' => ! $cancelled,
+            ]);
+        }
+
+        $adjustmentItems = StockAdjustmentItem::where('item_id', $item->id)
+            ->whereHas('stockAdjustment', fn ($q) => $q->where('business_id', Auth::user()->business_id))
+            ->with(['stockAdjustment.user'])
+            ->get();
+
+        foreach ($adjustmentItems as $adjustmentItem) {
+            $adjustment = $adjustmentItem->stockAdjustment;
+            $cancelled = $adjustment->isCancelled();
+            $delta = (float) $adjustmentItem->adjustment_qty;
+            $sign = $delta >= 0 ? '+' : '';
+
+            $movements->push([
+                'sort_date' => $adjustment->adjustment_date->format('Y-m-d') . ' ' . ($adjustment->created_at?->format('H:i:s') ?? '00:00:00'),
+                'date' => $adjustment->adjustment_date->format('Y-m-d'),
+                'time' => $adjustment->created_at?->format('h:i A') ?? '',
+                'type' => 'stock_adjustment',
+                'type_label' => $cancelled ? 'Stock Adjustment (Cancelled)' : 'Stock Adjustment',
+                'badge' => $cancelled ? 'secondary' : 'danger',
+                'reference' => $adjustment->reference_no,
+                'reference_url' => route('stock-adjustments.show', $adjustment->id),
+                'quantity' => abs($delta),
+                'quantity_label' => $sign . $this->formatQty(abs($delta)),
+                'quantity_unit' => $unitName,
+                'quantity_class' => $cancelled ? 'text-muted' : ($delta >= 0 ? 'text-success' : 'text-danger'),
+                'by' => $adjustment->user->name ?? 'N/A',
+                'party' => $adjustment->reasonLabel(),
+                'party_label' => 'Reason',
+                'details' => $this->formatQty($adjustmentItem->previous_stock) . ' → ' . $this->formatQty($adjustmentItem->new_stock) . ' ' . $unitName
+                    . ($adjustmentItem->line_notes ? ' — ' . $adjustmentItem->line_notes : '')
+                    . ($cancelled ? ' — adjustment cancelled, stock restored' : ''),
+                'status' => $cancelled ? 'Cancelled' : 'Applied',
                 'counts_toward_totals' => ! $cancelled,
             ]);
         }

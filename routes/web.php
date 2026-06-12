@@ -161,6 +161,11 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::post('/stock-losses', [App\Http\Controllers\StockLossController::class, 'store'])->name('stock-losses.store');
     Route::get('/stock-losses/{stockLoss}', [App\Http\Controllers\StockLossController::class, 'show'])->name('stock-losses.show');
     Route::post('/stock-losses/{stockLoss}/cancel', [App\Http\Controllers\StockLossController::class, 'cancel'])->name('stock-losses.cancel');
+
+    Route::get('/stock-adjustments', [App\Http\Controllers\StockAdjustmentController::class, 'index'])->name('stock-adjustments.index');
+    Route::post('/stock-adjustments', [App\Http\Controllers\StockAdjustmentController::class, 'store'])->name('stock-adjustments.store');
+    Route::get('/stock-adjustments/{stockAdjustment}', [App\Http\Controllers\StockAdjustmentController::class, 'show'])->name('stock-adjustments.show');
+    Route::post('/stock-adjustments/{stockAdjustment}/cancel', [App\Http\Controllers\StockAdjustmentController::class, 'cancel'])->name('stock-adjustments.cancel');
     });
 
     Route::middleware('check.business.services')->group(function () {

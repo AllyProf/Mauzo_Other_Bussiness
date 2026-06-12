@@ -260,7 +260,12 @@
 
                 <div class="mb-3">
                   <div class="bg-white border rounded p-2 shadow-xs">
-                    <div class="smallest text-muted text-uppercase font-weight-bold mb-1">{{ __('stock.card.available') }}</div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <div class="smallest text-muted text-uppercase font-weight-bold">{{ __('stock.card.available') }}</div>
+                      <div class="font-weight-bold text-{{ $item['status_color'] }}">
+                        {{ __('stock.card.total_on_hand', ['count' => $item['formatted_quantity']]) }}
+                      </div>
+                    </div>
                     @if(!empty($item['packaging_breakdown']))
                       @foreach($item['packaging_breakdown'] as $pkgStock)
                         <div class="d-flex justify-content-between align-items-center {{ $loop->last ? '' : 'mb-1 pb-1 border-bottom' }}">
@@ -294,11 +299,6 @@
                       <div class="h6 mb-0 font-weight-bold text-{{ $item['status_color'] }}">
                         {{ $item['stock_display'] }}
                       </div>
-                    @endif
-                    @if(!empty($branchFilterId) && ($item['branch_received_pieces'] ?? 0) > 0)
-                    <div class="smallest text-muted mt-1 pt-1 border-top">
-                      {{ __('stock.card.received_at_branch') }} <strong>{{ fmod($item['branch_received_pieces'], 1.0) === 0.0 ? (int) $item['branch_received_pieces'] : number_format($item['branch_received_pieces'], 2) }} {{ __('stock.card.pcs') }}</strong>
-                    </div>
                     @endif
                   </div>
                 </div>

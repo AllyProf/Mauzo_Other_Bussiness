@@ -55,6 +55,7 @@ return [
         'opening_short' => 'Upungufu wa Kufungua',
         'short_by' => 'Upungufu',
         'reason_notes' => 'Sababu / Maelezo',
+        'notes' => 'Maelezo',
         'reason' => 'Sababu',
         'check' => 'Uhakiki',
         'period' => 'Kipindi',

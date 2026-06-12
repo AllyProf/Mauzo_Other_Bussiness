@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Branch;
 use App\Models\Business;
 use App\Models\Item;
-use App\Models\ReceivingItem;
 use App\Models\User;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -65,10 +64,6 @@ class ItemStockReportService
 
         $multiBusiness = count($businessTypes) > 1;
 
-        $branchReceivedPieces = $branchFilterId
-            ? $this->branchReceivedPiecesMap($businessId, $branchFilterId)
-            : collect();
-
         $itemsQuery = Item::where('business_id', $businessId)
             ->where('current_stock', '>', 0)
             ->whereNotNull('category_id')
@@ -85,7 +80,7 @@ class ItemStockReportService
             ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? $user->branch?->name ?? 'Branch')
             : null;
 
-        $stockItems = $items->map(function ($item) use ($lowStockThreshold, $business, $branchFilterId, $branchReceivedPieces) {
+        $stockItems = $items->map(function ($item) use ($lowStockThreshold, $business) {
             $normalizer = app(ItemPackagingNormalizer::class);
             $packagingModels = $item->packagings->sortBy('quantity_per_unit')->values();
             $normalized = $normalizer->normalizeItemPackagings($item, $packagingModels);
@@ -111,7 +106,6 @@ class ItemStockReportService
             $defaultRow = collect($packagingPrices)->firstWhere('quantity_per_unit', 1)
                 ?? $packagingPrices[0];
             $sellingPrice = (float) ($defaultRow['selling_price'] ?? 0);
-            $sellPerPiece = $defaultRow['selling_price'] / max(1, $defaultRow['quantity_per_unit']);
 
             $pkg = $item->packagings->first();
             $unitName = optional($item->receivingPackaging)->name
@@ -120,13 +114,18 @@ class ItemStockReportService
             $costPrice = (float) (optional($pkg)->cost_price ?? 0);
             $pieces = (float) $item->current_stock;
             $stockInfo = app(ItemStockDisplayService::class)->format($item, $pieces);
+
+            [$holdingValue, $costHoldingValue] = $this->expectedValueFromStock(
+                $pieces,
+                $packagingPrices,
+                $item->packagings
+            );
+            $sellPerPiece = $pieces > 0 ? $holdingValue / $pieces : 0;
+            $marginValue = $holdingValue - $costHoldingValue;
+            $marginPercent = $holdingValue > 0 ? ($marginValue / $holdingValue) * 100 : 0;
             $categoryName = $item->category->name;
             $businessTypeKey = $item->category->source_business_type_key ?: 'other';
             $isLow = $pieces <= $lowStockThreshold;
-            $holdingValue = $pieces * $sellPerPiece;
-            $costHoldingValue = $pieces * $costPrice;
-            $marginValue = $holdingValue - $costHoldingValue;
-            $marginPercent = $holdingValue > 0 ? ($marginValue / $holdingValue) * 100 : 0;
 
             return [
                 'id' => $item->id,
@@ -161,9 +160,6 @@ class ItemStockReportService
                 'is_low_stock' => $isLow,
                 'status_color' => $isLow ? 'warning' : 'success',
                 'history_url' => route('items.history', $item->id),
-                'branch_received_pieces' => $branchFilterId
-                    ? (float) ($branchReceivedPieces[$item->id] ?? 0)
-                    : null,
             ];
         });
 
@@ -444,19 +440,6 @@ class ItemStockReportService
         return 'stock-report-'.now()->format('Ymd-His').'.'.$extension;
     }
 
-    private function branchReceivedPiecesMap(int $businessId, int $branchId): Collection
-    {
-        return ReceivingItem::query()
-            ->selectRaw('item_id, SUM('.ReceivingItem::receivedPiecesSql().') as total_pieces')
-            ->join('receivings', 'receiving_items.receiving_id', '=', 'receivings.id')
-            ->join('items', 'receiving_items.item_id', '=', 'items.id')
-            ->where('receivings.business_id', $businessId)
-            ->where('receivings.branch_id', $branchId)
-            ->where('receivings.status', '!=', 'cancelled')
-            ->groupBy('item_id')
-            ->pluck('total_pieces', 'item_id');
-    }
-
     private function styleHeaderBand($sheet, string $range, int $size): void
     {
         $sheet->getStyle($range)->getFont()->setBold(true)->setSize($size)->getColor()->setARGB('FFFFFFFF');
@@ -503,5 +486,65 @@ class ItemStockReportService
         $sheet->getStyle($range)->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
         $sheet->getStyle($range)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB(self::ACCENT);
         $sheet->getStyle($range)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('FF333333');
+    }
+
+    /**
+     * Expected revenue/cost if stock is sold using largest packs first, then loose pieces.
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\ItemPackaging>  $packagingModels
+     * @return array{0: float, 1: float}
+     */
+    private function expectedValueFromStock(float $pieces, array $packagingPrices, Collection $packagingModels): array
+    {
+        if ($pieces <= 0 || $packagingPrices === []) {
+            return [0.0, 0.0];
+        }
+
+        if (count($packagingPrices) <= 1) {
+            $p = $packagingPrices[0];
+            $qpu = max(1, (int) $p['quantity_per_unit']);
+            $model = $packagingModels->first();
+            $sellPerPiece = (float) ($p['selling_price'] ?? 0) / $qpu;
+            $costPerPiece = (float) ($model?->cost_price ?? 0) / max(1, (int) ($model?->quantity_per_unit ?? 1));
+
+            return [
+                round($pieces * $sellPerPiece, 2),
+                round($pieces * $costPerPiece, 2),
+            ];
+        }
+
+        $remaining = $pieces;
+        $revenue = 0.0;
+        $cost = 0.0;
+
+        foreach (collect($packagingPrices)->sortByDesc('quantity_per_unit')->values() as $pkgPrice) {
+            $qpu = max(1, (int) $pkgPrice['quantity_per_unit']);
+            if ($qpu <= 1) {
+                continue;
+            }
+
+            $model = $packagingModels->first(fn ($p) => (int) $p->quantity_per_unit === $qpu);
+            $count = (int) floor($remaining / $qpu);
+            if ($count <= 0) {
+                continue;
+            }
+
+            $revenue += $count * (float) ($pkgPrice['selling_price'] ?? 0);
+            $cost += $count * (float) ($model?->cost_price ?? 0);
+            $remaining -= $count * $qpu;
+        }
+
+        if ($remaining > 0) {
+            $pieceRow = collect($packagingPrices)->firstWhere('quantity_per_unit', 1) ?? $packagingPrices[0];
+            $pieceQpu = max(1, (int) ($pieceRow['quantity_per_unit'] ?? 1));
+            $pieceModel = $packagingModels->first(fn ($p) => (int) $p->quantity_per_unit === 1)
+                ?? $packagingModels->first();
+            $sellPerPiece = (float) ($pieceRow['selling_price'] ?? 0) / $pieceQpu;
+            $costPerPiece = (float) ($pieceModel?->cost_price ?? 0) / max(1, (int) ($pieceModel?->quantity_per_unit ?? 1));
+            $revenue += $remaining * $sellPerPiece;
+            $cost += $remaining * $costPerPiece;
+        }
+
+        return [round($revenue, 2), round($cost, 2)];
     }
 }

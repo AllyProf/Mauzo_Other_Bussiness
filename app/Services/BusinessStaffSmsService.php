@@ -102,34 +102,79 @@ class BusinessStaffSmsService
         );
     }
 
-    public function notifyOwnerHandoverSubmitted(Business $business, User $submitter, DayClosing $closing): bool
+    public function notifyHandoverSubmitted(Business $business, User $submitter, DayClosing $closing): void
     {
-        $owner = $business->resolveOwner();
-        $phone = filled($owner?->phone) ? $owner->phone : $business->phone;
-        $recipientName = $owner?->name ?? $business->contact_person ?? $business->name;
+        $closing->loadMissing(['shift']);
+        $vars = $this->buildHandoverSubmittedVars($business, $submitter, $closing);
+        $notifiedPhones = [];
 
-        if (! filled($phone)) {
-            return false;
+        $owner = $business->resolveOwner();
+        $ownerPhone = filled($owner?->phone) ? $owner->phone : $business->phone;
+        $ownerName = $owner?->name ?? $business->contact_person ?? $business->name;
+
+        if (filled($ownerPhone)) {
+            $message = $this->renderAutomationTemplate($business, 'sms_staff_template_handover_submitted_owner', array_merge($vars, [
+                '{owner}' => $ownerName,
+            ]));
+
+            if ($this->sendInternal(
+                $business,
+                $submitter,
+                $ownerPhone,
+                $message,
+                'handover_submitted_owner',
+                'handover_submitted_owner',
+                $ownerName,
+                $owner?->id,
+            )) {
+                $notifiedPhones[] = $this->normalizePhoneKey($ownerPhone);
+            }
         }
 
-        $dateLabel = $closing->closing_date->format('d M Y');
-        $amount = number_format((float) ($closing->net_amount ?? 0), 0);
+        foreach ($business->resolveManagers() as $manager) {
+            if ($manager->id === $submitter->id) {
+                continue;
+            }
 
-        return $this->sendInternal(
-            $business,
-            $submitter,
-            $phone,
-            $this->renderAutomationTemplate($business, 'sms_staff_template_handover_submitted_owner', [
-                '{submitter}' => $submitter->name,
-                '{owner}' => $recipientName,
-                '{date}' => $dateLabel,
-                '{amount}' => $amount,
-            ]),
-            'handover_submitted_owner',
-            'handover_submitted_owner',
-            $recipientName,
-            $owner?->id,
-        );
+            $phone = $this->resolveUserPhone($business, $manager);
+            if (! filled($phone)) {
+                continue;
+            }
+
+            $phoneKey = $this->normalizePhoneKey($phone);
+            if (in_array($phoneKey, $notifiedPhones, true)) {
+                continue;
+            }
+
+            $message = $this->renderAutomationTemplate($business, 'sms_staff_template_handover_submitted_manager', array_merge($vars, [
+                '{manager}' => $manager->name,
+            ]));
+
+            $sent = filled($manager->phone)
+                ? $this->send($business, $submitter, $manager, $message, 'handover_submitted_manager', 'handover_submitted_manager')
+                : $this->sendInternal(
+                    $business,
+                    $submitter,
+                    $phone,
+                    $message,
+                    'handover_submitted_manager',
+                    'handover_submitted_manager',
+                    $manager->name,
+                    $manager->id,
+                );
+
+            if ($sent) {
+                $notifiedPhones[] = $phoneKey;
+            }
+        }
+    }
+
+    /** @deprecated Use notifyHandoverSubmitted() */
+    public function notifyOwnerHandoverSubmitted(Business $business, User $submitter, DayClosing $closing): bool
+    {
+        $this->notifyHandoverSubmitted($business, $submitter, $closing);
+
+        return true;
     }
 
     public function notifyStockReceived(Receiving $receiving): void
@@ -519,6 +564,77 @@ class BusinessStaffSmsService
     /**
      * @return array<string, string>
      */
+    /**
+     * @return array<string, string>
+     */
+    public function buildHandoverSubmittedVars(Business $business, User $submitter, DayClosing $closing): array
+    {
+        $closing->loadMissing(['business', 'shift']);
+        $finance = app(OwnerDailyReportService::class)->buildShiftHandoverReviewData($closing);
+
+        $dateLabel = $closing->closing_date->format('d M Y');
+        $salesCount = (int) ($closing->sales_count ?? 0);
+        $grossSales = number_format((float) ($closing->gross_sales ?? 0), 0);
+        $netAmount = number_format((float) ($closing->net_amount ?? 0), 0);
+        $profit = number_format((float) ($finance['net_profit'] ?? 0), 0);
+        $circulationReturn = number_format(
+            (float) ($finance['circulation_refill'] ?? $finance['closing_circulation'] ?? 0),
+            0
+        );
+        $cashReceived = number_format((float) ($closing->cash_received ?? 0), 0);
+        $mobileReceived = number_format((float) ($closing->mobile_received ?? 0), 0);
+        $bankReceived = number_format((float) ($closing->bank_received ?? 0), 0);
+        $expenses = number_format((float) ($closing->total_expenses ?? 0), 0);
+        $cancelledSales = (int) ($closing->cancelled_sales ?? 0);
+
+        $paymentParts = [];
+        if ((float) ($closing->cash_received ?? 0) > 0) {
+            $paymentParts[] = 'Cash TZS '.$cashReceived;
+        }
+        if ((float) ($closing->mobile_received ?? 0) > 0) {
+            $paymentParts[] = 'Mobile TZS '.$mobileReceived;
+        }
+        if ((float) ($closing->bank_received ?? 0) > 0) {
+            $paymentParts[] = 'Bank TZS '.$bankReceived;
+        }
+
+        $paymentSummary = $paymentParts !== []
+            ? implode(', ', $paymentParts)
+            : '';
+
+        $expenseNote = (float) ($closing->total_expenses ?? 0) > 0
+            ? ' Expenses TZS '.$expenses.'.'
+            : '';
+
+        $cancelledNote = $cancelledSales > 0
+            ? ' '.$cancelledSales.' cancelled.'
+            : '';
+
+        $paymentSuffix = $paymentSummary !== ''
+            ? ' '.$paymentSummary.'.'
+            : '';
+
+        return [
+            '{submitter}' => $submitter->name,
+            '{date}' => $dateLabel,
+            '{sales_count}' => (string) $salesCount,
+            '{gross_sales}' => $grossSales,
+            '{net_amount}' => $netAmount,
+            '{amount}' => $netAmount,
+            '{profit}' => $profit,
+            '{circulation_return}' => $circulationReturn,
+            '{cash_received}' => $cashReceived,
+            '{mobile_received}' => $mobileReceived,
+            '{bank_received}' => $bankReceived,
+            '{expenses}' => $expenses,
+            '{payment_summary}' => $paymentSummary,
+            '{payment_suffix}' => $paymentSuffix,
+            '{expense_note}' => $expenseNote,
+            '{cancelled_sales}' => (string) $cancelledSales,
+            '{cancelled_note}' => $cancelledNote,
+        ];
+    }
+
     private function buildStockReceivedVars(Receiving $receiving): array
     {
         $business = $receiving->business;

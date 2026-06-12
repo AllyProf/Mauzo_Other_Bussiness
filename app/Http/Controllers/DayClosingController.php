@@ -381,12 +381,12 @@ class DayClosingController extends Controller
 
             $closing->load(['business', 'user']);
             try {
-                $this->staffSms->notifyOwnerHandoverSubmitted(
+                $this->staffSms->notifyHandoverSubmitted(
                     $closing->business ?? $this->currentBusiness(),
                     Auth::user(),
                     $closing
                 );
-                $this->staffMail->notifyOwnerHandoverSubmitted(
+                $this->staffMail->notifyHandoverSubmitted(
                     $closing->business ?? $this->currentBusiness(),
                     Auth::user(),
                     $closing

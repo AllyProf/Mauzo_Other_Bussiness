@@ -108,32 +108,70 @@ class BusinessStaffMailService
         );
     }
 
-    public function notifyOwnerHandoverSubmitted(Business $business, User $submitter, DayClosing $closing): bool
+    public function notifyHandoverSubmitted(Business $business, User $submitter, DayClosing $closing): void
     {
-        $owner = $business->resolveOwner();
-        $email = $this->resolveUserEmail($owner, $business);
+        $vars = $this->staffSms->buildHandoverSubmittedVars($business, $submitter, $closing);
+        $notifiedEmails = [];
 
-        if (! filled($email)) {
-            return false;
+        $owner = $business->resolveOwner();
+        $ownerEmail = $this->resolveUserEmail($owner, $business);
+        $ownerName = $owner?->name ?? $business->contact_person ?? $business->name;
+
+        if (filled($ownerEmail) && $this->handoverSubmittedNotifyEnabled($business, 'owner')) {
+            $sent = $this->sendHandoverSubmittedEmail(
+                $business,
+                $ownerEmail,
+                $ownerName,
+                $this->staffSms->buildAutomationMessage($business, 'sms_staff_template_handover_submitted_owner', array_merge($vars, [
+                    '{owner}' => $ownerName,
+                ])),
+            );
+
+            if ($sent) {
+                $notifiedEmails[] = strtolower($ownerEmail);
+            }
         }
 
-        $dateLabel = $closing->closing_date->format('d M Y');
-        $amount = number_format((float) ($closing->net_amount ?? 0), 0);
-        $recipientName = $owner?->name ?? $business->contact_person ?? $business->name;
+        foreach ($business->resolveManagers() as $manager) {
+            if ($manager->id === $submitter->id) {
+                continue;
+            }
 
-        return $this->sendRaw(
-            $business,
-            $email,
-            $recipientName,
-            'Daily Reconciliation Submitted',
-            $this->staffSms->buildAutomationMessage($business, 'sms_staff_template_handover_submitted_owner', [
-                '{submitter}' => $submitter->name,
-                '{owner}' => $recipientName,
-                '{date}' => $dateLabel,
-                '{amount}' => $amount,
-            ]),
-            'handover_submitted_owner',
-        );
+            $email = $this->resolveUserEmail($manager, $business);
+            if (! filled($email)) {
+                continue;
+            }
+
+            $emailKey = strtolower($email);
+            if (in_array($emailKey, $notifiedEmails, true)) {
+                continue;
+            }
+
+            if (! $this->handoverSubmittedNotifyEnabled($business, 'manager')) {
+                continue;
+            }
+
+            $sent = $this->sendHandoverSubmittedEmail(
+                $business,
+                $email,
+                $manager->name,
+                $this->staffSms->buildAutomationMessage($business, 'sms_staff_template_handover_submitted_manager', array_merge($vars, [
+                    '{manager}' => $manager->name,
+                ])),
+            );
+
+            if ($sent) {
+                $notifiedEmails[] = $emailKey;
+            }
+        }
+    }
+
+    /** @deprecated Use notifyHandoverSubmitted() */
+    public function notifyOwnerHandoverSubmitted(Business $business, User $submitter, DayClosing $closing): bool
+    {
+        $this->notifyHandoverSubmitted($business, $submitter, $closing);
+
+        return true;
     }
 
     public function notifyStaffHandoverVerified(Business $business, User $verifier, DayClosing $closing): bool
@@ -322,6 +360,44 @@ class BusinessStaffMailService
         }
 
         return $this->sendStaffMessage($business, $staff, $subject, $message);
+    }
+
+    private function handoverSubmittedNotifyEnabled(Business $business, string $role): bool
+    {
+        if (! $this->isEnabled($business)) {
+            return false;
+        }
+
+        return (bool) ($business->automationSettings()['sms_staff_handover_submitted_'.$role] ?? true);
+    }
+
+    private function sendHandoverSubmittedEmail(
+        Business $business,
+        string $email,
+        string $recipientName,
+        string $message,
+    ): bool {
+        if (blank($email)) {
+            return false;
+        }
+
+        try {
+            Mail::to($email)->send(new StaffNotificationMail(
+                $business,
+                $business->name.' — Shift Closed — Sales Summary',
+                $message,
+                $recipientName,
+            ));
+
+            return true;
+        } catch (\Throwable $exception) {
+            Log::warning('Handover summary email failed', [
+                'business_id' => $business->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     private function sendRaw(

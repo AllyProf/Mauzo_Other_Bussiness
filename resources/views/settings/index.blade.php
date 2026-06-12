@@ -607,7 +607,8 @@
                 'sms_staff_password_reset' => ['Password reset', 'New password when you reset or change a staff login password.'],
                 'sms_staff_activated' => ['Account activated', 'Notice when a deactivated employee is turned back on.'],
                 'sms_staff_deactivated' => ['Account deactivated', 'Notice when an employee account is suspended.'],
-                'sms_staff_handover_submitted_owner' => ['Handover submitted (owner)', 'Alert owner when staff submits daily reconciliation.'],
+                'sms_staff_handover_submitted_owner' => ['Shift closed — sales summary (owner)', 'SMS & email owner when staff closes a shift and submits handover.'],
+                'sms_staff_handover_submitted_manager' => ['Shift closed — sales summary (manager)', 'SMS & email store managers when staff closes a shift and submits handover.'],
                 'sms_staff_handover_verified_staff' => ['Handover verified (staff)', 'Notify staff when owner verifies their reconciliation.'],
                 'sms_staff_stock_received_owner' => ['Stock received (owner)', 'Alert owner when stock is posted from Stock Reception.'],
                 'sms_staff_stock_received_manager' => ['Stock received (manager)', 'Alert store managers when stock is posted from Stock Reception.'],
@@ -634,8 +635,12 @@
                 <p class="small text-muted mb-3">
                   Edit the text sent for each staff notification. Common placeholders:
                   <code>{business}</code>, <code>{staff_name}</code>, <code>{email}</code>, <code>{password}</code>,
-                  <code>{submitter}</code>, <code>{verifier}</code>, <code>{owner}</code>, <code>{date}</code>,
-                  <code>{amount}</code>, <code>{money_short}</code>, <code>{money_short_note}</code>,
+                  <code>{submitter}</code>, <code>{verifier}</code>, <code>{owner}</code>, <code>{manager}</code>, <code>{date}</code>,
+                  <code>{sales_count}</code>, <code>{gross_sales}</code>, <code>{net_amount}</code>, <code>{amount}</code>,
+                  <code>{profit}</code>, <code>{circulation_return}</code>,
+                  <code>{cash_received}</code>, <code>{mobile_received}</code>, <code>{bank_received}</code>,
+                  <code>{expenses}</code>, <code>{payment_summary}</code>, <code>{payment_suffix}</code>, <code>{expense_note}</code>, <code>{cancelled_note}</code>,
+                  <code>{money_short}</code>, <code>{money_short_note}</code>,
                   <code>{receiver}</code>, <code>{reference}</code>, <code>{supplier}</code>,
                   <code>{item_count}</code>, <code>{total_pieces}</code>, <code>{total_cost}</code>, <code>{items_summary}</code>,
                   <code>{title}</code>, <code>{when}</code>, <code>{preview}</code>

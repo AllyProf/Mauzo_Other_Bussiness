@@ -298,6 +298,20 @@
         @can('manage_support')
         <li><a class="app-menu__item {{ Request::is('support*') ? 'active' : '' }}" href="{{ route('tickets.index') }}" data-tour="menu-support"><i class="app-menu__icon fa fa-life-ring"></i><span class="app-menu__label">{{ __('menu.my_support') }}</span></a></li>
         @endcan
+        @canany(['adjust_stock', 'view_stock_adjustments'])
+        @if(business_retail_enabled())
+        <li class="treeview danger-zone-menu {{ Request::is('stock-adjustments*') ? 'is-expanded' : '' }}">
+            <a class="app-menu__item danger-zone-menu__toggle" href="#" data-toggle="treeview" data-tour="menu-danger-zone">
+                <i class="app-menu__icon fa fa-exclamation-triangle"></i>
+                <span class="app-menu__label">{{ __('menu.danger_zone') }}</span>
+                <i class="treeview-indicator fa fa-angle-right"></i>
+            </a>
+            <ul class="treeview-menu danger-zone-menu__items" style="padding-left: 20px;">
+                <li><a class="treeview-item {{ Request::is('stock-adjustments*') ? 'active' : '' }}" href="{{ route('stock-adjustments.index') }}"><i class="icon fa fa-wrench"></i> {{ __('menu.stock_adjustments') }}</a></li>
+            </ul>
+        </li>
+        @endif
+        @endcanany
     @endif
   </ul>
 </aside>

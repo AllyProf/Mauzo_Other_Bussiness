@@ -31,6 +31,8 @@ return [
     'suppliers' => 'Wasambazaji',
     'receiving' => 'Kupokea Stock',
     'stock_losses' => 'Hasara za Stock',
+    'danger_zone' => 'Eneo Hatari',
+    'stock_adjustments' => 'Marekebisho ya Stoki',
     'sales_shifts' => 'Vipindi vya Mauzo',
     'live_sales_pulse' => 'Mauzo ya Moja kwa Moja',
     'store_pos' => 'Duka / POS',

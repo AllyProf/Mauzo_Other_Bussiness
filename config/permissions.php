@@ -18,6 +18,10 @@ return [
             'record_stock_loss' => 'Record lost / damaged / destroyed stock',
             'cancel_stock_loss' => 'Cancel stock loss records',
         ],
+        'Danger Zone' => [
+            'adjust_stock' => 'Manually adjust inventory stock levels',
+            'view_stock_adjustments' => 'View stock adjustment history',
+        ],
         'Sales Shifts' => [
             'open_shift' => 'Open & close own sales shift',
             'view_all_shifts' => 'View all staff shifts',
