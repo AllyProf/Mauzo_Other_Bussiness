@@ -56,27 +56,13 @@
                 
                 @include('items.partials.receiving-package-field', ['item' => $item])
 
-                @include('items.partials.selling-packages-field', ['item' => $item])
+                @include('items.partials.selling-packages-field', ['item' => $item, 'editablePrices' => true])
 
-                <div class="row">
-                  <div class="col-md-6">
-                    <div class="form-group mb-0">
-                      <label class="control-label">Buying Price (TZS)</label>
-                      <input class="form-control @error('cost_price') is-invalid @enderror" type="number" name="cost_price" value="{{ old('cost_price', $primaryPackaging->cost_price ?? 0) }}" min="0" step="1">
-                      @error('cost_price') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="form-group mb-0">
-                      <label class="control-label">Selling Price (TZS)</label>
-                      <input class="form-control @error('selling_price') is-invalid @enderror" type="number" name="selling_price" value="{{ old('selling_price', $primaryPackaging->selling_price ?? 0) }}" min="0" step="1">
-                      @error('selling_price') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    </div>
-                  </div>
+                <div class="form-group mb-0 mt-2">
+                  <label class="control-label">Buying Price (TZS)</label>
+                  <input class="form-control @error('cost_price') is-invalid @enderror" type="number" name="cost_price" value="{{ (int) round((float) old('cost_price', $primaryPackaging->cost_price ?? 0)) }}" min="0" step="1">
+                  @error('cost_price') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
-                <small class="text-muted d-block mt-2">
-                  Update prices here when you need to raise or lower them without receiving new stock. POS uses the selling price immediately.
-                </small>
               </div>
             </div>
           </div>

@@ -33,6 +33,30 @@
   .items-page .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
   .items-page .business-type-tab i { margin-right: 5px; }
 
+  .items-page .category-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    width: 100%;
+    margin-top: 10px;
+  }
+  .items-page .category-tab {
+    cursor: pointer;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: #fff;
+    color: #495057;
+    font-size: 11px;
+    white-space: nowrap;
+    border: 1px solid #dee2e6;
+    font-weight: 600;
+    transition: all .15s ease;
+    line-height: 1.5;
+    flex-shrink: 0;
+  }
+  .items-page .category-tab.active { background: #940000; color: #fff; border-color: #940000; }
+  .items-page .category-tab:hover:not(.active) { border-color: #940000; color: #940000; }
+
   .items-page .items-name-cell strong {
     display: block;
     line-height: 1.35;
@@ -214,6 +238,23 @@
           @else
           <h3 class="title mb-0">All Items</h3>
           @endif
+          @if(($categoryFilters ?? collect())->isNotEmpty() || ($hasUncategorizedItems ?? false))
+          <div class="category-tabs" id="categoryTabs">
+            <button type="button" class="category-tab active" data-category="all">All Categories</button>
+            @foreach($categoryFilters as $cat)
+            <button type="button" class="category-tab"
+                    data-category="{{ $cat['slug'] }}"
+                    data-business-type="{{ $cat['business_type_key'] }}">
+              {{ $cat['name'] }}
+            </button>
+            @endforeach
+            @if($hasUncategorizedItems ?? false)
+            <button type="button" class="category-tab" data-category="uncategorized" data-business-type="other">
+              Uncategorized
+            </button>
+            @endif
+          </div>
+          @endif
         </div>
         <div class="d-flex align-items-center items-toolbar-side">
             @php
@@ -260,8 +301,9 @@
             @foreach($items as $item)
                 @php
                   $businessTypeKey = $item->category?->source_business_type_key ?: 'other';
+                  $categorySlug = $item->category ? \Illuminate\Support\Str::slug($item->category->name) : 'uncategorized';
                 @endphp
-                <tr data-business-type="{{ $businessTypeKey }}">
+                <tr data-business-type="{{ $businessTypeKey }}" data-category="{{ $categorySlug }}">
                     <td>
                       <div class="items-name-cell">
                         <strong>{{ $item->name }}</strong>
@@ -325,7 +367,9 @@
     <script type="text/javascript">
     $(function () {
         const hasMultipleBusinessTypes = @json($multiBusiness ?? false);
+        const hasCategoryTabs = $('#categoryTabs').length > 0;
         let activeBusinessType = 'all';
+        let activeCategory = 'all';
         const isMobile = window.matchMedia('(max-width: 767.98px)').matches;
 
         const table = $('#sampleTable').DataTable({
@@ -334,25 +378,81 @@
             lengthMenu: isMobile ? [[10, 25, 50], [10, 25, 50]] : [[10, 25, 50, 100], [10, 25, 50, 100]],
         });
 
-        if (hasMultipleBusinessTypes) {
+        function refreshCategoryTabVisibility() {
+            if (!hasCategoryTabs) {
+                return;
+            }
+
+            $('#categoryTabs .category-tab').each(function () {
+                const $tab = $(this);
+                const tabCategory = String($tab.attr('data-category') || 'all');
+                const tabBusinessType = String($tab.attr('data-business-type') || '');
+
+                if (tabCategory === 'all') {
+                    $tab.show();
+                    return;
+                }
+
+                if (activeBusinessType === 'all' || !tabBusinessType || tabBusinessType === activeBusinessType) {
+                    $tab.show();
+                } else {
+                    $tab.hide();
+                }
+            });
+
+            const $active = $('#categoryTabs .category-tab.active:visible');
+            if (!$active.length) {
+                $('#categoryTabs .category-tab[data-category="all"]').addClass('active');
+                activeCategory = 'all';
+            }
+        }
+
+        if (hasMultipleBusinessTypes || hasCategoryTabs) {
             $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
                 if (settings.nTable.id !== 'sampleTable') {
                     return true;
                 }
 
-                if (activeBusinessType === 'all') {
-                    return true;
+                const row = table.row(dataIndex).node();
+                const $row = $(row);
+
+                if (hasMultipleBusinessTypes && activeBusinessType !== 'all') {
+                    if (String($row.attr('data-business-type')) !== String(activeBusinessType)) {
+                        return false;
+                    }
                 }
 
-                const row = table.row(dataIndex).node();
+                if (hasCategoryTabs && activeCategory !== 'all') {
+                    if (String($row.attr('data-category')) !== String(activeCategory)) {
+                        return false;
+                    }
+                }
 
-                return String($(row).attr('data-business-type')) === String(activeBusinessType);
+                return true;
             });
+        }
 
+        if (hasMultipleBusinessTypes) {
             $('#businessTypeTabs .business-type-tab').on('click', function () {
                 $('#businessTypeTabs .business-type-tab').removeClass('active');
                 $(this).addClass('active');
                 activeBusinessType = String($(this).attr('data-business-type') || 'all');
+                refreshCategoryTabVisibility();
+                table.draw();
+            });
+        }
+
+        if (hasCategoryTabs) {
+            refreshCategoryTabVisibility();
+
+            $('#categoryTabs .category-tab').on('click', function () {
+                if (!$(this).is(':visible')) {
+                    return;
+                }
+
+                $('#categoryTabs .category-tab').removeClass('active');
+                $(this).addClass('active');
+                activeCategory = String($(this).attr('data-category') || 'all');
                 table.draw();
             });
         }

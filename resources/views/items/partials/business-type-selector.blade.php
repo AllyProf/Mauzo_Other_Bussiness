@@ -64,28 +64,56 @@
     }
   }
 
-  function updateSellingPackageTemplate(typeKey) {
-    const $template = $('#sellingPackageRowTemplate');
-    if (!$template.length) {
-      return;
-    }
+  function sellingPackageRowHtml(typeKey) {
+    const editablePrices = String($('#sellingPackagesWrap').data('editable-prices') || '') === '1';
+    const unitCol = editablePrices ? 'col-4' : 'col-7';
+    const qtyCol = editablePrices ? 'col-3' : 'col-4';
+    const priceColHtml = editablePrices
+      ? '<div class="col-4 sell-pkg-price mb-2 mb-md-0">' +
+          '<label class="control-label small d-md-none mb-1">Selling price (TZS)</label>' +
+          '<span class="small text-muted d-none d-md-block mb-1">Selling price (TZS)</span>' +
+          '<input type="number" class="form-control sell-pkg-selling-price" value="0" min="0" step="1" placeholder="0">' +
+        '</div>'
+      : '';
 
-    $template.html(
+    return (
       '<div class="selling-package-row mt-2 pt-2" style="border-top:1px dashed #dee2e6;">' +
         '<div class="row align-items-end">' +
-          '<div class="col-7 mb-2 mb-md-0">' +
+          '<div class="' + unitCol + ' mb-2 mb-md-0">' +
+            '<label class="control-label small d-md-none mb-1">Sale unit</label>' +
             '<select class="form-control sell-pkg-select" required>' + packagingOptionsHtml(typeKey) + '</select>' +
           '</div>' +
-          '<div class="col-4 sell-pkg-contains mb-2 mb-md-0">' +
-            '<span class="small text-muted sell-pkg-qty-label d-block mb-1">Pieces per sale unit</span>' +
+          '<div class="' + qtyCol + ' sell-pkg-contains mb-2 mb-md-0">' +
+            '<label class="control-label small sell-pkg-qty-label d-md-none mb-1">Pieces per sale unit</label>' +
+            '<span class="small text-muted sell-pkg-qty-label d-none d-md-block mb-1">Pieces per sale unit</span>' +
             '<input type="number" class="form-control sell-pkg-qty text-center" value="1" min="1" step="1" placeholder="e.g. 12">' +
           '</div>' +
+          priceColHtml +
           '<div class="col-1 text-right pl-0 sell-pkg-remove">' +
             '<button type="button" class="btn btn-sm btn-link text-danger p-0 remove-selling-package" title="Remove"><i class="fa fa-times"></i></button>' +
           '</div>' +
         '</div>' +
       '</div>'
     );
+  }
+
+  function updateSellingPackageTemplate(typeKey) {
+    const tpl = document.getElementById('sellingPackageRowTemplate');
+    if (!tpl) {
+      return;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.innerHTML = sellingPackageRowHtml(typeKey).trim();
+    const row = wrap.firstElementChild;
+    if (!row) {
+      return;
+    }
+
+    while (tpl.content.firstChild) {
+      tpl.content.removeChild(tpl.content.firstChild);
+    }
+    tpl.content.appendChild(row);
   }
 
   window.filterItemFormByBusinessType = function (typeKey) {

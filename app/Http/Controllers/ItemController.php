@@ -16,6 +16,7 @@ use App\Services\ItemStockDisplayService;
 use App\Services\ItemStockReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class ItemController extends Controller
 {
@@ -68,6 +69,19 @@ class ItemController extends Controller
 
         $items = $itemsQuery->orderBy('name')->get();
 
+        $categoryFilters = $items
+            ->filter(fn (Item $item) => $item->category)
+            ->unique(fn (Item $item) => Str::slug($item->category->name).'|'.($item->category->source_business_type_key ?: 'other'))
+            ->map(fn (Item $item) => [
+                'name' => $item->category->name,
+                'slug' => Str::slug($item->category->name),
+                'business_type_key' => $item->category->source_business_type_key ?: 'other',
+            ])
+            ->sortBy('name')
+            ->values();
+
+        $hasUncategorizedItems = $items->contains(fn (Item $item) => ! $item->category_id);
+
         return view('items.index', compact(
             'items',
             'business',
@@ -76,6 +90,8 @@ class ItemController extends Controller
             'activeBranchName',
             'branchFilterId',
             'viewingAllBranches',
+            'categoryFilters',
+            'hasUncategorizedItems',
         ));
     }
 
@@ -381,8 +397,8 @@ class ItemController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('edit_items');
         if ($item->business_id != Auth::user()->business_id) abort(403);
 
-        $item->load(['category', 'packagings']);
-        $primaryPackaging = $item->packagings->first();
+        $item->load(['category', 'packagings.packagingType']);
+        $primaryPackaging = $item->packagings->sortBy('quantity_per_unit')->first();
         $formContext = $this->itemFormContext($this->currentBusiness() ?? Auth::user()->business, $item);
 
         return view('items.edit', array_merge($formContext, compact('item', 'primaryPackaging')));
@@ -406,8 +422,8 @@ class ItemController extends Controller
             'selling_packagings' => 'required|array|min:1',
             'selling_packagings.*.packaging_id' => 'required|exists:packagings,id',
             'selling_packagings.*.quantity_per_unit' => 'required|integer|min:1',
+            'selling_packagings.*.selling_price' => 'nullable|numeric|min:0',
             'cost_price' => 'nullable|numeric|min:0',
-            'selling_price' => 'nullable|numeric|min:0',
         ];
 
         if (count($typeKeys) > 1) {
@@ -447,7 +463,6 @@ class ItemController extends Controller
 
         $this->syncSellingPackagings($item, $sellingRows, [
             'cost_price' => $request->input('cost_price'),
-            'selling_price' => $request->input('selling_price'),
         ]);
 
         return redirect()->route('items.show', $item->id)->with('success', 'Item updated successfully.');
@@ -478,9 +493,14 @@ class ItemController extends Controller
             $cost = $isFirst && array_key_exists('cost_price', $firstPrices) && $firstPrices['cost_price'] !== null
                 ? (float) $firstPrices['cost_price']
                 : (float) ($previous?->cost_price ?? 0);
-            $sell = $isFirst && array_key_exists('selling_price', $firstPrices) && $firstPrices['selling_price'] !== null
-                ? (float) $firstPrices['selling_price']
-                : (float) ($previous?->selling_price ?? 0);
+
+            if (array_key_exists('selling_price', $row) && $row['selling_price'] !== null && $row['selling_price'] !== '') {
+                $sell = (float) $row['selling_price'];
+            } elseif ($isFirst && array_key_exists('selling_price', $firstPrices) && $firstPrices['selling_price'] !== null) {
+                $sell = (float) $firstPrices['selling_price'];
+            } else {
+                $sell = (float) ($previous?->selling_price ?? 0);
+            }
 
             ItemPackaging::create([
                 'item_id' => $item->id,

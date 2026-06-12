@@ -12,10 +12,18 @@ class ItemPackagingNormalizer
     {
         $rows = collect($sellingRows)
             ->filter(fn ($row) => ! empty($row['packaging_id']))
-            ->map(fn ($row) => [
-                'packaging_id' => (int) $row['packaging_id'],
-                'quantity_per_unit' => max(1, (int) ($row['quantity_per_unit'] ?? 1)),
-            ])
+            ->map(function ($row) {
+                $normalized = [
+                    'packaging_id' => (int) $row['packaging_id'],
+                    'quantity_per_unit' => max(1, (int) ($row['quantity_per_unit'] ?? 1)),
+                ];
+
+                if (array_key_exists('selling_price', $row) && $row['selling_price'] !== null && $row['selling_price'] !== '') {
+                    $normalized['selling_price'] = (float) $row['selling_price'];
+                }
+
+                return $normalized;
+            })
             ->values();
 
         if ($rows->count() <= 1) {
