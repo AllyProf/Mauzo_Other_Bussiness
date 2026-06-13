@@ -103,8 +103,8 @@
       <img src="{{ $logoUrl }}" alt="{{ $business->name }}">
       <h1>{{ $business->name }}</h1>
       <div class="biz-contact-info">
-        @if($branch?->address ?? $business->address){{ $branch?->address ?? $business->address }}@endif
-        @if($branch?->phone ?? $business->phone) | Mobile: {{ $branch?->phone ?? $business->phone }}@endif
+        @if($business->address){{ $business->address }}@endif
+        @if($business->phone) | Mobile: {{ $business->phone }}@endif
         @if($business->email) | Email: {{ $business->email }}@endif
         @if($business->tin_number) | TIN: {{ $business->tin_number }}@endif
         @if($business->vat_number) | VAT: {{ $business->vat_number }}@endif

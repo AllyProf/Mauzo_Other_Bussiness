@@ -11,12 +11,9 @@
     <h2 class="invoice-brand mb-1">{{ $business->name }}</h2>
     @if($branch)
       <div class="text-muted">{{ $branch->name }}</div>
-      @if($branch->address)<div>{{ $branch->address }}</div>@endif
-      @if($branch->phone)<div>Tel: {{ $branch->phone }}</div>@endif
-    @else
-      @if($business->address)<div>{{ $business->address }}</div>@endif
-      @if($business->phone)<div>Tel: {{ $business->phone }}</div>@endif
     @endif
+    @if($business->address)<div>{{ $business->address }}</div>@endif
+    @if($business->phone)<div>Tel: {{ $business->phone }}</div>@endif
     @if($business->email)<div>{{ $business->email }}</div>@endif
     @if($business->contact_person)<div>Contact: {{ $business->contact_person }}</div>@endif
     @if($business->tin_number)<div><strong>TIN:</strong> {{ $business->tin_number }}</div>@endif
