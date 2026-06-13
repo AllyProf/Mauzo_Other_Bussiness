@@ -27,9 +27,7 @@
     'partial' => 'stamp-pending',
     default => 'stamp-pending',
   };
-  $logoUrl = $business->logo_path
-    ? asset('storage/'.$business->logo_path)
-    : 'https://ui-avatars.com/api/?name='.urlencode($business->name).'&background=940000&color=fff&size=120';
+  $logoUrl = $business->logo_path ? asset('storage/'.$business->logo_path) : null;
 @endphp
 
 <div class="official-report">
@@ -100,7 +98,9 @@
 
   <div class="tile report-sheet">
     <div class="report-header-center">
+      @if($logoUrl)
       <img src="{{ $logoUrl }}" alt="{{ $business->name }}">
+      @endif
       <h1>{{ $business->name }}</h1>
       <div class="biz-contact-info">
         @if($business->address){{ $business->address }}@endif
