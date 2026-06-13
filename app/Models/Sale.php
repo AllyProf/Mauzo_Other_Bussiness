@@ -87,12 +87,20 @@ class Sale extends Model
         return $this->hasMany(SaleItem::class);
     }
 
-    public function soldItemsSummary(): string
+    public function soldItemsSummary(int $previewLimit = 0): string
     {
-        return $this->items
+        $lines = $this->items
             ->map(fn (SaleItem $item) => $item->soldLineDescription())
             ->filter()
-            ->implode(', ');
+            ->values();
+
+        if ($previewLimit <= 0 || $lines->count() <= $previewLimit) {
+            return $lines->implode(', ');
+        }
+
+        $remaining = $lines->count() - $previewLimit;
+
+        return $lines->take($previewLimit)->implode(', ').' (+ '.$remaining.' more)';
     }
 
     public function payments()

@@ -5,10 +5,16 @@
 @section('styles')
 <style>
   #salesTable td.sold-items-cell {
-    max-width: 220px;
+    max-width: 260px;
     white-space: normal;
     font-size: 0.9rem;
     line-height: 1.35;
+  }
+  .sales-page .sold-items-preview {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
   }
   .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; flex: 1; min-width: 0; }
   .business-type-tab {
@@ -30,7 +36,16 @@
   .sales-page .sales-mobile-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
   .sales-page .sales-mobile-ref { font-weight: 700; color: #940000; font-size: 0.9rem; line-height: 1.35; }
   .sales-page .sales-mobile-meta { font-size: 0.82rem; color: #6c757d; margin-top: 2px; }
-  .sales-page .sales-mobile-items { font-size: 0.88rem; line-height: 1.4; margin-bottom: 8px; word-break: break-word; }
+  .sales-page .sales-mobile-items {
+    font-size: 0.88rem;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
   .sales-page .sales-mobile-payment { margin-bottom: 10px; line-height: 1.4; }
   .sales-page .sales-mobile-actions { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; border-top: 1px solid #eee; }
 
@@ -181,9 +196,12 @@
                     <td>{{ \Carbon\Carbon::parse($sale->sale_date)->format('M d, Y') }}</td>
                     <td>{{ $sale->reference_no }}@if($sale->isServicePos()) <span class="badge badge-info">{{ __('tables.status.service') }}</span>@endif</td>
                     <td class="sold-items-cell">
-                      @php $soldSummary = $sale->soldItemsSummary(); @endphp
-                      @if($soldSummary)
-                        <span class="text-dark" title="{{ $soldSummary }}">{{ $soldSummary }}</span>
+                      @php
+                        $soldPreview = $sale->soldItemsSummary(2);
+                        $soldFull = $sale->soldItemsSummary();
+                      @endphp
+                      @if($soldPreview)
+                        <span class="text-dark sold-items-preview" @if($soldFull !== $soldPreview) title="{{ $soldFull }}" @endif>{{ $soldPreview }}</span>
                       @else
                         <span class="text-muted">—</span>
                       @endif

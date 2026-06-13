@@ -4,7 +4,8 @@
         ->map(fn ($line) => $line->item?->category?->source_business_type_key ?: 'other')
         ->unique()
         ->values();
-    $soldSummary = $sale->soldItemsSummary();
+    $soldPreview = $sale->soldItemsSummary(2);
+    $soldFull = $sale->soldItemsSummary();
     $payItems = $sale->items->map(function ($si) {
         return [
             'id' => $si->id,
@@ -40,8 +41,8 @@
         @endif
       </div>
     </div>
-    @if($soldSummary)
-      <div class="sales-mobile-items">{{ $soldSummary }}</div>
+    @if($soldPreview)
+      <div class="sales-mobile-items" @if($soldFull !== $soldPreview) title="{{ $soldFull }}" @endif>{{ $soldPreview }}</div>
     @endif
     <div class="sales-mobile-payment small text-muted">
       @if($sale->payment_status == 'pending')

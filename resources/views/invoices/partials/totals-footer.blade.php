@@ -24,7 +24,7 @@
   <th class="text-right text-danger">{{ money($balanceDue) }}</th>
 </tr>
 @endif
-<tr class="invoice-grand-total">
+<tr class="grand-total">
   <th colspan="5" class="text-right">Total (TZS)</th>
   <th class="text-right">{{ money($invoiceTotal) }}</th>
 </tr>
