@@ -21,6 +21,7 @@ class DayClosing extends Model
         'mobile_received',
         'bank_received',
         'payment_breakdown',
+        'handover_snapshot',
         'cancelled_sales',
         'total_expenses',
         'net_amount',
@@ -40,6 +41,7 @@ class DayClosing extends Model
         'submitted_at' => 'datetime',
         'verified_at' => 'datetime',
         'payment_breakdown' => 'array',
+        'handover_snapshot' => 'array',
     ];
 
     public function business()

@@ -50,6 +50,16 @@
       <a href="{{ route('employees.edit', $member->id) }}" class="btn btn-sm btn-info" title="{{ __('tables.actions.edit') }}"><i class="fa fa-edit"></i> {{ __('tables.actions.edit') }}</a>
 
       @if($isStaffAccount)
+        @if(Auth::user()->role === 'owner' && $member->isActiveAccount() && $member->id != Auth::id())
+        <form action="{{ route('employees.impersonate', $member->id) }}" method="POST">
+          @csrf
+          <button type="submit" class="btn btn-sm btn-primary" title="View as this staff member"
+            onclick="confirmAction(event, 'View as {{ $member->name }}?', 'You will see the system exactly as this employee sees it. Use Switch Back to Owner when done.')">
+            <i class="fa fa-user-secret"></i> View as
+          </button>
+        </form>
+        @endif
+
         <form action="{{ route('employees.reset-password', $member->id) }}" method="POST">
           @csrf
           <button type="submit" class="btn btn-sm btn-warning" title="Reset / Generate Password"

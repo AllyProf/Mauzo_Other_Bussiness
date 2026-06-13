@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\BusinessOwnerExpense;
 use App\Models\DayClosing;
 use App\Models\OwnerDailyReport;
@@ -39,13 +40,17 @@ class PettyCashController extends Controller
 
         $selectedDate = $request->filled('date')
             ? Carbon::parse($request->date)->toDateString()
-            : now()->toDateString();
+            : $this->resolveDefaultPettyCashDate($business, now()->toDateString());
 
         $balances = $this->reportService->getPettyCashBalances(
             $business,
             $selectedDate,
             $activeBusinessType ?: null
         );
+
+        $nextOpenDate = $balances['is_finalized']
+            ? $this->resolveDefaultPettyCashDate($business, Carbon::parse($selectedDate)->copy()->addDay()->toDateString())
+            : null;
 
         $staffQuery = User::where('business_id', $business->id)
             ->where('is_active', true)
@@ -91,6 +96,7 @@ class PettyCashController extends Controller
             'business',
             'balances',
             'selectedDate',
+            'nextOpenDate',
             'staffMembers',
             'expenses',
             'businessTypes',
@@ -116,10 +122,15 @@ class PettyCashController extends Controller
         $date = Carbon::parse($request->date)->toDateString();
         $businessTypeKey = $request->filled('business_type') ? $request->business_type : null;
         $balances = $this->reportService->getPettyCashBalances($business, $date, $businessTypeKey);
+        $nextOpenDate = $balances['is_finalized']
+            ? $this->resolveDefaultPettyCashDate($business, Carbon::parse($date)->copy()->addDay()->toDateString())
+            : null;
 
         return response()->json([
             'date' => $date,
             'date_label' => Carbon::parse($date)->format('d M, Y'),
+            'next_open_date' => $nextOpenDate,
+            'next_open_date_label' => $nextOpenDate ? Carbon::parse($nextOpenDate)->format('d M, Y') : null,
             'opening_circulation' => $balances['opening_circulation'],
             'opening_profit' => $balances['opening_profit'],
             'available_circulation' => $balances['available_circulation'],
@@ -276,5 +287,25 @@ class PettyCashController extends Controller
     private function ensureOwner(): void
     {
         $this->authorizeAny(['manage_petty_cash', 'view_reports']);
+    }
+
+    private function resolveDefaultPettyCashDate(Business $business, string $date): string
+    {
+        $cursor = Carbon::parse($date);
+
+        for ($attempt = 0; $attempt < 366; $attempt++) {
+            $candidate = $cursor->toDateString();
+            $report = OwnerDailyReport::where('business_id', $business->id)
+                ->whereDate('report_date', $candidate)
+                ->first();
+
+            if ($report?->status !== 'finalized') {
+                return $candidate;
+            }
+
+            $cursor->addDay();
+        }
+
+        return $date;
     }
 }

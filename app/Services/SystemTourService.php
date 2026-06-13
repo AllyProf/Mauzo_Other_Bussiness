@@ -8,7 +8,9 @@ class SystemTourService
 {
     public function resolveTourKey(User $user): ?string
     {
-        if ($user->isPlatformAdmin() || session()->has('impersonate_original_user')) {
+        if ($user->isPlatformAdmin()
+            || session()->has('impersonate_original_user')
+            || session()->has('impersonate_staff_original_user')) {
             return null;
         }
 

@@ -111,7 +111,7 @@ class SalePaymentRecorder
             ] : []),
         ]);
 
-        app(SaleStockService::class)->deductInvoiceIfPaid($this->sale->fresh());
+        app(SaleStockService::class)->deductIfPaid($this->sale->fresh());
 
         if ($amountToPay > 0) {
             return 'Invoice saved on credit with '.money($amountToPay).' collected now. Balance '.money($balanceDue - $amountToPay).' due '.$request->due_date.'.';
@@ -156,7 +156,7 @@ class SalePaymentRecorder
 
         $this->sale->update($updateData);
 
-        app(SaleStockService::class)->deductInvoiceIfPaid($this->sale->fresh());
+        app(SaleStockService::class)->deductIfPaid($this->sale->fresh());
 
         if ($status === 'partial') {
             $remaining = (float) $this->sale->total_amount - $newAmountPaid;

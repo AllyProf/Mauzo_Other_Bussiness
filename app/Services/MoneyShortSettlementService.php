@@ -20,7 +20,7 @@ class MoneyShortSettlementService
         $closing->loadMissing('business');
         $business = $closing->business;
         $date = $closing->closing_date->toDateString();
-        $profit = $this->reportService->calculateProfit($business->id, $date, $closing->shift_id);
+        $profit = $this->reportService->calculateProfit($business->id, $date, $closing->shift_id, $closing);
         $grossProfit = (float) $profit['gross_profit'];
         $expected = $closing->expectedHandoverAmount();
         $actual = $closing->resolvedHandoverAmount();

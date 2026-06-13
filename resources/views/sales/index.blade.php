@@ -73,7 +73,7 @@
     <h1><i class="fa fa-shopping-cart"></i> {{ __('pages.sales.title') }}</h1>
     <p>
       @if(($shiftContext ?? '') === 'current')
-        Sales for your current shift #{{ $openShift->id }} only
+        Current shift #{{ $openShift->id }} sales, plus any unpaid orders from earlier shifts
       @elseif(($shiftContext ?? '') === 'none')
         Open a shift to record new sales — previous shift sales are in Shift History
       @elseif($scopedToSelf ?? false)
@@ -102,6 +102,13 @@
 <div class="alert alert-success py-2 mb-3">
   <i class="fa fa-clock-o"></i> Shift #{{ $openShift->id }} is open.
   <a href="{{ route('shifts.show', $openShift) }}" class="alert-link">View</a>
+</div>
+@endif
+
+@if(($carriedOverUnpaidCount ?? 0) > 0)
+<div class="alert alert-warning py-2 mb-3">
+  <i class="fa fa-exclamation-circle"></i>
+  <strong>{{ $carriedOverUnpaidCount }}</strong> unpaid order{{ $carriedOverUnpaidCount === 1 ? '' : 's' }} from a previous shift still need payment — listed below as pending.
 </div>
 @endif
 
@@ -168,7 +175,7 @@
       @endif
       <div class="tile-body">
         <div class="d-lg-none mb-3" id="salesMobileList">
-          @include('sales.partials.sale-mobile-list', ['sales' => $sales, 'shiftContext' => $shiftContext ?? ''])
+          @include('sales.partials.sale-mobile-list', ['sales' => $sales, 'shiftContext' => $shiftContext ?? '', 'openShift' => $openShift ?? null])
         </div>
         <div class="sales-desktop-table d-none d-lg-block">
         <table class="table table-hover table-bordered" id="salesTable">
@@ -191,10 +198,19 @@
                       ->map(fn ($line) => $line->item?->category?->source_business_type_key ?: 'other')
                       ->unique()
                       ->values();
+                  $isCarriedOver = ($openShift ?? null)
+                      && (int) $sale->shift_id !== (int) $openShift->id
+                      && in_array($sale->payment_status, ['pending', 'partial', 'debt'], true);
                 @endphp
                 <tr data-business-types="{{ $businessTypeKeys->implode(',') }}">
                     <td>{{ \Carbon\Carbon::parse($sale->sale_date)->format('M d, Y') }}</td>
-                    <td>{{ $sale->reference_no }}@if($sale->isServicePos()) <span class="badge badge-info">{{ __('tables.status.service') }}</span>@endif</td>
+                    <td>
+                      {{ $sale->reference_no }}
+                      @if($sale->isServicePos()) <span class="badge badge-info">{{ __('tables.status.service') }}</span>@endif
+                      @if($isCarriedOver)
+                        <span class="badge badge-warning" title="Unpaid from a previous shift">Shift #{{ $sale->shift_id }}</span>
+                      @endif
+                    </td>
                     <td class="sold-items-cell">
                       @php
                         $soldPreview = $sale->soldItemsSummary(2);

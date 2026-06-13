@@ -30,6 +30,24 @@ class ImpersonationController extends Controller
 
     public function stopImpersonating()
     {
+        $ownerId = session('impersonate_staff_original_user');
+
+        if ($ownerId) {
+            $staffName = Auth::user()->name;
+            $businessId = Auth::user()->business_id;
+            $owner = User::find($ownerId);
+
+            if ($owner) {
+                Auth::login($owner);
+            }
+
+            session()->forget('impersonate_staff_original_user');
+
+            AuditLog::log('IMPERSONATE_STAFF_STOP', "Stopped viewing as staff: {$staffName}", $businessId);
+
+            return redirect()->route('employees.index')->with('success', 'Switched back to your owner account.');
+        }
+
         $adminId = session('impersonate_original_user');
         
         if ($adminId) {

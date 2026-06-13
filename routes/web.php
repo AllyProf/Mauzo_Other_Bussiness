@@ -290,6 +290,7 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::delete('/customer-communications/campaigns/{campaign}', [App\Http\Controllers\CustomerCommunicationController::class, 'cancelCampaign'])->name('customer-communications.cancel');
 
     // Staff Management Routes
+    Route::post('/employees/{employee}/impersonate', [App\Http\Controllers\StaffImpersonationController::class, 'start'])->name('employees.impersonate');
     Route::post('/employees/{employee}/reset-password', [App\Http\Controllers\StaffController::class, 'resetPassword'])->name('employees.reset-password');
     Route::post('/employees/{employee}/toggle-status', [App\Http\Controllers\StaffController::class, 'toggleStatus'])->name('employees.toggle-status');
     Route::resource('/employees', App\Http\Controllers\StaffController::class);

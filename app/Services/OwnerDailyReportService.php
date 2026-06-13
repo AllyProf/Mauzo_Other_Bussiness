@@ -161,14 +161,15 @@ class OwnerDailyReportService
         return $breakdown;
     }
 
-    public function calculateProfit(int $businessId, string $date, ?int $shiftId = null): array
+    public function calculateProfit(int $businessId, string $date, ?int $shiftId = null, ?DayClosing $dayClosing = null): array
     {
         $salesQuery = Sale::where('business_id', $businessId)
-            ->whereDate('sale_date', $date)
             ->where('payment_status', '!=', 'cancelled');
 
         if ($shiftId) {
             $salesQuery->where('shift_id', $shiftId);
+        } else {
+            $salesQuery->whereDate('sale_date', $date);
         }
 
         $this->scopeBranchSales($salesQuery);
@@ -185,11 +186,17 @@ class OwnerDailyReportService
             }
         }
 
-        return [
+        $profit = [
             'gross_sales' => (float) $grossSales,
             'cost_of_goods' => $costOfGoods,
             'gross_profit' => (float) $grossSales - $costOfGoods,
         ];
+
+        if ($shiftId && $dayClosing && (int) $dayClosing->shift_id === (int) $shiftId) {
+            return $this->mergeProfitTotals($profit, $this->calculateDebtCollectionProfitForClosing($dayClosing));
+        }
+
+        return $profit;
     }
 
     public function buildReportData(Business $business, string $date, ?DayClosing $dayClosing = null, bool $includeOwnerExpenses = true): array
@@ -202,7 +209,7 @@ class OwnerDailyReportService
         }
 
         $shiftId = $dayClosing?->shift_id;
-        $profit = $this->calculateProfit($business->id, $date, $shiftId);
+        $profit = $this->calculateProfit($business->id, $date, $shiftId, $dayClosing);
         $platformBreakdown = $dayClosing?->payment_breakdown
             ? $this->normalizeStoredBreakdown($dayClosing->payment_breakdown, $business->id, $date)
             : $this->buildPlatformBreakdown($business->id, $date);
@@ -242,25 +249,18 @@ class OwnerDailyReportService
         $deductFrom = $business->expense_deduct_from ?? 'circulation';
         $totalExpenses = $staffExpenses + $ownerExpenses;
 
-        if ($deductFrom === 'circulation') {
+        if ($dayClosing) {
+            $handoverFinance = $this->resolveHandoverFinanceSplit($dayClosing, (float) $profit['gross_profit']);
+            $totalCollected = $handoverFinance['net_handover'];
+            $netProfit = $handoverFinance['net_profit'] - $ownerProfitExpenses;
+            $closingCirculation = $openingCirculation + $handoverFinance['circulation_refill'] - $ownerCirculationExpenses;
+        } elseif ($deductFrom === 'circulation') {
             $profitFromHandover = min($netHandover, $profit['gross_profit']);
             $netProfit = $profitFromHandover - $ownerProfitExpenses;
-            $circulationFromCollections = max(0, $netHandover - $profit['gross_profit']);
-            if ($dayClosing) {
-                // Net handover already reflects staff expenses deducted at submission.
-                // Profit portion of collections rolls to profit, not circulation capital.
-                $closingCirculation = $openingCirculation + $circulationFromCollections - $ownerCirculationExpenses;
-            } else {
-                $closingCirculation = $openingCirculation + max(0, $totalCollected - $staffExpenses - $profit['gross_profit']) - $ownerCirculationExpenses;
-            }
+            $closingCirculation = $openingCirculation + max(0, $totalCollected - $staffExpenses - $profit['gross_profit']) - $ownerCirculationExpenses;
         } else {
             $netProfit = $profit['gross_profit'] - $staffExpenses - $ownerProfitExpenses;
-            if ($dayClosing) {
-                // Staff expenses hit profit only; circulation carries gross collections forward
-                $closingCirculation = $openingCirculation + (float) $dayClosing->amount_collected - $ownerCirculationExpenses;
-            } else {
-                $closingCirculation = $openingCirculation + $totalCollected - $ownerCirculationExpenses;
-            }
+            $closingCirculation = $openingCirculation + $totalCollected - $ownerCirculationExpenses;
         }
 
         $closingProfit = $openingProfit + $netProfit;
@@ -311,7 +311,7 @@ class OwnerDailyReportService
         $dayNetProfit = 0.0;
 
         foreach ($closings as $closing) {
-            $shiftProfit = $this->calculateProfit($business->id, $date, $closing->shift_id);
+            $shiftProfit = $this->calculateProfit($business->id, $date, $closing->shift_id, $closing);
 
             if ($deductFrom === 'circulation') {
                 $dayNetProfit += (float) $shiftProfit['gross_profit'];
@@ -383,30 +383,22 @@ class OwnerDailyReportService
             return $this->buildReportData($business, $date, $dayClosing);
         }
 
-        $profit = $this->calculateProfit($business->id, $date, $shiftId);
-        $netHandover = $this->resolveNetHandover($dayClosing);
-        $staffExpenses = (float) $dayClosing->total_expenses;
-        $deductFrom = $business->expense_deduct_from ?? 'circulation';
-        $grossProfit = (float) $profit['gross_profit'];
-
-        if ($deductFrom === 'circulation') {
-            $netProfit = $grossProfit;
-            $shiftCirculation = max(0, $netHandover - $grossProfit);
-        } else {
-            $netProfit = max(0, $grossProfit - $staffExpenses);
-            $shiftCirculation = max(0, $netHandover);
-        }
+        $profit = $this->calculateProfit($business->id, $date, $shiftId, $dayClosing);
+        $finance = $this->resolveHandoverFinanceSplit($dayClosing, (float) $profit['gross_profit']);
 
         return [
             'outstanding_debt' => (float) $dayClosing->outstanding_sales,
-            'net_handover' => $netHandover,
-            'net_profit' => $netProfit,
-            'gross_profit' => $grossProfit,
-            'circulation_refill' => $shiftCirculation,
+            'net_handover' => $finance['net_handover'],
+            'net_profit' => $finance['net_profit'],
+            'shift_total_profit' => $finance['shift_total_profit'],
+            'gross_profit' => (float) $profit['gross_profit'],
+            'circulation_refill' => $finance['circulation_refill'],
             'opening_circulation' => 0,
-            'closing_circulation' => $shiftCirculation,
+            'closing_circulation' => $finance['circulation_refill'],
             'shift_scoped' => true,
-            'expense_deduct_from' => $deductFrom,
+            'expense_deduct_from' => $dayClosing->business->expense_deduct_from ?? 'circulation',
+            'profit_short' => $finance['profit_short'],
+            'circulation_short' => $finance['circulation_short'],
         ];
     }
 
@@ -441,6 +433,83 @@ class OwnerDailyReportService
                 'closing_circulation' => $data['closing_circulation'],
             ]
         );
+    }
+
+    public function tryFinalizeDayIfReady(Business $business, string $date, DayClosing $closing, int $finalizedBy): ?OwnerDailyReport
+    {
+        if (! $this->canFinalizeDay($business, $date)) {
+            return null;
+        }
+
+        return $this->finalizeDayReport($business, $date, $closing, $finalizedBy);
+    }
+
+    public function canFinalizeDay(Business $business, string $date): bool
+    {
+        if ($this->hasPendingSubmittedHandovers($business, $date)) {
+            return false;
+        }
+
+        if ($this->hasOutstandingShiftHandovers($business, $date)) {
+            return false;
+        }
+
+        $verifiedQuery = DayClosing::where('business_id', $business->id)
+            ->whereDate('closing_date', $date)
+            ->where('status', 'verified');
+
+        $this->scopeBranchDayClosings($verifiedQuery);
+
+        return $verifiedQuery->exists();
+    }
+
+    public function finalizeDayReport(Business $business, string $date, DayClosing $closing, int $finalizedBy): OwnerDailyReport
+    {
+        $report = $this->syncReport($business, $date, $closing);
+
+        if ($report->status === 'finalized') {
+            return $report;
+        }
+
+        $report->update([
+            'status' => 'finalized',
+            'finalized_by' => $finalizedBy,
+            'finalized_at' => now(),
+        ]);
+
+        $business->update([
+            'circulation_balance' => $report->closing_circulation,
+        ]);
+
+        return $report->fresh();
+    }
+
+    private function hasPendingSubmittedHandovers(Business $business, string $date): bool
+    {
+        $query = DayClosing::where('business_id', $business->id)
+            ->whereDate('closing_date', $date)
+            ->where('status', 'submitted');
+
+        $this->scopeBranchDayClosings($query);
+
+        return $query->exists();
+    }
+
+    private function hasOutstandingShiftHandovers(Business $business, string $date): bool
+    {
+        $query = Shift::where('business_id', $business->id)
+            ->whereDoesntHave('dayClosing')
+            ->where(function ($shiftQuery) use ($date) {
+                $shiftQuery->whereDate('opened_at', '<=', $date)
+                    ->where(function ($inner) use ($date) {
+                        $inner->whereNull('closed_at')
+                            ->orWhereDate('closed_at', '>=', $date);
+                    });
+            });
+
+        $this->scopeBranchUsers($query, 'user_id');
+
+        return $query->exists();
     }
 
     private function priorVerifiedClosingsSameDay(Business $business, DayClosing $dayClosing): \Illuminate\Support\Collection
@@ -510,9 +579,7 @@ class OwnerDailyReportService
         bool $includeOwnerExpenses = true
     ): array {
         $date = $dayClosing->closing_date->toDateString();
-        $profit = $this->calculateProfit($business->id, $date, $dayClosing->shift_id);
-        $netHandover = $this->resolveNetHandover($dayClosing);
-        $deductFrom = $business->expense_deduct_from ?? 'circulation';
+        $profit = $this->calculateProfit($business->id, $date, $dayClosing->shift_id, $dayClosing);
 
         $ownerCirculationExpenses = 0.0;
         $ownerProfitExpenses = 0.0;
@@ -527,19 +594,48 @@ class OwnerDailyReportService
                 ->sum('amount');
         }
 
-        if ($deductFrom === 'circulation') {
-            $profitFromHandover = min($netHandover, $profit['gross_profit']);
-            $netProfit = $profitFromHandover - $ownerProfitExpenses;
-            $circulationFromCollections = max(0, $netHandover - $profit['gross_profit']);
-            $closingCirculation = $openingCirculation + $circulationFromCollections - $ownerCirculationExpenses;
-        } else {
-            $netProfit = $profit['gross_profit'] - (float) $dayClosing->total_expenses - $ownerProfitExpenses;
-            $closingCirculation = $openingCirculation + (float) $dayClosing->amount_collected - $ownerCirculationExpenses;
-        }
+        $handoverFinance = $this->resolveHandoverFinanceSplit($dayClosing, (float) $profit['gross_profit']);
+        $netProfit = $handoverFinance['net_profit'] - $ownerProfitExpenses;
+        $closingCirculation = $openingCirculation + $handoverFinance['circulation_refill'] - $ownerCirculationExpenses;
 
         return [
             'closing_circulation' => max(0, $closingCirculation),
             'closing_profit' => $openingProfit + $netProfit,
+        ];
+    }
+
+    private function resolveHandoverFinanceSplit(DayClosing $dayClosing, float $grossProfit): array
+    {
+        $dayClosing->loadMissing('business');
+        $netHandover = $this->resolveNetHandover($dayClosing);
+        $staffExpenses = (float) $dayClosing->total_expenses;
+        $deductFrom = $dayClosing->business->expense_deduct_from ?? 'circulation';
+        $shiftNetProfit = $deductFrom === 'circulation'
+            ? $grossProfit
+            : max(0, $grossProfit - $staffExpenses);
+
+        if ($dayClosing->hasMoneyShort()) {
+            $split = app(MoneyShortSettlementService::class)->computeShortSplit($dayClosing);
+
+            return [
+                'net_handover' => (float) $split['actual_received'],
+                'net_profit' => (float) $split['profit_from_handover'],
+                'shift_total_profit' => $shiftNetProfit,
+                'circulation_refill' => (float) $split['circulation_from_handover'],
+                'profit_short' => (float) $split['profit_short'],
+                'circulation_short' => (float) $split['circulation_short'],
+            ];
+        }
+
+        $profitFromHandover = min($netHandover, $shiftNetProfit);
+
+        return [
+            'net_handover' => $netHandover,
+            'net_profit' => $profitFromHandover,
+            'shift_total_profit' => $shiftNetProfit,
+            'circulation_refill' => max(0, $netHandover - $profitFromHandover),
+            'profit_short' => 0.0,
+            'circulation_short' => 0.0,
         ];
     }
 
@@ -567,6 +663,166 @@ class OwnerDailyReportService
         }
 
         return (float) ($dayClosing->net_amount ?: $dayClosing->payments_received);
+    }
+
+    private function mergeProfitTotals(array $base, array $extra): array
+    {
+        return [
+            'gross_sales' => (float) $base['gross_sales'] + (float) $extra['gross_sales'],
+            'cost_of_goods' => (float) $base['cost_of_goods'] + (float) $extra['cost_of_goods'],
+            'gross_profit' => (float) $base['gross_profit'] + (float) $extra['gross_profit'],
+        ];
+    }
+
+    private function calculateDebtCollectionProfitForClosing(DayClosing $dayClosing): array
+    {
+        $totals = [
+            'gross_sales' => 0.0,
+            'cost_of_goods' => 0.0,
+            'gross_profit' => 0.0,
+        ];
+
+        foreach ($this->queryDebtCollectionPaymentsForClosing($dayClosing) as $payment) {
+            $part = $this->profitFromDebtPayment($payment);
+            $totals['gross_sales'] += $part['gross_sales'];
+            $totals['cost_of_goods'] += $part['cost_of_goods'];
+            $totals['gross_profit'] += $part['gross_profit'];
+        }
+
+        return $totals;
+    }
+
+    private function profitFromDebtPayment(SalePayment $payment): array
+    {
+        $sale = $payment->sale;
+        if (! $sale) {
+            return ['gross_sales' => 0.0, 'cost_of_goods' => 0.0, 'gross_profit' => 0.0];
+        }
+
+        $sale->loadMissing(['items.item.packagings']);
+        $saleTotal = (float) $sale->total_amount;
+        $paymentAmount = (float) $payment->amount;
+
+        if ($saleTotal <= 0 || $paymentAmount <= 0) {
+            return ['gross_sales' => 0.0, 'cost_of_goods' => 0.0, 'gross_profit' => 0.0];
+        }
+
+        $costOfGoods = 0.0;
+        foreach ($sale->items as $line) {
+            $unitCost = (float) ($line->cost_price ?? optional($line->item?->packagings?->first())->cost_price ?? 0);
+            $costOfGoods += $unitCost * (float) $line->quantity;
+        }
+
+        $saleProfit = max(0, $saleTotal - $costOfGoods);
+        $ratio = min(1, $paymentAmount / $saleTotal);
+
+        return [
+            'gross_sales' => round($paymentAmount, 2),
+            'cost_of_goods' => round($costOfGoods * $ratio, 2),
+            'gross_profit' => round($saleProfit * $ratio, 2),
+        ];
+    }
+
+    private function queryDebtCollectionPaymentsForClosing(DayClosing $dayClosing)
+    {
+        $dayClosing->loadMissing(['shift', 'business']);
+        $shift = $dayClosing->shift;
+
+        if (! $shift) {
+            return collect();
+        }
+
+        $date = $dayClosing->closing_date->toDateString();
+        $window = $this->resolveShiftPaymentWindowFromClosing($dayClosing);
+        $query = SalePayment::query()
+            ->with(['sale.items.item.packagings', 'sale.payments', 'user']);
+
+        if ($window) {
+            $query->where('created_at', '>=', $window['start'])
+                ->where('created_at', '<=', $window['end']);
+        } else {
+            $query->whereDate('created_at', $date);
+        }
+
+        if ($shift->user_id) {
+            $query->where('user_id', $shift->user_id);
+        }
+
+        $query->whereHas('sale', function ($saleQuery) use ($dayClosing) {
+            $saleQuery->where('business_id', $dayClosing->business_id)
+                ->where('payment_status', '!=', 'cancelled');
+            $this->scopeBranchSales($saleQuery);
+        });
+
+        return $query->get()->filter(
+            fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date, $shift->id)
+        )->values();
+    }
+
+    private function resolveShiftPaymentWindowFromClosing(DayClosing $dayClosing): ?array
+    {
+        $snapshotWindow = $dayClosing->handover_snapshot['shift_window'] ?? null;
+        if ($snapshotWindow) {
+            return [
+                'start' => Carbon::parse($snapshotWindow['start']),
+                'end' => Carbon::parse($snapshotWindow['end']),
+            ];
+        }
+
+        $shift = $dayClosing->shift;
+        if (! $shift?->opened_at) {
+            return null;
+        }
+
+        $start = $shift->opened_at->copy();
+        $end = ($shift->closed_at ?? now())->copy();
+
+        if ($start->gt($end)) {
+            $start = $shift->created_at?->copy() ?? $end->copy();
+        }
+
+        if ($start->gt($end)) {
+            $start = $end->copy();
+        }
+
+        return [
+            'start' => $start,
+            'end' => $end,
+        ];
+    }
+
+    private function isDebtCollectionPayment(SalePayment $payment, string $date, ?int $currentShiftId = null): bool
+    {
+        $payment->loadMissing(['sale.payments']);
+        $sale = $payment->sale;
+
+        if (! $sale || $sale->payment_status === 'cancelled') {
+            return false;
+        }
+
+        if (Carbon::parse($payment->created_at)->toDateString() !== $date) {
+            return false;
+        }
+
+        $saleDate = Carbon::parse($sale->sale_date)->toDateString();
+
+        if ($currentShiftId && $sale->shift_id && (int) $sale->shift_id !== (int) $currentShiftId) {
+            return true;
+        }
+
+        if ($saleDate < $date) {
+            return true;
+        }
+
+        if ($saleDate !== $date) {
+            return false;
+        }
+
+        $firstPayment = $sale->payments
+            ->sortBy(fn (SalePayment $row) => [$row->created_at?->timestamp ?? 0, $row->id])
+            ->first();
+
+        return $firstPayment && (int) $firstPayment->id !== (int) $payment->id;
     }
 
     private function normalizeStoredBreakdown(array $stored, int $businessId, string $date): array
@@ -639,7 +895,8 @@ class OwnerDailyReportService
         $subTotal = (float) $data['total_collected'];
         $totalAssets = (float) $data['opening_circulation'] + $subTotal;
         $grossProfit = (float) $data['gross_profit'];
-        $circulationRefill = max(0, $subTotal - $grossProfit);
+        $handoverFinance = $this->resolveHandoverFinanceSplit($closing, $grossProfit);
+        $circulationRefill = $handoverFinance['circulation_refill'];
         $fundSource = ($data['expense_deduct_from'] ?? 'circulation') === 'profit' ? 'profit' : 'circulation';
 
         $expenseList = collect();
@@ -736,9 +993,11 @@ class OwnerDailyReportService
     public function buildBusinessTypeBreakdownForClosing(Business $business, DayClosing $closing, array $businessTypes): array
     {
         $sales = $this->closingSales($closing);
-        $debtByType = $this->debtCollectionsByBusinessType($business, $closing, $sales);
+        $debtPayments = $this->queryDebtCollectionPaymentsForClosing($closing);
+        $debtByType = $this->businessTypeBreakdown->allocateDebtFromPayments($debtPayments);
+        $debtProfitByType = $this->businessTypeBreakdown->allocateDebtProfitFromPayments($debtPayments);
 
-        return $this->businessTypeBreakdown->buildFromSales($sales, $businessTypes, $business, $debtByType);
+        return $this->businessTypeBreakdown->buildFromSales($sales, $businessTypes, $business, $debtByType, $debtProfitByType);
     }
 
     public function expandMasterSheetLedgersByBusinessType($ledgers, array $businessTypes)
@@ -842,19 +1101,9 @@ class OwnerDailyReportService
 
     private function debtCollectionsByBusinessType(Business $business, DayClosing $closing, $sales): array
     {
-        $shiftSaleIds = $sales->pluck('id')->all();
-
-        $payments = SalePayment::query()
-            ->whereDate('created_at', $closing->closing_date->toDateString())
-            ->whereHas('sale', function ($query) use ($business) {
-                $query->where('business_id', $business->id);
-                $this->scopeBranchSales($query);
-            })
-            ->when(! empty($shiftSaleIds), fn ($query) => $query->whereNotIn('sale_id', $shiftSaleIds))
-            ->with(['sale.items.item.category'])
-            ->get();
-
-        return $this->businessTypeBreakdown->allocateDebtFromPayments($payments);
+        return $this->businessTypeBreakdown->allocateDebtFromPayments(
+            $this->queryDebtCollectionPaymentsForClosing($closing)
+        );
     }
 
     private function staffRecoveryTotals(DayClosing $closing): array
@@ -925,9 +1174,9 @@ class OwnerDailyReportService
 
         $rows = [];
         $cursor = Carbon::parse($latestVerifiedDate)->addDay();
-        $today = Carbon::today();
+        $endDate = $this->resolveOpenDayRowsEndDate($business, Carbon::parse($latestVerifiedDate));
 
-        while ($cursor->lte($today)) {
+        while ($cursor->lte($endDate)) {
             $dateString = $cursor->toDateString();
 
             $hasVerifiedQuery = DayClosing::where('business_id', $business->id)
@@ -1085,6 +1334,38 @@ class OwnerDailyReportService
         return $this->applyMoneyShortRecoveries($business, $targetDate, $data);
     }
 
+    private function resolveOpenDayRowsEndDate(Business $business, Carbon $latestVerifiedDate): Carbon
+    {
+        $endDate = Carbon::today();
+        $afterVerified = $latestVerifiedDate->toDateString();
+
+        $expenseQuery = BusinessOwnerExpense::where('business_id', $business->id)
+            ->whereDate('expense_date', '>', $afterVerified);
+
+        if ($this->isBranchScoped()) {
+            $branchId = $this->branchService()->activeBranchId();
+            $expenseQuery->where(function ($scoped) use ($branchId) {
+                $scoped->where('branch_id', $branchId)->orWhereNull('branch_id');
+            });
+        }
+
+        $latestExpenseDate = $expenseQuery->max('expense_date');
+        if ($latestExpenseDate && Carbon::parse($latestExpenseDate)->gt($endDate)) {
+            $endDate = Carbon::parse($latestExpenseDate);
+        }
+
+        $latestOpenReportDate = OwnerDailyReport::where('business_id', $business->id)
+            ->whereDate('report_date', '>', $afterVerified)
+            ->where('status', '!=', 'finalized')
+            ->max('report_date');
+
+        if ($latestOpenReportDate && Carbon::parse($latestOpenReportDate)->gt($endDate)) {
+            $endDate = Carbon::parse($latestOpenReportDate);
+        }
+
+        return $endDate;
+    }
+
     private function formatOpenDayPlaceholderRow(Business $business, string $dateString, array $data, ?OwnerDailyReport $report): array
     {
         $platformBreakdown = $data['payment_breakdown'];
@@ -1105,8 +1386,10 @@ class OwnerDailyReportService
         }
 
         $hasOpenShift = $this->hasOpenShiftForDate($business, $dateString);
+        $ownerExpenseTotal = (float) $expenseList->sum('amount');
         $hasSalesOrExpenses = $subTotal > 0
             || (float) $data['total_expenses'] > 0
+            || $ownerExpenseTotal > 0
             || $grossProfit > 0;
         $hasActivity = $hasOpenShift || $hasSalesOrExpenses;
 

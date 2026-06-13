@@ -228,12 +228,12 @@
     </div>
   </div>
 </div>
-@elseif(($isBossReview ?? false) && ($pendingVerificationHandovers ?? collect())->isNotEmpty())
+@elseif(($isBossReview ?? false) && ($pendingOnSelectedDate ?? collect())->isNotEmpty())
 <div class="row mb-3">
   <div class="col-md-12">
     <div class="alert alert-warning mb-0">
       <i class="fa fa-hourglass-half"></i>
-      <strong>{{ $pendingVerificationHandovers->count() }} handover(s) on this date</strong> still need verification — review below.
+      <strong>{{ $pendingOnSelectedDate->count() }} handover(s) on this date</strong> still need verification — review <strong>oldest first</strong> (top to bottom).
     </div>
   </div>
 </div>
@@ -335,7 +335,7 @@
     <div class="tile">
       <h3 class="tile-title d-flex justify-content-between align-items-center flex-wrap">
         <span>Staff Reconciliation — {{ $displayDate }}</span>
-        @if(count($staffRows) > 0 || count($allDaySales) > 0)
+        @if(count($staffRows) > 0 || count($allDaySales) > 0 || ($debtCollections['count'] ?? 0) > 0)
           <button type="button" class="btn btn-info btn-sm mt-2 mt-md-0" id="viewAllSalesBtn">
             <i class="fa fa-eye"></i> View All Sales ({{ count($allDaySales) }})
           </button>
@@ -423,10 +423,10 @@
         @endif
 
         @if(($debtCollections['count'] ?? 0) > 0)
-          <h4 class="mt-4 mb-3"><i class="fa fa-history"></i> Debt Collections Today ({{ $debtCollections['count'] }})</h4>
+          <h4 class="mt-4 mb-3"><i class="fa fa-history"></i> Prior-Shift Collections ({{ $debtCollections['count'] }})</h4>
           <p class="text-muted small mb-2">
             @if($shift ?? null)
-              Credit payments you collected today on sales outside this shift — included in your handover total below.
+              Credit payments collected during this shift on orders from earlier shifts — included in your handover total below.
             @else
               Payments collected today on credit sales outside today's shift sales — included in handover but separate from shift sales.
             @endif
@@ -541,23 +541,21 @@
     <div class="tile">
       <h3 class="tile-title d-flex justify-content-between align-items-center flex-wrap">
         <span><i class="fa fa-shopping-cart"></i> POS Sales — {{ $displayDate }}</span>
-        @if(count($allDaySales) > 0)
+        @if(count($allDaySales) > 0 || ($debtCollections['count'] ?? 0) > 0)
           <button type="button" class="btn btn-info btn-sm mt-2 mt-md-0" id="viewAllSalesBtnBoss">
             <i class="fa fa-eye"></i> View All Sales ({{ count($allDaySales) }})
           </button>
         @endif
       </h3>
       <div class="tile-body">
+        <p class="text-muted small mb-3">
+          Closed and submitted shifts only — staff still selling are listed below and excluded from these totals.
+        </p>
         @if(count($businessTypeBreakdown ?? []) > 0)
-          <h5 class="mb-3"><i class="fa fa-sitemap"></i> By Business Type — Profit, Circulation &amp; Debt</h5>
+          <h5 class="mb-3"><i class="fa fa-sitemap"></i> By Business Type</h5>
           <p class="text-muted small mb-3">
-            Profit and circulation split follows your shop setting
+            Profit and circulation follow your shop setting
             (<strong>{{ ($expenseDeductFrom ?? 'circulation') === 'profit' ? 'expenses from profit' : 'expenses from circulation' }}</strong>).
-            @if(($expenseDeductFrom ?? 'circulation') === 'circulation')
-              Circulation = cash collected minus profit; profit is capped at what was collected when payment is partial.
-            @else
-              Full sale profit is counted; all collections add to circulation.
-            @endif
           </p>
           <div class="d-lg-none mb-3">
             @foreach($businessTypeBreakdown as $typeRow)
@@ -650,7 +648,7 @@
                   <th class="audit-col-bg text-center">Expected</th>
                   <th class="audit-col-bg">Collected</th>
                   <th class="audit-col-bg">Credit</th>
-                  <th class="text-center">Status</th>
+                  <th class="text-center">Pay Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -701,14 +699,10 @@
             </table>
           </div>
         @endif
-        @if(!($ownerDirectClosing ?? null))
+        @if(!($ownerDirectClosing ?? null) && ($canPostOwnerDirectSales ?? false))
         <div class="alert alert-light border mb-3">
           <i class="fa fa-info-circle"></i>
-          @if($canPostOwnerDirectSales ?? false)
-            When you sell yourself, use <strong>Close Day &amp; Post to Master Sheet</strong> below — no separate staff handover is needed.
-          @else
-            Your direct POS sales are included above and do not require a shift handover. Sales officers submit handover when they end their shift.
-          @endif
+          When you sell yourself, use <strong>Close Day &amp; Post to Master Sheet</strong> below — no separate staff handover is needed.
         </div>
         @endif
 
@@ -801,48 +795,40 @@
 @endphp
 
 @if($isBossReview ?? false)
-@if(($awaitingHandoverShifts ?? collect())->isNotEmpty())
+@php $openShiftsInProgress = ($awaitingHandoverShifts ?? collect())->filter(fn ($s) => $s->isOpen()); @endphp
+@if($openShiftsInProgress->isNotEmpty())
 <div class="row">
   <div class="col-md-12">
     <div class="tile">
-      <h3 class="tile-title"><i class="fa fa-clock-o"></i> Awaiting Staff Handover — {{ $displayDate }}</h3>
+      <h3 class="tile-title"><i class="fa fa-clock-o"></i> Shifts In Progress — {{ $displayDate }}</h3>
       <div class="tile-body">
+        <p class="text-muted small mb-3">These staff are still selling. Their sales are not included in the totals above until they submit handover.</p>
         <div class="d-lg-none mb-3">
-          @foreach($awaitingHandoverShifts as $pendingShift)
+          @foreach($openShiftsInProgress as $pendingShift)
           <div class="dc-mobile-card">
             <div class="dc-mobile-title">{{ $pendingShift->user->name ?? 'Unknown' }}</div>
-            <div class="dc-mobile-meta mt-1">Opened {{ $pendingShift->opened_at->format('M d, Y h:i A') }}</div>
-            <div class="mt-2">
-              @if($pendingShift->isOpen())
-                <span class="badge badge-primary">Shift in progress</span>
-              @else
-                <span class="badge badge-secondary">Awaiting handover</span>
-              @endif
-            </div>
+            <div class="dc-mobile-meta mt-1">Shift #{{ $pendingShift->id }} · Opened {{ $pendingShift->opened_at->format('M d, h:i A') }}</div>
+            <div class="mt-2"><span class="badge badge-primary">In progress</span></div>
           </div>
           @endforeach
         </div>
         <div class="table-responsive d-none d-lg-block">
-          <table class="table table-bordered">
+          <table class="table table-bordered mb-0">
             <thead class="thead-light">
               <tr>
                 <th>{{ __('tables.columns.officer') }}</th>
+                <th>Shift</th>
                 <th>{{ __('tables.columns.opened') }}</th>
                 <th>{{ __('tables.columns.status') }}</th>
               </tr>
             </thead>
             <tbody>
-              @foreach($awaitingHandoverShifts as $pendingShift)
+              @foreach($openShiftsInProgress as $pendingShift)
               <tr>
                 <td><strong>{{ $pendingShift->user->name ?? 'Unknown' }}</strong></td>
+                <td>#{{ $pendingShift->id }}</td>
                 <td>{{ $pendingShift->opened_at->format('M d, Y h:i A') }}</td>
-                <td>
-                  @if($pendingShift->isOpen())
-                    <span class="badge badge-primary">Shift in progress</span>
-                  @else
-                    <span class="badge badge-secondary">Awaiting handover</span>
-                  @endif
-                </td>
+                <td><span class="badge badge-primary">In progress</span></td>
               </tr>
               @endforeach
             </tbody>

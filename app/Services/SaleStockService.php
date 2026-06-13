@@ -76,24 +76,32 @@ class SaleStockService
         $this->refreshShiftTotals($sale);
     }
 
-    public function deductInvoiceIfPaid(Sale $sale): void
+    public function deductIfPaid(Sale $sale, ?Shift $shift = null): void
     {
-        $source = $sale->sale_source ?? 'pos';
-        if (! in_array($source, ['invoice', 'service_invoice'], true)) {
+        if ($sale->stock_deducted) {
             return;
         }
 
-        if ((float) $sale->amount_paid <= 0 && in_array($sale->payment_status, ['pending', 'debt'], true)) {
+        $committed = (float) $sale->amount_paid > 0
+            || $sale->payment_status === 'paid'
+            || $sale->payment_status === 'debt';
+
+        if (! $committed) {
             return;
         }
 
-        if ((float) $sale->amount_paid > 0 || $sale->payment_status === 'paid') {
-            $this->deductForSale($sale);
-            app(ServiceConsumableService::class)->deductForSale($sale->fresh());
-        }
+        $shift = $shift ?? ($sale->shift_id ? Shift::find($sale->shift_id) : null);
+        $this->assertStockAvailable($sale, $shift);
+        $this->deductForSale($sale->fresh());
     }
 
-    public function assertInvoiceStockAvailable(Sale $sale, ?Shift $shift = null): void
+    /** @deprecated Use deductIfPaid() */
+    public function deductInvoiceIfPaid(Sale $sale): void
+    {
+        $this->deductIfPaid($sale);
+    }
+
+    public function assertStockAvailable(Sale $sale, ?Shift $shift = null): void
     {
         if ($sale->stock_deducted) {
             return;
@@ -138,7 +146,9 @@ class SaleStockService
             ->all();
 
         $sold = SaleItem::query()
-            ->whereHas('sale', fn ($q) => $q->where('shift_id', $openShift->id)->where('payment_status', '!=', 'cancelled'))
+            ->whereHas('sale', fn ($q) => $q->where('shift_id', $openShift->id)
+                ->where('payment_status', '!=', 'cancelled')
+                ->where('stock_deducted', true))
             ->leftJoin('item_packagings', 'sale_items.item_packaging_id', '=', 'item_packagings.id')
             ->selectRaw('sale_items.item_id, SUM(sale_items.quantity * COALESCE(NULLIF(item_packagings.quantity_per_unit, 0), 1)) as total_pieces')
             ->groupBy('sale_items.item_id')
@@ -163,6 +173,12 @@ class SaleStockService
 
         // Honour receivings/adjustments during the shift — never cap below live system stock.
         return max($shiftBased, max(0, $current));
+    }
+
+    /** @deprecated Use assertStockAvailable() */
+    public function assertInvoiceStockAvailable(Sale $sale, ?Shift $shift = null): void
+    {
+        $this->assertStockAvailable($sale, $shift);
     }
 
     private function refreshShiftTotals(Sale $sale): void

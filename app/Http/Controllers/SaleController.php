@@ -62,10 +62,18 @@ class SaleController extends Controller
         $multiBusiness = count($businessTypes) > 1;
 
         $salesQuery = Sale::where('business_id', $businessId);
+        $carriedOverUnpaidCount = 0;
 
         if ($requiresOpenShift) {
             if ($openShift) {
-                $salesQuery->where('shift_id', $openShift->id);
+                $carriedOverUnpaidCount = $this->countCarriedOverUnpaidSales($businessId, (int) Auth::id(), (int) $openShift->id);
+
+                $salesQuery->where(function ($query) use ($openShift) {
+                    $query->where('shift_id', $openShift->id)
+                        ->orWhere(function ($unpaid) use ($openShift) {
+                            $this->scopeCarriedOverUnpaidSales($unpaid, (int) Auth::id(), (int) $openShift->id);
+                        });
+                });
             } else {
                 $salesQuery->whereRaw('1 = 0');
             }
@@ -81,10 +89,14 @@ class SaleController extends Controller
 
         $activeSales = (clone $salesQuery)->where('payment_status', '!=', 'cancelled');
 
+        $shiftSalesQuery = ($requiresOpenShift && $openShift)
+            ? Sale::where('business_id', $businessId)->where('shift_id', $openShift->id)
+            : $activeSales;
+
         $stats = [
-            'total_sales' => (clone $activeSales)->count(),
-            'gross_sales' => (float) (clone $activeSales)->sum('total_amount'),
-            'collected' => (float) (clone $activeSales)->sum('amount_paid'),
+            'total_sales' => (clone $shiftSalesQuery)->where('payment_status', '!=', 'cancelled')->count(),
+            'gross_sales' => (float) (clone $shiftSalesQuery)->where('payment_status', '!=', 'cancelled')->sum('total_amount'),
+            'collected' => (float) (clone $shiftSalesQuery)->where('payment_status', '!=', 'cancelled')->sum('amount_paid'),
             'outstanding' => (float) (clone $salesQuery)
                 ->whereNotIn('payment_status', ['paid', 'cancelled'])
                 ->whereColumn('total_amount', '>', 'amount_paid')
@@ -93,6 +105,13 @@ class SaleController extends Controller
 
         $sales = (clone $salesQuery)
             ->with(['user', 'items.item.category', 'items.itemPackaging.packagingType', 'items.service', 'customer'])
+            ->when($openShift, function ($query) use ($openShift) {
+                $shiftId = (int) $openShift->id;
+                $query->orderByRaw(
+                    'CASE WHEN shift_id != ? AND payment_status NOT IN (?, ?) AND total_amount > amount_paid THEN 0 ELSE 1 END ASC',
+                    [$shiftId, 'paid', 'cancelled']
+                );
+            })
             ->latest()
             ->paginate(15);
 
@@ -111,6 +130,7 @@ class SaleController extends Controller
             'openShift',
             'requiresOpenShift',
             'shiftContext',
+            'carriedOverUnpaidCount',
             'customers',
             'paymentMethods',
             'activeBranchName',
@@ -358,8 +378,6 @@ class SaleController extends Controller
                 }
             }
 
-            app(SaleStockService::class)->deductForSale($sale->fresh());
-
             DB::commit();
             $openShift?->refreshTotals();
 
@@ -468,7 +486,28 @@ class SaleController extends Controller
                 $updateData['notes'] = $this->appendSaleNote($sale, $request->notes);
             }
 
-            $sale->update($updateData);
+            DB::beginTransaction();
+            try {
+                $sale->update($updateData);
+                $sale->refresh();
+                app(SaleStockService::class)->deductIfPaid(
+                    $sale,
+                    $sale->shift_id ? Shift::find($sale->shift_id) : null
+                );
+                DB::commit();
+            } catch (\InvalidArgumentException $e) {
+                DB::rollBack();
+
+                return redirect()->back()->with('error', $e->getMessage());
+            } catch (\Exception $e) {
+                DB::rollBack();
+
+                return redirect()->back()->with('error', 'Error saving pay later sale: '.$e->getMessage());
+            }
+
+            if ($sale->shift_id) {
+                Shift::find($sale->shift_id)?->refreshTotals();
+            }
 
             $message = $sale->amount_paid > 0
                 ? 'Remaining balance of '.money($balanceDue).' will be paid by '.$request->due_date.'.'
@@ -548,11 +587,10 @@ class SaleController extends Controller
             $sale->update($updateData);
 
             $sale->refresh();
-            app(SaleStockService::class)->assertInvoiceStockAvailable(
+            app(SaleStockService::class)->deductIfPaid(
                 $sale,
                 $sale->shift_id ? Shift::find($sale->shift_id) : null
             );
-            app(SaleStockService::class)->deductInvoiceIfPaid($sale);
 
             DB::commit();
 
@@ -591,6 +629,7 @@ class SaleController extends Controller
 
         DB::beginTransaction();
         try {
+            $hadStockDeducted = $sale->stock_deducted;
             app(SaleStockService::class)->restoreForSale($sale);
 
             $sale->update([
@@ -603,7 +642,7 @@ class SaleController extends Controller
                 Shift::find($sale->shift_id)?->refreshTotals();
             }
 
-            return redirect()->route('sales.index')->with('success', "Sale ($sale->reference_no) has been cancelled and stock restored.");
+            return redirect()->route('sales.index')->with('success', "Sale ($sale->reference_no) has been cancelled".($hadStockDeducted ? ' and stock restored' : '').'.');
         } catch (\Exception $e) {
             DB::rollback();
             return redirect()->back()->with('error', 'Error cancelling sale: ' . $e->getMessage());
@@ -833,11 +872,10 @@ class SaleController extends Controller
             $sale->update($updateData);
 
             $sale->refresh();
-            app(SaleStockService::class)->assertInvoiceStockAvailable(
+            app(SaleStockService::class)->deductIfPaid(
                 $sale,
                 $sale->shift_id ? Shift::find($sale->shift_id) : null
             );
-            app(SaleStockService::class)->deductInvoiceIfPaid($sale);
 
             DB::commit();
 
@@ -892,5 +930,23 @@ class SaleController extends Controller
             'customer_name' => $request->customer_name,
             'customer_phone' => $phone ?: $request->customer_phone,
         ];
+    }
+
+    private function scopeCarriedOverUnpaidSales($query, int $userId, int $currentShiftId): void
+    {
+        $query->where('user_id', $userId)
+            ->where('shift_id', '!=', $currentShiftId)
+            ->whereNotIn('payment_status', ['paid', 'cancelled'])
+            ->whereColumn('total_amount', '>', 'amount_paid');
+    }
+
+    private function countCarriedOverUnpaidSales(int $businessId, int $userId, int $currentShiftId): int
+    {
+        return Sale::where('business_id', $businessId)
+            ->where('user_id', $userId)
+            ->where('shift_id', '!=', $currentShiftId)
+            ->whereNotIn('payment_status', ['paid', 'cancelled'])
+            ->whereColumn('total_amount', '>', 'amount_paid')
+            ->count();
     }
 }

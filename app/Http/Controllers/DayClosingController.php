@@ -107,7 +107,9 @@ class DayClosingController extends Controller
                 $this->scopeDayClosingsForActiveBranch($query);
             });
 
-            $dayHandovers = $dayHandoversQuery->latest('submitted_at')->get();
+            $dayHandovers = $this->sortHandoversForBossReview(
+                $dayHandoversQuery->get()
+            );
 
             $awaitingHandoverShiftsQuery = Shift::where('business_id', $businessId)
                 ->whereDoesntHave('dayClosing')
@@ -126,9 +128,7 @@ class DayClosingController extends Controller
         }
 
         $handoverCards = $isBossReview
-            ? $dayHandovers
-                ->filter(fn (DayClosing $closing) => ! $this->isOwnerDirectClosing($closing))
-                ->map(fn (DayClosing $closing) => $this->buildHandoverCardData($closing))
+            ? $this->buildHandoverCardsForBossReview($dayHandovers)
             : collect();
 
         $pendingVerificationHandovers = collect();
@@ -141,20 +141,50 @@ class DayClosingController extends Controller
 
             $this->scopeToActiveBranchUsers($pendingVerificationQuery);
 
-            $pendingVerificationHandovers = $pendingVerificationQuery->latest('closing_date')->get();
+            $pendingVerificationHandovers = $this->sortHandoversForBossReview(
+                $pendingVerificationQuery->get()
+            );
 
             $pendingFromOtherDays = $pendingVerificationHandovers->filter(
                 fn (DayClosing $closing) => $closing->closing_date->toDateString() !== $date
-            );
+            )->values();
+
+            $pendingOnSelectedDate = $pendingVerificationHandovers->filter(
+                fn (DayClosing $closing) => $closing->closing_date->toDateString() === $date
+            )->values();
+        } else {
+            $pendingOnSelectedDate = collect();
         }
 
         $collectorUserId = $shift?->user_id;
 
-        $summary = $this->buildDaySummary($businessId, $date, $shift);
-        $staffRows = $this->buildStaffReconciliation($businessId, $date, $summary['sales'], $collectorUserId);
-        $debtCollections = $this->buildDebtCollections($businessId, $date, $summary['sales'], $collectorUserId);
-        $platformBreakdown = $this->buildPlatformBreakdown($businessId, $date, $shift?->id, $collectorUserId, $summary['sales']);
-        $allDaySales = $this->buildDaySalesViewData($summary['sales']);
+        $excludeOpenShiftIds = $isBossReview
+            ? $awaitingHandoverShifts
+                ->filter(fn (Shift $s) => $s->isOpen())
+                ->pluck('id')
+                ->all()
+            : [];
+
+        $summary = $this->buildDaySummary(
+            $businessId,
+            $date,
+            $shift,
+            excludeShiftIds: $excludeOpenShiftIds !== [] ? $excludeOpenShiftIds : null
+        );
+        $currentShiftId = $shift?->id;
+        $shiftPaymentWindow = $this->resolveShiftPaymentWindow($shift);
+        $staffRows = $this->buildStaffReconciliation($businessId, $date, $summary['sales'], $collectorUserId, $currentShiftId, $shiftPaymentWindow);
+        $debtCollections = $this->buildDebtCollections($businessId, $date, $summary['sales'], $collectorUserId, $currentShiftId, $shiftPaymentWindow);
+        $platformBreakdown = $this->buildPlatformBreakdown($businessId, $date, $shift?->id, $collectorUserId, $summary['sales'], $shiftPaymentWindow);
+        $allDaySales = $this->resolveAllHandoverSalesViewData(
+            $summary['sales'],
+            $debtCollections,
+            $businessId,
+            $date,
+            $currentShiftId,
+            $shiftPaymentWindow,
+            $collectorUserId
+        );
         $displayDate = Carbon::parse($date)->format('l, F d, Y');
 
         $business = $this->currentBusiness();
@@ -167,7 +197,7 @@ class DayClosingController extends Controller
             $summary['sales'],
             $businessTypes,
             $business,
-            $this->allocateDebtCollectionsByBusinessType($businessId, $date, $summary['sales'])
+            $this->allocateDebtCollectionsByBusinessType($businessId, $date, $summary['sales'], $currentShiftId, $shiftPaymentWindow)
         );
         $businessTypeTotals = $this->businessTypeBreakdown->summarize($businessTypeBreakdown);
         $expenseDeductFrom = $business->expense_deduct_from ?? 'circulation';
@@ -239,6 +269,7 @@ class DayClosingController extends Controller
             'handoverCards',
             'pendingVerificationHandovers',
             'pendingFromOtherDays',
+            'pendingOnSelectedDate',
             'debtCollections',
             'businessTypes',
             'multiBusiness',
@@ -307,16 +338,32 @@ class DayClosingController extends Controller
             $this->attachOrphanSalesToShift($shift, $date);
         }
 
-        $summary = $this->buildDaySummary($businessId, $date, $shift);
+        $summary = $this->buildDaySummary($businessId, $date, $shift, shiftOnly: (bool) $shift);
         $expenses = collect($request->expenses ?? [])->filter(fn ($e) => ! empty($e['description']) && ($e['amount'] ?? 0) > 0);
         $totalExpenses = $expenses->sum('amount');
+        $shiftPaymentWindow = $this->resolveShiftPaymentWindow($shift);
+        $debtCollections = $shift
+            ? $this->buildDebtCollections($businessId, $date, $summary['sales'], $shift->user_id, $shift->id, $shiftPaymentWindow)
+            : ['total' => 0, 'count' => 0, 'items' => []];
+        $allDaySalesSnapshot = $shift
+            ? $this->resolveAllHandoverSalesViewData(
+                $summary['sales'],
+                $debtCollections,
+                $businessId,
+                $date,
+                $shift->id,
+                $shiftPaymentWindow,
+                $shift->user_id
+            )
+            : [];
 
         $platformBreakdown = $this->buildPlatformBreakdown(
             $businessId,
             $date,
             $shift?->id,
             $shift?->user_id,
-            $summary['sales']
+            $summary['sales'],
+            $shiftPaymentWindow
         );
 
         $paymentBreakdown = collect($platformBreakdown)->mapWithKeys(fn ($item, $key) => [$key => (float) $item['amount']])->all();
@@ -334,14 +381,23 @@ class DayClosingController extends Controller
         try {
             if ($shift?->isOpen()) {
                 $shift->refreshTotals();
-                $shift->update([
+                Shift::whereKey($shift->id)->update([
                     'status' => 'closed',
                     'closed_at' => now(),
                 ]);
+                $shift->refresh();
             }
 
             $date = $shift?->closed_at?->toDateString() ?? $date;
-            $summary = $this->buildDaySummary($businessId, $date, $shift);
+            $summary = $this->buildDaySummary($businessId, $date, $shift, shiftOnly: (bool) $shift);
+            $handoverSnapshot = $shift ? [
+                'debt_collections' => $debtCollections,
+                'all_day_sales' => $allDaySalesSnapshot,
+                'shift_window' => $shiftPaymentWindow ? [
+                    'start' => $shiftPaymentWindow['start']->toIso8601String(),
+                    'end' => $shiftPaymentWindow['end']->toIso8601String(),
+                ] : null,
+            ] : null;
 
             $closing = DayClosing::create([
                 'business_id' => $businessId,
@@ -358,6 +414,7 @@ class DayClosingController extends Controller
                 'mobile_received' => $mobileReceived,
                 'bank_received' => $bankReceived,
                 'payment_breakdown' => $paymentBreakdown,
+                'handover_snapshot' => $handoverSnapshot,
                 'cancelled_sales' => $summary['cancelled_sales'],
                 'total_expenses' => $totalExpenses,
                 'net_amount' => $netAmount,
@@ -419,6 +476,16 @@ class DayClosingController extends Controller
             return redirect()->back()->with('error', 'This reconciliation is already verified.');
         }
 
+        $nextPending = $this->nextPendingHandoverToVerify($dayClosing->business_id);
+        if ($nextPending && $nextPending->id !== $dayClosing->id) {
+            $label = $nextPending->shift
+                ? 'Shift #'.$nextPending->shift->id
+                : ($nextPending->user->name ?? 'the oldest handover');
+
+            return redirect()->to($this->bossReconciliationUrl($nextPending))
+                ->with('error', "Verify {$label} first — oldest pending handover comes before this one.");
+        }
+
         $expected = (float) ($dayClosing->net_amount ?: collect($dayClosing->payment_breakdown ?? [])->sum());
         $actual = (float) $request->input('actual_received', $expected);
         $moneyShort = max(0, round($expected - $actual, 2));
@@ -468,6 +535,13 @@ class DayClosingController extends Controller
             $dayClosing
         );
 
+        $finalizedReport = $this->reportService->tryFinalizeDayIfReady(
+            $dayClosing->business,
+            $dayClosing->closing_date->toDateString(),
+            $dayClosing,
+            (int) Auth::id()
+        );
+
         try {
             $this->staffSms->notifyStaffHandoverVerified(
                 $dayClosing->business,
@@ -488,11 +562,18 @@ class DayClosingController extends Controller
         if ($moneyShort > 0) {
             return $redirect->with(
                 'success',
-                'Handover verified with a money short of '.money($moneyShort).'. Posted to the Master Sheet.'
+                ($finalizedReport
+                    ? 'Handover verified with a money short of '.money($moneyShort).'. Day finalized and posted to the Master Sheet.'
+                    : 'Handover verified with a money short of '.money($moneyShort).'. Posted to the Master Sheet.')
             )->with('info', 'View all money shorts on the Money Shorts page.');
         }
 
-        return $redirect->with('success', 'Reconciliation verified. Debt, profit, and circulation are now posted to the Master Sheet.');
+        return $redirect->with(
+            'success',
+            $finalizedReport
+                ? 'Handover verified and day finalized. Debt, profit, and circulation are posted to the Master Sheet.'
+                : 'Handover verified. Debt, profit, and circulation are posted to the Master Sheet.'
+        );
     }
 
     public function postOwnerDirectSales(Request $request)
@@ -593,6 +674,12 @@ class DayClosingController extends Controller
 
             $closing->load(['expenses', 'user', 'business']);
             $this->reportService->syncReport($closing->business, $date, $closing);
+            $finalizedReport = $this->reportService->tryFinalizeDayIfReady(
+                $closing->business,
+                $date,
+                $closing,
+                (int) Auth::id()
+            );
 
             DB::commit();
 
@@ -600,12 +687,16 @@ class DayClosingController extends Controller
 
             if ($moneyShort > 0) {
                 return $redirect
-                    ->with('success', 'Your direct POS sales are posted with a money short of '.money($moneyShort).'. Finalize the day on the Master Sheet when ready.')
+                    ->with('success', ($finalizedReport
+                        ? 'Your direct POS sales are posted with a money short of '.money($moneyShort).'. Day finalized on the Master Sheet.'
+                        : 'Your direct POS sales are posted with a money short of '.money($moneyShort).'.'))
                     ->with('info', 'View all money shorts on the Money Shorts page.');
             }
 
             return $redirect
-                ->with('success', 'Your direct POS sales are posted to the Master Sheet. Finalize the day on the Master Sheet when all staff handovers are verified.');
+                ->with('success', $finalizedReport
+                    ? 'Your direct POS sales are posted and the day is finalized on the Master Sheet.'
+                    : 'Your direct POS sales are posted to the Master Sheet.');
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -681,24 +772,131 @@ class DayClosingController extends Controller
         ]).'#handover-'.$dayClosing->id;
     }
 
+    private function sortHandoversForBossReview($closings)
+    {
+        return collect($closings)->sort(function (DayClosing $a, DayClosing $b) {
+            $statusOrder = fn (DayClosing $closing) => match ($closing->status) {
+                'submitted' => 0,
+                'disputed' => 1,
+                default => 2,
+            };
+
+            if ($statusOrder($a) !== $statusOrder($b)) {
+                return $statusOrder($a) <=> $statusOrder($b);
+            }
+
+            $submittedA = $a->submitted_at?->timestamp ?? PHP_INT_MAX;
+            $submittedB = $b->submitted_at?->timestamp ?? PHP_INT_MAX;
+
+            if ($submittedA !== $submittedB) {
+                return $submittedA <=> $submittedB;
+            }
+
+            return $a->id <=> $b->id;
+        })->values();
+    }
+
+    private function nextPendingHandoverToVerify(int $businessId): ?DayClosing
+    {
+        $query = DayClosing::where('business_id', $businessId)
+            ->where('status', 'submitted')
+            ->with(['shift', 'user']);
+
+        $this->scopeDayClosingsForActiveBranch($query);
+
+        return $this->sortHandoversForBossReview($query->get())->first();
+    }
+
+    private function buildHandoverCardsForBossReview($dayHandovers): \Illuminate\Support\Collection
+    {
+        $sorted = $dayHandovers
+            ->filter(fn (DayClosing $closing) => ! $this->isOwnerDirectClosing($closing))
+            ->values();
+
+        $pendingCount = $sorted->where('status', 'submitted')->count();
+        $businessId = (int) ($sorted->first()?->business_id ?? current_business_id());
+        $nextPendingId = $this->nextPendingHandoverToVerify($businessId)?->id;
+        $queuePosition = 0;
+
+        return $sorted->map(function (DayClosing $closing) use ($pendingCount, $nextPendingId, &$queuePosition) {
+            $card = $this->buildHandoverCardData($closing);
+            $card['canVerifyNow'] = $closing->status !== 'submitted' || $closing->id === $nextPendingId;
+
+            if ($closing->status === 'submitted') {
+                $queuePosition++;
+                $card['verifyQueuePosition'] = $queuePosition;
+                $card['verifyQueueTotal'] = $pendingCount;
+            }
+
+            return $card;
+        });
+    }
+
     private function buildHandoverCardData(DayClosing $dayClosing): array
     {
         $dayClosing->loadMissing(['expenses', 'user', 'verifier', 'business', 'shift']);
 
         $date = $dayClosing->closing_date->toDateString();
-        $summary = $this->buildDaySummary($dayClosing->business_id, $date, $dayClosing->shift_id);
-        $collectorUserId = $dayClosing->shift?->user_id;
+        $shift = $dayClosing->shift;
+        $summary = $this->buildDaySummary(
+            $dayClosing->business_id,
+            $date,
+            $shift,
+            shiftOnly: (bool) $dayClosing->shift_id
+        );
+        $collectorUserId = $shift?->user_id;
+        $shiftPaymentWindow = $this->resolveShiftPaymentWindow($shift);
 
-        $staffRows = $this->buildStaffReconciliation($dayClosing->business_id, $date, $summary['sales'], $collectorUserId);
-        $debtCollections = $this->buildDebtCollections($dayClosing->business_id, $date, $summary['sales'], $collectorUserId);
+        $staffRows = $this->buildStaffReconciliation($dayClosing->business_id, $date, $summary['sales'], $collectorUserId, $dayClosing->shift_id, $shiftPaymentWindow);
+        $debtCollections = $this->buildDebtCollections($dayClosing->business_id, $date, $summary['sales'], $collectorUserId, $dayClosing->shift_id, $shiftPaymentWindow);
         $platformBreakdown = $this->buildPlatformBreakdown(
             $dayClosing->business_id,
             $date,
             $dayClosing->shift_id,
             $collectorUserId,
-            $summary['sales']
+            $summary['sales'],
+            $shiftPaymentWindow
         );
-        $allDaySales = $this->buildDaySalesViewData($summary['sales']);
+        $allDaySales = $this->resolveAllHandoverSalesViewData(
+            $summary['sales'],
+            $debtCollections,
+            $dayClosing->business_id,
+            $date,
+            $dayClosing->shift_id,
+            $shiftPaymentWindow,
+            $collectorUserId
+        );
+
+        if ($snapshot = $dayClosing->handover_snapshot) {
+            if (($snapshot['debt_collections']['count'] ?? 0) > 0) {
+                $debtCollections = $snapshot['debt_collections'];
+            }
+            if (($snapshot['all_day_sales'] ?? []) !== []) {
+                $allDaySales = $snapshot['all_day_sales'];
+            }
+        } elseif ($shiftPaymentWindow && $dayClosing->shift_id && ($debtCollections['count'] ?? 0) === 0) {
+            $recomputedDebt = $this->buildDebtCollections(
+                $dayClosing->business_id,
+                $date,
+                $summary['sales'],
+                $collectorUserId,
+                $dayClosing->shift_id,
+                $shiftPaymentWindow
+            );
+            if (($recomputedDebt['count'] ?? 0) > 0) {
+                $debtCollections = $recomputedDebt;
+                $allDaySales = $this->resolveAllHandoverSalesViewData(
+                    $summary['sales'],
+                    $debtCollections,
+                    $dayClosing->business_id,
+                    $date,
+                    $dayClosing->shift_id,
+                    $shiftPaymentWindow,
+                    $collectorUserId
+                );
+            }
+        }
+
         $financeData = [];
         $canViewBossFinancials = $this->canViewBossFinancials($dayClosing);
         $canVerifyHandover = $this->isBusinessOwner();
@@ -722,6 +920,11 @@ class DayClosingController extends Controller
         }
 
         $handoverSummary = $this->buildHandoverSummary($dayClosing, $debtCollections);
+        $shiftStats = $this->resolveShiftHandoverStats($dayClosing, $summary['sales'], $debtCollections);
+
+        if ($canViewBossFinancials && $dayClosing->shift_id) {
+            $financeData['outstanding_debt'] = $shiftStats['unpaid'];
+        }
 
         return compact(
             'dayClosing',
@@ -733,7 +936,44 @@ class DayClosingController extends Controller
             'canViewBossFinancials',
             'canVerifyHandover',
             'handoverSummary',
+            'shiftStats',
         );
+    }
+
+    private function resolveShiftHandoverStats(DayClosing $closing, $sales, array $debtCollections = []): array
+    {
+        $active = collect($sales)->where('payment_status', '!=', 'cancelled');
+        $computedOrders = $active->count();
+        $computedGross = (float) $active->sum('total_amount');
+        $computedCollected = (float) $active->sum('amount_paid');
+        $computedUnpaid = max(0, $computedGross - $computedCollected);
+        $debtTotal = (float) ($debtCollections['total'] ?? 0);
+        $debtCount = (int) ($debtCollections['count'] ?? 0);
+
+        if ($computedOrders > 0) {
+            return [
+                'orders' => $computedOrders,
+                'gross' => $computedGross,
+                'collected' => $computedCollected,
+                'unpaid' => $computedUnpaid,
+                'handover' => (float) $closing->net_amount,
+                'prior_shift_orders' => $debtCount,
+                'prior_shift_collected' => $debtTotal,
+            ];
+        }
+
+        $storedGross = (float) $closing->gross_sales;
+        $storedCollected = (float) $closing->amount_collected;
+
+        return [
+            'orders' => (int) $closing->sales_count,
+            'gross' => $storedGross,
+            'collected' => $storedCollected,
+            'unpaid' => max((float) $closing->outstanding_sales, max(0, $storedGross - $storedCollected)),
+            'handover' => (float) $closing->net_amount,
+            'prior_shift_orders' => $debtCount,
+            'prior_shift_collected' => $debtTotal,
+        ];
     }
 
     private function buildHandoverSummary(DayClosing $dayClosing, array $debtCollections): array
@@ -936,11 +1176,44 @@ class DayClosingController extends Controller
             });
     }
 
-    private function allocateDebtCollectionsByBusinessType(int $businessId, string $date, $daySales): array
+    private function allocateDebtCollectionsByBusinessType(int $businessId, string $date, $daySales, ?int $currentShiftId = null, ?array $shiftPaymentWindow = null): array
     {
-        $payments = $this->queryDebtCollectionPayments($businessId, $date, null);
+        $payments = $this->queryDebtCollectionPayments($businessId, $date, null, $currentShiftId, $shiftPaymentWindow);
 
         return $this->businessTypeBreakdown->allocateDebtFromPayments($payments);
+    }
+
+    private function resolveShiftPaymentWindow(?Shift $shift): ?array
+    {
+        if (! $shift?->opened_at) {
+            return null;
+        }
+
+        $start = $shift->opened_at->copy();
+        $end = ($shift->closed_at ?? now())->copy();
+
+        if ($start->gt($end)) {
+            $start = $shift->created_at?->copy() ?? $end->copy();
+        }
+
+        if ($start->gt($end)) {
+            $start = $end->copy();
+        }
+
+        return [
+            'start' => $start,
+            'end' => $end,
+        ];
+    }
+
+    private function scopePaymentsToShiftWindow($query, ?array $shiftPaymentWindow): void
+    {
+        if (! $shiftPaymentWindow) {
+            return;
+        }
+
+        $query->where('created_at', '>=', $shiftPaymentWindow['start'])
+            ->where('created_at', '<=', $shiftPaymentWindow['end']);
     }
 
     private function attachOrphanSalesToShift(Shift $shift, string $date): void
@@ -968,22 +1241,49 @@ class DayClosingController extends Controller
         });
     }
 
-    private function buildDaySummary(int $businessId, string $date, Shift|int|null $shift = null): array
+    private function applyExcludeShiftsScope($query, ?array $excludeShiftIds): void
     {
+        if ($excludeShiftIds === null || $excludeShiftIds === []) {
+            return;
+        }
+
+        $excludeShiftIds = array_values(array_unique(array_map('intval', $excludeShiftIds)));
+
+        $query->where(function ($q) use ($excludeShiftIds) {
+            $q->whereNull('shift_id')
+                ->orWhereNotIn('shift_id', $excludeShiftIds);
+        });
+    }
+
+    private function buildDaySummary(
+        int $businessId,
+        string $date,
+        Shift|int|null $shift = null,
+        bool $shiftOnly = false,
+        ?array $excludeShiftIds = null
+    ): array {
         $shiftModel = $shift instanceof Shift ? $shift : (is_int($shift) ? Shift::find($shift) : null);
         $shiftId = $shiftModel?->id ?? (is_int($shift) ? $shift : null);
-        $includeOrphanSales = $shift instanceof Shift;
+        $includeOrphanSales = $shift instanceof Shift && ! $shiftOnly;
 
-        $daySalesQuery = Sale::where('business_id', $businessId)
-            ->whereDate('sale_date', $date);
+        $daySalesQuery = Sale::where('business_id', $businessId);
 
-        if ($shiftId && $includeOrphanSales && $shiftModel) {
-            $this->applyShiftHandoverSalesScope($daySalesQuery, $shiftModel, $date);
-        } elseif ($shiftId) {
+        if ($shiftOnly && $shiftId) {
             $daySalesQuery->where('shift_id', $shiftId);
+        } else {
+            $daySalesQuery->whereDate('sale_date', $date);
+
+            if ($shiftId && $includeOrphanSales && $shiftModel) {
+                $this->applyShiftHandoverSalesScope($daySalesQuery, $shiftModel, $date);
+            } elseif ($shiftId) {
+                $daySalesQuery->where('shift_id', $shiftId);
+            }
         }
 
         $this->scopeDayClosingSales($daySalesQuery, $businessId);
+        if (! $shiftOnly) {
+            $this->applyExcludeShiftsScope($daySalesQuery, $excludeShiftIds);
+        }
 
         $daySales = $daySalesQuery
             ->with(['user', 'payments', 'items.item.category', 'items.item.packagings'])
@@ -996,15 +1296,24 @@ class DayClosingController extends Controller
         $grossSales = $activeSales->sum('total_amount');
         $amountCollected = $activeSales->sum('amount_paid');
 
-        $paymentsQuery = SalePayment::whereHas('sale', function ($q) use ($businessId, $shiftId, $includeOrphanSales, $shiftModel, $date) {
+        $paymentsQuery = SalePayment::whereHas('sale', function ($q) use ($businessId, $shiftId, $includeOrphanSales, $shiftModel, $date, $shiftOnly, $excludeShiftIds) {
             $q->where('business_id', $businessId);
-            if ($shiftId && $includeOrphanSales && $shiftModel) {
+            if ($shiftOnly && $shiftId) {
+                $q->where('shift_id', $shiftId);
+            } elseif ($shiftId && $includeOrphanSales && $shiftModel) {
                 $this->applyShiftHandoverSalesScope($q, $shiftModel, $date);
             } elseif ($shiftId) {
                 $q->where('shift_id', $shiftId);
             }
             $this->scopeDayClosingSales($q, $businessId);
-        })->whereDate('created_at', $date);
+            if (! $shiftOnly) {
+                $this->applyExcludeShiftsScope($q, $excludeShiftIds);
+            }
+        });
+
+        if (! $shiftOnly) {
+            $paymentsQuery->whereDate('created_at', $date);
+        }
 
         $paymentsReceived = (clone $paymentsQuery)->sum('amount');
         $cashReceived = (clone $paymentsQuery)->where('payment_method', 'cash')->sum('amount');
@@ -1025,14 +1334,19 @@ class DayClosingController extends Controller
         ];
     }
 
-    private function buildStaffReconciliation(int $businessId, string $date, $daySales, ?int $collectorUserId = null): array
+    private function buildStaffReconciliation(int $businessId, string $date, $daySales, ?int $collectorUserId = null, ?int $currentShiftId = null, ?array $shiftPaymentWindow = null): array
     {
         $activeSales = $daySales->where('payment_status', '!=', 'cancelled');
         $shiftSaleIds = $activeSales->pluck('id')->all();
 
         $allDayPaymentsQuery = SalePayment::whereHas('sale', fn ($q) => $q->where('business_id', $businessId))
-            ->whereDate('created_at', $date)
             ->with(['sale']);
+
+        if ($shiftPaymentWindow) {
+            $this->scopePaymentsToShiftWindow($allDayPaymentsQuery, $shiftPaymentWindow);
+        } else {
+            $allDayPaymentsQuery->whereDate('created_at', $date);
+        }
 
         if ($collectorUserId) {
             $allDayPaymentsQuery->where('user_id', $collectorUserId);
@@ -1061,12 +1375,12 @@ class DayClosingController extends Controller
 
             if ($collectorUserId) {
                 $staffPayments = $staffPayments->filter(
-                    fn (SalePayment $payment) => $this->paymentBelongsToShiftHandover($payment, $staffSaleIds, $date)
+                    fn (SalePayment $payment) => $this->paymentBelongsToShiftHandover($payment, $staffSaleIds, $date, $currentShiftId)
                 );
             }
 
-            $debtPayments = $staffPayments->filter(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date));
-            $shiftPayments = $staffPayments->reject(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date));
+            $debtPayments = $staffPayments->filter(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date, $currentShiftId));
+            $shiftPayments = $staffPayments->reject(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date, $currentShiftId));
 
             $cashCollected = $shiftPayments->where('payment_method', 'cash')->sum('amount');
             $mobileCollected = $shiftPayments->where('payment_method', 'mobile_money')->sum('amount');
@@ -1113,7 +1427,7 @@ class DayClosingController extends Controller
 
         if (! $collectorUserId) {
             $staffWithDebtOnly = $allDayPayments
-                ->filter(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date))
+                ->filter(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date, $currentShiftId))
                 ->pluck('user_id')
                 ->unique()
                 ->diff($staffIds);
@@ -1122,7 +1436,7 @@ class DayClosingController extends Controller
                 $staff = User::find($staffId);
                 $debtPayments = $allDayPayments
                     ->where('user_id', $staffId)
-                    ->filter(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date));
+                    ->filter(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date, $currentShiftId));
 
                 $rows[] = [
                     'staff' => $staff,
@@ -1149,9 +1463,9 @@ class DayClosingController extends Controller
         return collect($rows)->sortBy(fn ($r) => $r['staff']->name ?? '')->values()->all();
     }
 
-    private function buildDebtCollections(int $businessId, string $date, $daySales, ?int $collectorUserId = null): array
+    private function buildDebtCollections(int $businessId, string $date, $daySales, ?int $collectorUserId = null, ?int $currentShiftId = null, ?array $shiftPaymentWindow = null): array
     {
-        $payments = $this->queryDebtCollectionPayments($businessId, $date, $collectorUserId);
+        $payments = $this->queryDebtCollectionPayments($businessId, $date, $collectorUserId, $currentShiftId, $shiftPaymentWindow);
 
         return [
             'total' => (float) $payments->sum('amount'),
@@ -1160,16 +1474,16 @@ class DayClosingController extends Controller
         ];
     }
 
-    private function paymentBelongsToShiftHandover(SalePayment $payment, array $shiftSaleIds, string $date): bool
+    private function paymentBelongsToShiftHandover(SalePayment $payment, array $shiftSaleIds, string $date, ?int $currentShiftId = null): bool
     {
         if (in_array($payment->sale_id, $shiftSaleIds, true)) {
             return true;
         }
 
-        return $this->isDebtCollectionPayment($payment, $date);
+        return $this->isDebtCollectionPayment($payment, $date, $currentShiftId);
     }
 
-    private function isDebtCollectionPayment(SalePayment $payment, string $date): bool
+    private function isDebtCollectionPayment(SalePayment $payment, string $date, ?int $currentShiftId = null): bool
     {
         $payment->loadMissing(['sale.payments']);
         $sale = $payment->sale;
@@ -1178,7 +1492,15 @@ class DayClosingController extends Controller
             return false;
         }
 
+        if (Carbon::parse($payment->created_at)->toDateString() !== $date) {
+            return false;
+        }
+
         $saleDate = Carbon::parse($sale->sale_date)->toDateString();
+
+        if ($currentShiftId && $sale->shift_id && (int) $sale->shift_id !== (int) $currentShiftId) {
+            return true;
+        }
 
         if ($saleDate < $date) {
             return true;
@@ -1195,11 +1517,17 @@ class DayClosingController extends Controller
         return $firstPayment && (int) $firstPayment->id !== (int) $payment->id;
     }
 
-    private function queryDebtCollectionPayments(int $businessId, string $date, ?int $collectorUserId = null)
+    private function queryDebtCollectionPayments(int $businessId, string $date, ?int $collectorUserId = null, ?int $currentShiftId = null, ?array $shiftPaymentWindow = null)
     {
-        $query = SalePayment::query()
-            ->whereDate('created_at', $date)
-            ->whereHas('sale', function ($q) use ($businessId) {
+        $query = SalePayment::query();
+
+        if ($shiftPaymentWindow) {
+            $this->scopePaymentsToShiftWindow($query, $shiftPaymentWindow);
+        } else {
+            $query->whereDate('created_at', $date);
+        }
+
+        $query->whereHas('sale', function ($q) use ($businessId) {
                 $q->where('business_id', $businessId)
                     ->where('payment_status', '!=', 'cancelled');
                 $this->scopeDayClosingSales($q, $businessId);
@@ -1212,7 +1540,7 @@ class DayClosingController extends Controller
         }
 
         return $query->get()->filter(
-            fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date)
+            fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date, $currentShiftId)
         )->values();
     }
 
@@ -1236,14 +1564,21 @@ class DayClosingController extends Controller
         })->values()->all();
     }
 
-    private function buildPlatformBreakdown(int $businessId, string $date, ?int $shiftId = null, ?int $collectorUserId = null, $daySales = null): array
+    private function buildPlatformBreakdown(int $businessId, string $date, ?int $shiftId = null, ?int $collectorUserId = null, $daySales = null, ?array $shiftPaymentWindow = null): array
     {
         $shiftSaleIds = $daySales
             ? $daySales->where('payment_status', '!=', 'cancelled')->pluck('id')->all()
             : [];
 
-        $payments = SalePayment::query()
-            ->whereDate('created_at', $date)
+        $paymentsQuery = SalePayment::query();
+
+        if ($shiftPaymentWindow) {
+            $this->scopePaymentsToShiftWindow($paymentsQuery, $shiftPaymentWindow);
+        } else {
+            $paymentsQuery->whereDate('created_at', $date);
+        }
+
+        $payments = $paymentsQuery
             ->whereHas('sale', function ($q) use ($businessId, $shiftId, $shiftSaleIds, $collectorUserId, $date) {
                 $q->where('business_id', $businessId)
                     ->where('payment_status', '!=', 'cancelled');
@@ -1283,7 +1618,7 @@ class DayClosingController extends Controller
         }
 
         if ($shiftId && $collectorUserId) {
-            $externalDebtPayments = $this->queryDebtCollectionPayments($businessId, $date, $collectorUserId)
+            $externalDebtPayments = $this->queryDebtCollectionPayments($businessId, $date, $collectorUserId, $shiftId, $shiftPaymentWindow)
                 ->reject(fn (SalePayment $payment) => in_array($payment->sale_id, $shiftSaleIds, true));
 
             foreach ($externalDebtPayments as $payment) {
@@ -1313,17 +1648,74 @@ class DayClosingController extends Controller
         return $breakdown;
     }
 
-    private function buildDaySalesViewData($daySales): array
+    private function resolveAllHandoverSalesViewData(
+        $shiftSales,
+        array $debtCollections,
+        int $businessId,
+        string $date,
+        ?int $currentShiftId,
+        ?array $shiftPaymentWindow,
+        ?int $collectorUserId
+    ): array {
+        $sales = collect($shiftSales)->where('payment_status', '!=', 'cancelled')->values();
+
+        if ($currentShiftId && $shiftPaymentWindow && ($debtCollections['count'] ?? 0) > 0) {
+            $payments = $this->queryDebtCollectionPayments(
+                $businessId,
+                $date,
+                $collectorUserId,
+                $currentShiftId,
+                $shiftPaymentWindow
+            );
+            $carriedIds = $payments->pluck('sale_id')->unique()->diff($sales->pluck('id'));
+
+            if ($carriedIds->isNotEmpty()) {
+                $carried = Sale::query()
+                    ->whereIn('id', $carriedIds)
+                    ->with(['user', 'payments'])
+                    ->get();
+
+                $sales = $sales->merge($carried);
+            }
+        }
+
+        return $this->buildDaySalesViewData(
+            $sales->sortBy('created_at')->values(),
+            $currentShiftId,
+            $shiftPaymentWindow
+        );
+    }
+
+    private function buildDaySalesViewData($daySales, ?int $currentShiftId = null, ?array $shiftPaymentWindow = null): array
     {
-        return $daySales
+        return collect($daySales)
             ->where('payment_status', '!=', 'cancelled')
-            ->map(function ($sale) {
-                $payments = $sale->payments->map(fn ($p) => [
+            ->map(function ($sale) use ($currentShiftId, $shiftPaymentWindow) {
+                $isCarriedOver = $currentShiftId
+                    && $sale->shift_id
+                    && (int) $sale->shift_id !== (int) $currentShiftId;
+
+                $payments = $sale->payments;
+                if ($isCarriedOver && $shiftPaymentWindow) {
+                    $payments = $payments->filter(function ($payment) use ($shiftPaymentWindow) {
+                        if (! $payment->created_at) {
+                            return false;
+                        }
+
+                        return $payment->created_at->gte($shiftPaymentWindow['start'])
+                            && $payment->created_at->lte($shiftPaymentWindow['end']);
+                    });
+                }
+
+                $paymentRows = $payments->map(fn ($p) => [
                     'method' => $p->payment_method,
                     'provider' => $p->payment_provider,
                     'amount' => (float) $p->amount,
                     'reference' => $p->transaction_reference,
+                    'time' => $p->created_at?->format('h:i A'),
                 ])->values()->all();
+
+                $shiftCollected = $isCarriedOver ? (float) collect($paymentRows)->sum('amount') : null;
 
                 return [
                     'ref' => $sale->reference_no,
@@ -1335,7 +1727,10 @@ class DayClosingController extends Controller
                     'status' => $sale->payment_status,
                     'time' => $sale->created_at->format('h:i A'),
                     'customer' => $sale->customer_name,
-                    'payments' => $payments,
+                    'payments' => $paymentRows,
+                    'carried_over' => $isCarriedOver,
+                    'origin_shift_id' => $isCarriedOver ? (int) $sale->shift_id : null,
+                    'shift_collected' => $shiftCollected,
                 ];
             })
             ->values()

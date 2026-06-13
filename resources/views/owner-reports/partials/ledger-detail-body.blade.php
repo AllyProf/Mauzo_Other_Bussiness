@@ -137,30 +137,11 @@
             <hr class="my-2">
             <div class="d-flex justify-content-between font-weight-bold"><span class="text-primary"><i class="fa fa-clock-o"></i> {{ __('owner_reports.labels.circulation_next_day') }}</span><span class="h6 mb-0 text-primary">TZS {{ number_format($ledger['carried_forward'], 0) }}</span></div>
             <div class="d-flex justify-content-between font-weight-bold mt-2"><span class="text-success"><i class="fa fa-line-chart"></i> {{ __('owner_reports.labels.profit_next_day') }}</span><span class="h6 mb-0 text-success">TZS {{ number_format($ledger['profit_rollover'] ?? 0, 0) }}</span></div>
-            <small class="text-muted d-block mt-1">{{ __('owner_reports.labels.finalize_note') }}</small>
           </div>
 
           <div class="or-detail-actions">
             <a href="{{ route('day-closing.show', $closingRouteId) }}" class="btn btn-primary btn-sm mb-2 mr-2"><i class="fa fa-eye"></i> {{ __('owner_reports.view_reconciliation') }}</a>
             <a href="{{ route('day-closing.index', ['date' => $ledger['ledger_date']]) }}#{{ ($ledger['shift_id'] ?? null) ? 'handover-'.$closingRouteId : 'owner-day-close' }}" class="btn btn-outline-secondary btn-sm mb-2"><i class="fa fa-external-link"></i> {{ __('owner_reports.view_reconciliation') }}</a>
-
-            @if(Auth::user()->role === 'owner' && ($ledger['is_last_handover_of_day'] ?? false) && !($ledger['is_finalized'] ?? false) && !($ledger['is_business_type_row'] ?? false))
-            <div class="border rounded p-3 bg-white mb-2 or-finalize-box">
-              <h6 class="font-weight-bold mb-2"><i class="fa fa-check"></i> {{ __('owner_reports.show.finalize_button') }}</h6>
-              <p class="small text-muted mb-2">{{ __('owner_reports.show.petty_cash_hint') }}</p>
-              <a href="{{ route('petty-cash.index', ['date' => $ledger['ledger_date']]) }}" class="btn btn-outline-primary btn-sm btn-block mb-2"><i class="fa fa-money"></i> {{ __('owner_reports.show.manage_petty_cash') }}</a>
-              <form method="POST" action="{{ route('owner-reports.finalize', $ledger['ledger_date']) }}" class="finalize-day-form" data-closing-id="{{ $ledger['id'] }}">
-                @csrf
-                <div class="form-group mb-2">
-                  <label class="small font-weight-bold mb-1">{{ __('owner_reports.show.owner_notes_optional') }}</label>
-                  <textarea name="owner_notes" class="form-control form-control-sm" rows="2" placeholder="{{ __('owner_reports.show.owner_notes_placeholder') }}">{{ old('owner_notes', $ledger['report']?->owner_notes ?? '') }}</textarea>
-                </div>
-                <button type="button" class="btn btn-success btn-sm btn-block finalize-day-btn" data-circulation="{{ round($ledger['carried_forward'] ?? 0) }}" data-profit="{{ round($ledger['profit_rollover'] ?? 0) }}">
-                  <i class="fa fa-check"></i> {{ __('owner_reports.show.finalize_button') }}
-                </button>
-              </form>
-            </div>
-            @endif
           </div>
         </div>
       </div>

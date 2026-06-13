@@ -196,7 +196,7 @@ class ServiceSaleController extends Controller
                 'shift_id' => $openShift?->id,
                 'reference_no' => $ref,
                 'sale_source' => 'service_pos',
-                'stock_deducted' => true,
+                'stock_deducted' => false,
                 'consumables_deducted' => false,
                 'sale_date' => $request->sale_date,
                 'total_amount' => $total,
@@ -233,7 +233,6 @@ class ServiceSaleController extends Controller
 
             DB::commit();
             $openShift?->refreshTotals();
-            app(\App\Services\ServiceConsumableService::class)->deductForSale($sale->fresh());
 
             return redirect()->route('services.sales.index')
                 ->with('success', "Service order {$ref} placed. Collect payment from Service Sales.");

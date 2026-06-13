@@ -37,7 +37,6 @@
     @else
     <div class="or-mobile-actions d-print-none" onclick="event.stopPropagation();">
       <a href="{{ route('day-closing.show', $closingRouteId) }}" class="btn btn-primary btn-sm"><i class="fa fa-eye"></i></a>
-      <a href="{{ route('day-closing.show', $closingRouteId) }}" target="_blank" class="btn btn-dark btn-sm"><i class="fa fa-print"></i></a>
       @if($canExpand)
         <span class="or-mobile-expand-hint"><i class="fa fa-chevron-down"></i></span>
       @endif

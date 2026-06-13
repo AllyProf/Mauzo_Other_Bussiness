@@ -264,9 +264,21 @@
           </div>
       @endif
 
-      @if(session()->has('impersonate_original_user'))
-          <div class="alert alert-warning d-flex justify-content-between align-items-center mb-4">
-              <div>
+      @if(session()->has('impersonate_staff_original_user'))
+          <div class="alert alert-info d-flex justify-content-between align-items-center mb-4 flex-wrap">
+              <div class="mb-2 mb-md-0">
+                  <i class="fa fa-user-secret mr-2"></i> You are viewing the system as staff: <strong>{{ Auth::user()->name }}</strong>.
+              </div>
+              <form action="{{ route('stop-impersonating') }}" method="POST">
+                  @csrf
+                  <button type="submit" class="btn btn-sm btn-dark">
+                      <i class="fa fa-arrow-left mr-1"></i> Switch Back to Owner
+                  </button>
+              </form>
+          </div>
+      @elseif(session()->has('impersonate_original_user'))
+          <div class="alert alert-warning d-flex justify-content-between align-items-center mb-4 flex-wrap">
+              <div class="mb-2 mb-md-0">
                   <i class="fa fa-info-circle mr-2"></i> You are currently impersonating <strong>{{ Auth::user()->business?->name ?? 'Business' }}</strong>.
               </div>
               <form action="{{ route('stop-impersonating') }}" method="POST">

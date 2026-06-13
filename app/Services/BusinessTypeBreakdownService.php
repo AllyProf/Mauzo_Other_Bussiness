@@ -7,7 +7,7 @@ use App\Models\SalePayment;
 
 class BusinessTypeBreakdownService
 {
-    public function buildFromSales($daySales, array $businessTypes, ?Business $business, array $debtByType = []): array
+    public function buildFromSales($daySales, array $businessTypes, ?Business $business, array $debtByType = [], array $debtProfitByType = []): array
     {
         $labels = collect($businessTypes)->mapWithKeys(fn ($type) => [
             ($type['key'] ?? 'other') => $type['label'] ?? 'Other',
@@ -56,19 +56,45 @@ class BusinessTypeBreakdownService
             }
         }
 
+        foreach ($debtByType as $typeKey => $debtAmount) {
+            if ((float) $debtAmount <= 0 || isset($rows[$typeKey])) {
+                continue;
+            }
+
+            $debtProfit = (float) ($debtProfitByType[$typeKey] ?? 0);
+            $rows[$typeKey] = [
+                'key' => $typeKey,
+                'label' => $labels->get($typeKey, ucwords(str_replace([':', '_', '-'], ' ', $typeKey))),
+                'orders' => 0,
+                'gross_sales' => 0.0,
+                'collected' => 0.0,
+                'cost_of_goods' => 0.0,
+                'credit' => 0.0,
+                'debt_collected' => (float) $debtAmount,
+                'gross_profit' => $debtProfit,
+                'profit_generated' => 0.0,
+                'circulation_generated' => 0.0,
+            ];
+        }
+
         return collect($rows)
-            ->map(function ($row) use ($deductFrom, $debtByType) {
-                $row['orders'] = count($row['orders']);
+            ->map(function ($row) use ($deductFrom, $debtByType, $debtProfitByType) {
+                $row['orders'] = is_array($row['orders'] ?? null) ? count($row['orders']) : (int) ($row['orders'] ?? 0);
                 $row['credit'] = max(0, $row['gross_sales'] - $row['collected']);
-                $row['gross_profit'] = max(0, $row['gross_sales'] - $row['cost_of_goods']);
-                $row['debt_collected'] = (float) ($debtByType[$row['key']] ?? 0);
+                $debtProfitShare = (float) ($debtProfitByType[$row['key']] ?? 0);
+                if (($row['gross_profit'] ?? 0) <= 0) {
+                    $row['gross_profit'] = max(0, $row['gross_sales'] - $row['cost_of_goods']);
+                }
+                $row['gross_profit'] = (float) $row['gross_profit'] + $debtProfitShare;
+                $row['debt_collected'] = (float) ($debtByType[$row['key']] ?? $row['debt_collected'] ?? 0);
+                $collectedTotal = (float) $row['collected'] + (float) $row['debt_collected'];
 
                 if ($deductFrom === 'circulation') {
-                    $row['profit_generated'] = min($row['collected'], $row['gross_profit']);
-                    $row['circulation_generated'] = max(0, $row['collected'] - $row['gross_profit']);
+                    $row['profit_generated'] = min($collectedTotal, (float) $row['gross_profit']);
+                    $row['circulation_generated'] = max(0, $collectedTotal - (float) $row['gross_profit']);
                 } else {
-                    $row['profit_generated'] = $row['gross_profit'];
-                    $row['circulation_generated'] = $row['collected'];
+                    $row['profit_generated'] = (float) $row['gross_profit'];
+                    $row['circulation_generated'] = $collectedTotal;
                 }
 
                 return $row;
@@ -129,6 +155,65 @@ class BusinessTypeBreakdownService
 
             foreach ($typeWeights as $typeKey => $weight) {
                 $byType[$typeKey] = ($byType[$typeKey] ?? 0) + ($amount * ($weight / $totalWeight));
+            }
+        }
+
+        return $byType;
+    }
+
+    public function allocateDebtProfitFromPayments($payments): array
+    {
+        $byType = [];
+
+        foreach ($payments as $payment) {
+            if (! $payment instanceof SalePayment) {
+                continue;
+            }
+
+            $sale = $payment->sale;
+            if (! $sale) {
+                continue;
+            }
+
+            $sale->loadMissing(['items.item.packagings']);
+            $saleTotal = (float) $sale->total_amount;
+            $paymentAmount = (float) $payment->amount;
+
+            if ($saleTotal <= 0 || $paymentAmount <= 0) {
+                continue;
+            }
+
+            $costOfGoods = 0.0;
+            foreach ($sale->items as $line) {
+                $unitCost = (float) ($line->cost_price ?? optional($line->item?->packagings?->first())->cost_price ?? 0);
+                $costOfGoods += $unitCost * (float) $line->quantity;
+            }
+
+            $saleProfit = max(0, $saleTotal - $costOfGoods);
+            $ratio = min(1, $paymentAmount / $saleTotal);
+            $paymentProfit = $saleProfit * $ratio;
+
+            $typeWeights = [];
+            $totalWeight = 0.0;
+
+            foreach ($sale->items as $line) {
+                $typeKey = $line->item?->category?->source_business_type_key ?: 'other';
+                $weight = (float) ($line->subtotal ?? 0);
+                if ($weight <= 0) {
+                    $weight = 1.0;
+                }
+                $typeWeights[$typeKey] = ($typeWeights[$typeKey] ?? 0) + $weight;
+                $totalWeight += $weight;
+            }
+
+            if ($totalWeight <= 0) {
+                $byType['other'] = ($byType['other'] ?? 0) + $paymentProfit;
+
+                continue;
+            }
+
+            foreach ($typeWeights as $typeKey => $weight) {
+                $byType[$typeKey] = ($byType[$typeKey] ?? 0) + ($paymentProfit * ($weight / $totalWeight));
             }
         }
 

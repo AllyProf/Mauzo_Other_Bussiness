@@ -192,7 +192,14 @@
               </div>
             </div>
             <div class="alert alert-warning py-2 px-2 mt-2 mb-0 small {{ $balances['is_finalized'] ? '' : 'd-none' }}" id="finalizedNotice">
-              <i class="fa fa-lock"></i> This date is finalized. Choose another date to issue petty cash.
+              <i class="fa fa-lock"></i> This date is finalized on the Master Sheet — petty cash cannot be added to a closed day.
+              @if($nextOpenDate ?? false)
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="useNextOpenDayBtn" data-next-date="{{ $nextOpenDate }}">
+                  Use {{ \Carbon\Carbon::parse($nextOpenDate)->format('d M, Y') }}
+                </button>
+              @else
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline d-none" id="useNextOpenDayBtn"></button>
+              @endif
             </div>
           </div>
 
@@ -465,6 +472,7 @@ jQuery(function($) {
     $('#available-profit, #preview-profit').text(formatMoney(data.available_profit));
     $('#circulation-meta').text(circulationMeta);
     $('#profit-meta').text(profitMeta);
+    $('#expense_date').val(data.date);
 
     const $preview = $('#balancePreview');
     if (data.is_finalized) {
@@ -473,15 +481,31 @@ jQuery(function($) {
       $('#finalizedNotice').removeClass('d-none');
       $('#issueFormFields').addClass('issue-form-disabled');
       $('#issueSubmitBtn').prop('disabled', true);
+      if (data.next_open_date) {
+        $('#useNextOpenDayBtn')
+          .removeClass('d-none')
+          .data('next-date', data.next_open_date)
+          .text('Use ' + (data.next_open_date_label || data.next_open_date));
+      } else {
+        $('#useNextOpenDayBtn').addClass('d-none');
+      }
     } else {
       $preview.removeClass('is-finalized');
       $('#preview-status-badge').removeClass('badge-warning').addClass('badge-success').text('Open');
       $('#finalizedNotice').addClass('d-none');
       $('#issueFormFields').removeClass('issue-form-disabled');
       $('#issueSubmitBtn').prop('disabled', false);
+      $('#useNextOpenDayBtn').addClass('d-none');
     }
 
     updateAmountConstraints();
+  }
+
+  function findNextOpenDate(fromDate) {
+    const start = new Date(fromDate + 'T00:00:00');
+    start.setDate(start.getDate() + 1);
+    const next = start.toISOString().slice(0, 10);
+    fetchBalances(next);
   }
 
   function fetchBalances(date) {
@@ -508,6 +532,15 @@ jQuery(function($) {
 
   $('#expense_date').on('change', function() {
     fetchBalances($(this).val());
+  });
+
+  $('#useNextOpenDayBtn').on('click', function() {
+    const nextDate = $(this).data('next-date');
+    if (nextDate) {
+      fetchBalances(nextDate);
+    } else {
+      findNextOpenDate($('#expense_date').val());
+    }
   });
 
   $('#business_type_key').on('change', function() {

@@ -16,6 +16,7 @@ class LogBusinessActivity
         'logout',
         'tickets.quick-store',
         'stop-impersonating',
+        'employees.impersonate',
     ];
 
     /** @var array<int, string> */

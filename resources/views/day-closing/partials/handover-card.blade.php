@@ -14,7 +14,10 @@
         @endif
       </p>
     </div>
-    <div class="mt-2 mt-md-0">
+    <div class="mt-2 mt-md-0 text-right">
+      @if(($verifyQueuePosition ?? null) && ($dayClosing->status ?? null) === 'submitted')
+        <span class="badge badge-dark badge-lg p-2 mb-2 d-inline-block">Verify {{ $verifyQueuePosition }} of {{ $verifyQueueTotal }}</span><br>
+      @endif
       @if($dayClosing->status === 'verified')
         <span class="badge badge-success badge-lg p-2">Verified</span>
       @elseif($dayClosing->status === 'disputed')
@@ -42,60 +45,84 @@
     'debt_collected' => (float) ($debtCollections['total'] ?? 0),
   ]])
 
-  @unless($canViewBossFinancials ?? false)
-  <div class="row mb-3">
-    <div class="col-md-3 col-6"><div class="widget-small primary coloured-icon"><i class="icon fa fa-shopping-cart fa-3x"></i><div class="info"><h4>Sales</h4><p><b>{{ $dayClosing->sales_count }}</b></p></div></div></div>
-    <div class="col-md-3 col-6"><div class="widget-small info coloured-icon"><i class="icon fa fa-line-chart fa-3x"></i><div class="info"><h4>Gross</h4><p><b>{{ money($dayClosing->gross_sales) }}</b></p></div></div></div>
-    <div class="col-md-3 col-6"><div class="widget-small warning coloured-icon"><i class="icon fa fa-money fa-3x"></i><div class="info"><h4>Submitted</h4><p><b>{{ money($dayClosing->payments_received) }}</b></p></div></div></div>
-    <div class="col-md-3 col-6"><div class="widget-small success coloured-icon"><i class="icon fa fa-check fa-3x"></i><div class="info text-dark"><h4>Net Handover</h4><p><b>{{ money($dayClosing->net_amount) }}</b></p></div></div></div>
-  </div>
-  @endunless
+  @php
+    $shiftStats = $shiftStats ?? [
+      'orders' => (int) $dayClosing->sales_count,
+      'gross' => (float) $dayClosing->gross_sales,
+      'collected' => (float) $dayClosing->amount_collected,
+      'unpaid' => max((float) $dayClosing->outstanding_sales, max(0, (float) $dayClosing->gross_sales - (float) $dayClosing->amount_collected)),
+      'handover' => (float) $dayClosing->net_amount,
+    ];
+    $shiftGross = (float) $shiftStats['gross'];
+    $shiftCollected = (float) $shiftStats['collected'];
+    $shiftUnpaid = (float) $shiftStats['unpaid'];
+    $priorShiftOrders = (int) ($shiftStats['prior_shift_orders'] ?? 0);
+    $priorShiftCollected = (float) ($shiftStats['prior_shift_collected'] ?? 0);
+    $submittedBreakdown = $dayClosing->payment_breakdown ?? [];
+    if ($submittedBreakdown === []) {
+      $submittedBreakdown = array_filter([
+        'cash' => (float) $dayClosing->cash_received,
+        'mobile_money' => (float) $dayClosing->mobile_received,
+        'bank' => (float) $dayClosing->bank_received,
+      ], fn ($amount) => $amount != 0);
+    }
+  @endphp
 
-  <h5 class="d-flex justify-content-between align-items-center flex-wrap">
-    <span>Staff Reconciliation</span>
-    <button type="button" class="btn btn-info btn-sm view-handover-sales-btn mt-2 mt-md-0" data-sales='@json($allDaySales)' data-title="All Sales — {{ $dayClosing->user->name ?? 'Staff' }}">
-      <i class="fa fa-eye"></i> View All Sales ({{ count($allDaySales) }})
+  <h5 class="d-flex justify-content-between align-items-center flex-wrap mt-3 mb-2">
+    <span>Shift Summary</span>
+    @if(count($allDaySales) > 0 || ($debtCollections['count'] ?? 0) > 0)
+    <button type="button" class="btn btn-info btn-sm view-handover-sales-btn mt-2 mt-md-0" data-sales='@json($allDaySales)' data-title="Shift #{{ $dayClosing->shift?->id ?? '—' }} — {{ $dayClosing->user->name ?? 'Staff' }}">
+      <i class="fa fa-eye"></i> View {{ count($allDaySales) }} sale(s)
     </button>
+    @endif
   </h5>
-  <div class="d-lg-none mb-3">
-    @include('day-closing.partials.staff-mobile-cards', ['staffRows' => $staffRows, 'showDiff' => true])
-  </div>
-  <div class="table-responsive mb-4 d-none d-lg-block">
-    <table class="table table-bordered table-sm">
-      <thead>
+  <div class="table-responsive mb-3">
+    <table class="table table-bordered table-sm mb-0">
+      <thead class="thead-light">
         <tr>
-          <th>{{ __('tables.columns.staff') }}</th><th>Orders</th><th>{{ __('tables.columns.gross') }}</th><th>Cash</th><th>Mobile</th><th>Bank</th><th class="audit-col-bg">Debt Paid</th>
-          <th class="audit-col-bg">Expected</th><th class="audit-col-bg">Collected</th><th class="diff-col-bg">Diff</th><th>{{ __('tables.columns.status') }}</th>
+          <th>Orders</th>
+          <th>Gross Sales</th>
+          <th>Collected on Orders</th>
+          <th class="text-danger">Still Unpaid</th>
+          <th class="text-success">Handed Over</th>
         </tr>
       </thead>
       <tbody>
-        @foreach($staffRows as $data)
         <tr>
-          <td>{{ $data['staff']->name ?? 'Unknown' }}</td>
-          <td>{{ $data['total_orders'] }}</td>
-          <td>{{ money($data['gross_sales']) }}</td>
-          <td>{{ money($data['cash_collected']) }}</td>
-          <td>{{ money($data['mobile_collected']) }}</td>
-          <td>{{ money($data['bank_collected']) }}</td>
-          <td class="audit-col-bg">{{ ($data['debt_collected'] ?? 0) > 0 ? money($data['debt_collected']) : '—' }}</td>
-          <td class="audit-col-bg">{{ money($data['expected_amount']) }}</td>
-          <td class="audit-col-bg">{{ money($data['collected_on_orders']) }}</td>
-          <td class="diff-col-bg">
-            @if(abs($data['difference']) < 0.01)
-              —
-            @else
-              {{ $data['difference'] > 0 ? '+' : '' }}{{ number_format($data['difference'], 0) }}
-            @endif
-          </td>
-          <td><span class="status-pill badge-{{ $data['status'] === 'paid' ? 'success' : 'warning' }}">{{ ucfirst($data['status']) }}</span></td>
+          <td>{{ $shiftStats['orders'] }}</td>
+          <td><strong>{{ money($shiftGross) }}</strong></td>
+          <td>{{ money($shiftCollected) }}</td>
+          <td class="{{ $shiftUnpaid > 0 ? 'text-danger font-weight-bold' : 'text-muted' }}">{{ $shiftUnpaid > 0 ? money($shiftUnpaid) : '—' }}</td>
+          <td class="text-success font-weight-bold" rowspan="{{ $priorShiftOrders > 0 ? 2 : 1 }}">{{ money($shiftStats['handover']) }}</td>
         </tr>
-        @endforeach
+        @if($priorShiftOrders > 0)
+        <tr class="table-light">
+          <td><span class="badge badge-warning">Prior shift</span> {{ $priorShiftOrders }}</td>
+          <td><strong>{{ money($priorShiftCollected) }}</strong></td>
+          <td>{{ money($priorShiftCollected) }}</td>
+          <td class="text-muted">—</td>
+        </tr>
+        @endif
       </tbody>
     </table>
   </div>
+  @if($shiftUnpaid > 0)
+  <p class="text-muted small mb-4">
+    <i class="fa fa-info-circle"></i>
+    Staff gave you <strong>{{ money($shiftStats['handover']) }}</strong> now.
+    <strong>{{ money($shiftUnpaid) }}</strong> is still owed by customers on credit from this shift.
+  </p>
+  @endif
+
+  @if($priorShiftOrders > 0 && $shiftStats['orders'] === 0)
+  <p class="text-muted small mb-3">
+    <i class="fa fa-info-circle"></i>
+    No new orders this shift — handover is from collecting {{ $priorShiftOrders === 1 ? 'a prior-shift order' : $priorShiftOrders . ' prior-shift orders' }}.
+  </p>
+  @endif
 
   @if(($debtCollections['count'] ?? 0) > 0)
-  <h5 class="mt-2"><i class="fa fa-history"></i> Debt Collections ({{ $debtCollections['count'] }})</h5>
+  <h5 class="mt-2"><i class="fa fa-history"></i> Prior-Shift Collections ({{ $debtCollections['count'] }})</h5>
   <div class="d-lg-none mb-3">
     @foreach($debtCollections['items'] as $item)
     <div class="dc-mobile-card">
@@ -145,33 +172,24 @@
 
   <div class="row">
     <div class="col-12 col-md-6 mb-3 mb-md-0">
-      <h5>Payment Breakdown (Submitted)</h5>
-      <table class="table table-bordered table-sm">
-        @php $submittedBreakdown = $dayClosing->payment_breakdown ?? []; @endphp
+      <h5>How Staff Paid You</h5>
+      <table class="table table-bordered table-sm mb-0">
         @forelse($submittedBreakdown as $key => $amount)
           @if($amount != 0)
           <tr>
             <th>{{ $platformBreakdown[$key]['label'] ?? ucwords(str_replace('_', ' ', $key)) }}</th>
-            <td>{{ money($amount) }}</td>
+            <td class="text-right">{{ money($amount) }}</td>
           </tr>
           @endif
         @empty
-          <tr><th>Cash</th><td>{{ money($dayClosing->cash_received) }}</td></tr>
-          <tr><th>Mobile Money</th><td>{{ money($dayClosing->mobile_received) }}</td></tr>
-          <tr><th>Bank</th><td>{{ money($dayClosing->bank_received) }}</td></tr>
+          <tr><td colspan="2" class="text-muted">No payment breakdown recorded.</td></tr>
         @endforelse
-        @if(($handoverSummary['expenses'] ?? $dayClosing->total_expenses) > 0)
-          <tr class="table-light">
-            <td colspan="2" class="small text-muted py-2">
-              <i class="fa fa-info-circle"></i>
-              Shift expenses ({{ money($handoverSummary['expenses'] ?? $dayClosing->total_expenses) }}) were deducted from the platforms above before handover.
-            </td>
+        @if($dayClosing->total_expenses > 0)
+          <tr>
+            <th class="text-danger">Shift expenses</th>
+            <td class="text-right text-danger">− {{ money($dayClosing->total_expenses) }}</td>
           </tr>
         @endif
-        <tr class="table-success">
-          <th>Final Amount to Handover</th>
-          <td><strong>{{ money($handoverSummary['final_handover'] ?? $dayClosing->net_amount) }}</strong></td>
-        </tr>
       </table>
     </div>
     <div class="col-12 col-md-6">
@@ -198,30 +216,21 @@
 
   @if($canViewBossFinancials ?? false)
   <div class="border-top pt-4 mt-2">
-    <h5><i class="fa fa-calculator"></i> Boss Financial Review</h5>
-    <div class="row text-center mt-3 p-3 bg-light rounded boss-finance-cols">
-      <div class="col-12 col-md-4 mb-3 mb-md-0">
-        <small class="text-uppercase font-weight-bold text-muted">Credit / Debt</small>
-        <h4 class="{{ ($financeData['outstanding_debt'] ?? 0) > 0 ? 'text-danger' : 'text-success' }} mb-0">
-          {{ money($financeData['outstanding_debt'] ?? 0) }}
-        </h4>
-        <small class="text-muted">Unpaid sales this shift</small>
+    <h5 class="mb-2"><i class="fa fa-calculator"></i> Posts to Master Sheet After Verify</h5>
+    <div class="row text-center">
+      <div class="col-4 mb-2">
+        <div class="small text-muted text-uppercase font-weight-bold">Customer credit</div>
+        <div class="h5 mb-0 {{ $shiftUnpaid > 0 ? 'text-danger' : 'text-success' }}">{{ money($shiftUnpaid) }}</div>
+        <div class="small text-muted">Still owed from this shift</div>
       </div>
-      <div class="col-12 col-md-4 mb-3 mb-md-0" style="border-left: 1px solid #dee2e6;">
-        <small class="text-uppercase font-weight-bold text-muted">Profit</small>
-        <h4 class="text-success mb-0">{{ money($financeData['net_profit'] ?? 0) }}</h4>
-        <small class="text-muted">{{ ($financeData['shift_scoped'] ?? false) ? 'From this shift only' : 'Generated for this day' }}</small>
+      <div class="col-4 mb-2">
+        <div class="small text-muted text-uppercase font-weight-bold">Profit</div>
+        <div class="h5 mb-0 text-success">{{ money($financeData['net_profit'] ?? 0) }}</div>
       </div>
-      <div class="col-12 col-md-4" style="border-left: 1px solid #dee2e6;">
-        <small class="text-uppercase font-weight-bold text-muted">Money in Circulation</small>
-        <h4 class="text-primary mb-0">{{ money($financeData['closing_circulation'] ?? 0) }}</h4>
-        <small class="text-muted">
-          @if($financeData['shift_scoped'] ?? false)
-            Net handover {{ money($financeData['net_handover'] ?? 0) }} minus profit
-          @else
-            Opening {{ money($financeData['opening_circulation'] ?? 0) }}
-          @endif
-        </small>
+      <div class="col-4 mb-2">
+        <div class="small text-muted text-uppercase font-weight-bold">Circulation</div>
+        <div class="h5 mb-0 text-primary">{{ money($financeData['closing_circulation'] ?? 0) }}</div>
+        <div class="small text-muted">Capital from this handover</div>
       </div>
     </div>
   </div>
@@ -250,13 +259,14 @@
 
   @if($canVerifyHandover ?? false)
     @if($dayClosing->status === 'submitted')
-    <div class="mt-4 border-top pt-3">
+    @php $canVerifyNow = $canVerifyNow ?? true; @endphp
+    <div class="mt-4 border-top pt-3 {{ $canVerifyNow ? '' : 'opacity-75' }}">
       <h5 class="mb-3"><i class="fa fa-check-square-o"></i> Verify Handover</h5>
       <form action="{{ route('day-closing.verify', $dayClosing) }}" method="POST" class="verify-handover-form" data-closing-id="{{ $dayClosing->id }}">
         @csrf
         <div class="row">
           <div class="col-12 col-md-4 mb-3">
-            <label class="font-weight-bold text-muted small text-uppercase">Expected Handover</label>
+            <label class="font-weight-bold text-muted small text-uppercase">Staff handed over</label>
             <div class="form-control bg-light font-weight-bold">{{ money($handoverSummary['final_handover'] ?? $dayClosing->net_amount) }}</div>
           </div>
           <div class="col-12 col-md-4 mb-3">
@@ -269,7 +279,7 @@
                      class="form-control actual-received-input font-weight-bold"
                      min="0"
                      step="1"
-                     required
+                     {{ $canVerifyNow ? 'required' : 'disabled' }}
                      value="{{ old('actual_received', round($handoverSummary['final_handover'] ?? $dayClosing->net_amount)) }}"
                      data-expected="{{ round($handoverSummary['final_handover'] ?? $dayClosing->net_amount) }}">
             </div>
@@ -285,10 +295,11 @@
                     name="shortage_note"
                     class="form-control"
                     rows="2"
+                    {{ $canVerifyNow ? '' : 'disabled' }}
                     placeholder="Explain why the staff handed over less than expected...">{{ old('shortage_note') }}</textarea>
         </div>
         <div class="d-flex flex-wrap align-items-center">
-          <button type="submit" class="btn btn-success btn-lg mb-2">
+          <button type="submit" class="btn btn-success btn-lg mb-2" {{ $canVerifyNow ? '' : 'disabled' }}>
             <i class="fa fa-check"></i> Verify &amp; Post to Master Sheet
           </button>
         </div>

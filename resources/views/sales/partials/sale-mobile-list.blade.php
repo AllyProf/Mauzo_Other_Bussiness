@@ -16,6 +16,9 @@
             'unit_price' => (float) ($si->list_unit_price ?? $si->unit_price),
         ];
     })->values();
+    $isCarriedOver = ($openShift ?? null)
+        && (int) $sale->shift_id !== (int) $openShift->id
+        && in_array($sale->payment_status, ['pending', 'partial', 'debt'], true);
   @endphp
   <div class="sales-mobile-card" data-business-types="{{ $businessTypeKeys->implode(',') }}">
     <div class="sales-mobile-head">
@@ -23,6 +26,9 @@
         <div class="sales-mobile-ref">
           {{ $sale->reference_no }}
           @if($sale->isServicePos()) <span class="badge badge-info">{{ __('tables.status.service') }}</span>@endif
+          @if($isCarriedOver)
+            <span class="badge badge-warning">Shift #{{ $sale->shift_id }}</span>
+          @endif
         </div>
         <div class="sales-mobile-meta">{{ \Carbon\Carbon::parse($sale->sale_date)->format('M d, Y') }} · {{ $sale->user->name }}</div>
       </div>
