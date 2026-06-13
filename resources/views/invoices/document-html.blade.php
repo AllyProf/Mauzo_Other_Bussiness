@@ -75,7 +75,6 @@
       <tr>
         <th>#</th>
         <th>{{ __('tables.columns.description') }}</th>
-        <th>{{ __('tables.columns.sku') }}</th>
         <th class="text-right">Qty</th>
         <th class="text-right">Unit Price</th>
         <th class="text-right">Amount</th>
@@ -92,7 +91,6 @@
               {{ $line->item->name ?? 'Item' }}
             @endif
           </td>
-          <td>{{ $line->service_id ? '—' : ($line->item->sku ?? '—') }}</td>
           <td class="text-right">{{ number_format((float) $line->quantity, 0) }}</td>
           <td class="text-right">{{ money($line->unit_price) }}</td>
           <td class="text-right">{{ money($line->subtotal) }}</td>

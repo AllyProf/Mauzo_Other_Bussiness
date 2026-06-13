@@ -173,7 +173,6 @@
           <tr>
             <th style="width:40px;">#</th>
             <th class="text-left">{{ __('tables.columns.description') }}</th>
-            <th style="width:90px;">{{ __('tables.columns.sku') }}</th>
             <th style="width:70px;">Qty</th>
             <th style="width:110px;">Unit Price</th>
             <th style="width:120px;">Amount</th>
@@ -190,7 +189,6 @@
                   {{ $line->item->name ?? 'Item' }}
                 @endif
               </td>
-              <td>{{ $line->item->sku ?? '—' }}</td>
               <td>{{ number_format((float) $line->quantity, 0) }}</td>
               <td>{{ money($line->unit_price) }}</td>
               <td class="amount-accent">{{ money($line->subtotal) }}</td>

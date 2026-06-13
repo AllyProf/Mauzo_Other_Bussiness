@@ -140,7 +140,7 @@
 
     @media print {
         @page { size: portrait; margin: 0.5cm; }
-        .app-header, .app-sidebar, .d-print-none, .breadcrumb, .app-title { display: none !important; }
+        .app-header, .app-sidebar, .d-print-none, .breadcrumb, .app-title, .support-fab, #supportQuickModal { display: none !important; }
         .app-content { margin: 0 !important; padding: 0 !important; width: 100% !important; }
         .official-report .report-sheet { padding: 0; border-radius: 0; box-shadow: none !important; }
         .official-report .report-table { border: 2px solid #000; font-size: 0.72rem; }

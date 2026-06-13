@@ -77,6 +77,9 @@
       font-size: 18px;
     }
   }
+  @media print {
+    .support-fab, #supportQuickModal { display: none !important; }
+  }
   #supportQuickModal .modal-title {
     font-size: 1rem;
   }
