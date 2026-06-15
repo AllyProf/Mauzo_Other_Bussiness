@@ -7,15 +7,15 @@
       <div class="col-lg-6 order-2 order-lg-1 content">
         <h3>One platform for sales, stock, and daily control</h3>
         <p class="fst-italic">
-          {{ $platformName }} helps owners and cashiers sell faster, track stock accurately, and close each day with clear cash and profit figures.
+          Mauzo Link is the all-in-one business engine designed to bring speed to your counter and clarity to your back office. We eliminate the guesswork from retail management.
         </p>
         <ul>
-          <li><i class="bi bi-check2-all"></i> <span>Sell at the counter with packaging, debt, and pay-later support.</span></li>
-          <li><i class="bi bi-check2-all"></i> <span>Open shifts with stock checks and hand over clean day-closing reports.</span></li>
-          <li><i class="bi bi-check2-all"></i> <span>Manage spare parts, retail, services, and multiple branches from one account.</span></li>
+          <li><i class="bi bi-check2-all"></i> <span><strong>Lightning-Fast Checkout:</strong> Process sales smoothly with barcode scanning, packaging unit support, and flexible payment options including debt tracking.</span></li>
+          <li><i class="bi bi-check2-all"></i> <span><strong>Bulletproof Shift Control:</strong> Keep staff accountable with strict shift openings, blind stock checks, and crystal-clear handover reports at closing.</span></li>
+          <li><i class="bi bi-check2-all"></i> <span><strong>Unified Multi-Branch Management:</strong> Oversee retail shops, spare parts stores, and service businesses from a single, powerful owner dashboard.</span></li>
         </ul>
         <p>
-          Whether you run a single shop or a growing chain, your team gets a simple interface while owners get the numbers they need to make decisions.
+          From the first sale of the morning to the final cash count at night, Mauzo Link gives your cashiers the right tools—and gives you the peace of mind you deserve.
         </p>
       </div>
     </div>

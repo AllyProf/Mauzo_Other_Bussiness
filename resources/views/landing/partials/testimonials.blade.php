@@ -24,7 +24,7 @@
         ] as $item)
         <div class="swiper-slide">
           <div class="testimonial-item">
-            <img src="{{ asset('gp-assets/img/testimonials/'.$item[0]) }}" class="testimonial-img" alt="">
+            <div class="testimonial-icon"><i class="bi bi-person-circle"></i></div>
             <h3>{{ $item[1] }}</h3>
             <h4>{{ $item[2] }}</h4>
             <div class="stars">
@@ -43,3 +43,23 @@
     </div>
   </div>
 </section>
+
+@push('styles')
+<style>
+  .testimonial-icon {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    margin: -40px auto 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 6px solid rgba(255, 255, 255, 0.15);
+  }
+  .testimonial-icon i {
+    font-size: 50px;
+    color: #fff;
+  }
+</style>
+@endpush

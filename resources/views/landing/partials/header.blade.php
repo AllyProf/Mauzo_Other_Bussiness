@@ -9,8 +9,6 @@
       <ul>
         <li><a href="{{ route('landing.index') }}#hero" @if(request()->routeIs('landing.index')) class="active" @endif>Home</a></li>
         <li><a href="{{ route('landing.index') }}#about">About</a></li>
-        <li><a href="{{ route('landing.index') }}#features">Features</a></li>
-        <li><a href="{{ route('landing.index') }}#services">Modules</a></li>
         <li><a href="{{ route('landing.index') }}#pricing">Pricing</a></li>
         <li><a href="{{ route('landing.index') }}#contact">Contact</a></li>
       </ul>

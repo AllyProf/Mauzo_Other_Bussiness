@@ -22,7 +22,6 @@
           <ul>
             <li><i class="bi bi-chevron-right"></i> <a href="#hero">Home</a></li>
             <li><i class="bi bi-chevron-right"></i> <a href="#about">About</a></li>
-            <li><i class="bi bi-chevron-right"></i> <a href="#features">Features</a></li>
             <li><i class="bi bi-chevron-right"></i> <a href="#pricing">Pricing</a></li>
           </ul>
         </div>
@@ -54,6 +53,7 @@
   <div class="copyright">
     <div class="container text-center">
       <p>&copy; {{ date('Y') }} <strong class="px-1 sitename">{{ $platformName }}</strong>. All rights reserved.</p>
+      <p class="mt-2 text-white-50" style="font-size: 0.9rem;">Powered with <strong>EmCa Tech</strong></p>
     </div>
   </div>
 </footer>
@@ -61,8 +61,8 @@
 @push('styles')
 <style>
   #footer {
-    background: url("{{ asset('gp-assets/img/footer-bg.png') }}") center center no-repeat;
-    background-size: cover;
+    background: url("{{ asset('gp-assets/img/footer-bg.png') }}") center center no-repeat !important;
+    background-size: cover !important;
     position: relative;
   }
   #footer::before {
