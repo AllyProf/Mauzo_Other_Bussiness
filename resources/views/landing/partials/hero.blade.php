@@ -1,5 +1,5 @@
 <section id="hero" class="hero section dark-background">
-  <img src="{{ asset('gp-assets/img/hero-bg.jpg') }}" alt="" data-aos="fade-in">
+  <img src="{{ asset('gp-assets/img/hero-bg.png') }}" alt="" data-aos="fade-in">
 
   <div class="container">
     <div class="row justify-content-center text-center" data-aos="fade-up" data-aos-delay="100">
