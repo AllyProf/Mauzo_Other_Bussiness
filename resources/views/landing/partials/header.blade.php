@@ -20,11 +20,11 @@
     <div class="d-flex align-items-center gap-2 ms-2">
       <a class="d-none d-md-inline text-white small fw-semibold" href="{{ route('login') }}">Sign In</a>
       @if(request()->routeIs('register.business'))
-        <span class="btn-getstarted opacity-75 pe-none">Register</span>
+        <span class="btn-getstarted opacity-75 pe-none d-none d-md-inline-block">Register</span>
       @elseif($registrationOpen ?? true)
-        <a class="btn-getstarted" href="{{ route('register.business') }}">Get Started</a>
+        <a class="btn-getstarted d-none d-md-inline-block" href="{{ route('register.business') }}">Get Started</a>
       @else
-        <a class="btn-getstarted" href="{{ route('landing.index') }}#contact">Request Demo</a>
+        <a class="btn-getstarted d-none d-md-inline-block" href="{{ route('landing.index') }}#contact">Request Demo</a>
       @endif
     </div>
 

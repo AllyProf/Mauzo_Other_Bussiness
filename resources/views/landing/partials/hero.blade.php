@@ -5,7 +5,6 @@
     <div class="row justify-content-center text-center" data-aos="fade-up" data-aos-delay="100">
       <div class="col-xl-8 col-lg-10">
         <h2>Run Your Business Smarter With {{ $platformName }}<span>.</span></h2>
-        <p class="lead">Point of sale, inventory, shifts, and daily reports — built for shops, spare parts, pharmacies, and multi-branch businesses in Tanzania.</p>
         <div class="d-flex flex-wrap justify-content-center gap-3 mt-4">
           @if($registrationOpen)
             <a href="{{ route('register.business') }}" class="btn-getstarted px-4 py-2">Start Free Trial</a>
