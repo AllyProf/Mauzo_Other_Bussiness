@@ -1,7 +1,7 @@
 <section id="faq" class="faq section light-background">
   <div class="container section-title" data-aos="fade-up">
-    <h2>Frequently Asked Questions</h2>
-    <p>Everything you need to know about getting started with Mauzo Link</p>
+    <h2>FAQ</h2>
+    <p>Quick answers to common questions</p>
   </div>
 
   <div class="container">
