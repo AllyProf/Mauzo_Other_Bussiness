@@ -6,10 +6,7 @@
 
   <div class="container">
     <div class="row gy-4 align-items-center">
-      <div class="col-lg-5" data-aos="fade-up" data-aos-delay="100">
-        <img src="{{ asset('gp-assets/img/faq.png') }}" class="img-fluid rounded shadow" alt="Customer Support">
-      </div>
-      <div class="col-lg-7" data-aos="fade-up" data-aos-delay="200">
+      <div class="col-lg-7 order-2 order-lg-1" data-aos="fade-up" data-aos-delay="200">
         <div class="faq-container">
 
           <div class="faq-item faq-active">
@@ -53,6 +50,9 @@
           </div>
 
         </div>
+      </div>
+      <div class="col-lg-5 order-1 order-lg-2" data-aos="fade-up" data-aos-delay="100">
+        <img src="{{ asset('gp-assets/img/faq.png') }}" class="img-fluid rounded shadow" alt="Customer Support">
       </div>
     </div>
   </div>
