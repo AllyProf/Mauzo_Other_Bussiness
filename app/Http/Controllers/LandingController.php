@@ -13,10 +13,16 @@ class LandingController extends Controller
     {
         $funnel->track($request, 'landing_view');
 
+        $settings = $platformSettings->all();
+
         return view('landing.index', [
-            'platformSettings' => $platformSettings->all(),
+            'platformSettings' => $settings,
+            'platformName' => $settings['platform_name'] ?? config('app.name'),
+            'supportEmail' => $settings['support_email'] ?? '',
+            'supportPhone' => $settings['support_phone'] ?? '',
             'plans' => Plan::query()->orderBy('price')->get(),
             'registrationOpen' => $platformSettings->isRegistrationOpen(),
+            'trialDays' => (int) ($settings['default_trial_days'] ?? 30),
         ]);
     }
 }

@@ -253,7 +253,7 @@ class ServiceCatalogController extends Controller
                     $categoryMap[$catName] = $this->upsertServiceCategory($businessId, $branchId, $catName, $customKey);
                 }
 
-                foreach ($this->parseCustomServiceLines($request->input('custom_services', '')) as $row) {
+                foreach ($this->parseCustomServiceLines($request->input('custom_services')) as $row) {
                     $cat = $categoryMap[$row['category']] ?? null;
                     if (! $cat) {
                         continue;
@@ -478,8 +478,13 @@ class ServiceCatalogController extends Controller
     /**
      * @return list<string>
      */
-    private function parseLineList(string $input): array
+    private function parseLineList(?string $input): array
     {
+        $input = trim($input ?? '');
+        if ($input === '') {
+            return [];
+        }
+
         $parts = preg_split('/[\r\n,]+/', $input) ?: [];
         $names = [];
         foreach ($parts as $part) {
@@ -497,9 +502,10 @@ class ServiceCatalogController extends Controller
      *
      * @return list<array{category: string, name: string, unit_label: string, price: float}>
      */
-    private function parseCustomServiceLines(string $input): array
+    private function parseCustomServiceLines(?string $input): array
     {
-        if (trim($input) === '') {
+        $input = trim($input ?? '');
+        if ($input === '') {
             return [];
         }
 

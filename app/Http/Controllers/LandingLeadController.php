@@ -16,6 +16,7 @@ class LandingLeadController extends Controller
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:30',
             'company' => 'nullable|string|max:255',
+            'subject' => 'nullable|string|max:255',
             'message' => 'nullable|string|max:2000',
         ]);
 
@@ -28,7 +29,10 @@ class LandingLeadController extends Controller
             'email' => $validated['email'] ?? null,
             'phone' => $validated['phone'] ?? null,
             'company' => $validated['company'] ?? null,
-            'message' => $validated['message'] ?? null,
+            'message' => trim(collect([
+                filled($validated['subject'] ?? null) ? 'Subject: '.$validated['subject'] : null,
+                $validated['message'] ?? null,
+            ])->filter()->implode("\n\n")),
             'source' => 'landing_demo',
             'status' => 'new',
             'ip_address' => $request->ip(),

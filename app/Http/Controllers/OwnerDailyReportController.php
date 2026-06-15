@@ -21,8 +21,8 @@ class OwnerDailyReportController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('view_reports');
 
-        $business = $this->currentBusiness() ?? Auth::user()->business;
-        $businessId = $this->currentBusinessId();
+        $business = $this->requireCurrentBusiness();
+        $businessId = $business->id;
 
         $query = DayClosing::where('business_id', $businessId)
             ->where('status', 'verified')
@@ -114,7 +114,7 @@ class OwnerDailyReportController extends Controller
             'fund_source' => 'nullable|in:circulation,profit',
         ]);
 
-        $business = $this->currentBusiness() ?? Auth::user()->business;
+        $business = $this->requireCurrentBusiness();
         $parsedDate = Carbon::parse($date)->toDateString();
 
         $report = OwnerDailyReport::where('business_id', $business->id)
@@ -175,7 +175,7 @@ class OwnerDailyReportController extends Controller
         }
 
         $expense->delete();
-        $business = $this->currentBusiness() ?? Auth::user()->business;
+        $business = $this->requireCurrentBusiness();
         $dayClosing = DayClosing::where('business_id', $business->id)->whereDate('closing_date', $parsedDate)->first();
         $this->reportService->syncReport($business, $parsedDate, $dayClosing);
 
@@ -194,7 +194,7 @@ class OwnerDailyReportController extends Controller
             abort(403, 'Only the business owner can finalize the daily report.');
         }
 
-        $business = $this->currentBusiness() ?? Auth::user()->business;
+        $business = $this->requireCurrentBusiness();
         $parsedDate = Carbon::parse($date)->toDateString();
 
         $dayClosing = DayClosing::where('business_id', $business->id)

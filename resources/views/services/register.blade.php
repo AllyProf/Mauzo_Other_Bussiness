@@ -70,8 +70,9 @@
 
 <div class="tile mb-3">
   <h3 class="tile-title">Custom service business</h3>
-  <p class="text-muted small mb-2">Define your own business name and categories. Optionally add services (one per line):<br>
-    <code>Category | Service name | per page | 100</code></p>
+  <p class="text-muted small mb-2">Define your own business name and categories. Add multiple services under the same category (one per line):<br>
+    <code>Printing | A4 Black &amp; White | per page | 100</code><br>
+    <code>Printing | A4 Color | per page | 300</code></p>
   <form method="POST" action="{{ route('services.import-templates') }}">
     @csrf
     <input type="hidden" name="template_type" value="custom">

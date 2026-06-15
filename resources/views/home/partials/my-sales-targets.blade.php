@@ -39,7 +39,7 @@
 @endpush
 @endonce
 @php
-  $targetColors = ['#940000', '#009688', '#1565C0', '#f6c23e'];
+  $targetColors = ['#940000', '#7a0000', '#1565C0', '#f6c23e'];
   $inline = $goalsInline ?? false;
 @endphp
 <div class="staff-goals-strip {{ $inline ? 'is-inline' : '' }}">

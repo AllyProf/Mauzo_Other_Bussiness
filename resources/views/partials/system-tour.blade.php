@@ -119,7 +119,7 @@
 <script>
 (function () {
   var steps = @json($systemTourSteps);
-  var surveyImageUrl = @json(asset('landing/img/survey.png'));
+  var surveyImageUrl = @json(asset('panel-assets/img/survey.png'));
   var completeUrl = @json(route('system-tour.complete'));
   var skipUrl = @json(route('system-tour.skip'));
   var csrfToken = @json(csrf_token());

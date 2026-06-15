@@ -118,7 +118,11 @@
     <!-- User Menu-->
     <li class="dropdown app-nav__action app-nav__profile">
       <a class="app-nav__item app-nav__icon-btn" href="#" data-toggle="dropdown" aria-label="Open Profile Menu">
+        @if(Auth::user()->profileImageUrl())
+        <img src="{{ Auth::user()->profileImageUrl() }}" alt="{{ Auth::user()->name }}" class="rounded-circle" style="width: 28px; height: 28px; object-fit: cover;">
+        @else
         <i class="fa fa-user"></i>
+        @endif
       </a>
       <ul class="dropdown-menu settings-menu dropdown-menu-right">
         @if(Auth::user()->isPlatformAdmin())

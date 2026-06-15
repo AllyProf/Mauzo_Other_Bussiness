@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\Business;
 use App\Models\Customer;
 use App\Models\Plan;
@@ -33,21 +34,20 @@ class BusinessRegistrationController extends Controller
     {
         if (! $this->platformSettings->isRegistrationOpen()) {
             return redirect()->route('landing.index')
-                ->with('error', 'Registration is currently closed. Please contact us.');
+                ->with('error', __('auth.register_closed'));
         }
 
         $this->funnelService->track($request, 'register_form_view');
 
-        return view('landing.register', [
+        return view('auth.register-business', [
             'platformSettings' => $this->platformSettings->all(),
-            'registrationOpen' => true,
         ]);
     }
 
     public function sendVerificationCode(Request $request): JsonResponse
     {
         if (! $this->platformSettings->isRegistrationOpen()) {
-            return response()->json(['message' => 'Registration is currently closed.'], 403);
+            return response()->json(['message' => __('auth.register_closed')], 403);
         }
 
         $payload = $this->validatedRegistrationPayload($request);
@@ -60,7 +60,7 @@ class BusinessRegistrationController extends Controller
             $this->verificationService->forget($phone255);
 
             return response()->json([
-                'message' => 'We could not send the SMS. Please check your phone number and try again.',
+                'message' => __('auth.register_sms_failed'),
             ], 502);
         }
 
@@ -71,7 +71,7 @@ class BusinessRegistrationController extends Controller
         $this->funnelService->track($request, 'verification_code_sent', ['phone' => $phone255]);
 
         return response()->json([
-            'message' => 'Verification code sent.',
+            'message' => __('auth.register_code_sent'),
             'phone_display' => $this->verificationService->displayPhone($phone255),
         ]);
     }
@@ -80,15 +80,15 @@ class BusinessRegistrationController extends Controller
     {
         if (! $this->platformSettings->isRegistrationOpen()) {
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'Registration is currently closed.'], 403);
+                return response()->json(['message' => __('auth.register_closed')], 403);
             }
 
             return redirect()->route('landing.index')
-                ->with('error', 'Registration is currently closed.');
+                ->with('error', __('auth.register_closed'));
         }
 
         $payload = $this->validatedRegistrationPayload($request);
-        $phone255 = $this->smsService->formatPhoneNumber($payload['phone']);
+        $phone255 = $this->platformSms->formatPhoneNumber($payload['phone']);
 
         $request->validate([
             'verification_code' => 'required|string|size:6',
@@ -97,13 +97,13 @@ class BusinessRegistrationController extends Controller
         if (! $this->verificationService->verify($phone255, $request->input('verification_code'))) {
             if ($request->expectsJson()) {
                 throw ValidationException::withMessages([
-                    'verification_code' => 'Invalid or expired verification code.',
+                    'verification_code' => __('auth.register_invalid_code'),
                 ]);
             }
 
             return back()
                 ->withInput()
-                ->withErrors(['verification_code' => 'Invalid or expired verification code.']);
+                ->withErrors(['verification_code' => __('auth.register_invalid_code')]);
         }
 
         $defaultPlanId = $this->platformSettings->get('default_plan_id');
@@ -111,7 +111,9 @@ class BusinessRegistrationController extends Controller
         $normalizedPhone = Customer::normalizePhone($phone255);
         $loginEmail = $this->resolveRegistrationEmail($payload['email'] ?? null, $phone255);
         $businessType = config('category_templates.'.$payload['business_type'], []);
-        $businessTypeLabel = $businessType['label'] ?? $payload['business_type'];
+        $businessTypeLabel = $payload['business_type'] === 'other'
+            ? $payload['custom_business_type']
+            : ($businessType['label'] ?? $payload['business_type']);
         $temporaryPassword = User::generateRandomPassword(
             max(8, (int) $this->platformSettings->get('min_password_length', 8))
         );
@@ -150,20 +152,22 @@ class BusinessRegistrationController extends Controller
             ->where('business_id', $business->id)
             ->update(['owner_user_id' => $owner->id]);
 
+        $this->platformSms->sendRegistrationPending($business);
+
         $this->verificationService->forget($phone255);
         $this->funnelService->track($request, 'registration_submitted', ['business_id' => $business->id]);
 
-        $pendingMessage = 'Thank you! Your registration was received and is pending review. Once approved, your login password will be sent to your phone by SMS.';
+        $pendingMessage = __('auth.register_pending_message');
 
         if ($request->expectsJson()) {
             return response()->json([
-                'redirect' => route('login'),
+                'redirect' => route('landing.index'),
                 'message' => $pendingMessage,
                 'pending_approval' => true,
             ]);
         }
 
-        return redirect()->route('login')->with('info', $pendingMessage);
+        return redirect()->route('landing.index')->with('info', $pendingMessage);
     }
 
     /**
@@ -172,6 +176,7 @@ class BusinessRegistrationController extends Controller
     private function validatedRegistrationPayload(Request $request): array
     {
         $businessTypeKeys = array_keys(config('category_templates', []));
+        $businessTypeKeys[] = 'other';
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -181,14 +186,15 @@ class BusinessRegistrationController extends Controller
             'district' => ['required', 'string', Rule::in(tanzania_districts($request->region))],
             'address' => 'required|string|max:1000',
             'business_type' => ['required', 'string', Rule::in($businessTypeKeys)],
+            'custom_business_type' => ['required_if:business_type,other', 'nullable', 'string', 'max:255'],
         ]);
 
-        $phone255 = $this->smsService->formatPhoneNumber($validated['phone']);
+        $phone255 = $this->platformSms->formatPhoneNumber($validated['phone']);
         $normalizedPhone = Customer::normalizePhone($phone255);
 
         if (Business::query()->where('phone', $normalizedPhone)->exists()) {
             throw ValidationException::withMessages([
-                'phone' => 'This phone number is already registered.',
+                'phone' => __('auth.register_phone_taken'),
             ]);
         }
 
@@ -196,7 +202,7 @@ class BusinessRegistrationController extends Controller
 
         if (User::query()->where('email', $loginEmail)->exists() || Business::query()->where('email', $loginEmail)->exists()) {
             throw ValidationException::withMessages([
-                'phone' => 'This phone number is already registered.',
+                'phone' => __('auth.register_phone_taken'),
             ]);
         }
 
@@ -208,6 +214,7 @@ class BusinessRegistrationController extends Controller
             'district' => $validated['district'],
             'address' => $validated['address'],
             'business_type' => $validated['business_type'],
+            'custom_business_type' => $validated['custom_business_type'] ?? null,
         ];
     }
 

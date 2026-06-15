@@ -2,7 +2,11 @@
 <aside class="app-sidebar">
   <div class="app-sidebar__user" data-tour="sidebar-profile">
     <div class="app-sidebar__user-avatar-container">
+        @if(Auth::user()->profileImageUrl())
+        <img class="app-sidebar__user-avatar" src="{{ Auth::user()->profileImageUrl() }}" alt="{{ Auth::user()->name }}" style="width: 48px; height: 48px; object-fit: cover;">
+        @else
         <i class="fa fa-user-circle fa-3x text-white mr-3"></i>
+        @endif
     </div>
     <div>
       <p class="app-sidebar__user-name">{{ Auth::user()->name }}</p>

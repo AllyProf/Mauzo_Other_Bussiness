@@ -26,14 +26,22 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $user = Auth::user();
+        $localPhone = $this->normalizeLocalPhone($request->input('phone'));
 
-        $request->validate([
+        $request->merge([
+            'phone' => $localPhone,
+        ]);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:9', 'regex:/^[678]\d{8}$/'],
             'profile_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:2048'],
             'locale' => ['nullable', 'string', 'in:en,sw'],
         ]);
 
-        $phone = filled($request->phone) ? '+255'.$request->phone : null;
+        $localeService = app(\App\Services\LocaleService::class);
+        $user->name = $validated['name'];
+        $user->phone = filled($localPhone) ? '+255'.$localPhone : null;
 
         if ($request->hasFile('profile_image')) {
             if ($user->profile_image) {
@@ -43,15 +51,18 @@ class ProfileController extends Controller
             $user->profile_image = $request->file('profile_image')->store('profile-images', 'public');
         }
 
-        $user->phone = $phone;
-
         if ($request->filled('locale')) {
-            app(\App\Services\LocaleService::class)->set($request->locale, $user);
+            $locale = $localeService->normalize($validated['locale']);
+            $user->locale = $locale;
+            session(['locale' => $locale]);
+            cookie()->queue(cookie('locale', $locale, 60 * 24 * 365));
+            app()->setLocale($locale);
         }
 
         $user->save();
+        Auth::setUser($user->fresh());
 
-        AuditLog::log('UPDATE_PROFILE', "{$user->name} updated profile contact details", $user->business_id);
+        AuditLog::log('UPDATE_PROFILE', "{$user->name} updated profile details", $user->business_id);
 
         return redirect()->route('profile.show')->with('success', __('common.profile_updated'));
     }
@@ -90,5 +101,24 @@ class ProfileController extends Controller
         }
 
         return $digits;
+    }
+
+    private function normalizeLocalPhone(?string $input): ?string
+    {
+        if (! filled($input)) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D/', '', (string) $input);
+
+        if (str_starts_with($digits, '255')) {
+            $digits = substr($digits, 3);
+        }
+
+        if (str_starts_with($digits, '0')) {
+            $digits = substr($digits, 1);
+        }
+
+        return $digits !== '' ? $digits : null;
     }
 }

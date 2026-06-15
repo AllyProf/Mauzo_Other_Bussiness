@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Models\Business;
 use Illuminate\Http\Request;
 
 abstract class Controller
@@ -73,9 +74,28 @@ abstract class Controller
         return current_business_id();
     }
 
-    protected function currentBusiness(): ?\App\Models\Business
+    protected function currentBusiness(): ?Business
     {
-        return active_business() ?? auth()->user()?->business;
+        $business = active_business() ?? auth()->user()?->business;
+
+        if ($business) {
+            return $business;
+        }
+
+        $businessId = $this->currentBusinessId();
+
+        return $businessId > 0 ? Business::find($businessId) : null;
+    }
+
+    protected function requireCurrentBusiness(): Business
+    {
+        $business = $this->currentBusiness();
+
+        if (! $business) {
+            abort(403, 'No business context found.');
+        }
+
+        return $business;
     }
 
     protected function ensureCanAccessStaffRecord(int $recordUserId): void

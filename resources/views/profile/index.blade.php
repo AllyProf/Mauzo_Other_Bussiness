@@ -14,14 +14,21 @@
   </ul>
 </div>
 
+@if(session('success'))
+<div class="alert alert-success">{{ session('success') }}</div>
+@endif
+@if(session('error'))
+<div class="alert alert-danger">{{ session('error') }}</div>
+@endif
+
 <div class="row">
     <div class="col-md-4">
         <div class="tile text-center">
             <h3 class="tile-title">{{ __('profile.profile_image') }}</h3>
             <div class="tile-body">
                 <div class="profile-img-preview mb-3">
-                    @if($user->profile_image)
-                        <img src="{{ asset('storage/' . $user->profile_image) }}?v={{ $user->updated_at?->timestamp }}" alt="Profile" class="rounded-circle shadow" style="width: 150px; height: 150px; object-fit: cover; border: 4px solid #fff;">
+                    @if($user->profileImageUrl())
+                        <img src="{{ $user->profileImageUrl() }}" alt="Profile" class="rounded-circle shadow" style="width: 150px; height: 150px; object-fit: cover; border: 4px solid #fff;">
                     @else
                         <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto shadow" style="width: 150px; height: 150px; border: 4px solid #fff;">
                             <i class="fa fa-user fa-5x text-muted"></i>
@@ -44,6 +51,15 @@
                 <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="form-group text-left">
+                        <label class="font-weight-bold">{{ __('common.full_name') }}</label>
+                        <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
+                               value="{{ old('name', $user->name) }}" required>
+                        @error('name')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="form-group text-left">
                         <label class="font-weight-bold">{{ __('profile.update_phone') }}</label>
                         <div class="input-group">
                             <div class="input-group-prepend">
@@ -56,7 +72,7 @@
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
                         </div>
-                        <small class="text-muted">{{ __('profile.phone_hint') }}</small>
+                        <small class="text-muted">{{ __('profile.phone_hint') }} (0712… or 712…)</small>
                     </div>
 
                     <div class="form-group text-left">

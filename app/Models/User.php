@@ -190,6 +190,17 @@ class User extends Authenticatable
         return $this->displayRoleName();
     }
 
+    public function profileImageUrl(): ?string
+    {
+        if (blank($this->profile_image)) {
+            return null;
+        }
+
+        $version = $this->updated_at?->timestamp ?? time();
+
+        return asset('storage/'.$this->profile_image).'?v='.$version;
+    }
+
     public function hasRolePermissions(): bool
     {
         if (in_array($this->role, ['owner', 'super_admin'], true)) {

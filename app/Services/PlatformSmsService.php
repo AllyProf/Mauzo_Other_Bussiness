@@ -48,6 +48,16 @@ class PlatformSmsService
         );
     }
 
+    public function sendRegistrationPending(Business $business): bool
+    {
+        return $this->sendToBusiness(
+            $business,
+            "Usajili wako wa biashara ya {$business->name} umepokelewa na unasubiri idhini. Utapata ujumbe mfupi mara utakapokubaliwa.",
+            'registration_pending',
+            'registration_pending',
+        );
+    }
+
     public function sendRegistrationApproved(Business $business, string $password, string $loginEmail): bool
     {
         $supportPhone = $this->supportContactPhone();

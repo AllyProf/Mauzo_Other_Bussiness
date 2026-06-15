@@ -15,7 +15,7 @@
       }
       .material-half-bg .cover {
         background-image: linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.35)),
-          url('{{ asset('landing/img/happy-african-american-woman-customer-with-colored-shopping-bags-paying-by-credit-card-near-cash-teminal-with-pos.jpg') }}');
+          url('{{ asset('panel-assets/img/mauzo-pos-bg.png') }}');
         background-color: #000;
         background-size: cover;
         background-position: center center;

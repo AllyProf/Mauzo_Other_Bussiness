@@ -273,7 +273,7 @@
 {{-- Sales target progress --}}
 <div class="row" data-tour="sales-targets">
   @if($targetProgress->count() > 0)
-    @php $targetColors = ['#940000', '#009688', '#1565C0', '#f6c23e', '#6f42c1', '#e65100']; @endphp
+    @php $targetColors = ['#940000', '#7a0000', '#1565C0', '#f6c23e', '#6f42c1', '#e65100']; @endphp
     @foreach($targetProgress->take(4) as $index => $row)
       @php $color = $targetColors[$index % count($targetColors)]; @endphp
       <div class="col-md-6 col-12 mb-4">
@@ -510,7 +510,7 @@
   const trendData = @json($revenueTrend);
   const businessTypes = @json($businessTypes);
   const multiBusiness = @json($multiBusiness);
-  const deptColors = ['rgba(148,0,0,0.85)', 'rgba(0,150,136,0.85)', 'rgba(21,101,192,0.85)', 'rgba(246,194,62,0.85)', 'rgba(111,66,193,0.85)'];
+  const deptColors = ['rgba(148,0,0,0.85)', 'rgba(122,0,0,0.85)', 'rgba(21,101,192,0.85)', 'rgba(246,194,62,0.85)', 'rgba(111,66,193,0.85)'];
   const revenueChartLabel = @json(__('dashboard.revenue_chart_label'));
   const ordersChartLabel = @json(__('dashboard.orders_chart_label'));
   const ordersTooltipTemplate = @json(__('dashboard.orders_tooltip'));
@@ -657,7 +657,7 @@
         labels: distData.map(d => d.category || 'Uncategorized'),
         datasets: [{
           data: distData.map(d => parseFloat(d.qty)),
-          backgroundColor: ['#940000','#009688','#1565C0','#f6c23e','#6f42c1','#e65100','#28a745'],
+          backgroundColor: ['#940000','#7a0000','#1565C0','#f6c23e','#6f42c1','#e65100','#28a745'],
           borderWidth: 2,
           borderColor: '#ffffff'
         }]
