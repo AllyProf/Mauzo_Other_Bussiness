@@ -8,6 +8,7 @@
   @include('landing.partials.about')
   @include('landing.partials.features')
   @include('landing.partials.pricing')
+  @include('landing.partials.faq')
   @include('landing.partials.stats')
   @include('landing.partials.testimonials')
   @include('landing.partials.cta')

@@ -23,6 +23,7 @@
             <li><i class="bi bi-chevron-right"></i> <a href="#hero">Home</a></li>
             <li><i class="bi bi-chevron-right"></i> <a href="#about">About</a></li>
             <li><i class="bi bi-chevron-right"></i> <a href="#pricing">Pricing</a></li>
+            <li><i class="bi bi-chevron-right"></i> <a href="#faq">FAQ</a></li>
           </ul>
         </div>
 
