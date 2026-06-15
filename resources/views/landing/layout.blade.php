@@ -48,7 +48,21 @@
   @include('landing.partials.footer')
 
   <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
-  <div id="preloader"></div>
+  <div id="preloader">
+    <div class="preloader-inner">
+      <div class="preloader-ring">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <circle class="preloader-track" cx="60" cy="60" r="50" fill="none" stroke-width="5"/>
+          <circle class="preloader-arc" cx="60" cy="60" r="50" fill="none" stroke-width="5"
+            stroke-dasharray="314" stroke-dashoffset="220" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="preloader-logo">
+        <span class="preloader-brand">Mauzo<span>Link</span></span>
+      </div>
+      <p class="preloader-tagline">Powered by <strong>EmCa Tech</strong></p>
+    </div>
+  </div>
 
   <script src="{{ asset('gp-assets/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
   <script src="{{ asset('gp-assets/vendor/aos/aos.js') }}"></script>
