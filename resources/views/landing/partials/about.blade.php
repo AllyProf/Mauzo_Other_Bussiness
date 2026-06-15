@@ -2,7 +2,7 @@
   <div class="container" data-aos="fade-up" data-aos-delay="100">
     <div class="row gy-4">
       <div class="col-lg-6 order-1 order-lg-2">
-        <img src="{{ asset('gp-assets/img/about.jpg') }}" class="img-fluid rounded" alt="Retail business using POS">
+        <img src="{{ asset('gp-assets/img/about-pos.png') }}" class="img-fluid rounded" alt="Retail business using POS">
       </div>
       <div class="col-lg-6 order-2 order-lg-1 content">
         <h3>One platform for sales, stock, and daily control</h3>

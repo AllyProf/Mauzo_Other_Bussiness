@@ -2,7 +2,7 @@
   <div class="container">
     <div class="row gy-4">
       <div class="features-image col-lg-6" data-aos="fade-up" data-aos-delay="100">
-        <img src="{{ asset('gp-assets/img/features-bg.jpg') }}" class="img-fluid rounded" alt="Business analytics">
+        <img src="{{ asset('gp-assets/img/features-analytics.png') }}" class="img-fluid rounded" alt="Business analytics">
       </div>
       <div class="col-lg-6">
         @foreach([

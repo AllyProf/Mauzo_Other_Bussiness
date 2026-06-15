@@ -2,7 +2,7 @@
   <div class="container" data-aos="fade-up" data-aos-delay="100">
     <div class="row gy-4 align-items-center justify-content-between">
       <div class="col-lg-5">
-        <img src="{{ asset('gp-assets/img/stats-img.jpg') }}" alt="Team collaboration" class="img-fluid rounded">
+        <img src="{{ asset('gp-assets/img/stats-dashboard.png') }}" alt="Business owner using tablet dashboard" class="img-fluid rounded">
       </div>
       <div class="col-lg-6">
         <h3 class="fw-bold fs-2 mb-3">Built for busy counters and demanding owners</h3>
