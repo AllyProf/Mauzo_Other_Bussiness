@@ -72,7 +72,9 @@
   <div>
     <h1><i class="fa fa-shopping-cart"></i> {{ __('pages.sales.title') }}</h1>
     <p>
-      @if(($shiftContext ?? '') === 'current')
+      @if($showAllHistory ?? false)
+        Showing all your past sales and orders history
+      @elseif(($shiftContext ?? '') === 'current')
         Current shift #{{ $openShift->id }} sales, plus any unpaid orders from earlier shifts
       @elseif(($shiftContext ?? '') === 'none')
         Open a shift to record new sales — previous shift sales are in Shift History
@@ -88,6 +90,23 @@
       @else
         <a href="{{ route('sales.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> {{ __('pages.sales.new_sale') }}</a>
       @endif
+
+      @if($requiresOpenShift ?? false)
+        @if($showAllHistory ?? false)
+          @if($openShift ?? null)
+            <a href="{{ route('sales.index', ['history' => 'current']) }}" class="btn btn-info btn-sm"><i class="fa fa-calendar-check-o"></i> View Current Shift</a>
+          @endif
+        @else
+          <a href="{{ route('sales.index', ['history' => 'all']) }}" class="btn btn-secondary btn-sm"><i class="fa fa-history"></i> View All My Past Sales</a>
+        @endif
+      @endif
+
+      @php
+        $filtersActive = request('period') || request('date_from') || request('date_to');
+      @endphp
+      <button type="button" class="btn btn-sm {{ $filtersActive ? 'btn-info' : 'btn-outline-info' }}" data-toggle="collapse" data-target="#filterCollapse" aria-expanded="{{ $filtersActive ? 'true' : 'false' }}" aria-controls="filterCollapse">
+        <i class="fa fa-filter"></i> Filters
+      </button>
     </div>
   </div>
 </div>
@@ -154,6 +173,46 @@
         <h4>{{ __('pages.sales.outstanding') }}</h4>
         <p><b>TZS {{ number_format($stats['outstanding'], 0) }}</b></p>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Date and Period Filters -->
+<div class="row d-print-none collapse {{ $filtersActive ? 'show' : '' }} mb-3" id="filterCollapse">
+  <div class="col-md-12">
+    <div class="tile p-3">
+      <form action="{{ route('sales.index') }}" method="GET" id="salesFilterForm" class="row align-items-end mb-0">
+        @if(request('history'))
+          <input type="hidden" name="history" value="{{ request('history') }}">
+        @endif
+        
+        <div class="col-md-4 form-group mb-2 mb-md-0">
+          <label class="font-weight-bold"><i class="fa fa-calendar"></i> Predefined Period</label>
+          <select name="period" id="filterPeriod" class="form-control form-control-sm">
+            <option value="">-- Custom Date Range --</option>
+            <option value="today" {{ request('period') === 'today' ? 'selected' : '' }}>Today</option>
+            <option value="yesterday" {{ request('period') === 'yesterday' ? 'selected' : '' }}>Yesterday</option>
+            <option value="this_week" {{ request('period') === 'this_week' ? 'selected' : '' }}>This Week</option>
+            <option value="last_week" {{ request('period') === 'last_week' ? 'selected' : '' }}>Last Week</option>
+            <option value="this_month" {{ request('period') === 'this_month' ? 'selected' : '' }}>This Month</option>
+            <option value="last_month" {{ request('period') === 'last_month' ? 'selected' : '' }}>Last Month</option>
+          </select>
+        </div>
+
+        <div class="col-md-3 form-group mb-2 mb-md-0">
+          <label class="font-weight-bold">Date From</label>
+          <input type="date" name="date_from" id="filterDateFrom" class="form-control form-control-sm" value="{{ $dateFrom ?? request('date_from') }}">
+        </div>
+
+        <div class="col-md-3 form-group mb-2 mb-md-0">
+          <label class="font-weight-bold">Date To</label>
+          <input type="date" name="date_to" id="filterDateTo" class="form-control form-control-sm" value="{{ $dateTo ?? request('date_to') }}">
+        </div>
+
+        <div class="col-md-2 mb-2 mb-md-0 text-right text-md-left">
+          <a href="{{ route('sales.index', ['history' => request('history')]) }}" class="btn btn-secondary btn-sm btn-block"><i class="fa fa-times"></i> Clear Filters</a>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -302,7 +361,7 @@
             @if($sales->isEmpty())
                 <tr>
                     <td colspan="8" class="text-center py-4 text-muted">
-                      @if(($shiftContext ?? '') === 'none')
+                      @if(($shiftContext ?? '') === 'none' && !($showAllHistory ?? false))
                         No active shift. Open a shift to start selling — closed shift sales are listed under <a href="{{ route('shifts.index') }}">Sales Shifts</a>.
                       @else
                         No sales records found.
@@ -313,7 +372,7 @@
           </tbody>
         </table>
         </div>
-        {{ $sales->links() }}
+        {{ $sales->appends(request()->query())->links() }}
       </div>
     </div>
   </div>
@@ -378,6 +437,15 @@
 
                 filterMobileSalesCards();
             }
+
+            // Real-time filtering
+            $('#filterPeriod, #filterDateFrom, #filterDateTo').on('change', function () {
+                if ($(this).attr('id') === 'filterPeriod' && $(this).val() !== '') {
+                    $('#filterDateFrom').val('');
+                    $('#filterDateTo').val('');
+                }
+                $('#salesFilterForm').submit();
+            });
         });
     </script>
     @include('sales.partials.customer-picker-scripts')

@@ -63,9 +63,47 @@ class SaleController extends Controller
 
         $salesQuery = Sale::where('business_id', $businessId);
         $carriedOverUnpaidCount = 0;
+        
+        $dateFrom = request()->query('date_from');
+        $dateTo = request()->query('date_to');
+        $period = request()->query('period');
+
+        if ($period) {
+            switch ($period) {
+                case 'today':
+                    $dateFrom = date('Y-m-d');
+                    $dateTo = date('Y-m-d');
+                    break;
+                case 'yesterday':
+                    $dateFrom = date('Y-m-d', strtotime('-1 day'));
+                    $dateTo = date('Y-m-d', strtotime('-1 day'));
+                    break;
+                case 'this_week':
+                    $dateFrom = date('Y-m-d', strtotime('monday this week'));
+                    $dateTo = date('Y-m-d', strtotime('sunday this week'));
+                    break;
+                case 'last_week':
+                    $dateFrom = date('Y-m-d', strtotime('monday last week'));
+                    $dateTo = date('Y-m-d', strtotime('sunday last week'));
+                    break;
+                case 'this_month':
+                    $dateFrom = date('Y-m-01');
+                    $dateTo = date('Y-m-t');
+                    break;
+                case 'last_month':
+                    $dateFrom = date('Y-m-01', strtotime('last month'));
+                    $dateTo = date('Y-m-t', strtotime('last month'));
+                    break;
+            }
+        }
+
+        $showAllHistory = request()->query('history') === 'all' || $dateFrom || $dateTo || $period;
 
         if ($requiresOpenShift) {
-            if ($openShift) {
+            if ($showAllHistory || !$openShift) {
+                $salesQuery->where('user_id', Auth::id());
+                $showAllHistory = true;
+            } else {
                 $carriedOverUnpaidCount = $this->countCarriedOverUnpaidSales($businessId, (int) Auth::id(), (int) $openShift->id);
 
                 $salesQuery->where(function ($query) use ($openShift) {
@@ -74,8 +112,6 @@ class SaleController extends Controller
                             $this->scopeCarriedOverUnpaidSales($unpaid, (int) Auth::id(), (int) $openShift->id);
                         });
                 });
-            } else {
-                $salesQuery->whereRaw('1 = 0');
             }
         } elseif ($this->actsAsBusinessWideViewer()) {
             if ($branchFilterId) {
@@ -87,9 +123,16 @@ class SaleController extends Controller
             $salesQuery->where('user_id', Auth::id());
         }
 
+        if ($dateFrom) {
+            $salesQuery->whereDate('sale_date', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $salesQuery->whereDate('sale_date', '<=', $dateTo);
+        }
+
         $activeSales = (clone $salesQuery)->where('payment_status', '!=', 'cancelled');
 
-        $shiftSalesQuery = ($requiresOpenShift && $openShift)
+        $shiftSalesQuery = ($requiresOpenShift && $openShift && !$showAllHistory)
             ? Sale::where('business_id', $businessId)->where('shift_id', $openShift->id)
             : $activeSales;
 
@@ -105,7 +148,7 @@ class SaleController extends Controller
 
         $sales = (clone $salesQuery)
             ->with(['user', 'items.item.category', 'items.itemPackaging.packagingType', 'items.service', 'customer'])
-            ->when($openShift, function ($query) use ($openShift) {
+            ->when($openShift && !$showAllHistory, function ($query) use ($openShift) {
                 $shiftId = (int) $openShift->id;
                 $query->orderByRaw(
                     'CASE WHEN shift_id != ? AND payment_status NOT IN (?, ?) AND total_amount > amount_paid THEN 0 ELSE 1 END ASC',
@@ -138,6 +181,10 @@ class SaleController extends Controller
             'viewingAllBranches',
             'businessTypes',
             'multiBusiness',
+            'showAllHistory',
+            'dateFrom',
+            'dateTo',
+            'period',
         ));
     }
 

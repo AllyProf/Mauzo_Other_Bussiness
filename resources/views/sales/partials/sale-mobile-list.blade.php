@@ -90,7 +90,7 @@
 @endforeach
 @if($sales->isEmpty())
   <p class="text-center text-muted py-4 mb-0">
-    @if(($shiftContext ?? '') === 'none')
+    @if(($shiftContext ?? '') === 'none' && !($showAllHistory ?? false))
       No active shift. Open a shift to start selling — closed shift sales are listed under <a href="{{ route('shifts.index') }}">Sales Shifts</a>.
     @else
       No sales records found.
