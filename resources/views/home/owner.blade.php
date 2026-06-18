@@ -9,20 +9,47 @@
   }
   .product-bar-track { height: 10px; background: #eaecf4; border-radius: 10px; }
   .product-bar-fill { height: 10px; background: #940000; border-radius: 10px; transition: width 1s ease; }
-  .widget-small {
-    height: 100px; margin-bottom: 20px; border-radius: 8px; overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  .owner-kpi-row {
+    display: flex;
+    flex-wrap: wrap;
   }
-  .widget-small .icon { width: 65px; line-height: 100px; font-size: 35px; }
+  .owner-kpi-col {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+  }
+  .widget-small {
+    display: flex;
+    align-items: stretch;
+    min-height: 110px;
+    height: 100%;
+    margin-bottom: 0 !important;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    width: 100%;
+  }
+  .widget-small .icon {
+    width: 65px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    flex-shrink: 0;
+  }
   .widget-small .info {
-    padding: 10px 15px; display: flex; flex-direction: column; justify-content: center;
+    padding: 10px 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     min-width: 0;
+    flex: 1;
   }
   .widget-small .info h4 {
-    text-transform: uppercase; font-size: 13px; margin-bottom: 5px; font-weight: 600;
+    text-transform: uppercase; font-size: 11px; margin-bottom: 4px; font-weight: 600;
   }
-  .widget-small .info p { margin-bottom: 1px; font-size: 18px; }
-  .widget-small .info small { display: block; margin-top: 2px; line-height: 1.3; }
+  .widget-small .info p { margin-bottom: 1px; font-size: 16px; font-weight: bold; }
+  .widget-small .info small { display: block; margin-top: 2px; line-height: 1.3; font-size: 11px; }
   .owner-empty { text-align: center; color: #999; padding: 30px 15px; }
   .owner-empty i { font-size: 2rem; display: block; margin-bottom: 8px; opacity: 0.5; }
   .pulse { animation: ownerPulse 2s infinite; }
@@ -115,38 +142,46 @@
       text-align: left;
     }
 
-    .owner-dashboard .widget-small {
-      height: auto;
-      min-height: 88px;
+    .owner-dashboard .owner-kpi-col {
+      display: flex;
+      flex-direction: column;
       margin-bottom: 12px;
     }
+    .owner-dashboard .widget-small {
+      height: 100%;
+      min-height: 88px;
+      margin-bottom: 0 !important;
+      display: flex;
+      align-items: stretch;
+    }
     .owner-dashboard .widget-small .icon {
-      width: 52px;
-      min-width: 52px;
-      line-height: 1;
-      font-size: 26px;
-      padding: 12px 8px;
+      width: 48px;
+      min-width: 48px;
+      font-size: 22px;
+      padding: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
     }
     .owner-dashboard .widget-small .icon .fa-3x {
-      font-size: 1.6em;
+      font-size: 1.4em;
     }
     .owner-dashboard .widget-small .info {
-      padding: 10px 12px 10px 8px;
+      padding: 8px 10px;
     }
     .owner-dashboard .widget-small .info h4 {
-      font-size: 0.68rem;
+      font-size: 0.65rem;
       margin-bottom: 3px;
       letter-spacing: 0.02em;
     }
     .owner-dashboard .widget-small .info p {
-      font-size: 0.95rem;
+      font-size: 0.88rem;
       word-break: break-word;
+      font-weight: bold;
     }
     .owner-dashboard .widget-small .info small {
-      font-size: 0.68rem;
+      font-size: 0.65rem;
     }
 
     .owner-dashboard .tile {
@@ -244,7 +279,7 @@
       <div class="info">
         <h4>{{ __('dashboard.month_label', ['month' => now()->format('M Y')]) }}</h4>
         <p><b>{{ money($monthRevenue) }}</b></p>
-        <small class="text-white" style="opacity:.85;">{{ __('dashboard.orders_collected', ['orders' => number_format($monthOrders), 'collected' => money($monthCollected, false)]) }}</small>
+        <small class="text-muted">{{ __('dashboard.orders_collected', ['orders' => number_format($monthOrders), 'collected' => money($monthCollected, false)]) }}</small>
       </div>
     </div>
   </div>
@@ -254,7 +289,7 @@
       <div class="info">
         <h4>{{ __('dashboard.stock_alerts') }}</h4>
         <p><b>{{ number_format($pendingShortages) }}</b></p>
-        <small class="text-white" style="opacity:.85;">{{ __('dashboard.shortages_low_stock', ['count' => number_format($lowStockCount)]) }}</small>
+        <small class="text-muted">{{ __('dashboard.shortages_low_stock', ['count' => number_format($lowStockCount)]) }}</small>
       </div>
     </div>
   </div>
@@ -264,7 +299,7 @@
       <div class="info">
         <h4>{{ __('dashboard.month_purchases') }}</h4>
         <p><b>{{ money($monthlyPurchaseCost) }}</b></p>
-        <small class="text-white" style="opacity:.85;">{{ __('dashboard.stock_received') }}</small>
+        <small class="text-muted">{{ __('dashboard.stock_received') }}</small>
       </div>
     </div>
   </div>
