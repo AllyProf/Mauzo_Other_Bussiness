@@ -105,6 +105,7 @@ Route::middleware(['auth', 'check.user.active', 'check.platform.admin'])->prefix
     Route::post('/communication/send-broadcast', [App\Http\Controllers\Admin\PlatformCommunicationController::class, 'sendBroadcast'])->name('communication.send-broadcast');
     Route::post('/communication/update-templates', [App\Http\Controllers\Admin\PlatformCommunicationController::class, 'updateTemplates'])->name('communication.update-templates');
     Route::post('/communication/cancel-scheduled/{id}', [App\Http\Controllers\Admin\PlatformCommunicationController::class, 'cancelScheduled'])->name('communication.cancel-scheduled');
+    Route::post('/communication/cancel-all-scheduled', [App\Http\Controllers\Admin\PlatformCommunicationController::class, 'cancelAllScheduled'])->name('communication.cancel-all-scheduled');
 
     Route::get('/businesses/{business}/export', [App\Http\Controllers\Admin\BusinessController::class, 'exportData'])->name('businesses.export');
 

@@ -168,4 +168,21 @@ class PlatformCommunicationController extends Controller
 
         return redirect()->back()->with('success', 'Scheduled SMS cancelled successfully.');
     }
+
+    public function cancelAllScheduled()
+    {
+        $this->ensurePlatformAdmin('settings');
+
+        $cancelledCount = PlatformSmsLog::where('status', 'scheduled')->update([
+            'status' => 'failed',
+            'provider_response' => 'Cancelled by Administrator',
+        ]);
+
+        if ($cancelledCount > 0) {
+            AuditLog::log('SMS_ALL_CANCELLED', "Cancelled {$cancelledCount} scheduled SMS message(s)");
+            return redirect()->back()->with('success', "Cancelled {$cancelledCount} scheduled SMS message(s) successfully.");
+        }
+
+        return redirect()->back()->with('info', 'No scheduled SMS messages found to cancel.');
+    }
 }
