@@ -18,7 +18,7 @@ class BusinessHealthService
     {
         $month = ($month ?? now())->copy()->startOfMonth();
         $plan = $business->plan;
-        $limit = (int) ($plan?->max_sms_per_month ?? 0);
+        $limit = $business->custom_sms_limit !== null ? (int) $business->custom_sms_limit : (int) ($plan?->max_sms_per_month ?? 0);
         $used = (int) CustomerSmsLog::query()
             ->where('business_id', $business->id)
             ->where('status', 'sent')
@@ -38,7 +38,7 @@ class BusinessHealthService
     public function storageUsageForBusiness(Business $business): array
     {
         $plan = $business->plan;
-        $limitMb = (int) ($plan?->max_storage_mb ?? 0);
+        $limitMb = $business->custom_storage_limit !== null ? (int) $business->custom_storage_limit : (int) ($plan?->max_storage_mb ?? 0);
         $usedBytes = $this->estimateStorageBytes($business);
         $usedMb = round($usedBytes / 1024 / 1024, 2);
         $percent = $limitMb > 0 ? min(100, round(($usedMb / $limitMb) * 100, 1)) : 0;

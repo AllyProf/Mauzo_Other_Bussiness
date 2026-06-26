@@ -101,6 +101,23 @@ Route::middleware(['auth', 'check.user.active', 'check.platform.admin'])->prefix
 
     Route::post('/impersonate/{business}', [App\Http\Controllers\Admin\ImpersonationController::class, 'impersonate'])->name('impersonate');
 
+    Route::get('/communication', [App\Http\Controllers\Admin\PlatformCommunicationController::class, 'index'])->name('communication.index');
+    Route::post('/communication/send-broadcast', [App\Http\Controllers\Admin\PlatformCommunicationController::class, 'sendBroadcast'])->name('communication.send-broadcast');
+    Route::post('/communication/update-templates', [App\Http\Controllers\Admin\PlatformCommunicationController::class, 'updateTemplates'])->name('communication.update-templates');
+    Route::post('/communication/cancel-scheduled/{id}', [App\Http\Controllers\Admin\PlatformCommunicationController::class, 'cancelScheduled'])->name('communication.cancel-scheduled');
+
+    Route::get('/businesses/{business}/export', [App\Http\Controllers\Admin\BusinessController::class, 'exportData'])->name('businesses.export');
+
+    Route::get('/help-articles', [App\Http\Controllers\Admin\HelpArticleController::class, 'index'])->name('help-articles.index');
+    Route::get('/help-articles/create', [App\Http\Controllers\Admin\HelpArticleController::class, 'create'])->name('help-articles.create');
+    Route::post('/help-articles', [App\Http\Controllers\Admin\HelpArticleController::class, 'store'])->name('help-articles.store');
+    Route::get('/help-articles/{helpArticle}/edit', [App\Http\Controllers\Admin\HelpArticleController::class, 'edit'])->name('help-articles.edit');
+    Route::put('/help-articles/{helpArticle}', [App\Http\Controllers\Admin\HelpArticleController::class, 'update'])->name('help-articles.update');
+    Route::delete('/help-articles/{helpArticle}', [App\Http\Controllers\Admin\HelpArticleController::class, 'destroy'])->name('help-articles.destroy');
+    Route::post('/help-articles/{helpArticle}/toggle-publish', [App\Http\Controllers\Admin\HelpArticleController::class, 'togglePublish'])->name('help-articles.toggle-publish');
+
+    Route::get('/reports/industry-insights', [App\Http\Controllers\Admin\ReportController::class, 'industryInsights'])->name('reports.industry-insights');
+
     Route::get('/settings', [App\Http\Controllers\Admin\SystemSettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings/profile', [App\Http\Controllers\Admin\SystemSettingsController::class, 'updateProfile'])->name('settings.profile.update');
     Route::put('/settings/registration', [App\Http\Controllers\Admin\SystemSettingsController::class, 'updateRegistration'])->name('settings.registration.update');
@@ -119,6 +136,9 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::get('/support/create', [App\Http\Controllers\SupportTicketController::class, 'create'])->name('tickets.create');
     Route::post('/support', [App\Http\Controllers\SupportTicketController::class, 'store'])->name('tickets.store');
     Route::get('/support/{ticket}', [App\Http\Controllers\SupportTicketController::class, 'show'])->name('tickets.show_tenant');
+
+    Route::get('/help', [App\Http\Controllers\TenantHelpController::class, 'index'])->name('help.index');
+    Route::get('/help/{slug}', [App\Http\Controllers\TenantHelpController::class, 'show'])->name('help.show');
 
     Route::middleware('check.business.retail')->group(function () {
     // Items Management

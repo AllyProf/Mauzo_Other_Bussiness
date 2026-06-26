@@ -84,6 +84,69 @@
           @include('admin.businesses.partials.operation-mode-fields', ['business' => $business, 'showServiceTemplates' => false])
 
           <div class="tile mt-3">
+            <h3 class="tile-title"><i class="fa fa-sliders"></i> Custom Limits & Feature Overrides</h3>
+            <div class="tile-body">
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="form-group">
+                    <label class="control-label font-weight-bold">Custom SMS Limit</label>
+                    <input class="form-control" type="number" name="custom_sms_limit" value="{{ old('custom_sms_limit', $business->custom_sms_limit) }}" placeholder="Plan default">
+                    <small class="text-muted">Override monthly SMS quota. Leave empty to use plan default.</small>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-group">
+                    <label class="control-label font-weight-bold">Custom Storage Limit (MB)</label>
+                    <input class="form-control" type="number" name="custom_storage_limit" value="{{ old('custom_storage_limit', $business->custom_storage_limit) }}" placeholder="Plan default">
+                    <small class="text-muted">Override business file storage quota in Megabytes. Leave empty to use plan default.</small>
+                  </div>
+                </div>
+              </div>
+
+              <hr>
+
+              <div class="form-group">
+                <div class="custom-control custom-checkbox mb-3">
+                  <input type="checkbox" class="custom-control-input" id="save_feature_overrides" name="save_feature_overrides" value="1" {{ is_array($business->feature_overrides) ? 'checked' : '' }} onchange="toggleFeatureOverrideChecklist()">
+                  <label class="custom-control-label font-weight-bold" for="save_feature_overrides">Enable Custom Feature Overrides for this Business</label>
+                  <br><small class="text-muted">When enabled, these specific settings take precedence over the global plan features.</small>
+                </div>
+              </div>
+
+              <div id="feature_override_checklist" class="p-3 bg-light rounded {{ is_array($business->feature_overrides) ? '' : 'd-none' }}">
+                <h5 class="mb-3 text-secondary">Granular Feature Toggles</h5>
+                <div class="row">
+                  @foreach($featureGroups as $groupName => $features)
+                    <div class="col-md-6 mb-4">
+                      <div class="card h-100 shadow-sm border-0">
+                        <div class="card-header bg-dark text-white py-2" style="background-color: #343a40 !important;">
+                          <strong style="font-size:0.9rem;"><i class="fa fa-folder-open-o mr-1"></i> {{ $groupName }}</strong>
+                        </div>
+                        <div class="card-body py-2 px-3">
+                          @foreach($features as $featureKey => $featureLabel)
+                            @php
+                              $hasOverride = is_array($business->feature_overrides) && array_key_exists($featureKey, $business->feature_overrides);
+                              $isChecked = $hasOverride 
+                                ? (bool) $business->feature_overrides[$featureKey] 
+                                : ($business->plan ? $business->plan->hasFeature($featureKey) : false);
+                            @endphp
+                            <div class="custom-control custom-checkbox my-2">
+                              <input type="checkbox" class="custom-control-input" id="feat_{{ $featureKey }}" name="feature_overrides[]" value="{{ $featureKey }}" {{ $isChecked ? 'checked' : '' }}>
+                              <label class="custom-control-label" for="feat_{{ $featureKey }}" style="font-size:0.88rem; cursor:pointer;">
+                                {{ $featureLabel }}
+                              </label>
+                            </div>
+                          @endforeach
+                        </div>
+                      </div>
+                    </div>
+                  @endforeach
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tile mt-3">
             <h3 class="tile-title">Owner Assignment</h3>
             <div class="tile-body">
               @if($currentOwner)
@@ -218,6 +281,56 @@
         </form>
       </div>
     </div>
+
+    <div class="tile mt-3 border-warning">
+      <h3 class="tile-title text-warning"><i class="fa fa-shield"></i> Compliance & Decommissioning Tools</h3>
+      <div class="tile-body">
+        <div class="row">
+          {{-- Export column --}}
+          <div class="col-md-6 mb-3">
+            <div class="card h-100 border-light shadow-sm">
+              <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                  <h5 class="card-title text-dark font-weight-bold"><i class="fa fa-download text-primary mr-1"></i> Tenant Data Export</h5>
+                  <p class="text-muted small">Download a complete serialized JSON export of this business's operational database (Users, Customers, Items, Sales, Receivings, Audit Logs) for compliance or migration.</p>
+                </div>
+                <div class="mt-3">
+                  <a href="{{ route('admin.businesses.export', $business->id) }}" class="btn btn-primary btn-sm btn-block">
+                    <i class="fa fa-download mr-1"></i> Export Tenant Data (JSON)
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {{-- Decommissioning/Hard Delete column --}}
+          <div class="col-md-6 mb-3">
+            <div class="card h-100 border-danger shadow-sm">
+              <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                  <h5 class="card-title text-danger font-weight-bold"><i class="fa fa-trash text-danger mr-1"></i> Hard Delete Business</h5>
+                  <p class="text-muted small">Permanently delete this business account and all associated branches, roles, audit trails, and staff logins. <strong>This action is irreversible and immediately suspends all access.</strong></p>
+                </div>
+                <div class="mt-3">
+                  <form action="{{ route('admin.businesses.destroy', $business->id) }}" method="POST" id="hardDeleteBusinessForm">
+                    @csrf
+                    @method('DELETE')
+                    <div class="form-group mb-2">
+                      <label class="small font-weight-bold text-danger">Type the business name to confirm hard deletion</label>
+                      <input type="text" name="confirm_business_name" id="confirmDeleteBusinessName" class="form-control form-control-sm" placeholder="{{ $business->name }}" required autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-danger btn-sm btn-block" id="hardDeleteBusinessBtn">
+                      <i class="fa fa-exclamation-triangle mr-1"></i> Permanently Delete Business
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 @endsection
@@ -241,6 +354,16 @@ jQuery(function($) {
 @include('partials.tanzania-location-select2', ['selectedDistrict' => old('district', $business->district)])
 <script type="text/javascript">
     const currentExpiry = @json($business->expiry_date?->format('d M, Y'));
+
+    function toggleFeatureOverrideChecklist() {
+        const cb = document.getElementById('save_feature_overrides');
+        const container = document.getElementById('feature_override_checklist');
+        if (cb && cb.checked) {
+            container.classList.remove('d-none');
+        } else if (container) {
+            container.classList.add('d-none');
+        }
+    }
 
     function formatExpiryDate(months) {
         const date = new Date();
@@ -274,6 +397,30 @@ jQuery(function($) {
         $('#planSelect').on('change', updateExpiryPreview);
 
         updateExpiryPreview();
+
+        $('#hardDeleteBusinessForm').on('submit', function (e) {
+            const entered = $('#confirmDeleteBusinessName').val().trim();
+            const actual = @json($business->name);
+            if (entered !== actual) {
+                e.preventDefault();
+                Swal.fire('Name mismatch', 'Please enter the business name exactly to confirm deletion.', 'error');
+                return;
+            }
+            e.preventDefault();
+            Swal.fire({
+                title: 'PERMANENTLY DELETE BUSINESS?',
+                html: '<span class="text-danger font-weight-bold">WARNING:</span> This will permanently erase the business <strong>{{ e($business->name) }}</strong>, all of its branches, staff accounts, transactions, and settings. <strong>This action cannot be undone under any circumstances!</strong>',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'Yes, DELETE business and all data',
+                cancelButtonText: 'Cancel'
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    document.getElementById('hardDeleteBusinessForm').submit();
+                }
+            });
+        });
 
         $('#purgeDataForm').on('submit', function (e) {
             const purgeAll = $('#purgeAllFlag').val() === '1';

@@ -85,6 +85,11 @@ class PlanFeatureService
 
     public function businessHasFeature(Business $business, string $key): bool
     {
+        $overrides = $business->feature_overrides;
+        if (is_array($overrides) && isset($overrides[$key])) {
+            return (bool) $overrides[$key];
+        }
+
         $business->loadMissing('plan');
 
         if (! $business->plan) {

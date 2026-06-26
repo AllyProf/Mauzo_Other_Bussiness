@@ -16,6 +16,11 @@ class PlatformSmsLog extends Model
         'purpose',
         'status',
         'provider_response',
+        'scheduled_at',
+    ];
+
+    protected $casts = [
+        'scheduled_at' => 'datetime',
     ];
 
     public function business(): BelongsTo

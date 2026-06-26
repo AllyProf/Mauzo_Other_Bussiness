@@ -39,10 +39,19 @@ class PlatformSmsService
     public function sendRegistrationVerification(string $phone, string $code): bool
     {
         $platformName = $this->platformName();
+        $template = $this->settings->get(
+            'sms_template_registration_verification',
+            '{platform_name}: Your verification code is {code}. It expires in 10 minutes.'
+        );
+        $message = str_replace(
+            ['{platform_name}', '{code}'],
+            [$platformName, $code],
+            $template
+        );
 
         return $this->sendToPhone(
             $phone,
-            "{$platformName}: Your verification code is {$code}. It expires in 10 minutes.",
+            $message,
             'registration_verification',
             'registration_verification',
         );
@@ -50,9 +59,19 @@ class PlatformSmsService
 
     public function sendRegistrationPending(Business $business): bool
     {
+        $template = $this->settings->get(
+            'sms_template_registration_pending',
+            'Usajili wako wa biashara ya {business_name} umepokelewa na unasubiri idhini. Utapata ujumbe mfupi mara utakapokubaliwa.'
+        );
+        $message = str_replace(
+            ['{business_name}', '{platform_name}'],
+            [$business->name, $this->platformName()],
+            $template
+        );
+
         return $this->sendToBusiness(
             $business,
-            "Usajili wako wa biashara ya {$business->name} umepokelewa na unasubiri idhini. Utapata ujumbe mfupi mara utakapokubaliwa.",
+            $message,
             'registration_pending',
             'registration_pending',
         );
@@ -61,10 +80,19 @@ class PlatformSmsService
     public function sendRegistrationApproved(Business $business, string $password, string $loginEmail): bool
     {
         $supportPhone = $this->supportContactPhone();
+        $template = $this->settings->get(
+            'sms_template_registration_approved',
+            'Usajili wa biashara {business_name} umekubaliwa. Ingia kupitia email yako ambayo ni {login_email}. Nenosiri: {password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}'
+        );
+        $message = str_replace(
+            ['{business_name}', '{login_email}', '{password}', '{support_phone}', '{platform_name}'],
+            [$business->name, $loginEmail, $password, $supportPhone, $this->platformName()],
+            $template
+        );
 
         return $this->sendToBusiness(
             $business,
-            "Usajili wa biashara {$business->name} umekubaliwa. Ingia kupitia email yako ambayo ni {$loginEmail}. Nenosiri: {$password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {$supportPhone}",
+            $message,
             'registration_approved',
             'registration_approved',
         );
@@ -73,10 +101,19 @@ class PlatformSmsService
     public function sendBusinessRegistered(Business $business, string $password, string $loginEmail): bool
     {
         $supportPhone = $this->supportContactPhone();
+        $template = $this->settings->get(
+            'sms_template_business_registered',
+            'Akaunti yako ya biashara {business_name} iko tayari. Ingia kupitia email yako ambayo ni {login_email}. Nenosiri: {password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}'
+        );
+        $message = str_replace(
+            ['{business_name}', '{login_email}', '{password}', '{support_phone}', '{platform_name}'],
+            [$business->name, $loginEmail, $password, $supportPhone, $this->platformName()],
+            $template
+        );
 
         return $this->sendToBusiness(
             $business,
-            "Akaunti yako ya biashara {$business->name} iko tayari. Ingia kupitia email yako ambayo ni {$loginEmail}. Nenosiri: {$password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {$supportPhone}",
+            $message,
             'business_registered',
             'business_registered',
         );
@@ -85,10 +122,19 @@ class PlatformSmsService
     public function sendBusinessLinkedToOwner(Business $business, string $loginEmail): bool
     {
         $supportPhone = $this->supportContactPhone();
+        $template = $this->settings->get(
+            'sms_template_business_linked',
+            'Biashara {business_name} imeongezwa kwenye akaunti yako. Ingia kupitia email yako ambayo ni {login_email}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}'
+        );
+        $message = str_replace(
+            ['{business_name}', '{login_email}', '{support_phone}', '{platform_name}'],
+            [$business->name, $loginEmail, $supportPhone, $this->platformName()],
+            $template
+        );
 
         return $this->sendToBusiness(
             $business,
-            "Biashara {$business->name} imeongezwa kwenye akaunti yako. Ingia kupitia email yako ambayo ni {$loginEmail}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {$supportPhone}",
+            $message,
             'business_linked',
             'business_linked',
         );
@@ -97,10 +143,19 @@ class PlatformSmsService
     public function sendRegistrationRejected(?string $phone, string $businessName): bool
     {
         $platformName = $this->platformName();
+        $template = $this->settings->get(
+            'sms_template_registration_rejected',
+            '{platform_name}: Your registration for {business_name} was not approved. Contact support for help.'
+        );
+        $message = str_replace(
+            ['{platform_name}', '{business_name}'],
+            [$platformName, $businessName],
+            $template
+        );
 
         return $this->sendToPhone(
             $phone,
-            "{$platformName}: Your registration for {$businessName} was not approved. Contact support for help.",
+            $message,
             'registration_rejected',
             'registration_rejected',
         );
@@ -111,10 +166,19 @@ class PlatformSmsService
         $supportPhone = $this->supportContactPhone();
         $loginEmail = $loginEmail ?: $business->email;
         $platformName = $this->platformName();
+        $template = $this->settings->get(
+            'sms_template_password_reset',
+            '{platform_name}: Nenosiri lako limewekwa upya. Ingia kupitia email yako ambayo ni {login_email}. Nenosiri jipya: {password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}'
+        );
+        $message = str_replace(
+            ['{platform_name}', '{login_email}', '{password}', '{support_phone}'],
+            [$platformName, $loginEmail, $password, $supportPhone],
+            $template
+        );
 
         return $this->sendToBusiness(
             $business,
-            "{$platformName}: Nenosiri lako limewekwa upya. Ingia kupitia email yako ambayo ni {$loginEmail}. Nenosiri jipya: {$password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {$supportPhone}",
+            $message,
             'password_reset',
             'password_reset',
         );
@@ -124,10 +188,19 @@ class PlatformSmsService
     {
         $platformName = $this->platformName();
         $suffix = filled($reason) ? " Reason: {$reason}" : '';
+        $template = $this->settings->get(
+            'sms_template_account_suspended',
+            '{platform_name}: Your account has been suspended.{reason} Contact support to restore access.'
+        );
+        $message = str_replace(
+            ['{platform_name}', '{reason}'],
+            [$platformName, $suffix],
+            $template
+        );
 
         return $this->sendToBusiness(
             $business,
-            "{$platformName}: Your account has been suspended.{$suffix} Contact support to restore access.",
+            $message,
             'account_suspended',
             'account_suspended',
         );
@@ -136,10 +209,19 @@ class PlatformSmsService
     public function sendAccountReactivated(Business $business): bool
     {
         $platformName = $this->platformName();
+        $template = $this->settings->get(
+            'sms_template_account_reactivated',
+            '{platform_name}: Your account is active again. You can sign in and continue using your POS.'
+        );
+        $message = str_replace(
+            ['{platform_name}'],
+            [$platformName],
+            $template
+        );
 
         return $this->sendToBusiness(
             $business,
-            "{$platformName}: Your account is active again. You can sign in and continue using your POS.",
+            $message,
             'account_reactivated',
             'account_reactivated',
         );
@@ -346,6 +428,7 @@ class PlatformSmsService
         ?int $businessId = null,
         ?int $userId = null,
         ?string $recipientName = null,
+        ?string $scheduledAt = null,
     ): bool {
         if (! filled($phone)) {
             return false;
@@ -361,6 +444,8 @@ class PlatformSmsService
 
         $formattedPhone = $this->smsService->formatPhoneNumber($phone);
 
+        $status = $scheduledAt ? 'scheduled' : 'pending';
+
         $log = PlatformSmsLog::create([
             'business_id' => $businessId,
             'user_id' => $userId,
@@ -368,8 +453,13 @@ class PlatformSmsService
             'recipient_name' => $recipientName,
             'message' => $message,
             'purpose' => $purpose,
-            'status' => 'pending',
+            'status' => $status,
+            'scheduled_at' => $scheduledAt,
         ]);
+
+        if ($scheduledAt) {
+            return true;
+        }
 
         try {
             $result = $this->smsService->sendSms($formattedPhone, $message);
@@ -442,5 +532,59 @@ class PlatformSmsService
         $parts = is_array($raw) ? $raw : preg_split('/[\s,]+/', (string) $raw);
 
         return in_array('sms', array_map('strtolower', $parts ?: []), true);
+    }
+
+    public function sendCustomSms(
+        string $phone,
+        string $message,
+        ?int $businessId = null,
+        ?int $userId = null,
+        ?string $recipientName = null,
+        ?string $scheduledAt = null
+    ): bool {
+        return $this->sendToPhone(
+            $phone,
+            $message,
+            'broadcast',
+            null,
+            $businessId,
+            $userId,
+            $recipientName,
+            $scheduledAt
+        );
+    }
+
+    public function dispatchScheduledLog(\App\Models\PlatformSmsLog $log): bool
+    {
+        if ($log->status !== 'scheduled') {
+            return false;
+        }
+
+        try {
+            $result = $this->smsService->sendSms($log->phone, $log->message);
+            $success = (bool) ($result['success'] ?? false);
+
+            $log->update([
+                'status' => $success ? 'sent' : 'failed',
+                'provider_response' => is_string($result['response'] ?? null)
+                    ? $result['response']
+                    : json_encode($result),
+            ]);
+
+            return $success;
+        } catch (\Throwable $exception) {
+            $log->update([
+                'status' => 'failed',
+                'provider_response' => $exception->getMessage(),
+            ]);
+
+            \Illuminate\Support\Facades\Log::error('Platform Scheduled SMS dispatch exception', [
+                'log_id' => $log->id,
+                'phone' => $log->phone,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 }

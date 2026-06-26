@@ -195,6 +195,22 @@
               {{ $business->phone ?? '—' }}
             </div>
             <div class="col-md-6 col-lg-4 mb-2">
+              <strong>TIN Number</strong><br>
+              {{ $business->tin_number ?? '—' }}
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>Location</strong><br>
+              {{ $business->region ?? '—' }}@if($business->district) ({{ $business->district }}) @endif
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>Physical Address</strong><br>
+              {{ $business->address ?? '—' }}
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>Operation Mode</strong><br>
+              {{ $business->operationModeLabel() }}
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
               <strong>Billing Model</strong><br>
               {{ $business->billingModelLabel() }}
             </div>

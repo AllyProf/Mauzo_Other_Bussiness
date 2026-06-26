@@ -42,3 +42,21 @@ Schedule::command('platform:purge-audit-logs')
     ->weeklyOn(0, '03:00')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/audit-purge.log'));
+
+Schedule::call(function () {
+    $smsService = app(\App\Services\PlatformSmsService::class);
+    \App\Models\PlatformSmsLog::where('status', 'scheduled')
+        ->where('scheduled_at', '<=', now())
+        ->chunkById(100, function ($logs) use ($smsService) {
+            foreach ($logs as $log) {
+                $smsService->dispatchScheduledLog($log);
+            }
+        });
+})->everyMinute()->name('platform:process-scheduled-sms');
+
+// Heartbeat — record the last time the scheduler ran for health monitoring
+Schedule::call(function () {
+    try {
+        app(\App\Services\PlatformSettingsService::class)->set('scheduler_last_run_at', now()->toIso8601String());
+    } catch (\Throwable) {}
+})->everyMinute()->name('platform:scheduler-heartbeat');

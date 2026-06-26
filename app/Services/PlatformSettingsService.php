@@ -45,6 +45,8 @@ class PlatformSettingsService
             'admin_notification_phone' => '',
             'audit_log_retention_days' => 365,
 
+            'scheduler_last_run_at' => null,
+
             'sms_enabled' => true,
             'sms_registration_verification' => true,
             'sms_registration_approved' => true,
@@ -59,6 +61,16 @@ class PlatformSettingsService
             'sms_ticket_reply_business' => true,
             'sms_staff_welcome' => true,
             'sms_demo_lead_admin' => true,
+
+            'sms_template_registration_verification' => '{platform_name}: Your verification code is {code}. It expires in 10 minutes.',
+            'sms_template_registration_pending' => 'Usajili wako wa biashara ya {business_name} umepokelewa na unasubiri idhini. Utapata ujumbe mfupi mara utakapokubaliwa.',
+            'sms_template_registration_approved' => 'Usajili wa biashara {business_name} umekubaliwa. Ingia kupitia email yako ambayo ni {login_email}. Nenosiri: {password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}',
+            'sms_template_registration_rejected' => '{platform_name}: Your registration for {business_name} was not approved. Contact support for help.',
+            'sms_template_business_registered' => 'Akaunti yako ya biashara {business_name} iko tayari. Ingia kupitia email yako ambayo ni {login_email}. Nenosiri: {password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}',
+            'sms_template_business_linked' => 'Biashara {business_name} imeongezwa kwenye akaunti yako. Ingia kupitia email yako ambayo ni {login_email}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}',
+            'sms_template_password_reset' => '{platform_name}: Nenosiri lako limewekwa upya. Ingia kupitia email yako ambayo ni {login_email}. Nenosiri jipya: {password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}',
+            'sms_template_account_suspended' => '{platform_name}: Your account has been suspended.{reason} Contact support to restore access.',
+            'sms_template_account_reactivated' => '{platform_name}: Your account is active again. You can sign in and continue using your POS.',
 
             'email_enabled' => true,
             'email_registration_verification' => true,
@@ -146,6 +158,27 @@ class PlatformSettingsService
             'settings' => collect($merged)->only(array_keys($this->defaults()))->all(),
         ]);
 
+        Cache::forget(self::CACHE_KEY);
+    }
+
+    /**
+     * Store a single key/value directly (bypasses the defaults-only filter).
+     * Useful for runtime telemetry like scheduler heartbeats.
+     */
+    public function set(string $key, mixed $value): void
+    {
+        try {
+            if (! database_is_ready() || ! Schema::hasTable('platform_settings')) {
+                return;
+            }
+        } catch (\Throwable) {
+            return;
+        }
+
+        $current = PlatformSetting::instance();
+        $settings = $current->settings ?? [];
+        $settings[$key] = $value;
+        $current->update(['settings' => $settings]);
         Cache::forget(self::CACHE_KEY);
     }
 

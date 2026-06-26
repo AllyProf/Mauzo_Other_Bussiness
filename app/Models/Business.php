@@ -45,6 +45,9 @@ class Business extends Model
         'payment_methods',
         'category_business_types',
         'service_business_types',
+        'custom_sms_limit',
+        'custom_storage_limit',
+        'feature_overrides',
     ];
 
     protected $casts = [
@@ -61,6 +64,9 @@ class Business extends Model
         'payment_methods' => 'array',
         'category_business_types' => 'array',
         'service_business_types' => 'array',
+        'custom_sms_limit' => 'integer',
+        'custom_storage_limit' => 'integer',
+        'feature_overrides' => 'array',
     ];
 
     public static function defaultPaymentMethods(): array

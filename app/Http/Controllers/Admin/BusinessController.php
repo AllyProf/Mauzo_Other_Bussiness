@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\Concerns\EnsuresPlatformAdmin;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Business;
@@ -18,6 +19,8 @@ use Illuminate\Validation\Rule;
 
 class BusinessController extends Controller
 {
+    use EnsuresPlatformAdmin;
+
     private function billingRules(Request $request): array
     {
         $rules = [
@@ -292,6 +295,7 @@ class BusinessController extends Controller
             : collect();
 
         $purgeService = app(BusinessDataPurgeService::class);
+        $featureGroups = app(\App\Services\PlanFeatureService::class)->groups();
 
         return view('admin.businesses.edit', [
             'business' => $business,
@@ -302,6 +306,7 @@ class BusinessController extends Controller
             'purgeScopes' => BusinessDataPurgeService::scopes(),
             'purgeCounts' => $purgeService->previewCounts($business),
             'purgeTotalRecords' => BusinessDataPurgeService::totalPreviewCount($purgeService->previewCounts($business)),
+            'featureGroups' => $featureGroups,
         ]);
     }
 
@@ -403,6 +408,9 @@ class BusinessController extends Controller
             'address' => 'required|string|max:1000',
             'plan_id' => 'required|exists:plans,id',
             'is_active' => 'required|boolean',
+            'custom_sms_limit' => 'nullable|integer|min:0',
+            'custom_storage_limit' => 'nullable|integer|min:0',
+            'feature_overrides' => 'nullable|array',
         ] + $this->billingRules($request) + $this->ownerAssignmentRules(false) + $this->operationModeRules());
 
         $plan = Plan::findOrFail($request->plan_id);
@@ -414,6 +422,16 @@ class BusinessController extends Controller
         }
 
         $previousOwnerId = $business->owner_user_id;
+
+        // Build feature overrides: checked keys → true, unchecked → false (only store explicit overrides)
+        $allFeatureKeys = app(\App\Services\PlanFeatureService::class)->allKeys();
+        $checkedFeatures = $request->input('feature_overrides', []);
+        $featureOverrides = null;
+        if ($request->has('save_feature_overrides')) {
+            $featureOverrides = collect($allFeatureKeys)
+                ->mapWithKeys(fn ($key) => [$key => in_array($key, (array) $checkedFeatures)])
+                ->all();
+        }
 
         $business->update(array_merge([
             'name' => $request->name,
@@ -429,6 +447,9 @@ class BusinessController extends Controller
             'is_active' => $request->boolean('is_active'),
             'owner_user_id' => $request->input('owner_user_id') ?: $business->owner_user_id,
             'operation_mode' => $request->input('operation_mode', Business::OPERATION_BOTH),
+            'custom_sms_limit' => $request->filled('custom_sms_limit') ? (int) $request->custom_sms_limit : null,
+            'custom_storage_limit' => $request->filled('custom_storage_limit') ? (int) $request->custom_storage_limit : null,
+            'feature_overrides' => $featureOverrides,
         ], $this->normalizeBillingInput($request)));
 
         if ($request->filled('owner_user_id') && (int) $request->owner_user_id !== (int) $previousOwnerId) {
@@ -438,6 +459,32 @@ class BusinessController extends Controller
         AuditLog::log('UPDATE_BUSINESS', "Updated business: {$business->name} — Plan: {$plan->name}, Mode: {$business->operationModeLabel()}, Expiry: {$business->expiry_date->format('Y-m-d')}, Active: {$business->is_active}", $business->id);
 
         return redirect()->route('admin.businesses.index')->with('success', 'Business subscription updated.');
+    }
+
+    public function exportData(Business $business)
+    {
+        $this->ensurePlatformAdmin();
+
+        $business->load(['plan', 'ownerUser']);
+
+        $data = [
+            'exported_at' => now()->toIso8601String(),
+            'business' => $business->toArray(),
+            'users' => \App\Models\User::where('business_id', $business->id)->get()->toArray(),
+            'customers' => \App\Models\Customer::where('business_id', $business->id)->get()->toArray(),
+            'items' => \App\Models\Item::where('business_id', $business->id)->get()->toArray(),
+            'sales' => \App\Models\Sale::where('business_id', $business->id)->get()->toArray(),
+            'receivings' => \App\Models\Receiving::where('business_id', $business->id)->get()->toArray(),
+            'audit_logs' => \App\Models\AuditLog::where('business_id', $business->id)->latest()->limit(5000)->get()->toArray(),
+        ];
+
+        $filename = 'business_export_' . \Illuminate\Support\Str::slug($business->name) . '_' . now()->format('Ymd_His') . '.json';
+
+        AuditLog::log('EXPORT_BUSINESS_DATA', "Exported all data for business: {$business->name}", $business->id);
+
+        return response()->streamDownload(function () use ($data) {
+            echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        }, $filename, ['Content-Type' => 'application/json']);
     }
 
     public function toggleStatus(Business $business)

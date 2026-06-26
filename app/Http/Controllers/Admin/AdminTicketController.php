@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Admin\Concerns\EnsuresPlatformAdmin;
 use App\Models\Ticket;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class AdminTicketController extends Controller
 {
     use EnsuresPlatformAdmin;
+
+    const SLA_HOURS = 2;
 
     public function index()
     {
@@ -17,7 +20,13 @@ class AdminTicketController extends Controller
 
         $tickets = Ticket::with(['business', 'user'])->latest()->get();
 
-        return view('admin.tickets.index', compact('tickets'));
+        // SLA metrics
+        $openTickets     = $tickets->whereIn('status', ['open', 'pending']);
+        $slaBreaching    = $openTickets->filter(fn ($t) => $t->created_at->diffInHours(now()) >= self::SLA_HOURS);
+        $avgResponseTime = $tickets->filter(fn ($t) => $t->admin_read_at)
+            ->avg(fn ($t) => $t->created_at->diffInMinutes($t->admin_read_at));
+
+        return view('admin.tickets.index', compact('tickets', 'slaBreaching', 'avgResponseTime'));
     }
 
     public function show(Ticket $ticket)
@@ -43,8 +52,8 @@ class AdminTicketController extends Controller
         ]);
 
         $ticket->update([
-            'admin_reply' => $request->admin_reply,
-            'status' => $request->status,
+            'admin_reply'   => $request->admin_reply,
+            'status'        => $request->status,
             'admin_read_at' => now(),
         ]);
 

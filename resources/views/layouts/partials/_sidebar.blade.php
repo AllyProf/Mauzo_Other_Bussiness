@@ -71,6 +71,9 @@
         @if(platform_admin_can('businesses'))
         <li><a class="app-menu__item {{ Request::is('admin/broadcasts*') ? 'active' : '' }}" href="{{ route('admin.broadcasts.index') }}"><i class="app-menu__icon fa fa-bullhorn"></i><span class="app-menu__label">{{ __('menu.system_broadcasts') }}</span></a></li>
         @endif
+        @if(platform_admin_can('settings'))
+        <li><a class="app-menu__item {{ Request::is('admin/communication*') ? 'active' : '' }}" href="{{ route('admin.communication.index') }}"><i class="app-menu__icon fa fa-comments"></i><span class="app-menu__label">Communication Room</span></a></li>
+        @endif
         @if(platform_admin_can('security'))
         <li class="treeview {{ Request::is('admin/security*') || Request::is('admin/staff*') || Request::is('admin/sessions*') ? 'is-expanded' : '' }}">
             <a class="app-menu__item" href="#" data-toggle="treeview">
