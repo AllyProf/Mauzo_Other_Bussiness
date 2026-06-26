@@ -62,6 +62,9 @@ class PlatformMonitorController extends Controller
                 $failedJobs = DB::table('failed_jobs')->count();
             } catch (\Throwable) {}
 
+            // Scheduled SMS logs
+            $scheduledSmsCount = \App\Models\PlatformSmsLog::where('status', 'scheduled')->count();
+
             // DB stats
             $driver = config('database.default', 'mysql');
             $dbName = config("database.connections.{$driver}.database", 'N/A');
@@ -93,7 +96,7 @@ class PlatformMonitorController extends Controller
 
             return view('admin.monitor.index', compact(
                 'tab', 'lastCronAt', 'cronStatus',
-                'pendingJobs', 'failedJobs', 'dbSize', 'dbName',
+                'pendingJobs', 'failedJobs', 'scheduledSmsCount', 'dbSize', 'dbName',
                 'cacheDriver', 'laravelVersion', 'phpVersion', 'storageMb', 'driver'
             ));
         }

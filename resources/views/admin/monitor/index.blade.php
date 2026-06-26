@@ -37,22 +37,35 @@
       </div>
     </div>
 
-    {{-- Queue Jobs --}}
+    {{-- Queue & Task Jobs --}}
     <div class="col-md-4 mb-3">
-      <div class="tile h-100" style="border-left: 4px solid {{ $pendingJobs > 0 || $failedJobs > 0 ? '#ffc107' : '#28a745' }};">
+      <div class="tile h-100" style="border-left: 4px solid {{ $pendingJobs > 0 || $failedJobs > 0 || $scheduledSmsCount > 0 ? '#ffc107' : '#28a745' }};">
         <div class="tile-body">
-          <h5><i class="fa fa-tasks"></i> Job Queue</h5>
-          <div class="d-flex justify-content-between mt-2">
-            <div class="text-center">
+          <h5><i class="fa fa-tasks"></i> Job & Task Queues</h5>
+          <div class="row text-center mt-3">
+            <div class="col-4">
               <div class="h3 font-weight-bold {{ $pendingJobs > 50 ? 'text-warning' : 'text-success' }}">{{ number_format($pendingJobs) }}</div>
-              <small class="text-muted">Pending Jobs</small>
+              <small class="text-muted" style="font-size:0.72rem; display:block; white-space:nowrap;">Pending Jobs</small>
             </div>
-            <div class="text-center">
+            <div class="col-4" style="border-left: 1px solid #eee; border-right: 1px solid #eee;">
               <div class="h3 font-weight-bold {{ $failedJobs > 0 ? 'text-danger' : 'text-success' }}">{{ number_format($failedJobs) }}</div>
-              <small class="text-muted">Failed Jobs</small>
+              <small class="text-muted" style="font-size:0.72rem; display:block; white-space:nowrap;">Failed Jobs</small>
+            </div>
+            <div class="col-4">
+              <div class="h3 font-weight-bold {{ $scheduledSmsCount > 0 ? 'text-warning' : 'text-success' }}">
+                <a href="{{ route('admin.communication.index', ['status' => 'scheduled']) }}" style="color:inherit; text-decoration:none;">
+                  {{ number_format($scheduledSmsCount) }}
+                </a>
+              </div>
+              <small class="text-muted" style="font-size:0.72rem; display:block; white-space:nowrap;">Scheduled SMS</small>
             </div>
           </div>
-          <p class="mt-2 mb-0 text-muted small">Driver: <strong>{{ config('queue.default', 'sync') }}</strong></p>
+          <p class="mt-3 mb-0 text-muted small">
+            Queue Driver: <strong>{{ config('queue.default', 'sync') }}</strong>
+            @if($scheduledSmsCount > 0)
+              <br><i class="fa fa-info-circle text-warning mr-1"></i> <a href="{{ route('admin.communication.index', ['status' => 'scheduled']) }}" class="text-warning font-weight-bold">View SMS queue &rarr;</a>
+            @endif
+          </p>
         </div>
       </div>
     </div>
