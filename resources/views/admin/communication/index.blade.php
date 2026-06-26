@@ -157,7 +157,7 @@
 
                 <div class="form-group d-none mb-3" id="schedulingWrapper">
                   <label class="control-label" style="font-weight: 600;">Schedule Date & Time</label>
-                  <input type="datetime-local" name="scheduled_at" id="scheduledAt" class="form-control" min="{{ now()->format('Y-m-d\TH:i') }}">
+                  <input type="datetime-local" name="scheduled_at" id="scheduledAt" class="form-control" min="{{ now()->timezone('Africa/Dar_es_Salaam')->format('Y-m-d\TH:i') }}">
                   <small class="form-text text-muted">Select when the broadcast should be sent out automatically.</small>
                 </div>
 
@@ -453,13 +453,13 @@
                     <td style="white-space:nowrap;">
                       @if($log->scheduled_at && $log->status === 'scheduled')
                         <div class="font-weight-bold" style="color:#e65100; font-size:0.85rem;">
-                          <i class="fa fa-calendar-o mr-1"></i>{{ $log->scheduled_at->format('M d, Y H:i') }}
+                          <i class="fa fa-calendar-o mr-1"></i>{{ $log->scheduled_at->timezone('Africa/Dar_es_Salaam')->format('M d, Y h:i A') }}
                         </div>
                         <div class="small text-muted live-countdown" data-timestamp="{{ $log->scheduled_at->timestamp }}">
                           Sends {{ $log->scheduled_at->diffForHumans() }}
                         </div>
                       @else
-                        <div style="font-size:0.85rem;">{{ $log->created_at->format('M d, Y H:i') }}</div>
+                        <div style="font-size:0.85rem;">{{ $log->created_at->timezone('Africa/Dar_es_Salaam')->format('M d, Y h:i A') }}</div>
                         <div class="small text-muted">{{ $log->created_at->diffForHumans() }}</div>
                       @endif
                     </td>
@@ -517,7 +517,14 @@
     var title, text, confirmText;
     if (type === 'scheduled' && scheduledVal) {
       var dt = new Date(scheduledVal);
-      var formatted = dt.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+      var formatted = dt.toLocaleString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true 
+      });
       title       = 'Schedule SMS Broadcast?';
       text        = 'The message will be queued and sent automatically on ' + formatted + '. You can view scheduled SMS in the Dispatch Logs tab.';
       confirmText = 'Yes, Schedule It!';
@@ -662,6 +669,29 @@
       textarea.selectionEnd   = startPos + variableText.length;
 
       if (targetId === 'broadcastMessage') updateCounters();
+    });
+
+    // Cancel individual scheduled SMS
+    $('.cancel-sms-btn').on('click', function(e) {
+      e.preventDefault();
+      var btn = $(this);
+      var form = btn.closest('form');
+      var name = btn.data('name');
+      var phone = btn.data('phone');
+
+      Swal.fire({
+        title: 'Cancel Scheduled SMS?',
+        html: 'This will stop this queued message to <strong>' + name + '</strong> (<code>' + phone + '</code>) from being sent.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Yes, Cancel It',
+        cancelButtonText: 'Cancel'
+      }).then(function(result) {
+        if (result.isConfirmed) {
+          form.submit();
+        }
+      });
     });
   });
 </script>

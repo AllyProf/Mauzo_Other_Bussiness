@@ -81,7 +81,7 @@ class PlatformCommunicationController extends Controller
 
         $scheduledAt = null;
         if ($request->send_type === 'scheduled' && $request->scheduled_at) {
-            $scheduledAt = \Carbon\Carbon::parse($request->scheduled_at)->toDateTimeString();
+            $scheduledAt = \Carbon\Carbon::parse($request->scheduled_at, 'Africa/Dar_es_Salaam')->timezone('UTC')->toDateTimeString();
         }
 
         $sentCount = 0;
