@@ -4,6 +4,7 @@ return [
     'title' => 'Master Sheet — Daily Business Reports',
     'archive_title' => 'Master Sheet Archive',
     'subtitle' => 'Click any row to see the full reconciliation breakdown.',
+    'service_subtitle' => 'Service sales, profit, and circulation after handover is closed.',
     'finance' => 'Finance',
     'daily_report' => 'Daily Business Report',
     'from_date' => 'From Date:',

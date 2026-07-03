@@ -24,6 +24,7 @@
     @else
       <a href="{{ route('service-pos.create') }}" class="btn btn-success"><i class="fa fa-desktop"></i> Service POS</a>
     @endif
+    <a href="{{ route('services.materials') }}" class="btn btn-outline-secondary ml-1"><i class="fa fa-cubes"></i> Materials Stock</a>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home"></i></li>
@@ -40,6 +41,13 @@
 <div class="alert alert-success py-2 mb-3">
   Shift #{{ $openShift->id }} is open. <a href="{{ route('shifts.show', $openShift) }}">View shift</a>
 </div>
+@endif
+
+@if(session('success'))
+<div class="alert alert-success">{{ session('success') }}</div>
+@endif
+@if(session('error'))
+<div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
 <div class="row mb-3">
@@ -92,6 +100,37 @@
               @else<span class="badge badge-warning">{{ ucfirst($sale->payment_status) }}</span>@endif
             </td>
             <td>
+              @if(in_array($sale->payment_status, ['pending', 'partial', 'debt']))
+                @php
+                  $payItems = $sale->items->map(function ($si) {
+                      return [
+                          'id' => $si->id,
+                          'name' => $si->line_description ?: $si->service?->name ?? 'Service',
+                          'qty' => (float) $si->quantity,
+                          'unit_price' => (float) ($si->list_unit_price ?? $si->unit_price),
+                      ];
+                  })->values();
+                @endphp
+                <button type="button"
+                  class="btn btn-sm btn-success open-payment-modal-btn"
+                  title="Record Payment"
+                  data-sale-id="{{ $sale->id }}"
+                  data-ref="{{ e($sale->reference_no) }}"
+                  data-total="{{ $sale->total_amount }}"
+                  data-paid="{{ $sale->amount_paid }}"
+                  data-customer-id="{{ $sale->customer_id ?? '' }}"
+                  data-customer-name="{{ e($sale->customer_name ?? '') }}"
+                  data-customer-phone="{{ e($sale->customer_phone ?? '') }}"
+                  data-due-date="{{ $sale->due_date ? \Carbon\Carbon::parse($sale->due_date)->format('Y-m-d') : '' }}"
+                  data-items='@json($payItems)'><i class="fa fa-money"></i> Pay</button>
+                <form action="{{ route('sales.cancel', $sale) }}" method="POST" class="d-inline">
+                  @csrf
+                  <button type="submit" class="btn btn-sm btn-danger" title="Cancel order"
+                    onclick="confirmAction(event, 'Cancel service order?', 'Order {{ $sale->reference_no }} will be cancelled. Materials will be restored if already deducted.')">
+                    <i class="fa fa-times"></i>
+                  </button>
+                </form>
+              @endif
               <a href="{{ route('sales.show', $sale) }}" class="btn btn-sm btn-outline-primary">View</a>
             </td>
           </tr>
@@ -101,7 +140,25 @@
         </tbody>
       </table>
     </div>
-    {{ $sales->links() }}
+    {{ $sales->appends(request()->query())->links() }}
   </div>
 </div>
+
+@include('sales.partials.payment-modal')
+@endsection
+
+@section('scripts')
+<script>
+$(function () {
+    const autoPaySaleId = @json(request()->query('pay'));
+    if (autoPaySaleId) {
+        const $payBtn = $('.open-payment-modal-btn[data-sale-id="' + autoPaySaleId + '"]').first();
+        if ($payBtn.length) {
+            setTimeout(function () { $payBtn.trigger('click'); }, 400);
+        }
+    }
+});
+</script>
+@include('sales.partials.customer-picker-scripts')
+@include('sales.partials.payment-modal-scripts')
 @endsection

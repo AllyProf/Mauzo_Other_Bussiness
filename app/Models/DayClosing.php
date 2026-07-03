@@ -10,6 +10,7 @@ class DayClosing extends Model
         'business_id',
         'user_id',
         'shift_id',
+        'handover_scope',
         'closing_date',
         'status',
         'sales_count',

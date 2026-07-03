@@ -102,7 +102,7 @@
 @if($multiBusiness ?? false)
 <div class="tile mb-3 py-2">
   <div class="d-flex align-items-center flex-wrap">
-    <span class="small font-weight-bold mr-2 mb-2">Business:</span>
+    <span class="small font-weight-bold mr-2 mb-2">Business / Service:</span>
     <div class="business-type-tabs mb-2">
       <a href="{{ route('petty-cash.index', request()->except('business_type')) }}"
          class="business-type-tab {{ empty($activeBusinessType) ? 'active' : '' }}">
@@ -117,9 +117,9 @@
     </div>
   </div>
   @if($activeBusinessType ?? false)
-    <p class="small text-muted mb-0">Balances and history show <strong>{{ $balances['business_type_label'] ?? $activeBusinessType }}</strong> only — from today&apos;s sales for this business.</p>
+    <p class="small text-muted mb-0">Balances and history show <strong>{{ $balances['business_type_label'] ?? $activeBusinessType }}</strong> only — from today&apos;s sales for this department.</p>
   @else
-    <p class="small text-muted mb-0">Select a business tab or choose one when issuing petty cash so amounts deduct from the correct department.</p>
+    <p class="small text-muted mb-0">Select a department tab to see today&apos;s available balances for that store or service. Amounts come from sales on the selected date.</p>
   @endif
 </div>
 @endif
@@ -206,24 +206,28 @@
           <div id="issueFormFields" class="{{ $balances['is_finalized'] ? 'issue-form-disabled' : '' }}">
             @if($multiBusiness ?? false)
             <div class="form-group">
-              <label class="control-label font-weight-bold">Business / Department</label>
+              <label class="control-label font-weight-bold">Business / Service</label>
               <select name="business_type_key" id="business_type_key" class="form-control" required>
-                <option value="">— Select business —</option>
+                <option value="">— Select department —</option>
                 @foreach($businessTypes as $type)
                   <option value="{{ $type['key'] }}" {{ old('business_type_key', $activeBusinessType) === $type['key'] ? 'selected' : '' }}>
                     {{ $type['label'] }}
                   </option>
                 @endforeach
               </select>
-              <small class="form-text text-muted">Issue is deducted from this business type&apos;s circulation or profit.</small>
+              <small class="form-text text-muted">Issue is deducted from this store or service department&apos;s circulation or profit.</small>
+              @if(empty($activeBusinessType))
+                <small class="form-text text-warning">Choose the department tab above or pick one here — e.g. Print &amp; Copy Centre for service petty cash.</small>
+              @endif
             </div>
             @endif
 
             <div class="form-group">
               <label class="control-label font-weight-bold">Amount (TZS)</label>
-              <input type="number" name="amount" id="issue_amount" class="form-control" min="0.01" step="0.01" max="{{ old('fund_source', 'circulation') === 'profit' ? $balances['available_profit'] : $balances['available_circulation'] }}" value="{{ old('amount') }}" required>
-              <small class="form-text text-muted">Maximum for selected source: <strong id="amount-max-label">TZS {{ number_format(old('fund_source', 'circulation') === 'profit' ? $balances['available_profit'] : $balances['available_circulation'], 0) }}</strong></small>
+              <input type="number" name="amount" id="issue_amount" class="form-control" min="0.01" step="0.01" max="{{ $initialFundSource === 'profit' ? $balances['available_profit'] : $balances['available_circulation'] }}" value="{{ old('amount') }}" required>
+              <small class="form-text text-muted">Maximum for selected source: <strong id="amount-max-label">TZS {{ number_format($initialFundSource === 'profit' ? $balances['available_profit'] : $balances['available_circulation'], 0) }}</strong></small>
               <div class="invalid-feedback d-block d-none" id="amount-error">Amount exceeds available balance for the selected source.</div>
+              <small class="form-text text-info d-none" id="fund-source-hint"></small>
             </div>
 
             <div class="form-group">
@@ -255,11 +259,11 @@
 
             <div class="form-group mb-3">
               <label class="control-label font-weight-bold d-block mb-2">Issue From</label>
-              <input type="hidden" name="fund_source" id="fund_source" value="{{ old('fund_source', 'circulation') }}">
+              <input type="hidden" name="fund_source" id="fund_source" value="{{ $initialFundSource }}">
 
-              <div class="fund-option-card mb-2 {{ old('fund_source', 'circulation') === 'circulation' ? 'active' : '' }}" data-fund="circulation">
+              <div class="fund-option-card mb-2 {{ $initialFundSource === 'circulation' ? 'active' : '' }}" data-fund="circulation">
                 <div class="custom-control custom-radio">
-                  <input type="radio" id="fund_circulation" class="custom-control-input fund-source-radio" value="circulation" {{ old('fund_source', 'circulation') === 'circulation' ? 'checked' : '' }}>
+                  <input type="radio" id="fund_circulation" class="custom-control-input fund-source-radio" value="circulation" {{ $initialFundSource === 'circulation' ? 'checked' : '' }}>
                   <label class="custom-control-label w-100" for="fund_circulation">
                     <strong>Money in Circulation</strong>
                     <div class="d-flex justify-content-between align-items-center mt-1">
@@ -270,9 +274,9 @@
                 </div>
               </div>
 
-              <div class="fund-option-card {{ old('fund_source') === 'profit' ? 'active' : '' }}" data-fund="profit">
+              <div class="fund-option-card {{ $initialFundSource === 'profit' ? 'active' : '' }}" data-fund="profit">
                 <div class="custom-control custom-radio">
-                  <input type="radio" id="fund_profit" class="custom-control-input fund-source-radio" value="profit" {{ old('fund_source') === 'profit' ? 'checked' : '' }}>
+                  <input type="radio" id="fund_profit" class="custom-control-input fund-source-radio" value="profit" {{ $initialFundSource === 'profit' ? 'checked' : '' }}>
                   <label class="custom-control-label w-100" for="fund_profit">
                     <strong>Profit</strong>
                     <div class="d-flex justify-content-between align-items-center mt-1">
@@ -400,6 +404,8 @@
 jQuery(function($) {
   const balancesUrl = @json(route('petty-cash.balances'));
   const activeBusinessType = @json($activeBusinessType ?? null);
+  const defaultFundSource = @json($defaultFundSource ?? ($business->expense_deduct_from ?? 'circulation'));
+  let userPickedFundSource = false;
   let currentBalances = {
     available_circulation: {{ $balances['available_circulation'] }},
     available_profit: {{ $balances['available_profit'] }},
@@ -408,6 +414,46 @@ jQuery(function($) {
 
   function formatMoney(value) {
     return 'TZS ' + Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  function availableForSource(source, balances) {
+    return source === 'profit'
+      ? Number(balances.available_profit || 0)
+      : Number(balances.available_circulation || 0);
+  }
+
+  function setFundSource(value) {
+    $('input.fund-source-radio[value="' + value + '"]').prop('checked', true);
+    $('#fund_source').val(value);
+    $('.fund-option-card').removeClass('active');
+    $('.fund-option-card[data-fund="' + value + '"]').addClass('active');
+  }
+
+  function recommendFundSource(balances) {
+    const current = selectedFundSource();
+    const currentAvailable = availableForSource(current, balances);
+    const profitAvailable = Number(balances.available_profit || 0);
+    const circulationAvailable = Number(balances.available_circulation || 0);
+
+    if (userPickedFundSource && currentAvailable > 0) {
+      return;
+    }
+
+    if (currentAvailable <= 0) {
+      if (profitAvailable > 0) {
+        setFundSource('profit');
+        return;
+      }
+      if (circulationAvailable > 0) {
+        setFundSource('circulation');
+        return;
+      }
+    }
+
+    const preferredAvailable = availableForSource(defaultFundSource, balances);
+    if (preferredAvailable > 0 && current !== defaultFundSource) {
+      setFundSource(defaultFundSource);
+    }
   }
 
   function setButtonLoading($btn, isLoading, loadingText) {
@@ -450,11 +496,22 @@ jQuery(function($) {
     $('#fund-profit-amount').text(formatMoney(currentBalances.available_profit));
 
     const amount = parseFloat($amount.val());
-    if (amount && amount > max) {
+    const altSource = selectedFundSource() === 'profit' ? 'circulation' : 'profit';
+    const altMax = availableForSource(altSource, currentBalances);
+    const $hint = $('#fund-source-hint');
+
+    if (amount && amount > max && altMax > 0) {
+      const altLabel = altSource === 'profit' ? 'Profit' : 'Money in Circulation';
       $('#amount-error').removeClass('d-none');
+      $hint.removeClass('d-none').text(formatMoney(altMax) + ' is available in ' + altLabel + ' — switch Issue From above.');
+      $('#issueSubmitBtn').prop('disabled', true);
+    } else if (amount && amount > max) {
+      $('#amount-error').removeClass('d-none');
+      $hint.addClass('d-none').text('');
       $('#issueSubmitBtn').prop('disabled', true);
     } else {
       $('#amount-error').addClass('d-none');
+      $hint.addClass('d-none').text('');
       $('#issueSubmitBtn').prop('disabled', currentBalances.is_finalized);
     }
   }
@@ -498,6 +555,7 @@ jQuery(function($) {
       $('#useNextOpenDayBtn').addClass('d-none');
     }
 
+    recommendFundSource(data);
     updateAmountConstraints();
   }
 
@@ -544,10 +602,12 @@ jQuery(function($) {
   });
 
   $('#business_type_key').on('change', function() {
+    userPickedFundSource = false;
     fetchBalances($('#expense_date').val());
   });
 
   $('input.fund-source-radio').on('change', function() {
+    userPickedFundSource = true;
     const value = $(this).val();
     $('#fund_source').val(value);
     $('.fund-option-card').removeClass('active');
@@ -606,6 +666,7 @@ jQuery(function($) {
     });
   });
 
+  recommendFundSource(currentBalances);
   updateAmountConstraints();
 });
 </script>

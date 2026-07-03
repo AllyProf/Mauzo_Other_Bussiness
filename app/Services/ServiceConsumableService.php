@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Item;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\ServiceMaterial;
 
 class ServiceConsumableService
 {
@@ -41,7 +42,7 @@ class ServiceConsumableService
     private function deductLine(SaleItem $line): void
     {
         $service = $line->service;
-        if (! $service?->consumable_item_id) {
+        if (! $service) {
             return;
         }
 
@@ -50,12 +51,27 @@ class ServiceConsumableService
             return;
         }
 
+        $deduct = (float) $line->quantity * $unitsPerSale;
+
+        if ($service->service_material_id) {
+            $material = ServiceMaterial::find($service->service_material_id);
+            if ($material) {
+                $material->current_stock = max(0, (float) $material->current_stock - $deduct);
+                $material->save();
+            }
+
+            return;
+        }
+
+        if (! $service->consumable_item_id) {
+            return;
+        }
+
         $item = Item::find($service->consumable_item_id);
         if (! $item) {
             return;
         }
 
-        $deduct = (float) $line->quantity * $unitsPerSale;
         $item->current_stock = max(0, (float) $item->current_stock - $deduct);
         $item->save();
     }
@@ -63,7 +79,7 @@ class ServiceConsumableService
     private function restoreLine(SaleItem $line): void
     {
         $service = $line->service;
-        if (! $service?->consumable_item_id) {
+        if (! $service) {
             return;
         }
 
@@ -72,12 +88,27 @@ class ServiceConsumableService
             return;
         }
 
+        $restore = (float) $line->quantity * $unitsPerSale;
+
+        if ($service->service_material_id) {
+            $material = ServiceMaterial::find($service->service_material_id);
+            if ($material) {
+                $material->current_stock = (float) $material->current_stock + $restore;
+                $material->save();
+            }
+
+            return;
+        }
+
+        if (! $service->consumable_item_id) {
+            return;
+        }
+
         $item = Item::find($service->consumable_item_id);
         if (! $item) {
             return;
         }
 
-        $restore = (float) $line->quantity * $unitsPerSale;
         $item->current_stock += $restore;
         $item->save();
     }

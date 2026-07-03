@@ -269,7 +269,7 @@
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
         <h4>{{ __('dashboard.today_revenue') }}</h4>
-        <p><b>{{ money($todayRevenue) }}</b></p>
+        <p><b id="owner-today-revenue">{{ money($todayRevenue) }}</b></p>
       </div>
     </div>
   </div>
@@ -713,6 +713,30 @@
       }
     });
   }
+
+  function formatTzs(amount) {
+    return 'TZS ' + Math.round(parseFloat(amount) || 0).toLocaleString();
+  }
+
+  function refreshTodayRevenue() {
+    fetch(@json(route('home.stats')), {
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data || typeof data.today_revenue === 'undefined') return;
+        var el = document.getElementById('owner-today-revenue');
+        if (el) el.textContent = formatTzs(data.today_revenue);
+      })
+      .catch(function () {});
+  }
+
+  refreshTodayRevenue();
+  setInterval(refreshTodayRevenue, 30000);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) refreshTodayRevenue();
+  });
 })();
 </script>
 @endpush

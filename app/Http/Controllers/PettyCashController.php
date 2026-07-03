@@ -32,9 +32,7 @@ class PettyCashController extends Controller
             : null;
         $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
 
-        $businessTypes = $branchFilterId
-            ? $business->branchPosBusinessTypesMeta($branchFilterId)
-            : $business->posBusinessTypesMeta();
+        $businessTypes = $business->pettyCashBusinessTypesMeta($branchFilterId);
         $multiBusiness = count($businessTypes) > 1;
         $activeBusinessType = $request->get('business_type');
 
@@ -92,6 +90,13 @@ class PettyCashController extends Controller
 
         $expenses = $expensesQuery->paginate(20)->withQueryString();
 
+        $defaultFundSource = $business->expense_deduct_from ?? 'circulation';
+        $initialFundSource = $this->resolvePettyCashFundSource(
+            old('fund_source', $defaultFundSource),
+            (float) $balances['available_circulation'],
+            (float) $balances['available_profit']
+        );
+
         return view('petty-cash.index', compact(
             'business',
             'balances',
@@ -105,6 +110,8 @@ class PettyCashController extends Controller
             'activeBranchName',
             'branchFilterId',
             'viewingAllBranches',
+            'defaultFundSource',
+            'initialFundSource',
         ));
     }
 
@@ -151,9 +158,7 @@ class PettyCashController extends Controller
 
         $business = $this->currentBusiness() ?? Auth::user()->business;
         $branchFilterId = active_branch_id();
-        $businessTypes = $branchFilterId
-            ? $business->branchPosBusinessTypesMeta($branchFilterId)
-            : $business->posBusinessTypesMeta();
+        $businessTypes = $business->pettyCashBusinessTypesMeta($branchFilterId);
         $typeKeys = collect($businessTypes)->pluck('key')->filter()->values()->all();
 
         $request->validate([
@@ -307,5 +312,27 @@ class PettyCashController extends Controller
         }
 
         return $date;
+    }
+
+    private function resolvePettyCashFundSource(string $preferred, float $circulation, float $profit): string
+    {
+        $available = [
+            'circulation' => max(0, $circulation),
+            'profit' => max(0, $profit),
+        ];
+
+        if (($available[$preferred] ?? 0) > 0) {
+            return $preferred;
+        }
+
+        if ($available['profit'] > 0) {
+            return 'profit';
+        }
+
+        if ($available['circulation'] > 0) {
+            return 'circulation';
+        }
+
+        return $preferred;
     }
 }

@@ -17,9 +17,17 @@ class OwnerDailyReportController extends Controller
     {
     }
 
+    public function serviceIndex(Request $request)
+    {
+        return $this->index($request);
+    }
+
     public function index(Request $request)
     {
         \Illuminate\Support\Facades\Gate::authorize('view_reports');
+
+        $serviceMenuContext = $request->routeIs('services.master-sheet');
+        $masterSheetRoute = $serviceMenuContext ? 'services.master-sheet' : 'owner-reports.index';
 
         $business = $this->requireCurrentBusiness();
         $businessId = $business->id;
@@ -46,9 +54,15 @@ class OwnerDailyReportController extends Controller
             fn (DayClosing $closing) => $this->reportService->buildMasterSheetRow($business, $closing)
         );
 
-        $businessTypes = $this->reportService->businessTypesForMasterSheet($business);
+        $businessTypes = $serviceMenuContext
+            ? $this->reportService->serviceBusinessTypesForMasterSheet($business)
+            : $this->reportService->businessTypesForMasterSheet($business);
         $multiBusiness = count($businessTypes) > 1;
         $ledgers = $this->reportService->expandMasterSheetLedgersByBusinessType($ledgers, $businessTypes);
+
+        if ($serviceMenuContext) {
+            $ledgers = $this->reportService->filterLedgersForServiceContext($ledgers, $business);
+        }
 
         $activeBusinessType = $request->get('business_type');
         if ($activeBusinessType) {
@@ -63,6 +77,10 @@ class OwnerDailyReportController extends Controller
 
         if ($closings->currentPage() === 1 && ! $request->filled('start_date') && ! $request->filled('end_date')) {
             foreach ($this->reportService->buildOpenDayRows($business) as $openingDayRow) {
+                if ($serviceMenuContext && ! ($openingDayRow['has_service_activity'] ?? false)) {
+                    continue;
+                }
+
                 $ledgers = $ledgers->prepend($openingDayRow);
             }
         }
@@ -75,6 +93,16 @@ class OwnerDailyReportController extends Controller
 
         $pendingClosings = $pendingClosings->latest('closing_date')->get();
 
+        if ($serviceMenuContext) {
+            $pendingClosings = $pendingClosings
+                ->filter(fn (DayClosing $closing) => $closing->handover_scope === 'service')
+                ->values();
+        }
+
+        $ledgerHandoverUrl = fn (array $ledger) => $this->reportService->resolveLedgerHandoverUrl($ledger, $serviceMenuContext);
+        $ledgerHandoverReviewUrl = fn (array $ledger) => $this->reportService->resolveLedgerHandoverReviewUrl($ledger, $serviceMenuContext);
+        $awaitingHandoverUrl = $this->reportService->resolveAwaitingHandoverUrl($serviceMenuContext);
+
         return view('owner-reports.index', compact(
             'closings',
             'ledgers',
@@ -83,6 +111,11 @@ class OwnerDailyReportController extends Controller
             'businessTypes',
             'multiBusiness',
             'activeBusinessType',
+            'serviceMenuContext',
+            'masterSheetRoute',
+            'ledgerHandoverUrl',
+            'ledgerHandoverReviewUrl',
+            'awaitingHandoverUrl',
         ));
     }
 

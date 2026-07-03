@@ -545,28 +545,8 @@
   'selectDistrict' => __('auth.register_select_district'),
   'selectRegion' => __('auth.register_select_region'),
 ])
-<script>
-(function () {
-  var form = document.getElementById('register-form');
-  var currentStep = 1;
-  var codeSent = false;
-  var messageTimer = null;
-  var resendCooldown = null;
-
-  var overlay = document.getElementById('register-progress-overlay');
-  var progressTitle = document.getElementById('register-progress-title');
-  var progressMessage = document.getElementById('register-progress-message');
-  var progressFill = document.getElementById('register-progress-fill');
-  var alertBox = document.getElementById('register-alert');
-  var verificationInput = document.getElementById('verification_code');
-  var sentPhoneDisplay = document.getElementById('sent-phone-display');
-  var resendBtn = document.getElementById('resend-code-btn');
-  var submitBtn = document.getElementById('register-submit-btn');
-
-  var progressItems = document.querySelectorAll('.wizard-progress-item');
-  var panels = document.querySelectorAll('.wizard-panel');
-
-  var i18n = {!! json_encode([
+@php
+  $registerI18n = [
     'genericError' => __('auth.register_generic_error'),
     'networkError' => __('auth.register_network_error'),
     'sendingTitle' => __('auth.register_sending_title'),
@@ -585,7 +565,31 @@
       __('auth.register_submitting_2'),
       __('auth.register_submitting_3'),
     ],
-  ]) !!};
+  ];
+@endphp
+<script>
+(function () {
+  var form = document.getElementById('register-form');
+  var currentStep = 1;
+  var codeSent = false;
+  var isSubmitting = false;
+  var messageTimer = null;
+  var resendCooldown = null;
+
+  var overlay = document.getElementById('register-progress-overlay');
+  var progressTitle = document.getElementById('register-progress-title');
+  var progressMessage = document.getElementById('register-progress-message');
+  var progressFill = document.getElementById('register-progress-fill');
+  var alertBox = document.getElementById('register-alert');
+  var verificationInput = document.getElementById('verification_code');
+  var sentPhoneDisplay = document.getElementById('sent-phone-display');
+  var resendBtn = document.getElementById('resend-code-btn');
+  var submitBtn = document.getElementById('register-submit-btn');
+
+  var progressItems = document.querySelectorAll('.wizard-progress-item');
+  var panels = document.querySelectorAll('.wizard-panel');
+
+  var i18n = @json($registerI18n);
 
   var sendingMessages = i18n.sendingMessages;
   var creatingMessages = i18n.creatingMessages;
@@ -744,7 +748,8 @@
   }
 
   function completeRegistration() {
-    if (!validateStep(3)) return;
+    if (!validateStep(3) || isSubmitting) return;
+    isSubmitting = true;
     hideAlert();
     showOverlay(i18n.submittingTitle, creatingMessages);
     submitBtn.disabled = true;
@@ -761,6 +766,7 @@
     .then(function (result) {
       if (!result.ok) {
         hideOverlay();
+        isSubmitting = false;
         submitBtn.disabled = false;
         showAlert(parseErrors(result.data));
         return;
@@ -776,6 +782,7 @@
     })
     .catch(function () {
       hideOverlay();
+      isSubmitting = false;
       submitBtn.disabled = false;
       showAlert(i18n.networkError);
     });
@@ -846,12 +853,9 @@
   });
 
   verificationInput.addEventListener('input', function (e) {
-    if (e.target.value.length === 6) {
-      if (!codeSent) {
-        sendVerificationCode();
-      } else {
-        completeRegistration();
-      }
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    if (e.target.value.length === 6 && currentStep === 3 && codeSent && !isSubmitting) {
+      completeRegistration();
     }
   });
 

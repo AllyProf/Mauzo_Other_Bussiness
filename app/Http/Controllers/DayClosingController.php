@@ -20,6 +20,8 @@ use Illuminate\Validation\Rule;
 
 class DayClosingController extends Controller
 {
+    private bool $serviceHandoverContext = false;
+
     public function __construct(
         private OwnerDailyReportService $reportService,
         private BusinessTypeBreakdownService $businessTypeBreakdown,
@@ -33,6 +35,7 @@ class DayClosingController extends Controller
     {
         $this->authorizeAny(['submit_day_closing', 'verify_day_closing', 'view_reports', 'process_sales']);
 
+        $this->activateServiceHandoverContext($request);
         $businessId = $this->currentBusinessId();
         $isBossReview = $this->isBossReviewMode();
         $canSubmitHandover = ! $isBossReview;
@@ -55,6 +58,11 @@ class DayClosingController extends Controller
                     ->first();
 
                 if ($submitted) {
+                    if ($this->serviceHandoverContext) {
+                        return redirect()->route('services.handover')
+                            ->with('info', 'Handover for this shift was already submitted.');
+                    }
+
                     return redirect()->route('day-closing.show', $submitted->id);
                 }
             }
@@ -84,10 +92,15 @@ class DayClosingController extends Controller
             if ($this->actsAsBusinessWideViewer()
                 || Auth::user()->can('verify_day_closing')
                 || $existingClosing->user_id === Auth::id()) {
+                if ($this->serviceHandoverContext) {
+                    return redirect()->route('services.handover', ['date' => $date])
+                        ->with('info', 'Handover for this date was already submitted.');
+                }
+
                 return redirect()->route('day-closing.show', $existingClosing->id);
             }
 
-            return redirect()->route('sales.index')
+            return redirect()->route($this->serviceHandoverContext ? 'services.sales.index' : 'sales.index')
                 ->with('info', 'Daily reconciliation for this date was already submitted.');
         }
 
@@ -125,6 +138,11 @@ class DayClosingController extends Controller
             $this->scopeToActiveBranchUsers($awaitingHandoverShiftsQuery);
 
             $awaitingHandoverShifts = $awaitingHandoverShiftsQuery->latest('opened_at')->get();
+            $awaitingHandoverShifts = $this->filterAwaitingShiftsForHandoverContext(
+                $awaitingHandoverShifts,
+                $businessId,
+                $date
+            );
         }
 
         $handoverCards = $isBossReview
@@ -189,9 +207,15 @@ class DayClosingController extends Controller
 
         $business = $this->currentBusiness();
         $branchFilterId = $this->dayClosingBranchFilterId();
-        $businessTypes = $branchFilterId
-            ? $business->branchPosBusinessTypesMeta($branchFilterId)
-            : $business->posBusinessTypesMeta();
+        if ($this->serviceHandoverContext) {
+            $businessTypes = $branchFilterId
+                ? $business->branchServicePosTypesMeta($branchFilterId)
+                : $business->servicePosTypesMeta();
+        } else {
+            $businessTypes = $branchFilterId
+                ? $business->branchPosBusinessTypesMeta($branchFilterId)
+                : $business->posBusinessTypesMeta();
+        }
         $multiBusiness = count($businessTypes) > 1;
         $businessTypeBreakdown = $this->businessTypeBreakdown->buildFromSales(
             $summary['sales'],
@@ -208,11 +232,14 @@ class DayClosingController extends Controller
         $canPostOwnerDirectSales = false;
 
         if ($isBossReview) {
-            $ownerDirectClosing = DayClosing::where('business_id', $businessId)
+            $ownerDirectClosingQuery = DayClosing::where('business_id', $businessId)
                 ->whereDate('closing_date', $date)
                 ->whereNull('shift_id')
-                ->where('user_id', Auth::id())
-                ->first();
+                ->where('user_id', Auth::id());
+
+            $this->applyOwnerDirectClosingScope($ownerDirectClosingQuery);
+
+            $ownerDirectClosing = $ownerDirectClosingQuery->first();
 
             $ownerDirectSummary = $this->buildOwnerDirectSummary($businessId, $date);
             $canPostOwnerDirectSales = ! $ownerDirectClosing
@@ -252,7 +279,8 @@ class DayClosingController extends Controller
             }
         }
 
-        $serviceMenuContext = $request->routeIs('services.handover');
+        $serviceMenuContext = $this->serviceHandoverContext;
+        $handoverIndexRoute = $this->handoverIndexRoute();
 
         return view('day-closing.index', compact(
             'date',
@@ -282,6 +310,7 @@ class DayClosingController extends Controller
             'ownerDirectCloseCard',
             'canPostOwnerDirectSales',
             'serviceMenuContext',
+            'handoverIndexRoute',
         ));
     }
 
@@ -289,8 +318,10 @@ class DayClosingController extends Controller
     {
         $this->authorizeAny(['submit_day_closing', 'verify_day_closing', 'view_reports', 'process_sales']);
 
+        $this->activateServiceHandoverContext($request);
+
         if ($this->isBossReviewMode()) {
-            return redirect()->route('day-closing.index', ['date' => $request->get('closing_date', now()->toDateString())])
+            return redirect()->route($this->handoverIndexRoute(), ['date' => $request->get('closing_date', now()->toDateString())])
                 ->with('error', 'Review and verify staff handovers here — business owners do not submit their own handover.');
         }
 
@@ -452,6 +483,13 @@ class DayClosingController extends Controller
                 // Non-blocking
             }
 
+            if ($this->serviceHandoverContext) {
+                return redirect()->route('services.handover')
+                    ->with('success', $shift
+                        ? 'Service handover submitted and your shift is now closed.'
+                        : 'Service reconciliation submitted successfully.');
+            }
+
             return redirect()->route('day-closing.show', $closing->id)
                 ->with('success', $shift
                     ? 'Handover submitted and your shift is now closed.'
@@ -582,27 +620,31 @@ class DayClosingController extends Controller
             abort(403, 'Only the business owner can post direct POS sales to the Master Sheet.');
         }
 
+        $this->activateServiceHandoverContext($request);
+
         $request->validate([
             'closing_date' => 'required|date',
         ]);
 
         $businessId = $this->currentBusinessId();
         $date = $request->closing_date;
+        $handoverScope = $this->ownerDirectHandoverScope();
+        $isServiceClose = $handoverScope === 'service';
 
-        if (DayClosing::where('business_id', $businessId)
-            ->whereDate('closing_date', $date)
-            ->whereNull('shift_id')
-            ->where('user_id', Auth::id())
-            ->exists()) {
-            return redirect()->route('day-closing.index', ['date' => $date])
-                ->with('error', 'Your direct POS sales for this date are already posted.');
+        if ($this->ownerDirectClosingExists($businessId, $date, Auth::id())) {
+            return redirect()->route($isServiceClose ? 'services.handover' : 'day-closing.index', ['date' => $date])
+                ->with('error', $isServiceClose
+                    ? 'Your direct service sales for this date are already posted.'
+                    : 'Your direct POS sales for this date are already posted.');
         }
 
         $summary = $this->buildOwnerDirectSummary($businessId, $date);
 
         if (($summary['sales_count'] ?? 0) === 0) {
-            return redirect()->route('day-closing.index', ['date' => $date])
-                ->with('error', 'No direct POS sales found for this date.');
+            return redirect()->route($isServiceClose ? 'services.handover' : 'day-closing.index', ['date' => $date])
+                ->with('error', $isServiceClose
+                    ? 'No direct service sales found for this date.'
+                    : 'No direct POS sales found for this date.');
         }
 
         $platformBreakdown = $this->buildPlatformBreakdown(
@@ -648,6 +690,7 @@ class DayClosingController extends Controller
                 'business_id' => $businessId,
                 'user_id' => Auth::id(),
                 'shift_id' => null,
+                'handover_scope' => $handoverScope,
                 'closing_date' => $date,
                 'status' => 'verified',
                 'sales_count' => $summary['sales_count'],
@@ -673,34 +716,41 @@ class DayClosingController extends Controller
             ]);
 
             $closing->load(['expenses', 'user', 'business']);
-            $this->reportService->syncReport($closing->business, $date, $closing);
-            $finalizedReport = $this->reportService->tryFinalizeDayIfReady(
-                $closing->business,
-                $date,
-                $closing,
-                (int) Auth::id()
-            );
+
+            if (! $isServiceClose) {
+                $this->reportService->syncReport($closing->business, $date, $closing);
+                $finalizedReport = $this->reportService->tryFinalizeDayIfReady(
+                    $closing->business,
+                    $date,
+                    $closing,
+                    (int) Auth::id()
+                );
+            } else {
+                $finalizedReport = null;
+            }
 
             DB::commit();
 
-            $redirect = redirect()->to(route('day-closing.index', ['date' => $date]).'#owner-day-close');
+            $redirect = redirect()->to($this->ownerDirectClosingRedirectRoute($date));
+
+            $postedLabel = $isServiceClose ? 'direct service sales' : 'direct POS sales';
 
             if ($moneyShort > 0) {
                 return $redirect
                     ->with('success', ($finalizedReport
-                        ? 'Your direct POS sales are posted with a money short of '.money($moneyShort).'. Day finalized on the Master Sheet.'
-                        : 'Your direct POS sales are posted with a money short of '.money($moneyShort).'.'))
+                        ? "Your {$postedLabel} are posted with a money short of ".money($moneyShort).'. Day finalized on the Master Sheet.'
+                        : "Your {$postedLabel} are posted with a money short of ".money($moneyShort).'.'))
                     ->with('info', 'View all money shorts on the Money Shorts page.');
             }
 
             return $redirect
                 ->with('success', $finalizedReport
-                    ? 'Your direct POS sales are posted and the day is finalized on the Master Sheet.'
-                    : 'Your direct POS sales are posted to the Master Sheet.');
+                    ? "Your {$postedLabel} are posted and the day is finalized on the Master Sheet."
+                    : "Your {$postedLabel} are posted to the Master Sheet.");
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return redirect()->route('day-closing.index', ['date' => $date])
+            return redirect()->route($isServiceClose ? 'services.handover' : 'day-closing.index', ['date' => $date])
                 ->with('error', 'Failed to post sales: '.$e->getMessage());
         }
     }
@@ -767,9 +817,99 @@ class DayClosingController extends Controller
 
     private function bossReconciliationUrl(DayClosing $dayClosing): string
     {
-        return route('day-closing.index', [
+        $route = $this->serviceHandoverContext ? 'services.handover' : 'day-closing.index';
+
+        return route($route, [
             'date' => $dayClosing->closing_date->toDateString(),
         ]).'#handover-'.$dayClosing->id;
+    }
+
+    private function activateServiceHandoverContext(Request $request): void
+    {
+        $this->serviceHandoverContext = $request->routeIs('services.handover')
+            || $request->input('handover_context') === 'services';
+    }
+
+    private function handoverIndexRoute(): string
+    {
+        return $this->serviceHandoverContext ? 'services.handover' : 'day-closing.index';
+    }
+
+    private function filterAwaitingShiftsForHandoverContext($shifts, int $businessId, string $date)
+    {
+        if (! $this->serviceHandoverContext || $shifts->isEmpty()) {
+            return $shifts;
+        }
+
+        $shiftIdsWithServiceSales = Sale::where('business_id', $businessId)
+            ->whereDate('sale_date', $date)
+            ->whereIn('sale_source', ['service_pos', 'service_invoice'])
+            ->whereNotNull('shift_id')
+            ->pluck('shift_id')
+            ->unique()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return $shifts
+            ->filter(function (Shift $shift) use ($shiftIdsWithServiceSales) {
+                if (! $shift->user?->requiresOpenShift()) {
+                    return false;
+                }
+
+                return in_array((int) $shift->id, $shiftIdsWithServiceSales, true);
+            })
+            ->values();
+    }
+
+    private function scopeHandoverSalesFilter($query): void
+    {
+        if ($this->serviceHandoverContext) {
+            $query->whereIn('sale_source', ['service_pos', 'service_invoice']);
+        }
+    }
+
+    private function ownerDirectHandoverScope(): string
+    {
+        return $this->serviceHandoverContext ? 'service' : 'retail';
+    }
+
+    private function applyOwnerDirectClosingScope($query): void
+    {
+        $scope = $this->ownerDirectHandoverScope();
+
+        if ($scope === 'service') {
+            $query->where('handover_scope', 'service');
+        } else {
+            $query->where(function ($inner) {
+                $inner->whereNull('handover_scope')
+                    ->orWhere('handover_scope', 'retail');
+            });
+        }
+    }
+
+    private function ownerDirectClosingExists(int $businessId, string $date, int $ownerId): bool
+    {
+        $query = DayClosing::where('business_id', $businessId)
+            ->whereDate('closing_date', $date)
+            ->whereNull('shift_id')
+            ->where('user_id', $ownerId);
+
+        $this->applyOwnerDirectClosingScope($query);
+
+        return $query->exists();
+    }
+
+    private function ownerDirectClosingRedirectRoute(string $date): string
+    {
+        if ($this->serviceHandoverContext) {
+            return route('services.master-sheet', [
+                'start_date' => $date,
+                'end_date' => $date,
+                'highlight_date' => $date,
+            ]);
+        }
+
+        return route('day-closing.index', ['date' => $date]).'#owner-day-close';
     }
 
     private function sortHandoversForBossReview($closings)
@@ -1024,12 +1164,18 @@ class DayClosingController extends Controller
     private function scopeDayClosingSales($query, int $businessId)
     {
         $query->where('business_id', $businessId);
+        $this->scopeHandoverSalesFilter($query);
 
         if ($this->actsAsBusinessWideViewer()) {
             if ($branchFilterId = $this->dayClosingBranchFilterId()) {
-                $query->whereHas('items.item.category', function ($categoryQuery) use ($branchFilterId) {
-                    $categoryQuery->where('branch_id', $branchFilterId);
-                });
+                if ($this->serviceHandoverContext) {
+                    $query->whereHas('items.service', fn ($serviceQuery) => $serviceQuery->where('branch_id', $branchFilterId));
+                } else {
+                    $query->where(function ($scoped) use ($branchFilterId) {
+                        $scoped->whereHas('items.item.category', fn ($categoryQuery) => $categoryQuery->where('branch_id', $branchFilterId))
+                            ->orWhereHas('items.service', fn ($serviceQuery) => $serviceQuery->where('branch_id', $branchFilterId));
+                    });
+                }
             }
 
             return $query;
@@ -1100,11 +1246,7 @@ class DayClosingController extends Controller
     {
         $ownerId = Auth::id();
 
-        if (DayClosing::where('business_id', $businessId)
-            ->whereDate('closing_date', $date)
-            ->whereNull('shift_id')
-            ->where('user_id', $ownerId)
-            ->exists()) {
+        if ($this->ownerDirectClosingExists($businessId, $date, $ownerId)) {
             return [
                 'sales_count' => 0,
                 'gross_sales' => 0,
@@ -1133,8 +1275,12 @@ class DayClosingController extends Controller
 
         $this->scopeDayClosingSales($daySalesQuery, $businessId);
 
+        if (! $this->serviceHandoverContext) {
+            $daySalesQuery->whereNotIn('sale_source', ['service_pos', 'service_invoice']);
+        }
+
         $daySales = $daySalesQuery
-            ->with(['user', 'payments', 'items.item.category', 'items.item.packagings'])
+            ->with(['user', 'payments', 'items.item.category', 'items.item.packagings', 'items.service.category'])
             ->orderBy('created_at')
             ->get();
 
@@ -1286,7 +1432,7 @@ class DayClosingController extends Controller
         }
 
         $daySales = $daySalesQuery
-            ->with(['user', 'payments', 'items.item.category', 'items.item.packagings'])
+            ->with(['user', 'payments', 'items.item.category', 'items.item.packagings', 'items.service.category'])
             ->orderBy('created_at')
             ->get();
 
@@ -1339,7 +1485,11 @@ class DayClosingController extends Controller
         $activeSales = $daySales->where('payment_status', '!=', 'cancelled');
         $shiftSaleIds = $activeSales->pluck('id')->all();
 
-        $allDayPaymentsQuery = SalePayment::whereHas('sale', fn ($q) => $q->where('business_id', $businessId))
+        $allDayPaymentsQuery = SalePayment::whereHas('sale', function ($q) use ($businessId) {
+                $q->where('business_id', $businessId)
+                    ->where('payment_status', '!=', 'cancelled');
+                $this->scopeDayClosingSales($q, $businessId);
+            })
             ->with(['sale']);
 
         if ($shiftPaymentWindow) {
@@ -1371,13 +1521,14 @@ class DayClosingController extends Controller
             $collectedOnOrders = $staffSales->sum('amount_paid');
             $credit = max(0, $grossSales - $collectedOnOrders);
 
-            $staffPayments = $allDayPayments->where('user_id', $staffId);
-
-            if ($collectorUserId) {
-                $staffPayments = $staffPayments->filter(
-                    fn (SalePayment $payment) => $this->paymentBelongsToShiftHandover($payment, $staffSaleIds, $date, $currentShiftId)
-                );
-            }
+            $staffPayments = $allDayPayments
+                ->where('user_id', $staffId)
+                ->filter(fn (SalePayment $payment) => $this->paymentAppliesToHandoverContext(
+                    $payment,
+                    $staffSaleIds,
+                    $date,
+                    $currentShiftId
+                ));
 
             $debtPayments = $staffPayments->filter(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date, $currentShiftId));
             $shiftPayments = $staffPayments->reject(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date, $currentShiftId));
@@ -1427,7 +1578,12 @@ class DayClosingController extends Controller
 
         if (! $collectorUserId) {
             $staffWithDebtOnly = $allDayPayments
-                ->filter(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date, $currentShiftId))
+                ->filter(fn (SalePayment $payment) => $this->paymentAppliesToHandoverContext(
+                    $payment,
+                    [],
+                    $date,
+                    $currentShiftId
+                ))
                 ->pluck('user_id')
                 ->unique()
                 ->diff($staffIds);
@@ -1436,7 +1592,12 @@ class DayClosingController extends Controller
                 $staff = User::find($staffId);
                 $debtPayments = $allDayPayments
                     ->where('user_id', $staffId)
-                    ->filter(fn (SalePayment $payment) => $this->isDebtCollectionPayment($payment, $date, $currentShiftId));
+                    ->filter(fn (SalePayment $payment) => $this->paymentAppliesToHandoverContext(
+                        $payment,
+                        [],
+                        $date,
+                        $currentShiftId
+                    ));
 
                 $rows[] = [
                     'staff' => $staff,
@@ -1474,13 +1635,27 @@ class DayClosingController extends Controller
         ];
     }
 
-    private function paymentBelongsToShiftHandover(SalePayment $payment, array $shiftSaleIds, string $date, ?int $currentShiftId = null): bool
-    {
-        if (in_array($payment->sale_id, $shiftSaleIds, true)) {
+    private function paymentAppliesToHandoverContext(
+        SalePayment $payment,
+        array $staffSaleIds,
+        string $date,
+        ?int $currentShiftId = null
+    ): bool {
+        if (in_array($payment->sale_id, $staffSaleIds, true)) {
             return true;
         }
 
-        return $this->isDebtCollectionPayment($payment, $date, $currentShiftId);
+        if (! $this->isDebtCollectionPayment($payment, $date, $currentShiftId)) {
+            return false;
+        }
+
+        if ($this->serviceHandoverContext) {
+            $payment->loadMissing('sale');
+
+            return $payment->sale && $payment->sale->usesServices();
+        }
+
+        return true;
     }
 
     private function isDebtCollectionPayment(SalePayment $payment, string $date, ?int $currentShiftId = null): bool

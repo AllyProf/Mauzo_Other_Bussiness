@@ -63,7 +63,7 @@ class BusinessOwnerExpense extends Model
             return 'All / General';
         }
 
-        return $business->businessTypeLabel($this->business_type_key);
+        return $business->departmentLabel($this->business_type_key, $this->branch_id);
     }
 
     public function report()

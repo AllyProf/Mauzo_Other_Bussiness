@@ -53,8 +53,20 @@
 <div class="service-pos-page">
 <div class="app-title">
   <div>
-    <h1><i class="fa fa-desktop"></i> Service POS <span class="pos-header-badge">No stock</span></h1>
+    <h1><i class="fa fa-desktop"></i> Service POS
+      <a href="{{ route('services.materials') }}" class="pos-header-badge text-decoration-none" title="View paper &amp; supplies stock">
+        <i class="fa fa-cubes"></i> Materials stock
+      </a>
+    </h1>
     <p>Sell printing, scanning, salon, and other services — quantity = units (pages, hours, jobs)</p>
+    @if(($materialsStock ?? collect())->isNotEmpty())
+    <p class="mb-0 small text-muted">
+      @foreach($materialsStock as $mat)
+        <span class="mr-3">{{ $mat->name }}: <strong>{{ $mat->stockLabel() }}</strong></span>
+      @endforeach
+      · <a href="{{ route('services.materials') }}">Full stock page</a>
+    </p>
+    @endif
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><a href="{{ route('services.categories') }}">Services</a></li>

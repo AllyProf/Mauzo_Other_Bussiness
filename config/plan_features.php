@@ -54,7 +54,7 @@ return [
         'reports_debts' => ['reports.debts'],
         'reports_profit' => ['reports.profit'],
         'reports_circulation' => ['reports.circulation-profit'],
-        'master_sheet' => ['owner-reports.index', 'owner-reports.finalize'],
+        'master_sheet' => ['owner-reports.index', 'owner-reports.finalize', 'services.master-sheet'],
         'automation_reminders' => ['settings.automation.update'],
         'customer_communication' => ['customer-communications.*'],
     ],

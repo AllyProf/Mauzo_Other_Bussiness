@@ -172,4 +172,50 @@ trait ManagesServiceBusinessTypes
             ->values()
             ->all();
     }
+
+    /**
+     * Retail + service departments for petty cash and expense tagging.
+     *
+     * @return array<int, array{key: string, label: string, icon: string}>
+     */
+    public function pettyCashBusinessTypesMeta(?int $branchId = null): array
+    {
+        $retail = $branchId !== null
+            ? $this->branchPosBusinessTypesMeta($branchId)
+            : $this->posBusinessTypesMeta();
+
+        if (! $this->servicesMenuVisible() || ! $this->hasPlanFeature('services')) {
+            return $retail;
+        }
+
+        $service = $branchId !== null
+            ? $this->branchServicePosTypesMeta($branchId)
+            : $this->servicePosTypesMeta();
+
+        if ($service === []) {
+            return $retail;
+        }
+
+        return collect($retail)->merge($service)->unique('key')->values()->all();
+    }
+
+    public function isServiceBusinessTypeKey(string $key, ?int $branchId = null): bool
+    {
+        $service = $branchId !== null
+            ? $this->branchServicePosTypesMeta($branchId)
+            : $this->servicePosTypesMeta();
+
+        return collect($service)->contains(fn ($type) => ($type['key'] ?? '') === $key);
+    }
+
+    public function departmentLabel(string $key, ?int $branchId = null): string
+    {
+        foreach ($this->pettyCashBusinessTypesMeta($branchId) as $type) {
+            if (($type['key'] ?? '') === $key) {
+                return (string) ($type['label'] ?? $key);
+            }
+        }
+
+        return $key === 'other' ? 'Other' : $key;
+    }
 }

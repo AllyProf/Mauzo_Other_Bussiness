@@ -147,11 +147,12 @@
                 <i class="treeview-indicator fa fa-angle-right"></i>
             </a>
             <ul class="treeview-menu" style="padding-left: 20px;">
-                @canany(['manage_services', 'manage_categories', 'view_inventory', 'add_items'])
-                <li><a class="treeview-item {{ Request::is('services/register') ? 'active' : '' }}" href="{{ route('services.register') }}"><i class="icon fa fa-plus-circle"></i> {{ __('menu.register_business') }}</a></li>
-                @endcanany
                 @canany(['manage_services', 'manage_categories', 'view_inventory', 'process_sales'])
                 <li><a class="treeview-item {{ Request::routeIs('services.categories', 'services.index') ? 'active' : '' }}" href="{{ route('services.categories') }}"><i class="icon fa fa-folder-open"></i> {{ __('menu.categories') }}</a></li>
+                <li><a class="treeview-item {{ Request::routeIs('services.materials') ? 'active' : '' }}" href="{{ route('services.materials') }}"><i class="icon fa fa-cubes"></i> {{ __('menu.service_materials') }}</a></li>
+                @endcanany
+                @canany(['manage_services', 'manage_categories', 'view_inventory', 'add_items'])
+                <li><a class="treeview-item {{ Request::is('services/register') ? 'active' : '' }}" href="{{ route('services.register') }}"><i class="icon fa fa-plus-circle"></i> {{ __('menu.register_business') }}</a></li>
                 @endcanany
                 @can('process_sales')
                 <li><a class="treeview-item {{ Request::is('service-pos*') ? 'active' : '' }}" href="{{ route('service-pos.create') }}"><i class="icon fa fa-desktop"></i> {{ __('menu.sales_pos') }}</a></li>
@@ -160,6 +161,11 @@
                 @canany(['submit_day_closing', 'verify_day_closing', 'process_sales'])
                 <li><a class="treeview-item {{ Request::is('services/handover') ? 'active' : '' }}" href="{{ route('services.handover') }}"><i class="icon fa fa-exchange"></i> {{ __('menu.handover') }}</a></li>
                 @endcanany
+                @can('view_reports')
+                @if(plan_feature('master_sheet'))
+                <li><a class="treeview-item {{ Request::is('services/master-sheet') ? 'active' : '' }}" href="{{ route('services.master-sheet') }}"><i class="icon fa fa-list-alt"></i> {{ __('menu.master_sheet') }}</a></li>
+                @endif
+                @endcan
                 @canany(['view_invoices', 'create_invoices'])
                 @if(plan_feature('invoices'))
                 <li><a class="treeview-item {{ Request::is('service-invoices*') ? 'active' : '' }}" href="{{ route('service-invoices.index') }}"><i class="icon fa fa-file-text-o"></i> {{ __('menu.invoices') }}</a></li>

@@ -165,6 +165,16 @@
   </ul>
 </div>
 
+@php $handoverRoute = $handoverIndexRoute ?? 'day-closing.index'; @endphp
+
+@if(session('info'))
+<div class="row mb-3">
+  <div class="col-md-12">
+    <div class="alert alert-info mb-0">{{ session('info') }}</div>
+  </div>
+</div>
+@endif
+
 @if(($isBossReview ?? false) && ($pendingFromOtherDays ?? collect())->isNotEmpty())
 <div class="row mb-3">
   <div class="col-md-12">
@@ -188,7 +198,7 @@
               <strong>{{ money($pending->net_amount) }}</strong>
             </div>
             <div class="dc-mobile-meta mb-2">Submitted {{ $pending->submitted_at?->format('M d, h:i A') ?? '—' }}</div>
-            <a href="{{ route('day-closing.index', ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning btn-block">
+            <a href="{{ route($handoverRoute, ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning btn-block">
               <i class="fa fa-check"></i> Review &amp; Verify
             </a>
           </div>
@@ -215,7 +225,7 @@
                 <td><strong>{{ money($pending->net_amount) }}</strong></td>
                 <td>{{ $pending->submitted_at?->format('M d, h:i A') ?? '—' }}</td>
                 <td class="text-center">
-                  <a href="{{ route('day-closing.index', ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning">
+                  <a href="{{ route($handoverRoute, ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning">
                     <i class="fa fa-check"></i> Review &amp; Verify
                   </a>
                 </td>
@@ -267,7 +277,7 @@
 <div class="row mb-3">
   <div class="col-md-12">
     <div class="tile">
-      <form method="GET" action="{{ route('day-closing.index') }}" class="form-inline dc-filter-form">
+      <form method="GET" action="{{ route($handoverRoute) }}" class="form-inline dc-filter-form">
         @if($shift ?? null)
           <input type="hidden" name="shift" value="{{ $shift->id }}">
           <div class="form-group mr-3">
@@ -290,7 +300,11 @@
           </select>
         </div>
         @can('view_reports')
+          @if($serviceMenuContext ?? false)
+          <a href="{{ route('services.sales.index') }}" class="btn btn-secondary ml-2"><i class="fa fa-list-alt"></i> Service Sales</a>
+          @else
           <a href="{{ route('day-closing.history') }}" class="btn btn-secondary ml-2"><i class="fa fa-history"></i> History</a>
+          @endif
         @endcan
       </form>
     </div>
@@ -540,7 +554,7 @@
   <div class="col-md-12">
     <div class="tile">
       <h3 class="tile-title d-flex justify-content-between align-items-center flex-wrap">
-        <span><i class="fa fa-shopping-cart"></i> POS Sales — {{ $displayDate }}</span>
+        <span><i class="fa fa-{{ ($serviceMenuContext ?? false) ? 'briefcase' : 'shopping-cart' }}"></i> {{ ($serviceMenuContext ?? false) ? 'Service Sales' : 'POS Sales' }} — {{ $displayDate }}</span>
         @if(count($allDaySales) > 0 || ($debtCollections['count'] ?? 0) > 0)
           <button type="button" class="btn btn-info btn-sm mt-2 mt-md-0" id="viewAllSalesBtnBoss">
             <i class="fa fa-eye"></i> View All Sales ({{ count($allDaySales) }})
@@ -552,7 +566,7 @@
           Closed and submitted shifts only — staff still selling are listed below and excluded from these totals.
         </p>
         @if(count($businessTypeBreakdown ?? []) > 0)
-          <h5 class="mb-3"><i class="fa fa-sitemap"></i> By Business Type</h5>
+          <h5 class="mb-3"><i class="fa fa-sitemap"></i> {{ ($serviceMenuContext ?? false) ? 'By Service Business' : 'By Business Type' }}</h5>
           <p class="text-muted small mb-3">
             Profit and circulation follow your shop setting
             (<strong>{{ ($expenseDeductFrom ?? 'circulation') === 'profit' ? 'expenses from profit' : 'expenses from circulation' }}</strong>).
@@ -699,7 +713,14 @@
             </table>
           </div>
         @endif
-        @if(!($ownerDirectClosing ?? null) && ($canPostOwnerDirectSales ?? false))
+        @if($serviceMenuContext ?? false)
+          @if(!($ownerDirectClosing ?? null) && ($canPostOwnerDirectSales ?? false))
+          <div class="alert alert-light border mb-3">
+            <i class="fa fa-info-circle"></i>
+            When you sell services yourself, use <strong>Close Service Day &amp; Post to Master Sheet</strong> below — no shift is required for owners.
+          </div>
+          @endif
+        @elseif(!($ownerDirectClosing ?? null) && ($canPostOwnerDirectSales ?? false))
         <div class="alert alert-light border mb-3">
           <i class="fa fa-info-circle"></i>
           When you sell yourself, use <strong>Close Day &amp; Post to Master Sheet</strong> below — no separate staff handover is needed.
@@ -711,11 +732,14 @@
             <form method="POST" action="{{ route('day-closing.post-owner-sales') }}" id="postOwnerSalesForm">
               @csrf
               <input type="hidden" name="closing_date" value="{{ $date }}">
+              @if($serviceMenuContext ?? false)
+                <input type="hidden" name="handover_context" value="services">
+              @endif
 
               <div class="mb-3">
-                <strong><i class="fa fa-book"></i> Close your day</strong><br>
+                <strong><i class="fa fa-book"></i> {{ ($serviceMenuContext ?? false) ? 'Close your service day' : 'Close your day' }}</strong><br>
                 <span class="small">
-                  Confirm {{ $ownerDirectSummary['sales_count'] ?? 0 }} sale(s),
+                  Confirm {{ $ownerDirectSummary['sales_count'] ?? 0 }} {{ ($serviceMenuContext ?? false) ? 'service ' : '' }}sale(s),
                   TZS {{ number_format($ownerDirectSummary['gross_sales'] ?? 0, 0) }} gross /
                   TZS {{ number_format($ownerDirectSummary['amount_collected'] ?? 0, 0) }} collected on orders.
                 </span>
@@ -769,10 +793,14 @@
 
               <div class="d-flex flex-wrap justify-content-between align-items-center">
                 <p class="small text-muted mb-2 mb-md-0">
-                  This posts your sales to the Master Sheet and closes any open shift you used today.
+                  @if($serviceMenuContext ?? false)
+                    This posts your service sales to the Master Sheet (Reports → Master Sheet).
+                  @else
+                    This posts your sales to the Master Sheet and closes any open shift you used today.
+                  @endif
                 </p>
                 <button type="button" class="btn btn-primary" id="postOwnerSalesBtn">
-                  <i class="fa fa-check"></i> Close Day &amp; Post to Master Sheet
+                  <i class="fa fa-check"></i> {{ ($serviceMenuContext ?? false) ? 'Close Service Day & Post to Master Sheet' : 'Close Day & Post to Master Sheet' }}
                 </button>
               </div>
             </form>
@@ -802,11 +830,24 @@
     <div class="tile">
       <h3 class="tile-title"><i class="fa fa-clock-o"></i> Shifts In Progress — {{ $displayDate }}</h3>
       <div class="tile-body">
-        <p class="text-muted small mb-3">These staff are still selling. Their sales are not included in the totals above until they submit handover.</p>
+        <p class="text-muted small mb-3">
+          @if($serviceMenuContext ?? false)
+            Staff with open service shifts on this date. Owner sales do not use shifts and are already included in the totals above.
+          @else
+            These staff are still selling. Their sales are not included in the totals above until they submit handover.
+          @endif
+        </p>
         <div class="d-lg-none mb-3">
           @foreach($openShiftsInProgress as $pendingShift)
           <div class="dc-mobile-card">
-            <div class="dc-mobile-title">{{ $pendingShift->user->name ?? 'Unknown' }}</div>
+            <div class="dc-mobile-title">
+              {{ $pendingShift->user->name ?? 'Unknown' }}
+              @if(($pendingShift->user->role ?? '') === 'owner')
+                <span class="badge badge-secondary ml-1">Owner</span>
+              @elseif($pendingShift->user?->requiresOpenShift())
+                <span class="badge badge-light border ml-1">Staff</span>
+              @endif
+            </div>
             <div class="dc-mobile-meta mt-1">Shift #{{ $pendingShift->id }} · Opened {{ $pendingShift->opened_at->format('M d, h:i A') }}</div>
             <div class="mt-2"><span class="badge badge-primary">In progress</span></div>
           </div>
@@ -825,7 +866,14 @@
             <tbody>
               @foreach($openShiftsInProgress as $pendingShift)
               <tr>
-                <td><strong>{{ $pendingShift->user->name ?? 'Unknown' }}</strong></td>
+                <td>
+                  <strong>{{ $pendingShift->user->name ?? 'Unknown' }}</strong>
+                  @if(($pendingShift->user->role ?? '') === 'owner')
+                    <span class="badge badge-secondary ml-1">Owner</span>
+                  @elseif($pendingShift->user?->requiresOpenShift())
+                    <span class="badge badge-light border ml-1">Staff</span>
+                  @endif
+                </td>
                 <td>#{{ $pendingShift->id }}</td>
                 <td>{{ $pendingShift->opened_at->format('M d, Y h:i A') }}</td>
                 <td><span class="badge badge-primary">In progress</span></td>
@@ -884,6 +932,9 @@
 
         <form action="{{ route('day-closing.store') }}" method="POST" id="handoverForm">
           @csrf
+          @if($serviceMenuContext ?? false)
+          <input type="hidden" name="handover_context" value="services">
+          @endif
           <input type="hidden" name="closing_date" value="{{ $date }}">
           @if($shift ?? null)
             <input type="hidden" name="shift_id" value="{{ $shift->id }}">
@@ -892,7 +943,7 @@
           @if(!($canSubmitHandover ?? true))
             <div class="alert alert-info mb-3">
               <h5 class="mb-1"><i class="fa fa-info-circle"></i> No active shift</h5>
-              <p class="mb-0">Open a shift from <a href="{{ route('shifts.index') }}" class="alert-link font-weight-bold">Sales Shifts</a> before you can submit handover.</p>
+              <p class="mb-0">Open a shift from <a href="{{ ($serviceMenuContext ?? false) ? route('service-pos.create') : route('shifts.index') }}" class="alert-link font-weight-bold">{{ ($serviceMenuContext ?? false) ? 'Service POS' : 'Sales Shifts' }}</a> before you can submit handover.</p>
             </div>
           @else
           <div class="alert alert-warning">

@@ -58,7 +58,13 @@
         <div class="business-type-card {{ $isImported ? 'imported' : '' }}" data-type="{{ $key }}">
           <i class="fa {{ $template['icon'] ?? 'fa-briefcase' }}"></i>
           <div class="font-weight-bold small">{{ $template['label'] }}</div>
-          <div class="small text-muted">{{ count($template['categories'] ?? []) }} categories</div>
+          @php
+            $catNames = collect($template['categories'] ?? [])->pluck('name')->filter()->values();
+          @endphp
+          <div class="small text-muted">{{ $catNames->count() }} categories</div>
+          @if($catNames->isNotEmpty())
+          <div class="small text-muted mt-1" style="line-height:1.3">{{ $catNames->implode(', ') }}</div>
+          @endif
           @if($isImported)<div class="small text-success"><i class="fa fa-check"></i> Imported</div>@endif
         </div>
       @endforeach

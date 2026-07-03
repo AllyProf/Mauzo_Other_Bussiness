@@ -73,7 +73,7 @@
 @section('scripts')
 <script>
 (function () {
-  const servicesOptions = @json($services->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'category' => $s->category?->name, 'price' => (float)$s->price, 'unit' => $s->unit_label]));
+  const servicesOptions = @json($servicesOptions);
   let lineIndex = 1;
 
   function serviceSelectHtml(idx) {

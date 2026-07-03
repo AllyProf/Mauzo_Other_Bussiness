@@ -12,11 +12,11 @@ return [
             [
                 'name' => 'Printing',
                 'services' => [
-                    ['name' => 'A4 Black & White', 'unit_label' => 'per page', 'default_price' => 100],
-                    ['name' => 'A4 Color', 'unit_label' => 'per page', 'default_price' => 300],
-                    ['name' => 'A3 Black & White', 'unit_label' => 'per page', 'default_price' => 200],
-                    ['name' => 'A3 Color', 'unit_label' => 'per page', 'default_price' => 500],
-                    ['name' => 'Passport Photo Print', 'unit_label' => 'per sheet', 'default_price' => 2000],
+                    ['name' => 'A4 Black & White', 'unit_label' => 'per page', 'default_price' => 100, 'material' => 'A4 Paper', 'material_units' => 1],
+                    ['name' => 'A4 Color', 'unit_label' => 'per page', 'default_price' => 300, 'material' => 'A4 Paper', 'material_units' => 1],
+                    ['name' => 'A3 Black & White', 'unit_label' => 'per page', 'default_price' => 200, 'material' => 'A3 Paper', 'material_units' => 1],
+                    ['name' => 'A3 Color', 'unit_label' => 'per page', 'default_price' => 500, 'material' => 'A3 Paper', 'material_units' => 1],
+                    ['name' => 'Passport Photo Print', 'unit_label' => 'per sheet', 'default_price' => 2000, 'material' => 'A4 Paper', 'material_units' => 1],
                 ],
             ],
             [
@@ -30,10 +30,15 @@ return [
                 'name' => 'Binding & Finishing',
                 'services' => [
                     ['name' => 'Spiral Binding', 'unit_label' => 'per book', 'default_price' => 3000],
-                    ['name' => 'Lamination A4', 'unit_label' => 'per sheet', 'default_price' => 1000],
-                    ['name' => 'Photocopy A4', 'unit_label' => 'per copy', 'default_price' => 100],
+                    ['name' => 'Lamination A4', 'unit_label' => 'per sheet', 'default_price' => 1000, 'material' => 'Lamination Film A4', 'material_units' => 1],
+                    ['name' => 'Photocopy A4', 'unit_label' => 'per copy', 'default_price' => 100, 'material' => 'A4 Paper', 'material_units' => 1],
                 ],
             ],
+        ],
+        'materials' => [
+            ['name' => 'A4 Paper', 'unit_label' => 'sheet'],
+            ['name' => 'A3 Paper', 'unit_label' => 'sheet'],
+            ['name' => 'Lamination Film A4', 'unit_label' => 'sheet'],
         ],
     ],
     'cyber_cafe' => [

@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Models\Item;
 use App\Models\Receiving;
 use App\Models\Sale;
+use App\Models\SalePayment;
 use App\Models\SaleItem;
 use App\Models\Shift;
 use App\Models\ShiftStockCheck;
@@ -67,16 +68,32 @@ class DashboardService
         ];
     }
 
-    private function todayRevenue(Business $business): float
+    public function todayRevenue(Business $business): float
     {
-        $query = Sale::query()
-            ->where('business_id', $business->id)
-            ->whereDate('sale_date', today())
+        $today = today()->toDateString();
+        $businessId = $business->id;
+
+        $paymentsQuery = SalePayment::query()
+            ->whereHas('sale', function ($query) use ($businessId) {
+                $query->where('business_id', $businessId)
+                    ->where('payment_status', '!=', 'cancelled');
+                $this->branchService->scopeSalesByActiveBranch($query);
+            })
+            ->whereDate('created_at', $today);
+
+        $collectedToday = (float) $paymentsQuery->sum('amount');
+        if ($collectedToday > 0) {
+            return $collectedToday;
+        }
+
+        $salesQuery = Sale::query()
+            ->where('business_id', $businessId)
+            ->whereDate('sale_date', $today)
             ->where('payment_status', '!=', 'cancelled');
 
-        $this->branchService->scopeRecordsByBranchUsers($query);
+        $this->branchService->scopeSalesByActiveBranch($salesQuery);
 
-        return (float) $query->sum('amount_paid');
+        return (float) $salesQuery->sum('amount_paid');
     }
 
     private function monthlyPurchaseCost(int $businessId): float
@@ -95,7 +112,7 @@ class DashboardService
             ->whereNotIn('payment_status', ['paid', 'cancelled'])
             ->whereColumn('total_amount', '>', 'amount_paid');
 
-        $this->branchService->scopeRecordsByBranchUsers($query);
+        $this->branchService->scopeSalesByActiveBranch($query);
 
         return (float) $query->get()->sum(fn ($sale) => (float) $sale->total_amount - (float) $sale->amount_paid);
     }
@@ -255,6 +272,6 @@ class DashboardService
     {
         $query = Sale::where('business_id', $businessId);
 
-        return $this->branchService->scopeRecordsByBranchUsers($query);
+        return $this->branchService->scopeSalesByActiveBranch($query);
     }
 }

@@ -83,22 +83,31 @@
 @endsection
 
 @section('content')
+@php
+  $masterSheetRoute = $masterSheetRoute ?? 'owner-reports.index';
+  $serviceMenuContext = $serviceMenuContext ?? false;
+@endphp
 <div class="owner-reports-page">
 <div class="app-title d-print-none">
   <div>
-    <h1><i class="fa fa-list-alt"></i> {{ __('owner_reports.archive_title') }}</h1>
-    <p>{{ __('owner_reports.subtitle') }}</p>
+    <h1><i class="fa fa-list-alt"></i> {{ $serviceMenuContext ? __('menu.service_master_sheet') : __('owner_reports.archive_title') }}</h1>
+    <p>{{ $serviceMenuContext ? __('owner_reports.service_subtitle') : __('owner_reports.subtitle') }}</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
     <li class="breadcrumb-item"><a href="{{ url('/home') }}">{{ __('menu.dashboard') }}</a></li>
+    @if($serviceMenuContext)
+    <li class="breadcrumb-item"><a href="{{ route('services.categories') }}">{{ __('menu.services') }}</a></li>
+    <li class="breadcrumb-item active">{{ __('menu.master_sheet') }}</li>
+    @else
     <li class="breadcrumb-item">{{ __('owner_reports.finance') }}</li>
     <li class="breadcrumb-item active">{{ __('owner_reports.daily_report') }}</li>
+    @endif
   </ul>
 </div>
 
 <div class="tile d-print-none mb-3 py-2">
-  <form method="GET" action="{{ route('owner-reports.index') }}" class="row align-items-end or-filter-form">
+  <form method="GET" action="{{ route($masterSheetRoute) }}" class="row align-items-end or-filter-form">
     <div class="col-12 col-sm-6 col-md-3 form-group">
       <label class="small font-weight-bold mb-0">{{ __('owner_reports.from_date') }}</label>
       <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request('start_date') }}">
@@ -111,7 +120,7 @@
       <button type="submit" class="btn btn-primary btn-sm btn-block"><i class="fa fa-search"></i> {{ __('common.search') }}</button>
     </div>
     <div class="col-6 col-md-2 form-group">
-      <a href="{{ route('owner-reports.index') }}" class="btn btn-outline-secondary btn-sm btn-block"><i class="fa fa-refresh"></i> {{ __('tables.filters.reset') }}</a>
+      <a href="{{ route($masterSheetRoute) }}" class="btn btn-outline-secondary btn-sm btn-block"><i class="fa fa-refresh"></i> {{ __('tables.filters.reset') }}</a>
     </div>
     @if(Auth::user()->role === 'owner')
     <div class="col-12 col-md-2 form-group">
@@ -135,7 +144,7 @@
             <td>{{ $pending->user->name }}</td>
             <td>TZS {{ number_format($pending->payments_received, 0) }}</td>
             <td>
-              <a href="{{ route('day-closing.index', ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning">
+              <a href="{{ ($pending->handover_scope ?? null) === 'service' || ($serviceMenuContext ?? false) ? route('services.handover', ['date' => $pending->closing_date->format('Y-m-d')]) : route('day-closing.index', ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning">
                 <i class="fa fa-check"></i> {{ __('owner_reports.review') }}
               </a>
             </td>
@@ -154,7 +163,7 @@
           </div>
           <strong>TZS {{ number_format($pending->payments_received, 0) }}</strong>
         </div>
-        <a href="{{ route('day-closing.index', ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning btn-block">
+        <a href="{{ ($pending->handover_scope ?? null) === 'service' || ($serviceMenuContext ?? false) ? route('services.handover', ['date' => $pending->closing_date->format('Y-m-d')]) : route('day-closing.index', ['date' => $pending->closing_date->format('Y-m-d')]) }}#handover-{{ $pending->id }}" class="btn btn-sm btn-warning btn-block">
           <i class="fa fa-check"></i> {{ __('owner_reports.review') }}
         </a>
       </div>
@@ -170,12 +179,12 @@
   <div class="d-flex align-items-center flex-wrap">
     <span class="small font-weight-bold mr-2 mb-2">{{ __('owner_reports.business_filter') }}</span>
     <div class="business-type-tabs mb-2">
-      <a href="{{ route('owner-reports.index', request()->except('business_type')) }}"
+      <a href="{{ route($masterSheetRoute, request()->except('business_type')) }}"
          class="business-type-tab {{ empty($activeBusinessType) ? 'active' : '' }}">
         <i class="fa fa-th-list"></i> {{ __('tables.filters.all') }}
       </a>
       @foreach($businessTypes as $type)
-        <a href="{{ route('owner-reports.index', array_merge(request()->except('business_type'), ['business_type' => $type['key']])) }}"
+        <a href="{{ route($masterSheetRoute, array_merge(request()->except('business_type'), ['business_type' => $type['key']])) }}"
            class="business-type-tab {{ ($activeBusinessType ?? '') === $type['key'] ? 'active' : '' }}">
           <i class="fa {{ $type['icon'] ?? 'fa-store' }}"></i> {{ $type['label'] }}
         </a>
@@ -196,6 +205,9 @@
           'canSwitchBranch' => $canSwitchBranch ?? false,
           'viewingAllBranches' => $viewingAllBranches ?? false,
           'activeBranchLabel' => $activeBranchLabel ?? null,
+          'ledgerHandoverUrl' => $ledgerHandoverUrl ?? null,
+          'ledgerHandoverReviewUrl' => $ledgerHandoverReviewUrl ?? null,
+          'awaitingHandoverUrl' => $awaitingHandoverUrl ?? route('day-closing.index'),
         ])
       </div>
       <div class="table-responsive d-none d-lg-block">
@@ -302,7 +314,7 @@
                   <a href="{{ route('petty-cash.index', ['date' => $ledger['ledger_date']]) }}" class="btn btn-sm btn-outline-primary mr-1" title="{{ __('owner_reports.petty_cash') }}">
                     <i class="fa fa-money"></i>
                   </a>
-                  <a href="{{ route('day-closing.index') }}" class="btn btn-sm btn-warning" title="{{ __('owner_reports.awaiting_handover') }}">
+                  <a href="{{ $awaitingHandoverUrl ?? route('day-closing.index') }}" class="btn btn-sm btn-warning" title="{{ __('owner_reports.awaiting_handover') }}">
                     <i class="fa fa-clock-o"></i>
                   </a>
                 </td>
@@ -409,7 +421,7 @@
                   @endif
                 </td>
                 <td class="text-center d-print-none" style="white-space:nowrap;">
-                  <a href="{{ route('day-closing.show', $closingRouteId) }}" class="btn btn-primary btn-sm shadow-sm" title="{{ __('owner_reports.view_reconciliation') }}" onclick="event.stopPropagation();">
+                  <a href="{{ ($ledgerHandoverReviewUrl ?? fn($l) => route('day-closing.show', $l['id']))($ledger) }}" class="btn btn-primary btn-sm shadow-sm" title="{{ __('owner_reports.view_reconciliation') }}" onclick="event.stopPropagation();">
                     <i class="fa fa-eye"></i>
                   </a>
                 </td>
@@ -578,7 +590,7 @@
                           </div>
 
                           <div class="text-right mt-3 d-flex flex-wrap justify-content-end align-items-start">
-                            <a href="{{ route('day-closing.index', ['date' => $ledger['ledger_date']]) }}#{{ ($ledger['shift_id'] ?? null) ? 'handover-'.$closingRouteId : 'owner-day-close' }}" class="btn btn-outline-secondary btn-sm mr-2 mb-2">
+                            <a href="{{ ($ledgerHandoverUrl ?? fn($l) => route('day-closing.index', ['date' => $l['ledger_date']]))($ledger) }}" class="btn btn-outline-secondary btn-sm mr-2 mb-2">
                               <i class="fa fa-external-link"></i> {{ __('owner_reports.view_reconciliation') }}
                             </a>
                           </div>

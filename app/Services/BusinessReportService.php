@@ -596,8 +596,9 @@ class BusinessReportService
             return $query;
         }
 
-        return $query->whereHas('items.item.category', function ($categoryQuery) use ($branchId) {
-            $categoryQuery->where('branch_id', $branchId);
+        return $query->where(function ($scoped) use ($branchId) {
+            $scoped->whereHas('items.item.category', fn ($categoryQuery) => $categoryQuery->where('branch_id', $branchId))
+                ->orWhereHas('items.service', fn ($serviceQuery) => $serviceQuery->where('branch_id', $branchId));
         });
     }
 

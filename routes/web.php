@@ -22,6 +22,7 @@ Route::post('/register-business', [BusinessRegistrationController::class, 'regis
 Route::get('/register', fn () => redirect()->route('register.business'))->name('landing.register');
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->middleware(['auth', 'check.user.active']);
+Route::get('/home/stats', [App\Http\Controllers\HomeController::class, 'stats'])->middleware(['auth', 'check.user.active'])->name('home.stats');
 
 Route::middleware(['auth', 'check.user.active'])->group(function () {
     Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
@@ -193,9 +194,14 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::get('/services', [App\Http\Controllers\ServiceCatalogController::class, 'index'])->name('services.index');
     Route::get('/services/register', [App\Http\Controllers\ServiceCatalogController::class, 'register'])->name('services.register');
     Route::get('/services/categories', [App\Http\Controllers\ServiceCatalogController::class, 'categories'])->name('services.categories');
+    Route::get('/services/materials', [App\Http\Controllers\ServiceCatalogController::class, 'materials'])->name('services.materials');
+    Route::post('/services/materials', [App\Http\Controllers\ServiceCatalogController::class, 'storeMaterial'])->name('services.materials.store');
+    Route::post('/services/materials/{material}/receive', [App\Http\Controllers\ServiceCatalogController::class, 'receiveMaterial'])->name('services.materials.receive');
     Route::post('/services/categories', [App\Http\Controllers\ServiceCatalogController::class, 'storeCategory'])->name('services.categories.store');
+    Route::delete('/services/categories/{category}', [App\Http\Controllers\ServiceCatalogController::class, 'destroyCategory'])->name('services.categories.destroy');
     Route::get('/services/sales', [App\Http\Controllers\ServiceSaleController::class, 'index'])->name('services.sales.index');
     Route::get('/services/handover', [App\Http\Controllers\DayClosingController::class, 'index'])->name('services.handover');
+    Route::get('/services/master-sheet', [App\Http\Controllers\OwnerDailyReportController::class, 'serviceIndex'])->name('services.master-sheet');
     Route::post('/services/import-templates', [App\Http\Controllers\ServiceCatalogController::class, 'importTemplates'])->name('services.import-templates');
     Route::post('/services/catalog', [App\Http\Controllers\ServiceCatalogController::class, 'storeService'])->name('services.store');
     Route::put('/services/{service}', [App\Http\Controllers\ServiceCatalogController::class, 'updateService'])->name('services.update');

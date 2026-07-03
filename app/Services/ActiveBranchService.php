@@ -169,10 +169,38 @@ class ActiveBranchService
         $usersQuery = User::query()->where('business_id', $businessId);
 
         if ($branchId && $this->canSwitch()) {
-            $usersQuery->where('branch_id', $branchId);
+            $usersQuery->where(function (Builder $branchScope) use ($branchId) {
+                $branchScope->where('branch_id', $branchId)
+                    ->orWhereNull('branch_id');
+            });
         }
 
         return $query->whereIn($userIdColumn, $usersQuery->select('id'));
+    }
+
+    public function scopeSalesByActiveBranch(Builder $query): Builder
+    {
+        $branchId = $this->activeBranchId();
+
+        if (! $branchId || ! $this->canSwitch()) {
+            return $query;
+        }
+
+        $businessId = $this->currentBusinessId() ?? auth()->user()?->business_id;
+
+        return $query->where(function (Builder $scoped) use ($branchId, $businessId) {
+            $scoped->whereHas('items.item.category', function (Builder $categoryQuery) use ($branchId) {
+                $categoryQuery->where('branch_id', $branchId);
+            })->orWhereHas('items.service', function (Builder $serviceQuery) use ($branchId) {
+                $serviceQuery->where('branch_id', $branchId);
+            })->orWhereIn('user_id', User::query()
+                ->where('business_id', $businessId)
+                ->where(function (Builder $userQuery) use ($branchId) {
+                    $userQuery->where('branch_id', $branchId)
+                        ->orWhereNull('branch_id');
+                })
+                ->select('id'));
+        });
     }
 
     public function branchUserIds(): ?array

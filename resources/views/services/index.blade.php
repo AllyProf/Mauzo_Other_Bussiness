@@ -170,20 +170,23 @@
                 <div class="form-group"><label>Price TZS</label><input class="form-control" type="number" step="1" min="0" name="price" value="{{ (float)$service->price }}" required></div>
                 <div class="form-check"><input type="checkbox" class="form-check-input" name="is_active" value="1" {{ $service->is_active ? 'checked' : '' }}><label class="form-check-label">Active on POS</label></div>
                 <hr>
-                <p class="small text-muted mb-2">Optional: link a stock item to deduct when this service is sold (e.g. paper per page).</p>
+                <p class="small text-muted mb-2">Optional: link a service material to deduct when this service is sold.</p>
                 <div class="form-group">
-                  <label>Consumable item</label>
-                  <select class="form-control" name="consumable_item_id">
+                  <label>Material</label>
+                  <select class="form-control" name="service_material_id">
                     <option value="">None</option>
-                    @foreach($consumableItems ?? [] as $item)
-                    <option value="{{ $item->id }}" {{ (int)$service->consumable_item_id === (int)$item->id ? 'selected' : '' }}>{{ $item->name }} @if($item->sku)({{ $item->sku }})@endif</option>
+                    @foreach($serviceMaterials ?? [] as $material)
+                    <option value="{{ $material->id }}" {{ (int)$service->service_material_id === (int)$material->id ? 'selected' : '' }}>
+                      {{ $material->name }} ({{ $material->stockLabel() }})
+                    </option>
                     @endforeach
                   </select>
+                  <small class="text-muted"><a href="{{ route('services.materials') }}">Manage materials</a></small>
                 </div>
                 <div class="form-group">
-                  <label>Stock pieces per 1 service unit</label>
+                  <label>Material used per 1 service unit</label>
                   <input class="form-control" type="number" step="0.0001" min="0" name="consumable_units_per_unit" value="{{ (float)($service->consumable_units_per_unit ?? 0) }}">
-                  <small class="text-muted">Example: 1 page print = 1 piece of A4 paper</small>
+                  <small class="text-muted">Example: 1 page print = 1 sheet of paper</small>
                 </div>
               </div>
               <div class="modal-footer"><button type="submit" class="btn btn-primary">Save</button></div>

@@ -4,6 +4,7 @@ return [
     'title' => 'Master Sheet — Ripoti za Biashara za Kila Siku',
     'archive_title' => 'Hifadhi ya Master Sheet',
     'subtitle' => 'Bofya safu yoyote kuona muhtasari kamili wa ufuatiliaji.',
+    'service_subtitle' => 'Mauzo ya huduma, faida, na mzunguko baada ya kufunga handover.',
     'finance' => 'Fedha',
     'daily_report' => 'Ripoti ya Biashara ya Kila Siku',
     'from_date' => 'Kutoka Tarehe:',

@@ -22,7 +22,11 @@ class BusinessTypeBreakdownService
             $salePaid = (float) $sale->amount_paid;
 
             foreach ($sale->items as $line) {
-                $typeKey = $line->item?->category?->source_business_type_key ?: 'other';
+                if ($line->service_id) {
+                    $typeKey = $line->service?->category?->source_service_type_key ?: 'other';
+                } else {
+                    $typeKey = $line->item?->category?->source_business_type_key ?: 'other';
+                }
                 $lineTotal = (float) ($line->subtotal ?? 0);
 
                 if ($lineTotal <= 0 && $saleTotal > 0) {
@@ -132,13 +136,13 @@ class BusinessTypeBreakdownService
                 continue;
             }
 
-            $sale->loadMissing(['items.item.category']);
+            $sale->loadMissing(['items.item.category', 'items.service.category']);
             $amount = (float) $payment->amount;
             $typeWeights = [];
             $totalWeight = 0.0;
 
             foreach ($sale->items as $line) {
-                $typeKey = $line->item?->category?->source_business_type_key ?: 'other';
+                $typeKey = $this->lineBusinessTypeKey($line);
                 $weight = (float) ($line->subtotal ?? 0);
                 if ($weight <= 0) {
                     $weight = 1.0;
@@ -197,7 +201,7 @@ class BusinessTypeBreakdownService
             $totalWeight = 0.0;
 
             foreach ($sale->items as $line) {
-                $typeKey = $line->item?->category?->source_business_type_key ?: 'other';
+                $typeKey = $this->lineBusinessTypeKey($line);
                 $weight = (float) ($line->subtotal ?? 0);
                 if ($weight <= 0) {
                     $weight = 1.0;
@@ -218,5 +222,14 @@ class BusinessTypeBreakdownService
         }
 
         return $byType;
+    }
+
+    private function lineBusinessTypeKey($line): string
+    {
+        if ($line->service_id) {
+            return $line->service?->category?->source_service_type_key ?: 'other';
+        }
+
+        return $line->item?->category?->source_business_type_key ?: 'other';
     }
 }

@@ -78,11 +78,15 @@ class HomeController extends Controller
             ]);
         }
 
-        if ($user->role === 'owner' && $user->business) {
-            return view('home', array_merge(
-                ['isOwnerDashboard' => true],
-                app(DashboardService::class)->ownerDashboard($user->business, $user),
-            ));
+        if ($user->role === 'owner') {
+            $business = active_business() ?? $user->business;
+
+            if ($business) {
+                return view('home', array_merge(
+                    ['isOwnerDashboard' => true],
+                    app(DashboardService::class)->ownerDashboard($business, $user),
+                ));
+            }
         }
 
         $staffQuery = User::query()
@@ -94,7 +98,7 @@ class HomeController extends Controller
             ->where('business_id', $businessId)
             ->whereDate('sale_date', today())
             ->where('payment_status', '!=', 'cancelled');
-        $branchService->scopeRecordsByBranchUsers($todaySalesQuery);
+        $branchService->scopeSalesByActiveBranch($todaySalesQuery);
 
         return view('home', array_merge([
             'staffCount' => $staffQuery->count(),
@@ -106,6 +110,25 @@ class HomeController extends Controller
             'activeBranchLabel' => $branchService->activeBranchLabel(),
             'viewingAllBranches' => $branchService->isViewingAllBranches(),
         ], $this->staffTargetProgress($user)));
+    }
+
+    public function stats(Request $request, DashboardService $dashboard)
+    {
+        $user = $request->user();
+
+        if ($user->role !== 'owner') {
+            abort(403);
+        }
+
+        $business = active_business() ?? $user->business;
+
+        if (! $business) {
+            abort(404);
+        }
+
+        return response()->json([
+            'today_revenue' => $dashboard->todayRevenue($business),
+        ]);
     }
 
     private function staffTargetProgress(User $user): array

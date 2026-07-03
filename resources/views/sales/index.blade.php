@@ -127,7 +127,7 @@
 @if(($carriedOverUnpaidCount ?? 0) > 0)
 <div class="alert alert-warning py-2 mb-3">
   <i class="fa fa-exclamation-circle"></i>
-  <strong>{{ $carriedOverUnpaidCount }}</strong> unpaid order{{ $carriedOverUnpaidCount === 1 ? '' : 's' }} from a previous shift still need payment — listed below as pending.
+  <strong>{{ $carriedOverUnpaidCount }}</strong> unpaid order{{ $carriedOverUnpaidCount === 1 ? '' : 's' }} from a previous shift still need payment — marked in the list with a shift badge.
 </div>
 @endif
 
@@ -262,7 +262,7 @@
                       && in_array($sale->payment_status, ['pending', 'partial', 'debt'], true);
                 @endphp
                 <tr data-business-types="{{ $businessTypeKeys->implode(',') }}">
-                    <td>{{ \Carbon\Carbon::parse($sale->sale_date)->format('M d, Y') }}</td>
+                    <td data-order="{{ $sale->id }}">{{ \Carbon\Carbon::parse($sale->sale_date)->format('M d, Y') }}</td>
                     <td>
                       {{ $sale->reference_no }}
                       @if($sale->isServicePos()) <span class="badge badge-info">{{ __('tables.status.service') }}</span>@endif
@@ -407,6 +407,9 @@
 
             const table = $('#salesTable').DataTable({
                 order: [[0, 'desc']],
+                columnDefs: [
+                    { targets: 0, type: 'num' },
+                ],
             });
 
             $(table.table().container()).addClass('sales-datatable-wrap');
@@ -446,6 +449,14 @@
                 }
                 $('#salesFilterForm').submit();
             });
+
+            const autoPaySaleId = @json(request()->query('pay'));
+            if (autoPaySaleId) {
+                const $payBtn = $('.open-payment-modal-btn[data-sale-id="' + autoPaySaleId + '"]').first();
+                if ($payBtn.length) {
+                    setTimeout(function () { $payBtn.trigger('click'); }, 400);
+                }
+            }
         });
     </script>
     @include('sales.partials.customer-picker-scripts')

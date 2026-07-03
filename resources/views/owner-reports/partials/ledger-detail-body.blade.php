@@ -140,8 +140,8 @@
           </div>
 
           <div class="or-detail-actions">
-            <a href="{{ route('day-closing.show', $closingRouteId) }}" class="btn btn-primary btn-sm mb-2 mr-2"><i class="fa fa-eye"></i> {{ __('owner_reports.view_reconciliation') }}</a>
-            <a href="{{ route('day-closing.index', ['date' => $ledger['ledger_date']]) }}#{{ ($ledger['shift_id'] ?? null) ? 'handover-'.$closingRouteId : 'owner-day-close' }}" class="btn btn-outline-secondary btn-sm mb-2"><i class="fa fa-external-link"></i> {{ __('owner_reports.view_reconciliation') }}</a>
+            <a href="{{ ($ledgerHandoverReviewUrl ?? fn($l) => route('day-closing.show', $closingRouteId))($ledger) }}" class="btn btn-primary btn-sm mb-2 mr-2"><i class="fa fa-eye"></i> {{ __('owner_reports.view_reconciliation') }}</a>
+            <a href="{{ ($ledgerHandoverUrl ?? fn($l) => route('day-closing.index', ['date' => $l['ledger_date']]))($ledger) }}" class="btn btn-outline-secondary btn-sm mb-2"><i class="fa fa-external-link"></i> {{ __('owner_reports.view_reconciliation') }}</a>
           </div>
         </div>
       </div>

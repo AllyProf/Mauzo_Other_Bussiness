@@ -29,14 +29,14 @@
     @if($isPlaceholder)
     <div class="or-mobile-actions d-print-none" onclick="event.stopPropagation();">
       <a href="{{ route('petty-cash.index', ['date' => $ledger['ledger_date']]) }}" class="btn btn-outline-primary btn-sm" title="{{ __('owner_reports.petty_cash') }}"><i class="fa fa-money"></i></a>
-      <a href="{{ route('day-closing.index') }}" class="btn btn-warning btn-sm" title="{{ __('owner_reports.awaiting_handover') }}"><i class="fa fa-clock-o"></i></a>
+      <a href="{{ $awaitingHandoverUrl ?? route('day-closing.index') }}" class="btn btn-warning btn-sm" title="{{ __('owner_reports.awaiting_handover') }}"><i class="fa fa-clock-o"></i></a>
       @if($canExpand)
         <span class="or-mobile-expand-hint"><i class="fa fa-chevron-down"></i></span>
       @endif
     </div>
     @else
     <div class="or-mobile-actions d-print-none" onclick="event.stopPropagation();">
-      <a href="{{ route('day-closing.show', $closingRouteId) }}" class="btn btn-primary btn-sm"><i class="fa fa-eye"></i></a>
+      <a href="{{ ($ledgerHandoverReviewUrl ?? fn($l) => route('day-closing.show', $l['detail_closing_id'] ?? $l['id']))($ledger) }}" class="btn btn-primary btn-sm"><i class="fa fa-eye"></i></a>
       @if($canExpand)
         <span class="or-mobile-expand-hint"><i class="fa fa-chevron-down"></i></span>
       @endif
@@ -49,6 +49,8 @@
       'ledger' => $ledger,
       'closingRouteId' => $closingRouteId,
       'multiBusiness' => $multiBusiness ?? false,
+      'ledgerHandoverUrl' => $ledgerHandoverUrl ?? null,
+      'ledgerHandoverReviewUrl' => $ledgerHandoverReviewUrl ?? null,
     ])
   </div>
   @endif

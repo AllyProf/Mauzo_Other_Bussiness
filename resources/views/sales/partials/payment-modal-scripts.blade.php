@@ -468,7 +468,13 @@
 
         renderPayLineItems();
         $('#paymentSubmitBtn').prop('disabled', false);
-        $('#paymentMethod').trigger('change');
+
+        const $cashOption = $('#paymentMethod option[value="cash"]');
+        if ($cashOption.length) {
+            $('#paymentMethod').val('cash').trigger('change');
+        } else {
+            $('#paymentMethod').trigger('change');
+        }
         updatePaymentPreview();
 
         $('#paymentModal').modal('show');

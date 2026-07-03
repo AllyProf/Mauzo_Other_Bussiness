@@ -90,9 +90,20 @@ class ServiceInvoiceController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'phone', 'email']);
 
+        $servicesOptions = $services->map(function ($service) {
+            return [
+                'id' => $service->id,
+                'name' => $service->name,
+                'category' => $service->category?->name,
+                'price' => (float) $service->price,
+                'unit' => $service->unit_label,
+            ];
+        })->values();
+
         return view('service-invoices.create', compact(
             'categories',
             'services',
+            'servicesOptions',
             'customers',
             'businessTypes',
             'openShift',

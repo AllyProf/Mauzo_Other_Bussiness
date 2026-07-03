@@ -148,14 +148,7 @@ class SaleController extends Controller
 
         $sales = (clone $salesQuery)
             ->with(['user', 'items.item.category', 'items.itemPackaging.packagingType', 'items.service', 'customer'])
-            ->when($openShift && !$showAllHistory, function ($query) use ($openShift) {
-                $shiftId = (int) $openShift->id;
-                $query->orderByRaw(
-                    'CASE WHEN shift_id != ? AND payment_status NOT IN (?, ?) AND total_amount > amount_paid THEN 0 ELSE 1 END ASC',
-                    [$shiftId, 'paid', 'cancelled']
-                );
-            })
-            ->latest()
+            ->latest('id')
             ->paginate(15);
 
         $customers = $this->activeCustomers();
@@ -428,7 +421,8 @@ class SaleController extends Controller
             DB::commit();
             $openShift?->refreshTotals();
 
-            return redirect()->route('sales.index')->with('success', "Order placed successfully ($ref). Please process payment.");
+            return redirect()->route('sales.index', ['pay' => $sale->id])
+                ->with('success', "Order placed successfully ($ref). Complete payment below.");
 
         } catch (\Exception $e) {
             DB::rollback();
@@ -689,7 +683,7 @@ class SaleController extends Controller
                 Shift::find($sale->shift_id)?->refreshTotals();
             }
 
-            return redirect()->route('sales.index')->with('success', "Sale ($sale->reference_no) has been cancelled".($hadStockDeducted ? ' and stock restored' : '').'.');
+            return redirect()->back()->with('success', "Sale ($sale->reference_no) has been cancelled".($hadStockDeducted ? ' and stock restored' : '').'.');
         } catch (\Exception $e) {
             DB::rollback();
             return redirect()->back()->with('error', 'Error cancelling sale: ' . $e->getMessage());
@@ -948,35 +942,6 @@ class SaleController extends Controller
 
             return redirect()->back()->with('error', 'Error processing split payment: '.$e->getMessage());
         }
-    }
-
-    private function resolveCustomerFields(Request $request): array
-    {
-        $businessId = $this->currentBusinessId();
-        $customerId = $request->input('customer_id');
-
-        if ($customerId) {
-            $customer = Customer::where('business_id', $businessId)
-                ->where('id', $customerId)
-                ->where('is_active', true)
-                ->first();
-
-            if ($customer) {
-                return [
-                    'customer_id' => $customer->id,
-                    'customer_name' => $customer->name,
-                    'customer_phone' => $customer->phone,
-                ];
-            }
-        }
-
-        $phone = Customer::normalizePhone($request->customer_phone);
-
-        return [
-            'customer_id' => null,
-            'customer_name' => $request->customer_name,
-            'customer_phone' => $phone ?: $request->customer_phone,
-        ];
     }
 
     private function scopeCarriedOverUnpaidSales($query, int $userId, int $currentShiftId): void

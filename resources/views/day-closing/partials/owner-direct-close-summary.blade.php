@@ -8,7 +8,7 @@
 <div class="alert alert-success border mb-0" id="owner-day-close">
   <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
     <div>
-      <h5 class="alert-heading mb-1"><i class="fa fa-check-circle"></i> Your day is closed &amp; posted</h5>
+      <h5 class="alert-heading mb-1"><i class="fa fa-check-circle"></i> Your {{ ($serviceMenuContext ?? false) ? 'service day is' : 'day is' }} closed &amp; posted</h5>
       <p class="mb-0 small">
         Closed {{ $closing->verified_at?->format('M d, Y h:i A') ?? $closing->submitted_at?->format('M d, Y h:i A') ?? '—' }}
         · {{ $closing->sales_count }} sale(s)
@@ -17,7 +17,7 @@
       </p>
     </div>
     <div class="mt-2 mt-md-0">
-      <a href="{{ route('owner-reports.index', ['start_date' => $date, 'end_date' => $date, 'highlight_date' => $date]) }}" class="btn btn-sm btn-outline-success mr-1 mb-1">Master Sheet</a>
+      <a href="{{ route(($serviceMenuContext ?? false) ? 'services.master-sheet' : 'owner-reports.index', ['start_date' => $date, 'end_date' => $date, 'highlight_date' => $date]) }}" class="btn btn-sm btn-outline-success mr-1 mb-1">Master Sheet</a>
       @if($closing->hasMoneyShort())
         <a href="{{ route('money-shorts.index') }}" class="btn btn-sm btn-outline-danger mb-1">Money Shorts</a>
       @endif

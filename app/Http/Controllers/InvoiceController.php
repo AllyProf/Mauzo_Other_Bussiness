@@ -347,34 +347,4 @@ class InvoiceController extends Controller
                 ->values(),
         ]);
     }
-
-    private function resolveCustomerFields(Request $request): array
-    {
-        $businessId = Auth::user()->business_id;
-        $customerId = $request->input('customer_id');
-
-        if ($customerId) {
-            $customer = Customer::where('business_id', $businessId)
-                ->where('id', $customerId)
-                ->where('is_active', true)
-                ->first();
-
-            if ($customer) {
-                return [
-                    'customer_id' => $customer->id,
-                    'customer_name' => $customer->name,
-                    'customer_phone' => $customer->phone,
-                ];
-            }
-        }
-
-        $phone = Customer::normalizePhone($request->customer_phone);
-
-        return [
-            'customer_id' => null,
-            'customer_name' => $request->customer_name,
-            'customer_phone' => $phone ?: $request->customer_phone,
-        ];
-    }
-
 }

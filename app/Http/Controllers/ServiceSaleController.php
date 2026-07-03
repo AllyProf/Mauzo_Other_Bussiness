@@ -6,6 +6,8 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Service;
 use App\Models\ServiceCategory;
+use App\Models\ServiceMaterial;
+use App\Models\Customer;
 use App\Models\Shift;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,9 +20,9 @@ class ServiceSaleController extends Controller
     {
         $this->authorizeAny(['view_sales_history', 'process_sales']);
 
-        $businessId = Auth::user()->business_id;
+        $businessId = $this->currentBusinessId();
         $requiresOpenShift = Auth::user()->requiresOpenShift();
-        $openShift = Shift::openForUser(Auth::id(), $businessId);
+        $openShift = Shift::openForUser((int) Auth::id(), $businessId);
 
         $branchFilterId = null;
         if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
@@ -65,6 +67,13 @@ class ServiceSaleController extends Controller
             ? ($openShift ? 'current' : 'none')
             : ($scopedToSelf ? 'self' : 'all');
 
+        $business = $this->requireCurrentBusiness();
+        $paymentMethods = $business->enabledPaymentMethods();
+        $customers = Customer::where('business_id', $businessId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'phone']);
+
         return view('services.sales', compact(
             'sales',
             'stats',
@@ -72,6 +81,8 @@ class ServiceSaleController extends Controller
             'shiftContext',
             'openShift',
             'requiresOpenShift',
+            'paymentMethods',
+            'customers',
         ));
     }
 
@@ -79,7 +90,8 @@ class ServiceSaleController extends Controller
     {
         $this->authorizeAny(['process_sales']);
 
-        $openShift = Shift::openForUser(Auth::id(), Auth::user()->business_id);
+        $businessId = $this->currentBusinessId();
+        $openShift = Shift::openForUser((int) Auth::id(), $businessId);
         if (Auth::user()->requiresOpenShift() && ! $openShift) {
             return redirect()->route('shifts.create')
                 ->with('warning', 'Open your shift before selling services.');
@@ -89,7 +101,7 @@ class ServiceSaleController extends Controller
             return $redirect;
         }
 
-        $business = Auth::user()->business;
+        $business = $this->requireCurrentBusiness();
         $branchFilterId = $this->resolvePosBranchFilterId();
         $templates = config('service_templates', []);
 
@@ -137,6 +149,12 @@ class ServiceSaleController extends Controller
             ? (active_branch()?->name ?? \App\Models\Branch::find($branchFilterId)?->name)
             : null;
 
+        $materialsStock = ServiceMaterial::query()
+            ->where('business_id', $business->id)
+            ->when($branchFilterId, fn ($q) => $q->where('branch_id', $branchFilterId))
+            ->orderBy('name')
+            ->get(['name', 'unit_label', 'current_stock']);
+
         return view('services.pos', compact(
             'categories',
             'servicesByCategory',
@@ -145,6 +163,7 @@ class ServiceSaleController extends Controller
             'multiBusiness',
             'activeBranchName',
             'branchFilterId',
+            'materialsStock',
         ));
     }
 
@@ -152,7 +171,8 @@ class ServiceSaleController extends Controller
     {
         $this->authorizeAny(['process_sales']);
 
-        $openShift = Shift::openForUser(Auth::id(), Auth::user()->business_id);
+        $businessId = $this->currentBusinessId();
+        $openShift = Shift::openForUser((int) Auth::id(), $businessId);
         if (Auth::user()->requiresOpenShift() && ! $openShift) {
             return redirect()->route('shifts.create')->with('error', 'Your shift is not open.');
         }
@@ -167,7 +187,7 @@ class ServiceSaleController extends Controller
             'lines.*.service_id' => 'required|exists:services,id',
             'lines.*.qty' => 'required|integer|min:1',
             'lines.*.price' => 'required|numeric|min:0',
-            'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', Auth::user()->business_id)],
+            'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', $businessId)],
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:50',
             'notes' => 'nullable|string|max:1000',
@@ -191,7 +211,7 @@ class ServiceSaleController extends Controller
             $customerFields = $this->resolveCustomerFields($request);
 
             $sale = Sale::create([
-                'business_id' => Auth::user()->business_id,
+                'business_id' => $businessId,
                 'user_id' => Auth::id(),
                 'shift_id' => $openShift?->id,
                 'reference_no' => $ref,
@@ -210,7 +230,7 @@ class ServiceSaleController extends Controller
 
             foreach ($activeLines as $line) {
                 $service = Service::find($line['service_id']);
-                if (! $service || $service->business_id !== Auth::user()->business_id) {
+                if (! $service || $service->business_id !== $businessId) {
                     throw new \InvalidArgumentException('Invalid service selected.');
                 }
 
@@ -234,8 +254,8 @@ class ServiceSaleController extends Controller
             DB::commit();
             $openShift?->refreshTotals();
 
-            return redirect()->route('services.sales.index')
-                ->with('success', "Service order {$ref} placed. Collect payment from Service Sales.");
+            return redirect()->route('services.sales.index', ['pay' => $sale->id])
+                ->with('success', "Service order {$ref} placed. Complete payment below.");
         } catch (\Throwable $e) {
             DB::rollBack();
 

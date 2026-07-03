@@ -4,15 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use App\Models\Business;
+use App\Models\SaleItem;
 use App\Models\Service;
 use App\Models\ServiceCategory;
+use App\Models\ServiceMaterial;
+use App\Models\ServiceMaterialReceipt;
+use App\Services\ServiceTemplateImportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ServiceCatalogController extends Controller
 {
+    public function __construct(private ServiceTemplateImportService $templateImporter)
+    {
+    }
+
     public function index()
     {
         return redirect()->route('services.categories');
@@ -68,11 +75,17 @@ class ServiceCatalogController extends Controller
             ->orderBy('name')
             ->get();
 
-        $consumableItems = \App\Models\Item::query()
+        $serviceMaterials = ServiceMaterial::query()
             ->where('business_id', $businessId)
-            ->when($branchFilterId, fn ($q) => $q->whereHas('category', fn ($c) => $c->where('branch_id', $branchFilterId)))
+            ->when($branchFilterId, fn ($q) => $q->where('branch_id', $branchFilterId))
             ->orderBy('name')
-            ->get(['id', 'name', 'sku']);
+            ->get(['id', 'name', 'unit_label', 'current_stock']);
+
+        $materialsStock = $serviceMaterials->map(fn ($m) => [
+            'name' => $m->name,
+            'stock_label' => $m->stockLabel(),
+            'current_stock' => (float) $m->current_stock,
+        ])->values();
 
         return compact(
             'categories',
@@ -85,13 +98,105 @@ class ServiceCatalogController extends Controller
             'activeBranchName',
             'writableBranches',
             'canPickBranch',
-            'consumableItems',
+            'serviceMaterials',
+            'materialsStock',
         );
     }
 
     private function redirectAfterWrite(string $route = 'services.categories')
     {
         return redirect()->route($route);
+    }
+
+    public function materials()
+    {
+        $this->authorizeAny(['manage_services', 'manage_categories', 'view_inventory', 'add_items', 'process_sales']);
+
+        $context = $this->buildPageContext();
+        $businessId = $this->currentBusinessId();
+        $branchFilterId = $context['branchFilterId'];
+
+        $materialsQuery = ServiceMaterial::query()
+            ->where('business_id', $businessId)
+            ->with(['branch:id,name'])
+            ->withCount('receipts')
+            ->orderBy('name');
+
+        if ($branchFilterId) {
+            $materialsQuery->where('branch_id', $branchFilterId);
+        }
+
+        $materials = $materialsQuery->get();
+
+        return view('services.materials', array_merge($context, compact('materials')));
+    }
+
+    public function storeMaterial(Request $request)
+    {
+        $this->authorizeAny(['manage_services', 'manage_categories', 'add_items']);
+
+        $business = $this->currentBusinessForWrite();
+        $branchId = $this->resolveBranchIdFromRequest($request);
+        if (! $branchId) {
+            return redirect()->back()->withInput()->with('error', 'Select a branch for this material.');
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'unit_label' => 'required|string|max:64',
+            'branch_id' => $this->branchValidationRule(),
+        ]);
+
+        ServiceMaterial::firstOrCreate(
+            [
+                'business_id' => $business->id,
+                'branch_id' => $branchId,
+                'name' => $request->name,
+            ],
+            [
+                'unit_label' => $request->unit_label,
+            ]
+        );
+
+        $this->focusActiveBranchAfterWrite($branchId);
+
+        return redirect()->route('services.materials')->with('success', 'Service material "'.$request->name.'" added.');
+    }
+
+    public function receiveMaterial(Request $request, ServiceMaterial $material)
+    {
+        $this->authorizeAny(['manage_services', 'manage_categories', 'add_items', 'receive_stock']);
+        $this->ensureServiceMaterialAccess($material);
+
+        $request->validate([
+            'quantity' => 'required|numeric|min:0.0001',
+            'total_cost' => 'nullable|numeric|min:0',
+            'received_date' => 'required|date',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $quantity = (float) $request->quantity;
+        $totalCost = (float) ($request->total_cost ?? 0);
+
+        ServiceMaterialReceipt::create([
+            'service_material_id' => $material->id,
+            'user_id' => auth()->id(),
+            'quantity' => $quantity,
+            'total_cost' => $totalCost,
+            'received_date' => $request->received_date,
+            'notes' => $request->notes,
+        ]);
+
+        $material->current_stock = (float) $material->current_stock + $quantity;
+        if ($quantity > 0 && $totalCost > 0) {
+            $material->last_cost_per_unit = round($totalCost / $quantity, 4);
+        }
+        $material->save();
+
+        return redirect()->route('services.materials')->with(
+            'success',
+            'Received '.$quantity.' '.$material->unit_label.' of '.$material->name.'. Stock now: '.$material->stockLabel().'.'
+        );
     }
 
     public function storeCategory(Request $request)
@@ -176,10 +281,12 @@ class ServiceCatalogController extends Controller
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string|max:1000',
             'is_active' => 'nullable|boolean',
-            'consumable_item_id' => [
+            'service_material_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('items', 'id')->where('business_id', $service->business_id),
+                Rule::exists('service_materials', 'id')->where(fn ($q) => $q
+                    ->where('business_id', $service->business_id)
+                    ->where('branch_id', $service->branch_id)),
             ],
             'consumable_units_per_unit' => 'nullable|numeric|min:0',
         ]);
@@ -190,7 +297,8 @@ class ServiceCatalogController extends Controller
             'price' => $request->price,
             'description' => $request->description,
             'is_active' => $request->boolean('is_active', true),
-            'consumable_item_id' => $request->consumable_item_id ?: null,
+            'service_material_id' => $request->service_material_id ?: null,
+            'consumable_item_id' => null,
             'consumable_units_per_unit' => (float) ($request->consumable_units_per_unit ?? 0),
         ]);
 
@@ -208,12 +316,33 @@ class ServiceCatalogController extends Controller
         return redirect()->back()->with('success', 'Service removed.');
     }
 
+    public function destroyCategory(ServiceCategory $category)
+    {
+        $this->authorizeAny(['manage_services', 'manage_categories', 'delete_items']);
+        $this->ensureServiceCategoryAccess($category);
+        $business = $this->currentBusinessForWrite();
+
+        $serviceIds = $category->services()->pluck('id');
+        $soldCount = $serviceIds->isEmpty()
+            ? 0
+            : SaleItem::query()->whereIn('service_id', $serviceIds)->count();
+
+        $category->delete();
+        $business->syncServiceBusinessTypesFromCategories();
+
+        $message = 'Service category and its services removed.';
+        if ($soldCount > 0) {
+            $message .= ' Past sales records are kept; only the catalog entries were removed.';
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
     public function importTemplates(Request $request)
     {
         $this->authorizeAny(['manage_services', 'manage_categories', 'add_items']);
 
         $business = $this->currentBusinessForWrite();
-        $businessId = $business->id;
         $branchId = $this->resolveBranchIdFromRequest($request);
         if (! $branchId) {
             return redirect()->back()->with('error', 'Select which branch to import services for.');
@@ -222,7 +351,6 @@ class ServiceCatalogController extends Controller
         $typesToImport = array_values(array_filter(
             $request->input('template_types', $request->template_type ? [$request->template_type] : [])
         ));
-        $templates = config('service_templates', []);
 
         if ($request->input('template_type') === 'custom' || $request->filled('custom_business_name')) {
             $request->validate([
@@ -242,44 +370,26 @@ class ServiceCatalogController extends Controller
                 return redirect()->back()->with('error', 'Enter at least one category.');
             }
 
-            $customKey = 'custom:'.\Illuminate\Support\Str::slug($request->custom_business_name);
-
             try {
-                DB::beginTransaction();
-                $business->registerServiceBusinessType($customKey, $request->custom_business_name, $categoryNames);
-
-                $categoryMap = [];
-                foreach ($categoryNames as $catName) {
-                    $categoryMap[$catName] = $this->upsertServiceCategory($businessId, $branchId, $catName, $customKey);
-                }
-
-                foreach ($this->parseCustomServiceLines($request->input('custom_services')) as $row) {
-                    $cat = $categoryMap[$row['category']] ?? null;
-                    if (! $cat) {
-                        continue;
-                    }
-                    Service::updateOrCreate(
-                        [
-                            'business_id' => $businessId,
-                            'branch_id' => $branchId,
-                            'service_category_id' => $cat->id,
-                            'name' => $row['name'],
-                        ],
-                        [
-                            'unit_label' => $row['unit_label'],
-                            'price' => $row['price'],
-                            'is_active' => true,
-                        ]
-                    );
-                }
-
-                DB::commit();
+                $result = $this->templateImporter->importCustomForBranch(
+                    $business,
+                    $branchId,
+                    $request->custom_business_name,
+                    $categoryNames,
+                    $this->parseCustomServiceLines($request->input('custom_services')),
+                );
                 $this->focusActiveBranchAfterWrite($branchId);
 
-                return $this->redirectAfterWrite('services.register')->with('success', 'Custom service template "'.$request->custom_business_name.'" imported.');
+                return $this->redirectAfterWrite()->with(
+                    'success',
+                    $this->importSuccessMessage(
+                        $request->custom_business_name,
+                        $result['categories'],
+                        $result['services'],
+                        $result['category_names'],
+                    )
+                );
             } catch (\Throwable $e) {
-                DB::rollBack();
-
                 return redirect()->back()->with('error', $e->getMessage());
             }
         }
@@ -295,81 +405,53 @@ class ServiceCatalogController extends Controller
         ]);
 
         try {
-            DB::beginTransaction();
-            $importedLabels = [];
-
-            foreach ($typesToImport as $templateKey) {
-                if (! isset($templates[$templateKey])) {
-                    throw new \InvalidArgumentException('Unknown service template selected.');
-                }
-
-                $template = $templates[$templateKey];
-                $label = $template['label'] ?? ucfirst(str_replace('_', ' ', $templateKey));
-                $categoryBlocks = $template['categories'] ?? [];
-                $categoryNames = collect($categoryBlocks)->pluck('name')->filter()->all();
-
-                $business->registerServiceBusinessType($templateKey, $label, $categoryNames);
-
-                foreach ($categoryBlocks as $block) {
-                    $catName = (string) ($block['name'] ?? '');
-                    if ($catName === '') {
-                        continue;
-                    }
-
-                    $category = $this->upsertServiceCategory($businessId, $branchId, $catName, $templateKey);
-
-                    foreach ($block['services'] ?? [] as $svc) {
-                        $svcName = (string) ($svc['name'] ?? '');
-                        if ($svcName === '') {
-                            continue;
-                        }
-
-                        Service::updateOrCreate(
-                            [
-                                'business_id' => $businessId,
-                                'branch_id' => $branchId,
-                                'service_category_id' => $category->id,
-                                'name' => $svcName,
-                            ],
-                            [
-                                'unit_label' => (string) ($svc['unit_label'] ?? 'per service'),
-                                'price' => (float) ($svc['default_price'] ?? 0),
-                                'is_active' => true,
-                            ]
-                        );
-                    }
-                }
-
-                $importedLabels[] = $label;
-            }
-
-            DB::commit();
+            $result = $this->templateImporter->importForBranch($business, $branchId, $typesToImport);
             $this->focusActiveBranchAfterWrite($branchId);
 
-            return $this->redirectAfterWrite('services.register')->with(
+            $label = count($result['labels']) === 1
+                ? $result['labels'][0]
+                : implode(', ', $result['labels']);
+
+            return $this->redirectAfterWrite()->with(
                 'success',
-                'Imported service templates: '.implode(', ', $importedLabels).'. Configure categories and prices next.'
+                $this->importSuccessMessage(
+                    $label,
+                    $result['categories'],
+                    $result['services'],
+                    $result['category_names'],
+                    $result['materials'] ?? 0,
+                    $result['linked_services'] ?? 0,
+                )
             );
         } catch (\Throwable $e) {
-            DB::rollBack();
-
             return redirect()->back()->with('error', $e->getMessage());
         }
     }
 
-    private function upsertServiceCategory(int $businessId, int $branchId, string $name, string $typeKey): ServiceCategory
+    /**
+     * @param  list<string>  $categoryNames
+     */
+    private function importSuccessMessage(string $label, int $categories, int $services, array $categoryNames, int $materials = 0, int $linkedServices = 0): string
     {
-        return ServiceCategory::firstOrCreate(
-            [
-                'business_id' => $businessId,
-                'branch_id' => $branchId,
-                'name' => $name,
-                'source_service_type_key' => $typeKey,
-            ],
-            [
-                'name' => $name,
-            ]
-        );
+        $parts = ["Imported \"{$label}\"."];
+
+        if ($categories > 0) {
+            $parts[] = "{$categories} categor".($categories === 1 ? 'y' : 'ies').' created: '.implode(', ', $categoryNames).'.';
+        }
+
+        if ($materials > 0) {
+            $parts[] = "{$materials} material".($materials === 1 ? '' : 's').' ready under Services → Materials.';
+        }
+
+        if ($linkedServices > 0) {
+            $parts[] = "{$linkedServices} service".($linkedServices === 1 ? '' : 's').' linked to materials (paper deducts on sale).';
+        }
+
+        if ($services > 0) {
+            $parts[] = "{$services} service".($services === 1 ? '' : 's').' added with default prices.';
+        }
+
+        return implode(' ', $parts);
     }
 
     private function currentBusinessForWrite(): Business
@@ -461,6 +543,28 @@ class ServiceCatalogController extends Controller
     {
         if ($this->actsAsBusinessWideViewer()) {
             active_branch_service()->setActiveBranch($branchId);
+        }
+    }
+
+    private function ensureServiceMaterialAccess(ServiceMaterial $material): void
+    {
+        if ($material->business_id !== $this->currentBusinessId()) {
+            abort(403);
+        }
+
+        if ($this->branchFilterId() && (int) $material->branch_id !== $this->branchFilterId()) {
+            abort(403);
+        }
+    }
+
+    private function ensureServiceCategoryAccess(ServiceCategory $category): void
+    {
+        if ($category->business_id !== $this->currentBusinessId()) {
+            abort(403);
+        }
+
+        if ($this->branchFilterId() && (int) $category->branch_id !== $this->branchFilterId()) {
+            abort(403);
         }
     }
 

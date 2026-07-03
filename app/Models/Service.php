@@ -17,6 +17,7 @@ class Service extends Model
         'description',
         'is_active',
         'consumable_item_id',
+        'service_material_id',
         'consumable_units_per_unit',
     ];
 
@@ -44,6 +45,11 @@ class Service extends Model
     public function consumableItem()
     {
         return $this->belongsTo(Item::class, 'consumable_item_id');
+    }
+
+    public function serviceMaterial()
+    {
+        return $this->belongsTo(ServiceMaterial::class);
     }
 
     public function priceLabel(): string

@@ -51,6 +51,9 @@
       @can('add_items')
       <a href="{{ route('services.register') }}" class="btn btn-outline-primary"><i class="fa fa-plus-circle"></i> Register Business</a>
       @endcan
+      @canany(['manage_services', 'manage_categories', 'view_inventory', 'add_items', 'process_sales'])
+      <a href="{{ route('services.materials') }}" class="btn btn-outline-secondary ml-1"><i class="fa fa-cubes"></i> Materials Stock</a>
+      @endcanany
       @can('process_sales')
       <a href="{{ route('service-pos.create') }}" class="btn btn-success"><i class="fa fa-desktop"></i> Service POS</a>
       @endcan
@@ -93,6 +96,25 @@
 @endif
 @endcanany
 
+@if(($materialsStock ?? collect())->isNotEmpty())
+<div class="tile mb-3">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+    <h3 class="tile-title mb-0"><i class="fa fa-cubes text-muted"></i> Materials stock</h3>
+    <a href="{{ route('services.materials') }}" class="btn btn-sm btn-outline-primary">View all &amp; receive stock</a>
+  </div>
+  <div class="row">
+    @foreach($materialsStock as $mat)
+    <div class="col-md-4 col-sm-6 mb-2">
+      <div class="border rounded p-2 bg-light h-100">
+        <strong>{{ $mat['name'] }}</strong>
+        <div class="text-muted small">In stock: <span class="text-dark font-weight-bold">{{ $mat['stock_label'] }}</span></div>
+      </div>
+    </div>
+    @endforeach
+  </div>
+</div>
+@endif
+
 <div class="tile mb-3">
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
     <h3 class="tile-title mb-0">Categories &amp; services</h3>
@@ -117,6 +139,16 @@
             <small class="text-muted">{{ $typeLabel }} · {{ $category->branch?->name ?? '—' }}</small>
           </div>
           <span class="badge badge-info">{{ $categoryServices->count() }} service(s)</span>
+          @canany(['manage_categories', 'delete_items'])
+          <form method="POST" action="{{ route('services.categories.destroy', $category) }}" class="d-inline mb-0">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-sm btn-outline-danger"
+              onclick="confirmAction(event, 'Delete category?', 'This will remove &quot;{{ $category->name }}&quot; and all {{ $categoryServices->count() }} service(s) inside it. Past sales stay in history.')">
+              <i class="fa fa-trash"></i> Delete category
+            </button>
+          </form>
+          @endcanany
         </div>
         <div class="category-group-body">
           @if($categoryServices->isEmpty())
@@ -146,6 +178,16 @@
                     @canany(['manage_categories','edit_items'])
                     <td class="text-nowrap">
                       <button type="button" class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#editService{{ $service->id }}">Edit</button>
+                      @canany(['manage_categories', 'delete_items'])
+                      <form method="POST" action="{{ route('services.destroy', $service) }}" class="d-inline">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                          onclick="confirmAction(event, 'Delete service?', 'Remove &quot;{{ $service->name }}&quot; from the catalog. Past sales stay in history.')">
+                          <i class="fa fa-trash"></i>
+                        </button>
+                      </form>
+                      @endcanany
                     </td>
                     @endcanany
                   </tr>
@@ -200,22 +242,40 @@
         <div class="form-group"><label>Price TZS</label><input class="form-control" type="number" step="1" min="0" name="price" value="{{ (float)$service->price }}" required></div>
         <div class="form-check"><input type="checkbox" class="form-check-input" name="is_active" value="1" {{ $service->is_active ? 'checked' : '' }}><label class="form-check-label">Active on POS</label></div>
         <hr>
-        <p class="small text-muted mb-2">Optional: link a stock item to deduct when this service is sold.</p>
+        <p class="small text-muted mb-2">Optional: link a service material to deduct when this service is sold.</p>
         <div class="form-group">
-          <label>Consumable item</label>
-          <select class="form-control" name="consumable_item_id">
+          <label>Material</label>
+          <select class="form-control" name="service_material_id">
             <option value="">None</option>
-            @foreach($consumableItems ?? [] as $item)
-            <option value="{{ $item->id }}" {{ (int)$service->consumable_item_id === (int)$item->id ? 'selected' : '' }}>{{ $item->name }} @if($item->sku)({{ $item->sku }})@endif</option>
+            @foreach($serviceMaterials ?? [] as $material)
+            <option value="{{ $material->id }}" {{ (int)$service->service_material_id === (int)$material->id ? 'selected' : '' }}>
+              {{ $material->name }} ({{ $material->stockLabel() }})
+            </option>
             @endforeach
           </select>
+          <small class="text-muted"><a href="{{ route('services.materials') }}">Manage materials</a></small>
         </div>
         <div class="form-group">
-          <label>Stock pieces per 1 service unit</label>
+          <label>Material used per 1 service unit</label>
           <input class="form-control" type="number" step="0.0001" min="0" name="consumable_units_per_unit" value="{{ (float)($service->consumable_units_per_unit ?? 0) }}">
+          <small class="text-muted">Example: 1 page print = 1 sheet of paper</small>
         </div>
       </div>
-      <div class="modal-footer"><button type="submit" class="btn btn-primary">Save</button></div>
+      <div class="modal-footer d-flex justify-content-between">
+        @canany(['manage_categories', 'delete_items'])
+        <form method="POST" action="{{ route('services.destroy', $service) }}" class="mb-0">
+          @csrf
+          @method('DELETE')
+          <button type="submit" class="btn btn-outline-danger"
+            onclick="confirmAction(event, 'Delete service?', 'Remove &quot;{{ $service->name }}&quot; from the catalog. Past sales stay in history.')">
+            <i class="fa fa-trash"></i> Delete
+          </button>
+        </form>
+        @else
+        <span></span>
+        @endcanany
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
     </form>
   </div>
 </div>
