@@ -12,7 +12,7 @@ class InvoiceDocumentService
 {
     public function viewData(Sale $sale, ?Business $business = null, ?Branch $branch = null): array
     {
-        $sale->loadMissing(['items.item', 'items.service', 'user', 'customer', 'business', 'payments']);
+        $sale->loadMissing(['items.item', 'items.itemPackaging.packagingType', 'items.service', 'user', 'customer', 'business', 'payments']);
         $business = $business ?? $sale->business ?? Business::find($sale->business_id);
         $branch = $branch ?? active_branch_service()->activeBranch();
 

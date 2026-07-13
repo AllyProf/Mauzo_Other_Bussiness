@@ -43,6 +43,15 @@ class SaleItem extends Model
         return $this->belongsTo(ItemPackaging::class);
     }
 
+    public function soldUnitName(): string
+    {
+        if ($this->service_id) {
+            return 'Service';
+        }
+
+        return $this->itemPackaging?->packagingType?->name ?? 'Unit';
+    }
+
     public function soldLineDescription(): string
     {
         if ($this->service_id) {
@@ -55,7 +64,7 @@ class SaleItem extends Model
 
         $qty = (float) $this->quantity;
         $qtyLabel = fmod($qty, 1.0) === 0.0 ? (string) (int) $qty : rtrim(rtrim(number_format($qty, 2), '0'), '.');
-        $unitName = $this->itemPackaging?->packagingType?->name ?? 'Unit';
+        $unitName = $this->soldUnitName();
         $itemName = $this->item?->name ?? 'Item';
 
         return trim($qtyLabel . ' ' . $unitName . ' ' . $itemName);

@@ -187,9 +187,17 @@
                   {{ $line->line_description ?: $line->service?->name ?? 'Service' }}
                 @else
                   {{ $line->item->name ?? 'Item' }}
+                  @if($line->itemPackaging?->packagingType?->name)
+                    <br><small class="text-muted">Sold as: {{ $line->itemPackaging->packagingType->name }}</small>
+                  @endif
                 @endif
               </td>
-              <td>{{ number_format((float) $line->quantity, 0) }}</td>
+              <td>
+                {{ number_format((float) $line->quantity, 0) }}
+                @if(! $line->service_id && $line->itemPackaging?->packagingType?->name)
+                  <br><small class="text-muted">{{ $line->itemPackaging->packagingType->name }}</small>
+                @endif
+              </td>
               <td>{{ money($line->unit_price) }}</td>
               <td class="amount-accent">{{ money($line->subtotal) }}</td>
             </tr>

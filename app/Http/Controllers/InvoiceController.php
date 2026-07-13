@@ -314,7 +314,7 @@ class InvoiceController extends Controller
             return redirect()->route('invoices.index')->with('error', 'This invoice was cancelled.');
         }
 
-        $invoice->load(['items.item', 'user', 'customer', 'payments.user', 'business']);
+        $invoice->load(['items.item', 'items.itemPackaging.packagingType', 'items.service', 'user', 'customer', 'payments.user', 'business']);
 
         $branch = active_branch_service()->activeBranch();
 

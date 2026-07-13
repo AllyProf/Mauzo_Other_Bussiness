@@ -231,7 +231,7 @@ class ServiceInvoiceController extends Controller
             abort(403);
         }
 
-        $serviceInvoice->load(['items.service', 'items.item', 'user', 'payments.user', 'customer']);
+        $serviceInvoice->load(['items.service', 'items.item', 'items.itemPackaging.packagingType', 'user', 'payments.user', 'customer']);
         $sale = $serviceInvoice;
 
         return view('invoices.show', [

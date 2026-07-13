@@ -148,12 +148,20 @@
                                     {{ $item->line_description ?: $item->service?->name ?? 'Service' }}
                                 @else
                                     {{ $item->item->name ?? 'Item' }}
+                                    @if($item->itemPackaging?->packagingType?->name)
+                                        <br><small class="text-muted font-weight-normal">Sold as: {{ $item->itemPackaging->packagingType->name }}</small>
+                                    @endif
                                     @if($item->item?->sku)
                                         <br><small class="text-muted font-weight-normal">SKU: {{ $item->item->sku }}</small>
                                     @endif
                                 @endif
                             </td>
-                            <td>{{ $item->quantity }}</td>
+                            <td>
+                                {{ $item->quantity }}
+                                @if(! $item->service_id && $item->itemPackaging?->packagingType?->name)
+                                    <br><small class="text-muted">{{ $item->itemPackaging->packagingType->name }}</small>
+                                @endif
+                            </td>
                             <td>{{ money($listPrice) }}</td>
                             <td>{{ money($item->unit_price) }}</td>
                             <td>

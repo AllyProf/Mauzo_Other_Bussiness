@@ -437,7 +437,7 @@ class SaleController extends Controller
             abort(403);
         }
         $this->ensureCanAccessStaffRecord((int) $sale->user_id);
-        $sale->load(['items.item', 'items.service', 'user', 'payments.user']);
+        $sale->load(['items.item', 'items.itemPackaging.packagingType', 'items.service', 'user', 'payments.user']);
         return view('sales.show', compact('sale'));
     }
 
