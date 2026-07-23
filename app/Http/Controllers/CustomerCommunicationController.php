@@ -41,8 +41,8 @@ class CustomerCommunicationController extends Controller
             ->where('business_id', $business->id)
             ->with(['customer', 'user', 'campaign'])
             ->latest()
-            ->limit(50)
-            ->get();
+            ->paginate(7)
+            ->withQueryString();
 
         $scheduledCampaigns = CustomerCommunicationCampaign::query()
             ->where('business_id', $business->id)

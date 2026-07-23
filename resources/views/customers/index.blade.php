@@ -18,6 +18,23 @@
   .customers-page .cust-mobile-name { font-weight: 700; color: #940000; font-size: 0.95rem; line-height: 1.35; }
   .customers-page .cust-mobile-meta { display: flex; flex-direction: column; gap: 2px; font-size: 0.82rem; color: #6c757d; margin-top: 4px; }
   .customers-page .cust-mobile-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid #eee; }
+  .customers-page .customer-modal-dialog { max-width: 560px; }
+  .customers-page .customer-modal-header {
+    background: #940000;
+    color: #fff;
+    align-items: center;
+    padding: 1rem 1.25rem;
+  }
+  .customers-page .customer-modal-header .close {
+    opacity: 1;
+    text-shadow: none;
+    color: #fff;
+  }
+  .customers-page .customer-modal-body {
+    padding: 1.15rem 1.25rem;
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+  }
 
   @media (max-width: 991.98px) {
     .customers-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
@@ -44,7 +61,9 @@
     <p>{{ __('pages.customers.subtitle') }}</p>
     @can('manage_customers')
     <div class="cust-title-actions d-print-none">
-      <a href="{{ route('customers.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> {{ __('pages.customers.register') }}</a>
+      <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#registerCustomerModal">
+        <i class="fa fa-plus"></i> {{ __('pages.customers.register') }}
+      </button>
     </div>
     @endcan
   </div>
@@ -162,6 +181,37 @@
   </div>
 </div>
 </div>
+
+@can('manage_customers')
+<div class="modal fade" id="registerCustomerModal" tabindex="-1" role="dialog" aria-labelledby="registerCustomerModalLabel" aria-hidden="true">
+  <div class="modal-dialog customer-modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form action="{{ route('customers.store') }}" method="POST" id="registerCustomerForm">
+        @csrf
+        <div class="modal-header customer-modal-header">
+          <h5 class="modal-title mb-0" id="registerCustomerModalLabel">
+            <i class="fa fa-user-plus"></i> {{ __('pages.customers.register') }}
+          </h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body customer-modal-body">
+          @include('customers.partials.form')
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">
+            <i class="fa fa-times"></i> Cancel
+          </button>
+          <button type="submit" class="btn btn-primary" style="background:#940000;border-color:#940000;">
+            <i class="fa fa-check-circle"></i> {{ __('pages.customers.register') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+@endcan
 @endsection
 
 @section('scripts')
@@ -181,6 +231,20 @@ $(document).on('click', '.btn-delete-customer', function() {
   }).then((result) => {
     if (result.isConfirmed) form.submit();
   });
+});
+
+@if($errors->any() || (session('error') && old('name') !== null) || request()->boolean('register'))
+$(function () {
+  $('#registerCustomerModal').modal('show');
+});
+@endif
+
+$('#registerCustomerModal').on('hidden.bs.modal', function () {
+  var form = document.getElementById('registerCustomerForm');
+  if (!form) return;
+  form.reset();
+  $(form).find('.is-invalid').removeClass('is-invalid');
+  $(form).find('.invalid-feedback').remove();
 });
 </script>
 @endsection

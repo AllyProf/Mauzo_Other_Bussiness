@@ -92,11 +92,17 @@ class ActiveBusinessService
     {
         $businessId = $this->activeBusinessId();
 
-        if (! $businessId) {
-            return null;
+        if ($businessId) {
+            $business = Business::find($businessId);
+            if ($business) {
+                return $business;
+            }
         }
 
-        return Business::find($businessId);
+        $user = auth()->user();
+
+        return $user?->business
+            ?? ($user?->business_id ? Business::find($user->business_id) : null);
     }
 
     public function activeBusinessLabel(): string

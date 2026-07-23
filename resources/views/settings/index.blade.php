@@ -581,6 +581,140 @@
               </div>
             </div>
 
+            <h6 class="font-weight-bold text-dark mt-4"><i class="fa fa-bar-chart text-info"></i> Owner Report SMS</h6>
+            <p class="small text-muted mb-3">Send a short sales summary by SMS to the business owner phone. Uses your plan SMS quota.</p>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="sms_daily_report_enabled" name="sms_daily_report_enabled" value="1" {{ old('sms_daily_report_enabled', $automation['sms_daily_report_enabled'] ?? false) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="sms_daily_report_enabled">
+                  <strong>Daily sales report SMS</strong>
+                  <br><small class="text-muted">Yesterday’s sales, collected amount, orders, and outstanding debts.</small>
+                </label>
+              </div>
+            </div>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="sms_weekly_report_enabled" name="sms_weekly_report_enabled" value="1" {{ old('sms_weekly_report_enabled', $automation['sms_weekly_report_enabled'] ?? false) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="sms_weekly_report_enabled">
+                  <strong>Weekly sales report SMS</strong>
+                  <br><small class="text-muted">Last 7 days summary, sent on the weekday you choose below.</small>
+                </label>
+              </div>
+            </div>
+            <div class="form-row mb-3">
+              <div class="form-group col-md-4 mb-2 mb-md-0">
+                <label class="small font-weight-bold" for="sms_report_send_time">Send time</label>
+                <input type="time" name="sms_report_send_time" id="sms_report_send_time" class="form-control form-control-sm" value="{{ old('sms_report_send_time', $automation['sms_report_send_time'] ?? '18:00') }}">
+                <small class="text-muted">Server time (Africa/Dar es Salaam).</small>
+              </div>
+              <div class="form-group col-md-4 mb-0">
+                <label class="small font-weight-bold" for="sms_weekly_report_day">Weekly send day</label>
+                @php
+                  $weeklyDay = (int) old('sms_weekly_report_day', $automation['sms_weekly_report_day'] ?? 1);
+                  $weekDays = [0 => 'Sunday', 1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'];
+                @endphp
+                <select name="sms_weekly_report_day" id="sms_weekly_report_day" class="form-control form-control-sm">
+                  @foreach($weekDays as $dayValue => $dayLabel)
+                    <option value="{{ $dayValue }}" {{ $weeklyDay === $dayValue ? 'selected' : '' }}>{{ $dayLabel }}</option>
+                  @endforeach
+                </select>
+              </div>
+            </div>
+
+            <h6 class="font-weight-bold text-dark mt-4"><i class="fa fa-envelope text-danger"></i> Sales Report Email (PDF)</h6>
+            <p class="small text-muted mb-3">Email a sales summary PDF (same style as Item Stock export) when a shift is closed, and/or on a schedule. Add one or more recipient emails below.</p>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="email_sales_report_enabled" name="email_sales_report_enabled" value="1" {{ old('email_sales_report_enabled', $automation['email_sales_report_enabled'] ?? false) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="email_sales_report_enabled">
+                  <strong>Enable sales report emails</strong>
+                  <br><small class="text-muted">Master switch for shift-close and scheduled PDF emails.</small>
+                </label>
+              </div>
+            </div>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="email_sales_report_on_shift_close" name="email_sales_report_on_shift_close" value="1" {{ old('email_sales_report_on_shift_close', $automation['email_sales_report_on_shift_close'] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="email_sales_report_on_shift_close">
+                  <strong>Send when shift is closed</strong>
+                  <br><small class="text-muted">Email PDF after sales officer or owner submits shift handover / direct close.</small>
+                </label>
+              </div>
+            </div>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="email_sales_report_daily" name="email_sales_report_daily" value="1" {{ old('email_sales_report_daily', $automation['email_sales_report_daily'] ?? false) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="email_sales_report_daily">
+                  <strong>Daily PDF report</strong>
+                  <br><small class="text-muted">Yesterday’s sales list PDF.</small>
+                </label>
+              </div>
+            </div>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="email_sales_report_weekly" name="email_sales_report_weekly" value="1" {{ old('email_sales_report_weekly', $automation['email_sales_report_weekly'] ?? false) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="email_sales_report_weekly">
+                  <strong>Weekly PDF report</strong>
+                  <br><small class="text-muted">Last 7 days sales PDF.</small>
+                </label>
+              </div>
+            </div>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="email_sales_report_monthly" name="email_sales_report_monthly" value="1" {{ old('email_sales_report_monthly', $automation['email_sales_report_monthly'] ?? false) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="email_sales_report_monthly">
+                  <strong>Monthly PDF report</strong>
+                  <br><small class="text-muted">Previous calendar month sales PDF.</small>
+                </label>
+              </div>
+            </div>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="email_sales_report_skip_empty" name="email_sales_report_skip_empty" value="1" {{ old('email_sales_report_skip_empty', $automation['email_sales_report_skip_empty'] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="email_sales_report_skip_empty">
+                  <strong>Skip empty days</strong>
+                  <br><small class="text-muted">Do not email when there were zero sales in the period.</small>
+                </label>
+              </div>
+            </div>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="email_sales_report_manager_digest" name="email_sales_report_manager_digest" value="1" {{ old('email_sales_report_manager_digest', $automation['email_sales_report_manager_digest'] ?? true) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="email_sales_report_manager_digest">
+                  <strong>Manager digest (all branches)</strong>
+                  <br><small class="text-muted">One combined PDF for all branches. When Daily is on, skip per-shift emails.</small>
+                </label>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-4 mb-2">
+                <label class="small font-weight-bold" for="email_sales_report_send_time">Scheduled send time</label>
+                <input type="time" name="email_sales_report_send_time" id="email_sales_report_send_time" class="form-control form-control-sm" value="{{ old('email_sales_report_send_time', $automation['email_sales_report_send_time'] ?? '18:00') }}">
+              </div>
+              <div class="form-group col-md-4 mb-2">
+                <label class="small font-weight-bold" for="email_sales_report_weekly_day">Weekly send day</label>
+                @php
+                  $emailWeeklyDay = (int) old('email_sales_report_weekly_day', $automation['email_sales_report_weekly_day'] ?? 1);
+                  $emailWeekDays = [0 => 'Sunday', 1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'];
+                @endphp
+                <select name="email_sales_report_weekly_day" id="email_sales_report_weekly_day" class="form-control form-control-sm">
+                  @foreach($emailWeekDays as $dayValue => $dayLabel)
+                    <option value="{{ $dayValue }}" {{ $emailWeeklyDay === $dayValue ? 'selected' : '' }}>{{ $dayLabel }}</option>
+                  @endforeach
+                </select>
+              </div>
+              <div class="form-group col-md-4 mb-2">
+                <label class="small font-weight-bold" for="email_sales_report_monthly_day">Monthly send day</label>
+                <input type="number" name="email_sales_report_monthly_day" id="email_sales_report_monthly_day" class="form-control form-control-sm" min="1" max="28" value="{{ old('email_sales_report_monthly_day', $automation['email_sales_report_monthly_day'] ?? 1) }}">
+                <small class="text-muted">Day of month (1–28).</small>
+              </div>
+            </div>
+            <div class="form-group mb-3">
+              <label class="small font-weight-bold" for="email_sales_report_recipients">Recipient emails</label>
+              <textarea name="email_sales_report_recipients" id="email_sales_report_recipients" class="form-control form-control-sm" rows="3" placeholder="owner@example.com, manager@example.com">{{ old('email_sales_report_recipients', $automation['email_sales_report_recipients'] ?? '') }}</textarea>
+              <small class="text-muted">Separate multiple emails with commas or new lines. Leave empty to use the owner/business email.</small>
+            </div>
+
             <h6 class="font-weight-bold text-dark mt-4"><i class="fa fa-comment text-success"></i> Staff SMS Notifications</h6>
             <p class="small text-muted mb-3">Send SMS to employees when you manage their accounts. Uses your plan SMS quota. Staff must have a phone number on their profile.</p>
             <div class="setting-switch-row">

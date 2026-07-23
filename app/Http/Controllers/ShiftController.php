@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 
 class ShiftController extends Controller
 {
-    public function index(ShiftPolicyService $shiftPolicy)
+    public function index(Request $request, ShiftPolicyService $shiftPolicy)
     {
         $this->authorizeAny(['open_shift', 'process_sales', 'view_all_shifts']);
 
@@ -23,7 +23,7 @@ class ShiftController extends Controller
         $openShift = Shift::openForUser(Auth::id(), $businessId);
 
         $query = Shift::where('business_id', $businessId)
-            ->with('user')
+            ->with(['user', 'dayClosing'])
             ->withCount('openingShortages')
             ->latest('opened_at');
 
@@ -33,7 +33,34 @@ class ShiftController extends Controller
 
         $this->scopeToActiveBranchUsers($query);
 
-        $shifts = $query->paginate(15);
+        $search = trim((string) $request->input('search', ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('user', function ($userQuery) use ($search) {
+                    $userQuery->where('name', 'like', '%'.$search.'%');
+                });
+
+                if (ctype_digit($search)) {
+                    $q->orWhere('id', (int) $search);
+                }
+
+                $q->orWhere('status', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('opened_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('opened_at', '<=', $request->date_to);
+        }
+
+        if ($request->filled('status') && in_array($request->status, ['open', 'closed'], true)) {
+            $query->where('status', $request->status);
+        }
+
+        $shifts = $query->paginate(15)->appends($request->query());
 
         $pendingHandoverShift = Shift::latestClosedAwaitingHandover(Auth::id(), $businessId);
 
@@ -68,6 +95,12 @@ class ShiftController extends Controller
             'shiftOpenCheck' => $shiftPolicy->canOpenShift($business),
             'shiftOpenWindowLabel' => $shiftPolicy->openWindowLabel($business),
             'shiftOverdueStatus' => $openShift ? $shiftPolicy->shiftOverdueStatus($openShift, $business) : null,
+            'filters' => [
+                'search' => $search,
+                'date_from' => (string) $request->input('date_from', ''),
+                'date_to' => (string) $request->input('date_to', ''),
+                'status' => (string) $request->input('status', ''),
+            ],
         ]);
     }
 

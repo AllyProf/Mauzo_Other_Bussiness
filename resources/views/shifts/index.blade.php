@@ -23,6 +23,19 @@
     flex-wrap: wrap;
     gap: 8px;
   }
+  .shifts-page .shifts-filter-tile label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  .shifts-page .shifts-pagination-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+  }
+  .shifts-page .shifts-pagination-wrap .pagination {
+    margin-bottom: 0;
+  }
 
   @media (max-width: 991.98px) {
     .shifts-page .app-title {
@@ -101,29 +114,35 @@
 @endsection
 
 @section('content')
+@php
+  $canOpenShiftButton = Auth::user()->requiresOpenShift();
+  $filters = $filters ?? ['search' => '', 'date_from' => '', 'date_to' => '', 'status' => ''];
+@endphp
 <div class="shifts-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-clock-o"></i> Sales Shifts</h1>
     <p>Each sales officer opens a shift with a physical stock check before selling</p>
   </div>
-  @if(!$openShift)
-    @canany(['open_shift', 'process_sales'])
-      @if($shiftOpenCheck['allowed'] ?? true)
-        <a href="{{ route('shifts.create') }}" class="btn btn-success"><i class="fa fa-play"></i> Open Shift</a>
-      @else
-        <button type="button" class="btn btn-secondary" disabled title="{{ $shiftOpenCheck['message'] ?? '' }}"><i class="fa fa-ban"></i> Opening Not Allowed Now</button>
-      @endif
-    @endcanany
-  @else
-    <div class="shifts-title-actions">
-      <a href="{{ route('sales.create') }}" class="btn btn-primary"><i class="fa fa-shopping-cart"></i> Go to POS</a>
-      <a href="{{ route('day-closing.index', ['shift' => $openShift->id]) }}" class="btn btn-warning"><i class="fa fa-balance-scale"></i> End Shift / Handover</a>
-    </div>
+  @if($canOpenShiftButton)
+    @if(!$openShift)
+      @canany(['open_shift', 'process_sales'])
+        @if($shiftOpenCheck['allowed'] ?? true)
+          <a href="{{ route('shifts.create') }}" class="btn btn-success"><i class="fa fa-play"></i> Open Shift</a>
+        @else
+          <button type="button" class="btn btn-secondary" disabled title="{{ $shiftOpenCheck['message'] ?? '' }}"><i class="fa fa-ban"></i> Opening Not Allowed Now</button>
+        @endif
+      @endcanany
+    @else
+      <div class="shifts-title-actions">
+        <a href="{{ route('sales.create') }}" class="btn btn-primary"><i class="fa fa-shopping-cart"></i> Go to POS</a>
+        <a href="{{ route('day-closing.index', ['shift' => $openShift->id]) }}" class="btn btn-warning"><i class="fa fa-balance-scale"></i> End Shift / Handover</a>
+      </div>
+    @endif
   @endif
 </div>
 
-@if(!$openShift && !($shiftOpenCheck['allowed'] ?? true))
+@if($canOpenShiftButton && !$openShift && !($shiftOpenCheck['allowed'] ?? true))
 <div class="row mb-3">
   <div class="col-md-12">
     <div class="alert alert-warning mb-0">
@@ -134,7 +153,7 @@
 </div>
 @endif
 
-@if($openShift)
+@if($canOpenShiftButton && $openShift)
 <div class="row mb-3">
   <div class="col-md-12">
     @if(($shiftOverdueStatus['overdue'] ?? false))
@@ -228,11 +247,43 @@
   @include('home.partials.my-stock-shortages', ['mobileTable' => true])
 </div>
 
+<div class="row mb-3">
+  <div class="col-md-12">
+    <div class="tile p-3 shifts-filter-tile">
+      <form method="GET" action="{{ route('shifts.index') }}" id="shiftsFilterForm" class="row align-items-end mb-0">
+        <div class="col-md-4 form-group mb-2 mb-md-0">
+          <label for="shiftsSearch"><i class="fa fa-search"></i> Search</label>
+          <input type="text" name="search" id="shiftsSearch" class="form-control form-control-sm" value="{{ $filters['search'] }}" placeholder="Officer name, shift #, status…" autocomplete="off">
+        </div>
+        <div class="col-md-2 form-group mb-2 mb-md-0">
+          <label for="shiftsDateFrom">Date from</label>
+          <input type="date" name="date_from" id="shiftsDateFrom" class="form-control form-control-sm" value="{{ $filters['date_from'] }}">
+        </div>
+        <div class="col-md-2 form-group mb-2 mb-md-0">
+          <label for="shiftsDateTo">Date to</label>
+          <input type="date" name="date_to" id="shiftsDateTo" class="form-control form-control-sm" value="{{ $filters['date_to'] }}">
+        </div>
+        <div class="col-md-2 form-group mb-2 mb-md-0">
+          <label for="shiftsStatus">Status</label>
+          <select name="status" id="shiftsStatus" class="form-control form-control-sm">
+            <option value="">All</option>
+            <option value="open" {{ ($filters['status'] ?? '') === 'open' ? 'selected' : '' }}>Open</option>
+            <option value="closed" {{ ($filters['status'] ?? '') === 'closed' ? 'selected' : '' }}>Closed</option>
+          </select>
+        </div>
+        <div class="col-md-2 mb-2 mb-md-0">
+          <a href="{{ route('shifts.index') }}" class="btn btn-secondary btn-sm btn-block"><i class="fa fa-times"></i> Clear</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="row">
   <div class="col-md-12">
     <div class="tile">
       <h3 class="tile-title">Shift History</h3>
-      <div class="tile-body">
+      <div class="tile-body" id="shiftsHistoryBody">
         <div class="table-responsive shifts-table-wrap">
         <table class="table table-hover table-bordered shifts-history-table">
           <thead>
@@ -301,21 +352,70 @@
                 </td>
                 <td class="shift-actions">
                   <a href="{{ route('shifts.show', $shift) }}" class="btn btn-sm btn-primary" title="{{ __('tables.actions.view') }}"><i class="fa fa-eye"></i></a>
+                  @if($shift->dayClosing)
+                    <a href="{{ route('day-closing.index', ['date' => $shift->dayClosing->closing_date->format('Y-m-d')]) }}#handover-{{ $shift->dayClosing->id }}"
+                       class="btn btn-sm btn-info"
+                       title="Review handover">
+                      <i class="fa fa-search"></i> Review
+                    </a>
+                  @endif
                   @if($shift->isOpen() && $shift->user_id === Auth::id())
                     <a href="{{ route('day-closing.index', ['shift' => $shift->id]) }}" class="btn btn-sm btn-warning" title="End shift / handover"><i class="fa fa-balance-scale"></i></a>
                   @endif
                 </td>
               </tr>
             @empty
-              <tr><td colspan="9" class="text-center text-muted">No shifts recorded yet.</td></tr>
+              <tr><td colspan="9" class="text-center text-muted">No shifts found for the selected filters.</td></tr>
             @endforelse
           </tbody>
         </table>
         </div>
-        {{ $shifts->links() }}
+        @if($shifts->hasPages())
+          <div class="shifts-pagination-wrap">
+            {{ $shifts->links('pagination::bootstrap-4') }}
+          </div>
+        @endif
       </div>
     </div>
   </div>
 </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+  (function () {
+    var form = document.getElementById('shiftsFilterForm');
+    if (!form) return;
+
+    var searchInput = document.getElementById('shiftsSearch');
+    var dateFrom = document.getElementById('shiftsDateFrom');
+    var dateTo = document.getElementById('shiftsDateTo');
+    var status = document.getElementById('shiftsStatus');
+    var searchTimer = null;
+
+    function submitFilters() {
+      form.submit();
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(submitFilters, 350);
+      });
+      searchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          clearTimeout(searchTimer);
+          submitFilters();
+        }
+      });
+    }
+
+    [dateFrom, dateTo, status].forEach(function (el) {
+      if (!el) return;
+      el.addEventListener('change', submitFilters);
+    });
+  })();
+</script>
 @endsection

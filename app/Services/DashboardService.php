@@ -98,11 +98,14 @@ class DashboardService
 
     private function monthlyPurchaseCost(int $businessId): float
     {
-        return (float) Receiving::query()
+        $query = Receiving::query()
             ->where('business_id', $businessId)
             ->where('status', 'completed')
-            ->whereBetween('received_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
-            ->sum('total_amount');
+            ->whereBetween('received_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()]);
+
+        $this->branchService->scopeReceivingsByActiveBranch($query);
+
+        return (float) $query->sum('total_amount');
     }
 
     private function outstandingDebt(int $businessId): float

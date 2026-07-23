@@ -460,6 +460,12 @@
             </tbody>
           </table>
         </div>
+
+        @if($logs->hasPages())
+          <div class="d-flex justify-content-center mt-3">
+            {{ $logs->links('pagination::bootstrap-4') }}
+          </div>
+        @endif
       </div>
     </div>
   </div>

@@ -203,6 +203,27 @@ class ActiveBranchService
         });
     }
 
+    public function scopeReceivingsByActiveBranch(Builder $query): Builder
+    {
+        $user = auth()->user();
+
+        if ($user && ! $user->seesBusinessWideData()) {
+            if ($user->branch_id) {
+                return $query->where('branch_id', (int) $user->branch_id);
+            }
+
+            return $query;
+        }
+
+        $branchId = $this->activeBranchId();
+
+        if ($branchId) {
+            return $query->where('branch_id', $branchId);
+        }
+
+        return $query;
+    }
+
     public function branchUserIds(): ?array
     {
         $branchId = $this->activeBranchId();

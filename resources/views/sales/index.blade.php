@@ -372,7 +372,9 @@
           </tbody>
         </table>
         </div>
-        {{ $sales->appends(request()->query())->links() }}
+        <div class="d-flex justify-content-center mt-3">
+          {{ $sales->appends(request()->query())->links('pagination::bootstrap-4') }}
+        </div>
       </div>
     </div>
   </div>

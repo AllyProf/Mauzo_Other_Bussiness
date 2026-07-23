@@ -76,7 +76,7 @@
   </div>
   @endif
 
-  <div class="col-md-6">
+  <div class="col-md-12">
     <div class="tile">
       <h3 class="tile-title">Opening Stock Check</h3>
       <div class="tile-body table-responsive">
@@ -103,31 +103,6 @@
         </table>
         @if($shift->opening_notes)
           <p class="small text-muted mb-0"><strong>Notes:</strong> {{ $shift->opening_notes }}</p>
-        @endif
-      </div>
-    </div>
-  </div>
-  <div class="col-md-6">
-    <div class="tile">
-      <h3 class="tile-title">Closing Stock Check</h3>
-      <div class="tile-body table-responsive">
-        <table class="table table-sm table-bordered">
-          <thead><tr><th>{{ __('tables.columns.item') }}</th><th class="text-right">System</th><th class="text-right">Counted</th><th class="text-right">Variance</th></tr></thead>
-          <tbody>
-            @forelse($shift->closingChecks as $check)
-              <tr class="{{ abs($check->variance) > 0.001 ? 'table-warning' : '' }}">
-                <td>{{ $check->item->name ?? 'Item' }}</td>
-                <td class="text-right">{{ number_format($check->system_stock, 2) }}</td>
-                <td class="text-right">{{ number_format($check->counted_stock, 2) }}</td>
-                <td class="text-right {{ abs($check->variance) > 0.001 ? 'text-danger font-weight-bold' : 'text-success' }}">{{ number_format($check->variance, 2) }}</td>
-              </tr>
-            @empty
-              <tr><td colspan="4" class="text-muted text-center">{{ $shift->isOpen() ? 'Complete when closing shift.' : 'No closing check recorded.' }}</td></tr>
-            @endforelse
-          </tbody>
-        </table>
-        @if($shift->closing_notes)
-          <p class="small text-muted mb-0"><strong>Notes:</strong> {{ $shift->closing_notes }}</p>
         @endif
       </div>
     </div>

@@ -7,9 +7,6 @@
 
 @php
     $business = Auth::user()->business;
-    $logoUrl = $business->logo_path
-        ? asset('storage/'.$business->logo_path)
-        : 'https://ui-avatars.com/api/?name='.urlencode($business->name).'&background=940000&color=fff&size=120';
     $balanceDue = max(0, (float) $sale->total_amount - (float) $sale->amount_paid);
     $totalAdjustments = $sale->items->sum(fn ($item) => (float) $item->discount_amount);
     $totalListAmount = $sale->items->sum(fn ($item) => (float) ($item->list_unit_price ?? $item->unit_price) * (float) $item->quantity);
@@ -57,7 +54,9 @@
 
     <div class="tile report-sheet">
         <div class="report-header-center">
-            <img src="{{ $logoUrl }}" alt="{{ $business->name }}">
+            @if($business->logo_path)
+                <img src="{{ asset('storage/'.$business->logo_path) }}" alt="{{ $business->name }}">
+            @endif
             <h1>{{ $business->name }}</h1>
             <div class="biz-contact-info">
                 @if($business->address){{ $business->address }}@endif

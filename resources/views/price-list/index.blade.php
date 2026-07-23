@@ -49,14 +49,10 @@
     </div>
 
     <div class="tile report-sheet">
-        @php
-            $logoUrl = $business->logo_path
-                ? asset('storage/'.$business->logo_path)
-                : 'https://ui-avatars.com/api/?name='.urlencode($business->name).'&background=940000&color=fff&size=120';
-        @endphp
-
         <div class="report-header-center">
-            <img src="{{ $logoUrl }}" alt="{{ $business->name }}">
+            @if($business->logo_path)
+                <img src="{{ asset('storage/'.$business->logo_path) }}" alt="{{ $business->name }}">
+            @endif
             <h1>{{ $business->name }}</h1>
             <div class="biz-contact-info">
                 @if($business->address){{ $business->address }}@endif

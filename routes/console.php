@@ -28,6 +28,11 @@ Schedule::command('debts:send-reminders')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/debt-reminders.log'));
 
+Schedule::command('reports:send-sms')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/owner-report-sms.log'));
+
 Schedule::command('platform:send-payment-reminders')
     ->dailyAt('08:00')
     ->withoutOverlapping()

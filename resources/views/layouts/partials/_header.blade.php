@@ -1,5 +1,7 @@
 <header class="app-header">
-  <a class="app-header__logo" href="{{ url('/home') }}" title="{{ $headerBrand ?? 'SP-POS' }}">{{ $headerBrand ?? 'SP-POS' }}</a>
+  <a class="app-header__logo @if(mb_strlen($headerBrand ?? '') > 18) is-long-name @endif @if(mb_strlen($headerBrand ?? '') > 26) is-very-long-name @endif"
+     href="{{ url('/home') }}"
+     title="{{ $headerBrand ?? 'SP-POS' }}">{{ $headerBrand ?? 'SP-POS' }}</a>
   <a class="app-sidebar__toggle" href="#" data-toggle="sidebar" aria-label="Hide Sidebar"></a>
   <ul class="app-nav app-nav--toolbar">
     @include('partials.language-switcher')

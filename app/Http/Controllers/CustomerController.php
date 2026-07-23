@@ -64,7 +64,7 @@ class CustomerController extends Controller
     {
         Gate::authorize('manage_customers');
 
-        return view('customers.create');
+        return redirect()->route('customers.index', ['register' => 1]);
     }
 
     public function store(Request $request)
@@ -84,11 +84,17 @@ class CustomerController extends Controller
         ]);
 
         if (! $phone) {
-            return redirect()->back()->withInput()->with('error', 'Please enter a valid phone number.');
+            return redirect()
+                ->route('customers.index')
+                ->withInput()
+                ->with('error', 'Please enter a valid phone number.');
         }
 
         if (Customer::where('business_id', $businessId)->where('phone', $phone)->exists()) {
-            return redirect()->back()->withInput()->with('error', 'A customer with this phone number already exists.');
+            return redirect()
+                ->route('customers.index')
+                ->withInput()
+                ->with('error', 'A customer with this phone number already exists.');
         }
 
         Customer::create([

@@ -120,12 +120,27 @@ class BusinessSettingsController extends Controller
             'debt_reminder_frequency' => 'required|in:once,twice',
             'default_debt_due_days' => 'required|integer|min:1|max:365',
             'low_stock_threshold' => 'required|integer|min:0|max:1000',
+            'sms_report_send_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'sms_weekly_report_day' => 'required|integer|between:0,6',
+            'email_sales_report_send_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'email_sales_report_weekly_day' => 'required|integer|between:0,6',
+            'email_sales_report_monthly_day' => 'required|integer|min:1|max:28',
+            'email_sales_report_recipients' => 'nullable|string|max:2000',
             ...collect(Business::defaultSmsTemplates())->mapWithKeys(
                 fn ($default, $key) => [$key => 'required|string|max:480']
             )->all(),
         ]);
 
         $business = Auth::user()->business;
+
+        $reportEmails = app(\App\Services\BusinessSalesReportEmailService::class)
+            ->parseRecipientEmails((string) $request->input('email_sales_report_recipients', ''));
+
+        if ($request->boolean('email_sales_report_enabled') && $reportEmails === [] && ! filled($business->email) && ! filled($business->resolveOwner()?->email)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Add at least one recipient email for sales report emails, or set a business/owner email.');
+        }
 
         $smsTemplates = collect(Business::defaultSmsTemplates())
             ->mapWithKeys(fn ($default, $key) => [$key => trim((string) $request->input($key, $default))])
@@ -168,6 +183,21 @@ class BusinessSettingsController extends Controller
                     'sms_debt_due_today_staff' => $request->boolean('sms_debt_due_today_staff'),
                     'sms_debt_overdue_customer' => $request->boolean('sms_debt_overdue_customer'),
                     'sms_debt_overdue_staff' => $request->boolean('sms_debt_overdue_staff'),
+                    'sms_daily_report_enabled' => $request->boolean('sms_daily_report_enabled'),
+                    'sms_weekly_report_enabled' => $request->boolean('sms_weekly_report_enabled'),
+                    'sms_report_send_time' => (string) $request->sms_report_send_time,
+                    'sms_weekly_report_day' => (int) $request->sms_weekly_report_day,
+                    'email_sales_report_enabled' => $request->boolean('email_sales_report_enabled'),
+                    'email_sales_report_on_shift_close' => $request->boolean('email_sales_report_on_shift_close'),
+                    'email_sales_report_daily' => $request->boolean('email_sales_report_daily'),
+                    'email_sales_report_weekly' => $request->boolean('email_sales_report_weekly'),
+                    'email_sales_report_monthly' => $request->boolean('email_sales_report_monthly'),
+                    'email_sales_report_send_time' => (string) $request->email_sales_report_send_time,
+                    'email_sales_report_weekly_day' => (int) $request->email_sales_report_weekly_day,
+                    'email_sales_report_monthly_day' => (int) $request->email_sales_report_monthly_day,
+                    'email_sales_report_recipients' => implode(', ', $reportEmails),
+                    'email_sales_report_skip_empty' => $request->boolean('email_sales_report_skip_empty'),
+                    'email_sales_report_manager_digest' => $request->boolean('email_sales_report_manager_digest'),
                     'email_staff_enabled' => $request->boolean('email_staff_enabled'),
                     'email_debt_enabled' => $request->boolean('email_debt_enabled'),
                     ...$smsTemplates,

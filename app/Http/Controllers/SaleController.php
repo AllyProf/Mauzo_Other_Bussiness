@@ -39,7 +39,7 @@ class SaleController extends Controller
             ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? 'Branch')
             : null;
 
-        $business = $this->currentBusiness();
+        $business = $this->requireCurrentBusiness();
         $templates = config('category_templates', []);
 
         if ($branchFilterId) {
@@ -197,7 +197,7 @@ class SaleController extends Controller
         }
 
         // POS Screen
-        $business = $this->currentBusiness();
+        $business = $this->requireCurrentBusiness();
 
         $branchFilterId = null;
         if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {

@@ -77,7 +77,11 @@ abstract class Controller
 
     protected function currentBusiness(): ?Business
     {
-        $business = active_business() ?? auth()->user()?->business;
+        $user = auth()->user();
+
+        $business = active_business()
+            ?? $user?->business
+            ?? ($user?->business_id ? Business::find($user->business_id) : null);
 
         if ($business) {
             return $business;

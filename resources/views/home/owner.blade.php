@@ -279,7 +279,6 @@
       <div class="info">
         <h4>{{ __('dashboard.month_label', ['month' => now()->format('M Y')]) }}</h4>
         <p><b>{{ money($monthRevenue) }}</b></p>
-        <small class="text-muted">{{ __('dashboard.orders_collected', ['orders' => number_format($monthOrders), 'collected' => money($monthCollected, false)]) }}</small>
       </div>
     </div>
   </div>
@@ -289,7 +288,6 @@
       <div class="info">
         <h4>{{ __('dashboard.stock_alerts') }}</h4>
         <p><b>{{ number_format($pendingShortages) }}</b></p>
-        <small class="text-muted">{{ __('dashboard.shortages_low_stock', ['count' => number_format($lowStockCount)]) }}</small>
       </div>
     </div>
   </div>
@@ -299,7 +297,6 @@
       <div class="info">
         <h4>{{ __('dashboard.month_purchases') }}</h4>
         <p><b>{{ money($monthlyPurchaseCost) }}</b></p>
-        <small class="text-muted">{{ __('dashboard.stock_received') }}</small>
       </div>
     </div>
   </div>

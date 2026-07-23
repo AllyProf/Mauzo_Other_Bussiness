@@ -8,6 +8,7 @@ use App\Models\Sale;
 use App\Models\SalePayment;
 use App\Models\Shift;
 use App\Models\User;
+use App\Services\BusinessSalesReportEmailService;
 use App\Services\BusinessStaffMailService;
 use App\Services\BusinessStaffSmsService;
 use App\Services\BusinessTypeBreakdownService;
@@ -27,6 +28,7 @@ class DayClosingController extends Controller
         private BusinessTypeBreakdownService $businessTypeBreakdown,
         private BusinessStaffSmsService $staffSms,
         private BusinessStaffMailService $staffMail,
+        private BusinessSalesReportEmailService $salesReportEmail,
     )
     {
     }
@@ -69,9 +71,9 @@ class DayClosingController extends Controller
         }
 
         $date = $shift
-            ? ($shift->isOpen()
-                ? $shift->opened_at->toDateString()
-                : ($shift->closed_at?->toDateString() ?? now()->toDateString()))
+            ? ($shift->opened_at?->toDateString()
+                ?? $shift->closed_at?->toDateString()
+                ?? now()->toDateString())
             : ($request->get('date', now()->toDateString()));
 
         if ($shift && ! $shift->isOpen()) {
@@ -419,7 +421,6 @@ class DayClosingController extends Controller
                 $shift->refresh();
             }
 
-            $date = $shift?->closed_at?->toDateString() ?? $date;
             $summary = $this->buildDaySummary($businessId, $date, $shift, shiftOnly: (bool) $shift);
             $handoverSnapshot = $shift ? [
                 'debt_collections' => $debtCollections,
@@ -469,13 +470,19 @@ class DayClosingController extends Controller
 
             $closing->load(['business', 'user']);
             try {
+                $biz = $closing->business ?? $this->currentBusiness();
                 $this->staffSms->notifyHandoverSubmitted(
-                    $closing->business ?? $this->currentBusiness(),
+                    $biz,
                     Auth::user(),
                     $closing
                 );
                 $this->staffMail->notifyHandoverSubmitted(
-                    $closing->business ?? $this->currentBusiness(),
+                    $biz,
+                    Auth::user(),
+                    $closing
+                );
+                $this->salesReportEmail->sendOnShiftClose(
+                    $biz,
                     Auth::user(),
                     $closing
                 );
@@ -730,6 +737,16 @@ class DayClosingController extends Controller
             }
 
             DB::commit();
+
+            try {
+                $this->salesReportEmail->sendOnShiftClose(
+                    $closing->business ?? $this->currentBusiness(),
+                    Auth::user(),
+                    $closing
+                );
+            } catch (\Throwable) {
+                // Non-blocking
+            }
 
             $redirect = redirect()->to($this->ownerDirectClosingRedirectRoute($date));
 
@@ -1337,6 +1354,20 @@ class DayClosingController extends Controller
 
         $start = $shift->opened_at->copy();
         $end = ($shift->closed_at ?? now())->copy();
+
+        // Legacy/orphan sales can be attached to an open shift during handover.
+        // Include their original payments even when they predate the shift row.
+        $earliestSaleAt = Sale::where('shift_id', $shift->id)->min('created_at');
+        $earliestPaymentAt = SalePayment::whereHas(
+            'sale',
+            fn ($query) => $query->where('shift_id', $shift->id)
+        )->min('created_at');
+
+        foreach ([$earliestSaleAt, $earliestPaymentAt] as $activityAt) {
+            if ($activityAt && Carbon::parse($activityAt)->lt($start)) {
+                $start = Carbon::parse($activityAt);
+            }
+        }
 
         if ($start->gt($end)) {
             $start = $shift->created_at?->copy() ?? $end->copy();

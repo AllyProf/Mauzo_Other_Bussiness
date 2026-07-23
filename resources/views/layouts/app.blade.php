@@ -19,15 +19,34 @@
         }
         .app-header__logo {
             background-color: #940000 !important;
-            font-family: 'Century Gothic', sans-serif !important;
-            font-weight: 900 !important;
-            max-width: 220px;
+            font-family: 'Century Gothic', 'Segoe UI', sans-serif !important;
+            font-weight: 700 !important;
+            font-size: 14px !important;
+            letter-spacing: 0.2px;
+            line-height: 1.15 !important;
+            display: flex !important;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 12px !important;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            text-transform: none;
         }
-        /* Desktop: icon-btn inherits normal nav link styling */
         @media (min-width: 768px) {
+            .app-header__logo {
+                width: 230px;
+                max-width: 230px;
+                height: 50px;
+                font-size: 13px !important;
+            }
+            .app-header__logo.is-long-name {
+                font-size: 12px !important;
+            }
+            .app-header__logo.is-very-long-name {
+                font-size: 11px !important;
+                letter-spacing: 0;
+            }
             .app-nav__icon-btn .fa {
                 font-size: 1.33333333em;
             }
@@ -66,11 +85,19 @@
                 flex: 1 1 auto;
                 min-width: 0;
                 max-width: none;
+                width: auto;
+                height: 50px;
                 text-align: left;
-                font-size: 14px;
-                font-weight: 800 !important;
-                padding: 0 8px 0 2px;
-                line-height: 50px;
+                font-size: 13px !important;
+                font-weight: 700 !important;
+                padding: 0 8px 0 2px !important;
+                line-height: 1.15 !important;
+            }
+            .app-header__logo.is-long-name {
+                font-size: 12px !important;
+            }
+            .app-header__logo.is-very-long-name {
+                font-size: 11px !important;
             }
             .app-nav--toolbar {
                 flex: 0 0 auto;
@@ -231,6 +258,54 @@
         .branch-switch-menu form {
             margin: 0;
         }
+
+        /* Hide thin Pace bar — use simple page loader instead */
+        .pace { display: none !important; }
+
+        .app-page-loader {
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.45);
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+        }
+        .app-page-loader.is-done {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .app-page-loader__spinner {
+            position: relative;
+            width: 42px;
+            height: 42px;
+        }
+        .app-page-loader__spinner::before,
+        .app-page-loader__spinner::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 3px solid transparent;
+        }
+        .app-page-loader__spinner::before {
+            border-top-color: #940000;
+            border-right-color: #940000;
+            animation: appLoaderSpin 0.85s linear infinite;
+        }
+        .app-page-loader__spinner::after {
+            inset: 7px;
+            border-bottom-color: #fff;
+            border-left-color: #fff;
+            animation: appLoaderSpin 0.6s linear infinite reverse;
+        }
+        @keyframes appLoaderSpin {
+            to { transform: rotate(360deg); }
+        }
     </style>
     @yield('styles')
     @stack('styles')
@@ -239,6 +314,7 @@
     @endphp
   </head>
   <body class="app sidebar-mini rtl">
+    @include('layouts.partials._page-loader')
     <!-- Navbar-->
     @include('layouts.partials._header')
     
@@ -299,9 +375,60 @@
     <script src="{{ asset('panel-assets/js/popper.min.js') }}"></script>
     <script src="{{ asset('panel-assets/js/bootstrap.min.js') }}"></script>
     <script src="{{ asset('panel-assets/js/main.js') }}"></script>
-    <!-- The javascript plugin to display page loading on top-->
-    <script src="{{ asset('panel-assets/js/plugins/pace.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+      (function () {
+        var loader = document.getElementById('appPageLoader');
+        if (!loader) return;
+
+        function hideLoader() {
+          loader.classList.add('is-done');
+          loader.setAttribute('aria-busy', 'false');
+        }
+
+        function showLoader() {
+          loader.classList.remove('is-done');
+          loader.setAttribute('aria-busy', 'true');
+        }
+
+        if (document.readyState === 'complete') {
+          hideLoader();
+        } else {
+          window.addEventListener('load', hideLoader);
+          // Safety: never block UI if load hangs
+          setTimeout(hideLoader, 8000);
+        }
+
+        document.addEventListener('click', function (e) {
+          var link = e.target.closest('a[href]');
+          if (!link) return;
+          var href = link.getAttribute('href') || '';
+          if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) return;
+          if (link.target === '_blank' || link.hasAttribute('download')) return;
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          try {
+            var url = new URL(link.href, window.location.origin);
+            if (url.origin !== window.location.origin) return;
+            if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+          } catch (err) {
+            return;
+          }
+          showLoader();
+        }, true);
+
+        document.addEventListener('submit', function (e) {
+          var form = e.target;
+          if (!(form instanceof HTMLFormElement)) return;
+          if (form.getAttribute('data-no-loader') !== null) return;
+          if (form.target === '_blank') return;
+          showLoader();
+        }, true);
+
+        window.addEventListener('pageshow', function (event) {
+          if (event.persisted) hideLoader();
+        });
+      })();
+    </script>
 
     <script type="text/javascript">
       const Toast = Swal.mixin({
