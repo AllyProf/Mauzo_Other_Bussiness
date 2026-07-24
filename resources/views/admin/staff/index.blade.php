@@ -23,11 +23,22 @@
     color: #940000;
     outline: none;
   }
+  .staff-actions { white-space: nowrap; }
+  .staff-actions .btn { margin-right: 4px; }
+  .staff-edit-modal-header {
+    background: #940000;
+    color: #fff;
+  }
+  .staff-edit-modal-header .close {
+    color: #fff;
+    opacity: 1;
+    text-shadow: none;
+  }
 </style>
 @endsection
 
 @section('content')
-@php $minPassword = max(8, (int) platform_settings('min_password_length', 8)); @endphp
+@php $minPassword = $minPassword ?? max(8, (int) platform_settings('min_password_length', 8)); @endphp
 <div class="app-title">
   <div>
     <h1><i class="fa fa-users"></i> Platform Staff</h1>
@@ -109,35 +120,132 @@
     <div class="tile"><h3 class="tile-title">Staff List</h3>
       <div class="tile-body table-responsive">
         <table class="table table-sm table-hover mb-0">
-          <thead><tr><th>{{ __('tables.columns.name') }}</th><th>{{ __('tables.columns.email') }}</th><th>{{ __('tables.columns.phone') }}</th><th>{{ __('tables.columns.role') }}</th><th>{{ __('tables.columns.active') }}</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>{{ __('tables.columns.name') }}</th>
+              <th>{{ __('tables.columns.email') }}</th>
+              <th>{{ __('tables.columns.phone') }}</th>
+              <th>{{ __('tables.columns.role') }}</th>
+              <th>{{ __('tables.columns.active') }}</th>
+              <th>{{ __('tables.columns.actions') }}</th>
+            </tr>
+          </thead>
           <tbody>
-            @foreach($staff as $member)
+            @forelse($staff as $member)
             <tr>
               <td>{{ $member->name }}</td>
               <td>{{ $member->email }}</td>
               <td>{{ $member->phone ?? '—' }}</td>
               <td>{{ $member->platformAdminRole?->name ?? 'Full Access' }}</td>
-              <td>{{ $member->is_active ? 'Yes' : 'No' }}</td>
               <td>
-                @if($member->role === 'platform_staff')
-                <form method="POST" action="{{ route('admin.staff.update', $member) }}" class="form-inline">@csrf @method('PUT')
-                  <select name="platform_admin_role_id" class="form-control form-control-sm mr-1">
-                    @foreach($roles as $role)
-                    <option value="{{ $role->id }}" {{ (int) $member->platform_admin_role_id === (int) $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
-                    @endforeach
-                  </select>
-                  <label class="mr-1"><input type="checkbox" name="is_active" value="1" {{ $member->is_active ? 'checked' : '' }}> Active</label>
-                  <button class="btn btn-xs btn-primary">Save</button>
-                </form>
+                @if($member->is_active)
+                  <span class="badge badge-success">Yes</span>
                 @else
-                <span class="text-muted small">Super Admin</span>
+                  <span class="badge badge-secondary">No</span>
+                @endif
+              </td>
+              <td class="staff-actions">
+                @if($member->role === 'platform_staff')
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-info btn-edit-staff"
+                    title="Edit"
+                    data-toggle="modal"
+                    data-target="#editStaffModal"
+                    data-id="{{ $member->id }}"
+                    data-name="{{ $member->name }}"
+                    data-email="{{ $member->email }}"
+                    data-phone="{{ preg_replace('/^(\+255|255)/', '', (string) $member->phone) }}"
+                    data-role-id="{{ $member->platform_admin_role_id }}"
+                    data-active="{{ $member->is_active ? '1' : '0' }}"
+                    data-update-url="{{ route('admin.staff.update', $member) }}"
+                  >
+                    <i class="fa fa-edit"></i> Edit
+                  </button>
+                  @if($member->id !== Auth::id())
+                  <form method="POST" action="{{ route('admin.staff.destroy', $member) }}" class="d-inline staff-delete-form">
+                    @csrf @method('DELETE')
+                    <button type="button" class="btn btn-sm btn-danger btn-delete-staff" title="Delete" data-name="{{ $member->name }}">
+                      <i class="fa fa-trash"></i> Delete
+                    </button>
+                  </form>
+                  @endif
+                @else
+                  <span class="text-muted small">Super Admin</span>
                 @endif
               </td>
             </tr>
-            @endforeach
+            @empty
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">No platform staff yet.</td>
+            </tr>
+            @endforelse
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="editStaffModal" tabindex="-1" role="dialog" aria-labelledby="editStaffModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="POST" id="staffEditForm" action="#">
+        @csrf
+        @method('PUT')
+        <div class="modal-header staff-edit-modal-header">
+          <h5 class="modal-title mb-0" id="editStaffModalLabel"><i class="fa fa-edit"></i> Edit Staff</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" name="name" id="editStaffName" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="email" id="editStaffEmail" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Phone <span class="text-muted">(optional)</span></label>
+            <div class="input-group">
+              <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
+              <input type="text" name="phone" id="editStaffPhone" class="form-control" placeholder="712345678" maxlength="9" inputmode="numeric">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Role</label>
+            <select name="platform_admin_role_id" id="editStaffRole" class="form-control" required>
+              @foreach($roles as $role)
+                <option value="{{ $role->id }}">{{ $role->name }}</option>
+              @endforeach
+            </select>
+          </div>
+          <div class="custom-control custom-checkbox mb-3">
+            <input type="checkbox" class="custom-control-input" id="editStaffActive" name="is_active" value="1">
+            <label class="custom-control-label" for="editStaffActive">Active</label>
+          </div>
+          <hr>
+          <p class="small text-muted mb-2">Leave password blank to keep the current password.</p>
+          <div class="form-group">
+            <label>New password</label>
+            <input type="password" name="password" id="editStaffPassword" class="form-control" minlength="{{ $minPassword }}" autocomplete="new-password">
+          </div>
+          <div class="form-group mb-0">
+            <label>Confirm new password</label>
+            <input type="password" name="password_confirmation" id="editStaffPasswordConfirm" class="form-control" minlength="{{ $minPassword }}" autocomplete="new-password">
+          </div>
+          <div id="editPasswordMatchError" class="alert alert-danger d-none py-2 mt-2 mb-0">Password and confirmation do not match.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="background:#940000;border-color:#940000;">
+            <i class="fa fa-save"></i> Save changes
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -204,6 +312,53 @@ jQuery(function($) {
   $password.add($confirm).on('input', function() {
     if ($password.val() === $confirm.val()) {
       $('#passwordMatchError').addClass('d-none');
+    }
+  });
+
+  $('.btn-edit-staff').on('click', function() {
+    var $btn = $(this);
+    $('#staffEditForm').attr('action', $btn.data('update-url'));
+    $('#editStaffName').val($btn.data('name'));
+    $('#editStaffEmail').val($btn.data('email'));
+    $('#editStaffPhone').val($btn.data('phone') || '');
+    $('#editStaffRole').val(String($btn.data('role-id')));
+    $('#editStaffActive').prop('checked', String($btn.data('active')) === '1');
+    $('#editStaffPassword').val('');
+    $('#editStaffPasswordConfirm').val('');
+    $('#editPasswordMatchError').addClass('d-none');
+  });
+
+  $('#staffEditForm').on('submit', function(e) {
+    var p = $('#editStaffPassword').val();
+    var c = $('#editStaffPasswordConfirm').val();
+    if (p || c) {
+      if (p !== c) {
+        e.preventDefault();
+        $('#editPasswordMatchError').removeClass('d-none');
+        return false;
+      }
+    }
+    $('#editPasswordMatchError').addClass('d-none');
+  });
+
+  $(document).on('click', '.btn-delete-staff', function() {
+    var form = $(this).closest('form');
+    var name = $(this).data('name');
+    if (window.Swal) {
+      Swal.fire({
+        title: 'Delete "' + name + '"?',
+        text: 'This platform staff account will be permanently removed.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, delete',
+        cancelButtonText: 'Cancel',
+      }).then(function(result) {
+        if (result.isConfirmed) form.submit();
+      });
+    } else if (confirm('Delete "' + name + '"?')) {
+      form.submit();
     }
   });
 });

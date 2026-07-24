@@ -30,6 +30,7 @@ class PlatformStaffController extends Controller
         return view('admin.staff.index', [
             'staff' => $staff,
             'roles' => $platformAdmin->assignableRoles(),
+            'minPassword' => max(8, (int) platform_settings('min_password_length', 8)),
         ]);
     }
 
@@ -80,31 +81,70 @@ class PlatformStaffController extends Controller
             abort(404);
         }
 
-        if ($user->id === Auth::id() && ! $request->boolean('is_active', true)) {
-            return back()->with('error', 'You cannot deactivate your own account.');
-        }
-
-        $assignableRoleIds = $platformAdmin->assignableRoles()->pluck('id')->all();
-
-        $validated = $request->validate([
-            'platform_admin_role_id' => ['required', Rule::in($assignableRoleIds)],
-            'is_active' => 'nullable|boolean',
-        ]);
-
         if ($user->role === 'super_admin') {
             return back()->with('error', 'Super admin access cannot be changed here.');
         }
 
-        $role = PlatformAdminRole::findOrFail($validated['platform_admin_role_id']);
+        if ($user->id === Auth::id() && ! $request->boolean('is_active')) {
+            return back()->with('error', 'You cannot deactivate your own account.');
+        }
 
-        $user->update([
+        $minPassword = max(8, (int) platform_settings('min_password_length', 8));
+        $assignableRoleIds = $platformAdmin->assignableRoles()->pluck('id')->all();
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['nullable', 'string', 'max:9', 'regex:/^[678]\d{8}$/'],
+            'password' => "nullable|string|min:{$minPassword}|confirmed",
+            'platform_admin_role_id' => ['required', Rule::in($assignableRoleIds)],
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $role = PlatformAdminRole::findOrFail($validated['platform_admin_role_id']);
+        $phone = filled($validated['phone'] ?? null) ? '+255'.$validated['phone'] : null;
+
+        $payload = [
+            'name' => $validated['name'],
+            'email' => strtolower($validated['email']),
+            'phone' => $phone,
             'platform_admin_role_id' => $role->id,
             'platform_admin_role' => $role->slug,
-            'is_active' => $request->boolean('is_active', true),
-        ]);
+            'is_active' => $request->boolean('is_active'),
+        ];
+
+        if (filled($validated['password'] ?? null)) {
+            $payload['password'] = Hash::make($validated['password']);
+        }
+
+        $user->update($payload);
 
         AuditLog::log('UPDATE_PLATFORM_STAFF', 'Updated platform staff '.$user->email.' ('.$role->name.')');
 
         return back()->with('success', 'Staff member updated.');
+    }
+
+    public function destroy(User $user)
+    {
+        $this->ensurePlatformAdmin('staff');
+
+        if (! in_array($user->role, ['super_admin', 'platform_staff'], true)) {
+            abort(404);
+        }
+
+        if ($user->role === 'super_admin') {
+            return back()->with('error', 'Super admin accounts cannot be deleted here.');
+        }
+
+        if ($user->id === Auth::id()) {
+            return back()->with('error', 'You cannot delete your own account.');
+        }
+
+        $email = $user->email;
+        $user->delete();
+
+        AuditLog::log('DELETE_PLATFORM_STAFF', 'Deleted platform staff '.$email);
+
+        return back()->with('success', 'Staff member deleted.');
     }
 }

@@ -112,7 +112,7 @@
             <div class="col-lg-7">
               <div class="tile-header-premium">
                 <h4 class="text-danger"><i class="fa fa-bullhorn mr-2"></i> Compose SMS Broadcast</h4>
-                <p class="text-muted">Draft a general message or notice. You can target all business tenants or filter by subscription status.</p>
+                <p class="text-muted">Draft a general message or notice. Target businesses, platform staff, or business employees.</p>
               </div>
 
               <form action="{{ route('admin.communication.send-broadcast') }}" method="POST" id="broadcastForm">
@@ -121,16 +121,25 @@
                 <div class="form-group">
                   <label class="control-label" style="font-weight: 600;">Recipient Group</label>
                   <select name="recipient_group" id="recipientGroup" class="form-control" required>
-                    <option value="all">All Registered Businesses</option>
-                    <option value="active">Active Subscription Businesses</option>
-                    <option value="suspended">Suspended Businesses</option>
-                    <option value="expired">Expired Subscription Businesses</option>
-                    <option value="selected">Select Specific Businesses</option>
+                    <optgroup label="Businesses">
+                      <option value="all">All Registered Businesses</option>
+                      <option value="active">Active Subscription Businesses</option>
+                      <option value="suspended">Suspended Businesses</option>
+                      <option value="expired">Expired Subscription Businesses</option>
+                      <option value="selected">Select Specific Businesses</option>
+                    </optgroup>
+                    <optgroup label="Staff">
+                      <option value="platform_staff">Platform Staff Only</option>
+                      <option value="business_staff">Business Staff Only</option>
+                    </optgroup>
                   </select>
+                  <small class="form-text text-muted" id="recipientGroupHint">
+                    Business options send to each business phone number on file.
+                  </small>
                 </div>
 
                 <div class="form-group d-none" id="selectedBusinessesWrapper">
-                  <label class="control-label" style="font-weight: 600;">Select Businesses</label>
+                  <label class="control-label" style="font-weight: 600;" id="selectedBusinessesLabel">Select Businesses</label>
                   <select name="selected_businesses[]" id="selectedBusinesses" class="form-control" multiple style="width: 100%;">
                     @foreach($businesses as $business)
                       <option value="{{ $business->id }}">
@@ -138,6 +147,9 @@
                       </option>
                     @endforeach
                   </select>
+                  <small class="form-text text-muted d-none" id="businessStaffFilterHint">
+                    Optional: leave empty to message staff from all businesses, or pick businesses to limit the list.
+                  </small>
                 </div>
 
                 <div class="form-group mb-3">
@@ -175,6 +187,7 @@
                     <span class="text-muted small mr-2">Click to insert placeholder:</span>
                     <button type="button" class="placeholder-btn" data-target="broadcastMessage" data-variable="{business_name}">{business_name}</button>
                     <button type="button" class="placeholder-btn" data-target="broadcastMessage" data-variable="{contact_person}">{contact_person}</button>
+                    <button type="button" class="placeholder-btn" data-target="broadcastMessage" data-variable="{staff_name}">{staff_name}</button>
                   </div>
                 </div>
 
@@ -196,8 +209,15 @@
                   <li class="mb-2"><strong>Character Limits:</strong> A standard single SMS contains up to <strong>160 characters</strong>. If your message exceeds this, it will be split into multiple parts (costing more credits).</li>
                   <li class="mb-2"><strong>Placeholders:</strong>
                     <ul>
-                      <li><code>{business_name}</code> - Replaced by the business's official registered name.</li>
-                      <li><code>{contact_person}</code> - Replaced by the business owner/manager name.</li>
+                      <li><code>{business_name}</code> - Business name (business or business-staff sends).</li>
+                      <li><code>{contact_person}</code> - Owner/contact name for business sends.</li>
+                      <li><code>{staff_name}</code> - Individual staff member name (staff sends).</li>
+                    </ul>
+                  </li>
+                  <li class="mb-2"><strong>Staff targeting:</strong>
+                    <ul>
+                      <li><strong>Platform Staff Only</strong> — Mauzo Link admin staff with a phone number.</li>
+                      <li><strong>Business Staff Only</strong> — tenant employees (not owners). Optionally filter by business.</li>
                     </ul>
                   </li>
                   <li class="mb-2"><strong>Real-time Filtering:</strong> You can choose "Select Specific Businesses" to target one or a few selected businesses directly.</li>
@@ -491,9 +511,11 @@
             </table>
           </div>
 
+          @if($smsLogs->hasPages())
           <div class="d-flex justify-content-center mt-3">
-            {{ $smsLogs->links() }}
+            {{ $smsLogs->links('pagination::bootstrap-4') }}
           </div>
+          @endif
         </div>
       </div>
     </div>
@@ -529,8 +551,15 @@
       text        = 'The message will be queued and sent automatically on ' + formatted + '. You can view scheduled SMS in the Dispatch Logs tab.';
       confirmText = 'Yes, Schedule It!';
     } else {
+      var group = document.getElementById('recipientGroup').value;
       title       = 'Send SMS Broadcast Now?';
-      text        = 'This will immediately send SMS to all selected/filtered business owners. Please double-check the message before proceeding.';
+      if (group === 'platform_staff') {
+        text = 'This will send SMS to active platform staff with phone numbers.';
+      } else if (group === 'business_staff') {
+        text = 'This will send SMS to business staff (employees) with phone numbers.';
+      } else {
+        text = 'This will immediately send SMS to all selected/filtered business phones. Please double-check the message before proceeding.';
+      }
       confirmText = 'Yes, Send Now!';
     }
 
@@ -612,12 +641,35 @@
 
     // Toggle selected businesses dropdown based on selected recipient group
     $('#recipientGroup').on('change', function() {
-      if ($(this).val() === 'selected') {
-        $('#selectedBusinessesWrapper').removeClass('d-none');
-        $('#selectedBusinesses').prop('required', true);
+      var value = $(this).val();
+      var $wrapper = $('#selectedBusinessesWrapper');
+      var $select = $('#selectedBusinesses');
+      var $hint = $('#recipientGroupHint');
+      var $filterHint = $('#businessStaffFilterHint');
+      var $label = $('#selectedBusinessesLabel');
+
+      if (value === 'selected') {
+        $wrapper.removeClass('d-none');
+        $select.prop('required', true);
+        $label.text('Select Businesses');
+        $filterHint.addClass('d-none');
+        $hint.text('SMS is sent to each selected business phone number.');
+      } else if (value === 'business_staff') {
+        $wrapper.removeClass('d-none');
+        $select.prop('required', false);
+        $label.text('Limit to Businesses (optional)');
+        $filterHint.removeClass('d-none');
+        $hint.text('Sends to tenant employees with phone numbers (owners excluded).');
+      } else if (value === 'platform_staff') {
+        $wrapper.addClass('d-none');
+        $select.prop('required', false).val(null).trigger('change');
+        $filterHint.addClass('d-none');
+        $hint.text('Sends to active Mauzo Link platform staff with phone numbers.');
       } else {
-        $('#selectedBusinessesWrapper').addClass('d-none');
-        $('#selectedBusinesses').prop('required', false);
+        $wrapper.addClass('d-none');
+        $select.prop('required', false).val(null).trigger('change');
+        $filterHint.addClass('d-none');
+        $hint.text('Business options send to each business phone number on file.');
       }
     });
 

@@ -51,7 +51,7 @@ class PlatformCommunicationController extends Controller
         $this->ensurePlatformAdmin('settings');
 
         $request->validate([
-            'recipient_group' => 'required|in:all,active,suspended,expired,selected',
+            'recipient_group' => 'required|in:all,active,suspended,expired,selected,platform_staff,business_staff',
             'selected_businesses' => 'required_if:recipient_group,selected|array',
             'selected_businesses.*' => 'exists:businesses,id',
             'message' => 'required|string|max:1000',
@@ -60,23 +60,10 @@ class PlatformCommunicationController extends Controller
         ]);
 
         $group = $request->recipient_group;
-        $query = Business::query();
+        $recipients = $this->resolveBroadcastRecipients($request);
 
-        if ($group === 'active') {
-            $query->where('is_active', true)->where(function($q) {
-                $q->whereNull('expiry_date')->orWhere('expiry_date', '>=', now());
-            });
-        } elseif ($group === 'suspended') {
-            $query->where('is_active', false);
-        } elseif ($group === 'expired') {
-            $query->where('is_active', true)->whereNotNull('expiry_date')->where('expiry_date', '<', now());
-        } elseif ($group === 'selected') {
-            $query->whereIn('id', $request->selected_businesses);
-        }
-
-        $targets = $query->get();
-        if ($targets->isEmpty()) {
-            return redirect()->back()->with('error', 'No matching businesses found to send SMS.');
+        if ($recipients->isEmpty()) {
+            return redirect()->back()->with('error', 'No matching recipients with phone numbers found.');
         }
 
         $scheduledAt = null;
@@ -85,25 +72,23 @@ class PlatformCommunicationController extends Controller
         }
 
         $sentCount = 0;
-        foreach ($targets as $business) {
-            $phone = trim($business->phone ?? '');
-            if ($phone === '') {
-                continue;
-            }
-
-            // Interpolate name in broadcast if they want to use {business_name} or {contact_person}
+        foreach ($recipients as $recipient) {
             $interpolatedMessage = str_replace(
-                ['{business_name}', '{contact_person}'],
-                [$business->name, $business->contact_person ?? ''],
+                ['{business_name}', '{contact_person}', '{staff_name}'],
+                [
+                    $recipient['business_name'] ?? '',
+                    $recipient['contact_person'] ?? '',
+                    $recipient['staff_name'] ?? '',
+                ],
                 $request->message
             );
 
             $success = $this->smsService->sendCustomSms(
-                $phone,
+                $recipient['phone'],
                 $interpolatedMessage,
-                $business->id,
-                $business->owner_user_id,
-                $business->name,
+                $recipient['business_id'] ?? null,
+                $recipient['user_id'] ?? null,
+                $recipient['recipient_name'] ?? null,
                 $scheduledAt
             );
 
@@ -112,18 +97,107 @@ class PlatformCommunicationController extends Controller
             }
         }
 
+        $audienceLabel = match ($group) {
+            'platform_staff' => 'platform staff',
+            'business_staff' => 'business staff',
+            default => 'business(es)',
+        };
+
         $actionType = $scheduledAt ? 'SMS_BROADCAST_SCHEDULED' : 'SMS_BROADCAST';
-        $logMessage = $scheduledAt 
-            ? "Scheduled SMS broadcast to {$sentCount} business(es) for {$scheduledAt}. Group: {$group}"
-            : "Sent SMS broadcast to {$sentCount} business(es). Group: {$group}";
+        $logMessage = $scheduledAt
+            ? "Scheduled SMS broadcast to {$sentCount} {$audienceLabel} for {$scheduledAt}. Group: {$group}"
+            : "Sent SMS broadcast to {$sentCount} {$audienceLabel}. Group: {$group}";
 
         AuditLog::log($actionType, $logMessage);
 
         $successMessage = $scheduledAt
-            ? "SMS Broadcast successfully scheduled for {$sentCount} business(es) at {$scheduledAt}."
-            : "SMS Broadcast completed. Successfully sent to {$sentCount} business(es).";
+            ? "SMS Broadcast successfully scheduled for {$sentCount} {$audienceLabel} at {$scheduledAt}."
+            : "SMS Broadcast completed. Successfully sent to {$sentCount} {$audienceLabel}.";
 
         return redirect()->back()->with('success', $successMessage);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array{phone: string, recipient_name: ?string, business_id: ?int, user_id: ?int, business_name: string, contact_person: string, staff_name: string}>
+     */
+    private function resolveBroadcastRecipients(Request $request): \Illuminate\Support\Collection
+    {
+        $group = $request->recipient_group;
+
+        if ($group === 'platform_staff') {
+            return \App\Models\User::query()
+                ->where('role', 'platform_staff')
+                ->where('is_active', true)
+                ->whereNotNull('phone')
+                ->where('phone', '!=', '')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (\App\Models\User $user) => [
+                    'phone' => trim((string) $user->phone),
+                    'recipient_name' => $user->name,
+                    'business_id' => null,
+                    'user_id' => $user->id,
+                    'business_name' => '',
+                    'contact_person' => $user->name,
+                    'staff_name' => $user->name,
+                ])
+                ->filter(fn ($row) => $row['phone'] !== '')
+                ->values();
+        }
+
+        if ($group === 'business_staff') {
+            $query = \App\Models\User::query()
+                ->with('business')
+                ->whereNotNull('business_id')
+                ->where('is_active', true)
+                ->whereNotIn('role', ['super_admin', 'platform_staff', 'owner'])
+                ->whereNotNull('phone')
+                ->where('phone', '!=', '');
+
+            if ($request->filled('selected_businesses')) {
+                $query->whereIn('business_id', $request->selected_businesses);
+            }
+
+            return $query->orderBy('name')->get()
+                ->map(fn (\App\Models\User $user) => [
+                    'phone' => trim((string) $user->phone),
+                    'recipient_name' => $user->name,
+                    'business_id' => (int) $user->business_id,
+                    'user_id' => $user->id,
+                    'business_name' => $user->business?->name ?? '',
+                    'contact_person' => $user->name,
+                    'staff_name' => $user->name,
+                ])
+                ->filter(fn ($row) => $row['phone'] !== '')
+                ->values();
+        }
+
+        $query = Business::query();
+
+        if ($group === 'active') {
+            $query->where('is_active', true)->where(function ($q) {
+                $q->whereNull('expiry_date')->orWhere('expiry_date', '>=', now());
+            });
+        } elseif ($group === 'suspended') {
+            $query->where('is_active', false);
+        } elseif ($group === 'expired') {
+            $query->where('is_active', true)->whereNotNull('expiry_date')->where('expiry_date', '<', now());
+        } elseif ($group === 'selected') {
+            $query->whereIn('id', $request->selected_businesses ?? []);
+        }
+
+        return $query->get()
+            ->map(fn (Business $business) => [
+                'phone' => trim((string) ($business->phone ?? '')),
+                'recipient_name' => $business->name,
+                'business_id' => $business->id,
+                'user_id' => $business->owner_user_id,
+                'business_name' => $business->name,
+                'contact_person' => $business->contact_person ?? '',
+                'staff_name' => $business->contact_person ?? '',
+            ])
+            ->filter(fn ($row) => $row['phone'] !== '')
+            ->values();
     }
 
     public function updateTemplates(Request $request)

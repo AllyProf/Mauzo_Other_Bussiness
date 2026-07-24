@@ -87,6 +87,7 @@ Route::middleware(['auth', 'check.user.active', 'check.platform.admin'])->prefix
     Route::get('/staff', [App\Http\Controllers\Admin\PlatformStaffController::class, 'index'])->name('staff.index');
     Route::post('/staff', [App\Http\Controllers\Admin\PlatformStaffController::class, 'store'])->name('staff.store');
     Route::put('/staff/{user}', [App\Http\Controllers\Admin\PlatformStaffController::class, 'update'])->name('staff.update');
+    Route::delete('/staff/{user}', [App\Http\Controllers\Admin\PlatformStaffController::class, 'destroy'])->name('staff.destroy');
     Route::get('/platform-roles', [App\Http\Controllers\Admin\PlatformAdminRoleController::class, 'index'])->name('platform-roles.index');
     Route::get('/platform-roles/create', [App\Http\Controllers\Admin\PlatformAdminRoleController::class, 'create'])->name('platform-roles.create');
     Route::post('/platform-roles', [App\Http\Controllers\Admin\PlatformAdminRoleController::class, 'store'])->name('platform-roles.store');
