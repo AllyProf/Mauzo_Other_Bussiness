@@ -135,17 +135,19 @@
     <div class="invoice-bill-bar">
       <div class="invoice-bill-left">
         <span class="invoice-bill-kicker">Bill To</span>
+        <span class="invoice-bill-sep">:</span>
         <strong class="invoice-bill-customer">{{ $sale->customer_name ?: 'Walk-in Customer' }}</strong>
         @if($sale->customer_phone)
-          <span class="invoice-bill-phone">{{ $sale->customer_phone }}</span>
+          <span class="invoice-bill-phone">· {{ $sale->customer_phone }}</span>
         @endif
       </div>
       @if($balanceDue > 0)
       <div class="invoice-bill-right">
         <span class="invoice-bill-kicker">Balance Due</span>
-        <strong class="text-danger">{{ money($balanceDue) }}</strong>
+        <span class="invoice-bill-sep">:</span>
+        <strong class="invoice-bill-due">{{ money($balanceDue) }}</strong>
         @if($sale->due_date)
-          <span class="invoice-bill-phone">Due {{ \Carbon\Carbon::parse($sale->due_date)->format('d M Y') }}</span>
+          <span class="invoice-bill-phone">· {{ \Carbon\Carbon::parse($sale->due_date)->format('d M Y') }}</span>
         @endif
       </div>
       @endif
@@ -296,40 +298,57 @@
   .official-report .invoice-bill-bar {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
-    gap: 16px;
-    margin: 6px 0 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #ddd;
+    align-items: baseline;
+    gap: 12px 24px;
+    margin: 4px 0 10px;
+    padding: 6px 0 8px;
+    border-bottom: 1px solid #ccc;
+    flex-wrap: wrap;
   }
   .official-report .invoice-bill-left,
   .official-report .invoice-bill-right {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 6px;
     min-width: 0;
+    line-height: 1.35;
   }
   .official-report .invoice-bill-right {
-    align-items: flex-end;
+    margin-left: auto;
     text-align: right;
+    justify-content: flex-end;
   }
   .official-report .invoice-bill-kicker {
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     font-weight: 800;
-    letter-spacing: 1.2px;
+    letter-spacing: 0.8px;
     text-transform: uppercase;
     color: var(--report-accent);
+    white-space: nowrap;
+  }
+  .official-report .invoice-bill-sep {
+    color: var(--report-accent);
+    font-weight: 800;
+    font-size: 0.85rem;
   }
   .official-report .invoice-bill-customer {
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     font-weight: 800;
     color: #1a1a1a;
-    line-height: 1.25;
+    white-space: nowrap;
+  }
+  .official-report .invoice-bill-due {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #c0392b;
+    white-space: nowrap;
   }
   .official-report .invoice-bill-phone {
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     color: #666;
+    white-space: nowrap;
   }
 
   .official-report .invoice-lines-compact th {
@@ -434,6 +453,30 @@
   }
 
   @media print {
+    .official-report .invoice-bill-bar {
+      display: flex !important;
+      visibility: visible !important;
+      align-items: baseline;
+      flex-wrap: nowrap;
+      margin: 2px 0 8px;
+      padding: 4px 0 6px;
+      border-bottom: 1px solid #333;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .official-report .invoice-bill-left,
+    .official-report .invoice-bill-right {
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: baseline;
+      flex-wrap: nowrap;
+    }
+    .official-report .invoice-bill-kicker,
+    .official-report .invoice-bill-sep,
+    .official-report .invoice-bill-due {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     .official-report .invoice-mcharazo {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
@@ -452,8 +495,11 @@
       print-color-adjust: exact;
     }
     .official-report .official-stamp {
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
   }
 </style>

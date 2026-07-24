@@ -132,7 +132,7 @@
     .official-report .packaging-badge { color: var(--report-accent); font-weight: 700; font-size: 0.8rem; }
     .official-report .filter-tile .form-group { margin-bottom: 0.75rem; }
 
-    @media (max-width: 767.98px) {
+    @media screen and (max-width: 767.98px) {
         .official-report .report-sheet { padding: 16px; }
         .official-report .report-stats-grid { grid-template-columns: 1fr; }
         .official-report .official-stamp { display: none; }
@@ -151,5 +151,18 @@
         .official-report .report-header-center h1 { font-size: 1.6rem; }
         .official-report .report-stats-grid { gap: 15px; margin-bottom: 10px; }
         tbody tr { page-break-inside: avoid; }
+        .official-report .official-stamp {
+            display: block !important;
+            position: absolute !important;
+            right: 4% !important;
+            top: -4px !important;
+            opacity: 1 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .official-report .title-area {
+            position: relative;
+            overflow: visible;
+        }
     }
 </style>
