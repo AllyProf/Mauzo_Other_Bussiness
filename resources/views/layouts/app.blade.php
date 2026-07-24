@@ -391,6 +391,9 @@
           loader.setAttribute('aria-busy', 'true');
         }
 
+        window.appShowPageLoader = showLoader;
+        window.appHidePageLoader = hideLoader;
+
         if (document.readyState === 'complete') {
           hideLoader();
         } else {
@@ -416,13 +419,16 @@
           showLoader();
         }, true);
 
+        // Bubble phase so page scripts can preventDefault (e.g. confirmation modals)
+        // before the loader appears.
         document.addEventListener('submit', function (e) {
           var form = e.target;
           if (!(form instanceof HTMLFormElement)) return;
+          if (e.defaultPrevented) return;
           if (form.getAttribute('data-no-loader') !== null) return;
           if (form.target === '_blank') return;
           showLoader();
-        }, true);
+        });
 
         window.addEventListener('pageshow', function (event) {
           if (event.persisted) hideLoader();
@@ -556,6 +562,9 @@
         }).then((result) => {
           if (result.isConfirmed) {
             setSubmitButtonLoading(form, button);
+            if (typeof window.appShowPageLoader === 'function') {
+              window.appShowPageLoader();
+            }
             form.submit();
           }
         });

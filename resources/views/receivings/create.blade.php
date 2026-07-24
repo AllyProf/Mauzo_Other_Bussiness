@@ -1024,6 +1024,9 @@
 
     $('#stockReceiptForm').on('submit', function (e) {
       e.preventDefault();
+      if (typeof window.appHidePageLoader === 'function') {
+        window.appHidePageLoader();
+      }
       if (!$('#supplier_id').val()) {
         Swal.fire('Missing Data', 'Please select a Supplier/Distributor first.', 'warning');
         return;
@@ -1070,7 +1073,12 @@
         confirmButtonText: 'Yes, Post Receipt!',
         cancelButtonText: 'Review More'
       }).then(result => {
-        if (!result.isConfirmed) return;
+        if (!result.isConfirmed) {
+          if (typeof window.appHidePageLoader === 'function') {
+            window.appHidePageLoader();
+          }
+          return;
+        }
         $(form).find('.appended-hidden-input').remove();
         activeEntries.forEach((item, index) => {
           $(form).append(`<input type="hidden" class="appended-hidden-input" name="items[${index}][id]" value="${item.id}">`);
@@ -1090,6 +1098,17 @@
             $(form).append(`<input type="hidden" class="appended-hidden-input" name="items[${index}][selling_prices][${pkg.id}]" value="${val}">`);
           });
         });
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          if (!submitBtn.dataset.originalHtml) {
+            submitBtn.dataset.originalHtml = submitBtn.innerHTML;
+          }
+          submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Posting...';
+        }
+        if (typeof window.appShowPageLoader === 'function') {
+          window.appShowPageLoader();
+        }
         form.submit();
       });
     });
