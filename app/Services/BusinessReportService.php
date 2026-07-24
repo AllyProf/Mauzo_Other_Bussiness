@@ -24,7 +24,7 @@ class BusinessReportService
     ) {
     }
 
-    public function parseDateRange(Request $request, int $defaultDays = 7, int $minDays = 5): array
+    public function parseDateRange(Request $request, int $defaultDays = 7, int $minDays = 5, int $maxDays = 62): array
     {
         $defaultDays = max($minDays, $defaultDays);
 
@@ -41,6 +41,10 @@ class BusinessReportService
 
         if ($from->diffInDays($to) + 1 < $minDays) {
             $from = $to->copy()->subDays($minDays - 1);
+        }
+
+        if ($from->diffInDays($to) + 1 > $maxDays) {
+            $from = $to->copy()->subDays($maxDays - 1);
         }
 
         return [
@@ -86,13 +90,27 @@ class BusinessReportService
             $date = $day->toDateString();
             $labels[] = $day->format('d M');
             $report = $reports->get($date);
-            $built = $this->dailyReportService->buildDayEndTotals($business, $date);
 
-            $circulation = (float) $built['closing_circulation'];
-            $profit = (float) $built['closing_profit'];
-            $grossProfit = (float) $built['gross_profit'];
-            $netProfit = (float) $built['net_profit'];
-            $hasVerifiedHandovers = (int) ($built['verified_handover_count'] ?? 0) > 0;
+            if ($report) {
+                $circulation = (float) $report->closing_circulation;
+                $profit = (float) $report->closing_profit;
+                $grossProfit = (float) $report->gross_profit;
+                $netProfit = (float) $report->net_profit;
+                $openingCirculation = (float) $report->opening_circulation;
+                $openingProfit = (float) $report->opening_profit;
+                $hasVerifiedHandovers = true;
+                $status = $report->status === 'finalized' ? 'finalized' : 'draft';
+            } else {
+                $built = $this->dailyReportService->buildDayEndTotals($business, $date);
+                $circulation = (float) $built['closing_circulation'];
+                $profit = (float) $built['closing_profit'];
+                $grossProfit = (float) $built['gross_profit'];
+                $netProfit = (float) $built['net_profit'];
+                $openingCirculation = (float) $built['opening_circulation'];
+                $openingProfit = (float) $built['opening_profit'];
+                $hasVerifiedHandovers = (int) ($built['verified_handover_count'] ?? 0) > 0;
+                $status = $hasVerifiedHandovers ? 'draft' : 'computed';
+            }
 
             $circulationSeries[] = round($circulation, 2);
             $profitSeries[] = round($profit, 2);
@@ -101,15 +119,13 @@ class BusinessReportService
             $rows[] = [
                 'date' => $date,
                 'date_label' => $day->format('d M, Y'),
-                'opening_circulation' => $report ? (float) $report->opening_circulation : (float) $built['opening_circulation'],
+                'opening_circulation' => $openingCirculation,
                 'closing_circulation' => $circulation,
-                'opening_profit' => $report ? (float) $report->opening_profit : (float) $built['opening_profit'],
+                'opening_profit' => $openingProfit,
                 'closing_profit' => $profit,
                 'gross_profit' => $grossProfit,
                 'net_profit' => $netProfit,
-                'status' => $report?->status === 'finalized'
-                    ? 'finalized'
-                    : ($hasVerifiedHandovers ? 'draft' : 'computed'),
+                'status' => $status,
             ];
         }
 
@@ -135,21 +151,33 @@ class BusinessReportService
 
     private function resolveLatestCirculationProfitTotals(Business $business, string $from, string $to): array
     {
-        $cursor = Carbon::parse($to)->startOfDay();
-        $start = Carbon::parse($from)->startOfDay();
+        $latestReport = OwnerDailyReport::where('business_id', $business->id)
+            ->whereBetween('report_date', [$from, $to])
+            ->orderByDesc('report_date')
+            ->first();
 
-        while ($cursor->gte($start)) {
-            $totals = $this->dailyReportService->buildDayEndTotals($business, $cursor->toDateString());
-            $hasActivity = (int) ($totals['verified_handover_count'] ?? 0) > 0
-                || (float) $totals['closing_circulation'] > 0
-                || (float) $totals['closing_profit'] > 0
-                || (float) $totals['gross_profit'] > 0;
+        if ($latestReport) {
+            return [
+                'closing_circulation' => (float) $latestReport->closing_circulation,
+                'closing_profit' => (float) $latestReport->closing_profit,
+                'gross_profit' => (float) $latestReport->gross_profit,
+                'net_profit' => (float) $latestReport->net_profit,
+                'verified_handover_count' => 1,
+            ];
+        }
 
-            if ($hasActivity) {
-                return $totals;
-            }
+        $latestVerified = DayClosing::where('business_id', $business->id)
+            ->where('status', 'verified')
+            ->whereBetween('closing_date', [$from, $to])
+            ->orderByDesc('closing_date')
+            ->orderByDesc('verified_at')
+            ->first();
 
-            $cursor->subDay();
+        if ($latestVerified) {
+            return $this->dailyReportService->buildDayEndTotals(
+                $business,
+                $latestVerified->closing_date->toDateString()
+            );
         }
 
         return $this->dailyReportService->buildDayEndTotals($business, $to);

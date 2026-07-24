@@ -15,6 +15,9 @@ use Illuminate\Database\Eloquent\Builder;
 
 class OwnerDailyReportService
 {
+    /** @var array<string, array> */
+    private array $dayEndTotalsCache = [];
+
     public function __construct(private BusinessTypeBreakdownService $businessTypeBreakdown)
     {
     }
@@ -27,6 +30,11 @@ class OwnerDailyReportService
     private function isBranchScoped(): bool
     {
         return $this->branchService()->activeBranchId() !== null;
+    }
+
+    private function dayEndCacheKey(Business $business, string $date): string
+    {
+        return $business->id.'|'.$date.'|'.($this->branchService()->activeBranchId() ?? 'all');
     }
 
     private function scopeBranchUsers(Builder $query, string $column = 'user_id'): Builder
@@ -82,6 +90,15 @@ class OwnerDailyReportService
             return (float) $previousFinalized->closing_circulation;
         }
 
+        $previousReport = OwnerDailyReport::where('business_id', $business->id)
+            ->whereDate('report_date', '<', $date)
+            ->orderByDesc('report_date')
+            ->first();
+
+        if ($previousReport) {
+            return (float) $previousReport->closing_circulation;
+        }
+
         $previousVerified = DayClosing::where('business_id', $business->id)
             ->where('status', 'verified')
             ->whereDate('closing_date', '<', $date)
@@ -89,13 +106,12 @@ class OwnerDailyReportService
             ->first();
 
         if ($previousVerified) {
-            $report = $this->syncReport(
+            $totals = $this->buildDayEndTotals(
                 $business,
-                $previousVerified->closing_date->toDateString(),
-                $previousVerified
+                $previousVerified->closing_date->toDateString()
             );
 
-            return (float) $report->closing_circulation;
+            return (float) $totals['closing_circulation'];
         }
 
         return (float) $business->circulation_balance;
@@ -117,6 +133,15 @@ class OwnerDailyReportService
             return (float) $previousFinalized->closing_profit;
         }
 
+        $previousReport = OwnerDailyReport::where('business_id', $business->id)
+            ->whereDate('report_date', '<', $date)
+            ->orderByDesc('report_date')
+            ->first();
+
+        if ($previousReport) {
+            return (float) $previousReport->closing_profit;
+        }
+
         $previousVerified = DayClosing::where('business_id', $business->id)
             ->where('status', 'verified')
             ->whereDate('closing_date', '<', $date)
@@ -124,16 +149,15 @@ class OwnerDailyReportService
             ->first();
 
         if ($previousVerified) {
-            $report = $this->syncReport(
+            $totals = $this->buildDayEndTotals(
                 $business,
-                $previousVerified->closing_date->toDateString(),
-                $previousVerified
+                $previousVerified->closing_date->toDateString()
             );
 
-            return (float) $report->closing_profit;
+            return (float) $totals['closing_profit'];
         }
 
-        return 0;
+        return (float) ($business->profit_balance ?? 0);
     }
 
     public function buildPlatformBreakdown(int $businessId, string $date): array
@@ -301,6 +325,11 @@ class OwnerDailyReportService
 
     public function buildDayEndTotals(Business $business, string $date): array
     {
+        $cacheKey = $this->dayEndCacheKey($business, $date);
+        if (isset($this->dayEndTotalsCache[$cacheKey])) {
+            return $this->dayEndTotalsCache[$cacheKey];
+        }
+
         $closingsQuery = DayClosing::where('business_id', $business->id)
             ->whereDate('closing_date', $date)
             ->where('status', 'verified');
@@ -313,7 +342,7 @@ class OwnerDailyReportService
             $data = $this->buildReportData($business, $date, null);
             $data['verified_handover_count'] = 0;
 
-            return $this->applyMoneyShortRecoveries($business, $date, $data);
+            return $this->dayEndTotalsCache[$cacheKey] = $this->applyMoneyShortRecoveries($business, $date, $data);
         }
 
         $lastClosing = $closings->last();
@@ -341,7 +370,7 @@ class OwnerDailyReportService
         $data['staff_expenses'] = (float) $closings->sum(fn (DayClosing $closing) => (float) $closing->total_expenses);
         $data['total_expenses'] = $data['staff_expenses'] + (float) $data['owner_expenses'];
 
-        return $this->applyMoneyShortRecoveries($business, $date, $data);
+        return $this->dayEndTotalsCache[$cacheKey] = $this->applyMoneyShortRecoveries($business, $date, $data);
     }
 
     private function applyMoneyShortRecoveries(Business $business, string $date, array $data): array
@@ -1453,8 +1482,11 @@ class OwnerDailyReportService
         $rows = [];
         $cursor = Carbon::parse($latestVerifiedDate)->addDay();
         $endDate = $this->resolveOpenDayRowsEndDate($business, Carbon::parse($latestVerifiedDate));
+        $maxOpenDays = 45;
+        $scanned = 0;
 
-        while ($cursor->lte($endDate)) {
+        while ($cursor->lte($endDate) && $scanned < $maxOpenDays) {
+            $scanned++;
             $dateString = $cursor->toDateString();
 
             $hasVerifiedQuery = DayClosing::where('business_id', $business->id)
@@ -1639,6 +1671,12 @@ class OwnerDailyReportService
 
         if ($latestOpenReportDate && Carbon::parse($latestOpenReportDate)->gt($endDate)) {
             $endDate = Carbon::parse($latestOpenReportDate);
+        }
+
+        // Never scan unbounded future/past ranges into open-day placeholders.
+        $maxEnd = Carbon::today()->addDays(7);
+        if ($endDate->gt($maxEnd)) {
+            $endDate = $maxEnd;
         }
 
         return $endDate;
@@ -1883,10 +1921,21 @@ class OwnerDailyReportService
             return 0;
         }
 
-        $data = $this->buildDayEndTotals(
-            $business,
-            $previousVerified->closing_date->toDateString()
-        );
+        $prevDate = $previousVerified->closing_date->toDateString();
+        $cacheKey = $this->dayEndCacheKey($business, $prevDate);
+        if (isset($this->dayEndTotalsCache[$cacheKey])) {
+            return (float) $this->dayEndTotalsCache[$cacheKey]['closing_circulation'];
+        }
+
+        $previousReport = OwnerDailyReport::where('business_id', $business->id)
+            ->whereDate('report_date', $prevDate)
+            ->first();
+
+        if ($previousReport) {
+            return (float) $previousReport->closing_circulation;
+        }
+
+        $data = $this->buildDayEndTotals($business, $prevDate);
 
         return (float) $data['closing_circulation'];
     }
@@ -1903,10 +1952,21 @@ class OwnerDailyReportService
             return 0;
         }
 
-        $data = $this->buildDayEndTotals(
-            $business,
-            $previousVerified->closing_date->toDateString()
-        );
+        $prevDate = $previousVerified->closing_date->toDateString();
+        $cacheKey = $this->dayEndCacheKey($business, $prevDate);
+        if (isset($this->dayEndTotalsCache[$cacheKey])) {
+            return (float) $this->dayEndTotalsCache[$cacheKey]['closing_profit'];
+        }
+
+        $previousReport = OwnerDailyReport::where('business_id', $business->id)
+            ->whereDate('report_date', $prevDate)
+            ->first();
+
+        if ($previousReport) {
+            return (float) $previousReport->closing_profit;
+        }
+
+        $data = $this->buildDayEndTotals($business, $prevDate);
 
         return (float) $data['closing_profit'];
     }

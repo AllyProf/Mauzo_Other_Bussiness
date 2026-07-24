@@ -394,13 +394,14 @@
         window.appShowPageLoader = showLoader;
         window.appHidePageLoader = hideLoader;
 
-        if (document.readyState === 'complete') {
-          hideLoader();
-        } else {
-          window.addEventListener('load', hideLoader);
-          // Safety: never block UI if load hangs
-          setTimeout(hideLoader, 8000);
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+          // Hide as soon as DOM is ready; don't wait on slow third-party assets.
+          setTimeout(hideLoader, 0);
         }
+        window.addEventListener('DOMContentLoaded', hideLoader);
+        window.addEventListener('load', hideLoader);
+        // Safety: never block UI if something hangs
+        setTimeout(hideLoader, 4000);
 
         document.addEventListener('click', function (e) {
           var link = e.target.closest('a[href]');
