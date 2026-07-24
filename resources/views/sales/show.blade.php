@@ -420,10 +420,10 @@
   .official-report .invoice-mcharazo {
     margin: 2px 0 0;
     font-family: "Great Vibes", "Segoe Script", "Brush Script MT", cursive;
-    font-size: 2.6rem;
-    line-height: 1.1;
+    font-size: 1.2rem;
+    line-height: 1.15;
     color: #1a1a1a;
-    min-height: 2.4rem;
+    min-height: 1.35rem;
   }
   .official-report .invoice-sign-space { min-height: 2.4rem; }
   .official-report .invoice-sign-line {
