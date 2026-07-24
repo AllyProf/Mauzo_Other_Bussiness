@@ -192,12 +192,12 @@ class SupplierController extends Controller
             return redirect()->back()->with('error', 'No suppliers found on the source branch.');
         }
 
-        $existingPhones = Supplier::query()
+        $existingNames = Supplier::query()
             ->where('business_id', Auth::user()->business_id)
             ->where('branch_id', $toId)
-            ->pluck('phone')
+            ->pluck('name')
             ->filter()
-            ->map(fn ($phone) => strtolower((string) $phone))
+            ->map(fn ($name) => mb_strtolower(trim((string) $name)))
             ->all();
 
         $copied = 0;
@@ -205,8 +205,8 @@ class SupplierController extends Controller
         $skipped = 0;
 
         foreach ($sourceSuppliers as $supplier) {
-            $phoneKey = strtolower((string) ($supplier->phone ?? ''));
-            $alreadyExists = $phoneKey !== '' && in_array($phoneKey, $existingPhones, true);
+            $nameKey = mb_strtolower(trim((string) ($supplier->name ?? '')));
+            $alreadyExists = $nameKey !== '' && in_array($nameKey, $existingNames, true);
 
             if ($validated['mode'] === 'copy') {
                 if ($alreadyExists) {
@@ -224,8 +224,8 @@ class SupplierController extends Controller
                     'address' => $supplier->address,
                     'region' => $supplier->region,
                 ]);
-                if ($phoneKey !== '') {
-                    $existingPhones[] = $phoneKey;
+                if ($nameKey !== '') {
+                    $existingNames[] = $nameKey;
                 }
                 $copied++;
                 continue;
@@ -238,8 +238,8 @@ class SupplierController extends Controller
             }
 
             $supplier->update(['branch_id' => $toId]);
-            if ($phoneKey !== '') {
-                $existingPhones[] = $phoneKey;
+            if ($nameKey !== '') {
+                $existingNames[] = $nameKey;
             }
             $moved++;
         }

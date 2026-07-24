@@ -115,7 +115,7 @@
         <div class="modal-body">
           <p class="small text-muted mb-3">
             Copy keeps suppliers on both branches. Move reassigns them to the destination.
-            Matching phone numbers already on the destination are skipped.
+            Matching supplier names already on the destination are skipped.
           </p>
 
           <div class="form-group">
