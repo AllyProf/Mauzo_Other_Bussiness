@@ -60,6 +60,16 @@
                     </div>
 
                     <div class="form-group text-left">
+                        <label class="font-weight-bold">{{ __('common.email_address') }}</label>
+                        <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
+                               value="{{ old('email', $user->email) }}" required autocomplete="email">
+                        @error('email')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                        <small class="text-muted">{{ __('profile.email_hint') }}</small>
+                    </div>
+
+                    <div class="form-group text-left">
                         <label class="font-weight-bold">{{ __('profile.update_phone') }}</label>
                         <div class="input-group">
                             <div class="input-group-prepend">

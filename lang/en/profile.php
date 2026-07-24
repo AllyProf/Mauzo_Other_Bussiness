@@ -5,6 +5,7 @@ return [
     'manage_account' => 'Manage your account information',
     'profile_image' => 'Profile Image',
     'update_phone' => 'Update Phone Number',
+    'email_hint' => 'This is the email you use to sign in. It must be unique.',
     'phone_hint' => 'Enter number without the 255 prefix',
     'change_profile_image' => 'Change Profile Image',
     'image_hint' => 'Max size 2MB (JPG, PNG)',

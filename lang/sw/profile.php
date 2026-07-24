@@ -5,6 +5,7 @@ return [
     'manage_account' => 'Simamia taarifa za akaunti yako',
     'profile_image' => 'Picha ya Wasifu',
     'update_phone' => 'Sasisha Nambari ya Simu',
+    'email_hint' => 'Hii ni barua pepe unayotumia kuingia. Lazima iwe ya kipekee.',
     'phone_hint' => 'Weka nambari bila kiongozi cha 255',
     'change_profile_image' => 'Badilisha Picha ya Wasifu',
     'image_hint' => 'Ukubwa wa juu 2MB (JPG, PNG)',

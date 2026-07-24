@@ -34,6 +34,7 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$user->id],
             'phone' => ['nullable', 'string', 'max:9', 'regex:/^[678]\d{8}$/'],
             'profile_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:2048'],
             'locale' => ['nullable', 'string', 'in:en,sw'],
@@ -41,6 +42,11 @@ class ProfileController extends Controller
 
         $localeService = app(\App\Services\LocaleService::class);
         $user->name = $validated['name'];
+        $newEmail = strtolower(trim($validated['email']));
+        if ($user->email !== $newEmail) {
+            $user->email = $newEmail;
+            $user->email_verified_at = null;
+        }
         $user->phone = filled($localPhone) ? '+255'.$localPhone : null;
 
         if ($request->hasFile('profile_image')) {
