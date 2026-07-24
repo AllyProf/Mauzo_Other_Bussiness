@@ -169,10 +169,10 @@
           </a>
           @endif
           <div class="btn-group mr-2 mb-2" role="group">
-            <button type="button" class="btn btn-sm btn-outline-secondary active view-btn" data-view="grid">
+            <button type="button" class="btn btn-sm btn-outline-secondary view-btn" data-view="grid">
               <i class="fa fa-th"></i>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary view-btn" data-view="list">
+            <button type="button" class="btn btn-sm btn-outline-secondary active view-btn" data-view="list">
               <i class="fa fa-list"></i>
             </button>
           </div>
@@ -229,7 +229,7 @@
         @if($stockItems->count() > 0)
 
           <!-- Grid View -->
-          <div class="row mt-2" id="inventoryGrid">
+          <div class="row mt-2 d-none" id="inventoryGrid">
             @foreach($stockItems as $item)
             @php
               $searchName = strtolower($item['name'] . ' ' . $item['sku'] . ' ' . $item['brand'] . ' ' . $item['category']);
@@ -359,7 +359,7 @@
           </div>
 
           <!-- List View -->
-          <div id="inventoryList" class="table-responsive d-none mt-2">
+          <div id="inventoryList" class="table-responsive mt-2">
             <table class="table table-hover table-bordered shadow-sm" style="border-radius: 10px; overflow: hidden;">
               <thead class="bg-light">
                 <tr>
