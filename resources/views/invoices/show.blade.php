@@ -126,49 +126,33 @@
       <div class="official-stamp {{ $stampClass }}">{{ $statusLabel }}</div>
     </div>
 
-    <div class="text-center mb-4 d-print-none">
+    <div class="text-center mb-3 d-print-none">
       <button type="button" onclick="window.print()" class="btn btn-print shadow-sm">
         <i class="fa fa-print"></i> Print Invoice / PDF
       </button>
-      <div class="mt-2 text-muted" style="font-size:0.85rem;">
-        <i class="fa fa-info-circle"></i> Use your browser print dialog to save as PDF or print — the page prints as shown.
-      </div>
     </div>
 
-    <div class="report-stats-grid">
-      <div>
-        <div class="stats-card-title">Bill To</div>
-        @if($sale->customer_name)
-          <div class="stats-row"><strong>Name:</strong> <span>{{ $sale->customer_name }}</span></div>
-          @if($sale->customer_phone)
-          <div class="stats-row"><strong>Phone:</strong> <span>{{ $sale->customer_phone }}</span></div>
-          @endif
-          @if($sale->customer && $sale->customer->email)
-          <div class="stats-row"><strong>Email:</strong> <span>{{ $sale->customer->email }}</span></div>
-          @endif
-        @else
-          <div class="stats-row"><strong>Customer:</strong> <span>Walk-in Customer</span></div>
+    <div class="invoice-bill-bar">
+      <div class="invoice-bill-left">
+        <span class="invoice-bill-kicker">Bill To</span>
+        <strong class="invoice-bill-customer">{{ $sale->customer_name ?: 'Walk-in Customer' }}</strong>
+        @if($sale->customer_phone)
+          <span class="invoice-bill-phone">{{ $sale->customer_phone }}</span>
         @endif
       </div>
-      <div>
-        <div class="stats-card-title">Invoice Summary</div>
-        <div class="stats-row"><strong>Status:</strong> <span>{{ $statusLabel }}</span></div>
-        <div class="stats-row"><strong>Total:</strong> <span class="amount-accent">{{ money($sale->total_amount) }}</span></div>
-        @if((float) $sale->amount_paid > 0)
-        <div class="stats-row"><strong>Amount Paid:</strong> <span>{{ money($sale->amount_paid) }}</span></div>
-        @endif
-        @if($balanceDue > 0)
-        <div class="stats-row"><strong>Balance Due:</strong> <span class="text-danger font-weight-bold">{{ money($balanceDue) }}</span></div>
+      @if($balanceDue > 0)
+      <div class="invoice-bill-right">
+        <span class="invoice-bill-kicker">Balance Due</span>
+        <strong class="text-danger">{{ money($balanceDue) }}</strong>
         @if($sale->due_date)
-        <div class="stats-row"><strong>Due Date:</strong> <span>{{ \Carbon\Carbon::parse($sale->due_date)->format('d M Y') }}</span></div>
-        @endif
+          <span class="invoice-bill-phone">Due {{ \Carbon\Carbon::parse($sale->due_date)->format('d M Y') }}</span>
         @endif
       </div>
+      @endif
     </div>
 
-    <div class="stats-card-title mb-2">Invoice Items</div>
     <div class="table-responsive">
-      <table class="report-table mb-0 invoice-lines">
+      <table class="report-table mb-0 invoice-lines invoice-lines-compact">
         <thead>
           <tr>
             <th style="width:40px;">#</th>
@@ -188,14 +172,14 @@
                 @else
                   {{ $line->item->name ?? 'Item' }}
                   @if($line->itemPackaging?->packagingType?->name)
-                    <br><small class="text-muted">Sold as: {{ $line->itemPackaging->packagingType->name }}</small>
+                    <span class="text-muted font-weight-normal"> · {{ $line->itemPackaging->packagingType->name }}</span>
                   @endif
                 @endif
               </td>
               <td>
                 {{ number_format((float) $line->quantity, 0) }}
                 @if(! $line->service_id && $line->itemPackaging?->packagingType?->name)
-                  <br><small class="text-muted">{{ $line->itemPackaging->packagingType->name }}</small>
+                  <span class="text-muted"> {{ $line->itemPackaging->packagingType->name }}</span>
                 @endif
               </td>
               <td>{{ money($line->unit_price) }}</td>
@@ -203,15 +187,14 @@
             </tr>
           @endforeach
         </tbody>
-        <tfoot>
-          @include('invoices.partials.totals-footer', [
-            'sale' => $sale,
-            'business' => $business,
-            'balanceDue' => $balanceDue,
-          ])
-        </tfoot>
       </table>
     </div>
+
+    @include('invoices.partials.totals-block', [
+      'sale' => $sale,
+      'business' => $business,
+      'balanceDue' => $balanceDue,
+    ])
 
     @if($sale->notes)
     <div class="mt-3">
@@ -277,19 +260,22 @@
     </div>
     @endif
 
-    <div class="mt-4 pt-4 border-top row">
-      <div class="col-md-6">
-        <small class="font-weight-bold text-uppercase" style="letter-spacing:1px;">Authorized signature</small>
-        <div class="mt-2 font-weight-bold" style="font-size:1.05rem; color: var(--report-accent);">{{ $sale->user->name ?? 'Staff' }}</div>
-        <div class="mt-2 text-muted">_______________________________________</div>
+    <div class="invoice-signature-block">
+      <div class="invoice-sign-col">
+        <div class="invoice-sign-label">For {{ $business->name }}</div>
+        <div class="invoice-mcharazo">{{ explode(' ', trim($business->name ?: 'Sindato'))[0] }}</div>
+        <div class="invoice-sign-line"></div>
+        <div class="invoice-sign-caption">Authorized Signature</div>
       </div>
-      <div class="col-md-6 text-md-right mt-3 mt-md-0">
-        <small class="font-weight-bold text-uppercase" style="letter-spacing:1px;">Customer copy</small>
-        <div class="mt-3 text-muted">_______________________________________</div>
+      <div class="invoice-sign-col invoice-sign-col-right">
+        <div class="invoice-sign-label">Received By</div>
+        <div class="invoice-sign-space"></div>
+        <div class="invoice-sign-line"></div>
+        <div class="invoice-sign-caption">Customer Signature / Stamp</div>
       </div>
     </div>
 
-    <div class="text-center mt-4 small text-muted">
+    <div class="text-center mt-4 small text-muted invoice-footer-note">
       Generated {{ now()->format('d M Y, H:i') }} · Thank you for your business.<br>
       Powered By <strong>EmCa Technologies</strong> — <a href="https://www.emca.tech" target="_blank" rel="noopener">www.emca.tech</a>
     </div>
@@ -297,6 +283,180 @@
 </div>
 
 @include('sales.partials.payment-modal')
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+
+<style>
+  .official-report .report-sheet {
+    position: relative;
+  }
+
+  .official-report .invoice-bill-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    margin: 6px 0 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ddd;
+  }
+  .official-report .invoice-bill-left,
+  .official-report .invoice-bill-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    min-width: 0;
+  }
+  .official-report .invoice-bill-right {
+    align-items: flex-end;
+    text-align: right;
+  }
+  .official-report .invoice-bill-kicker {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--report-accent);
+  }
+  .official-report .invoice-bill-customer {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #1a1a1a;
+    line-height: 1.25;
+  }
+  .official-report .invoice-bill-phone {
+    font-size: 0.8rem;
+    color: #666;
+  }
+
+  .official-report .invoice-lines-compact th {
+    padding: 5px 6px;
+    font-size: 0.68rem;
+  }
+  .official-report .invoice-lines-compact td {
+    padding: 4px 6px;
+    font-size: 0.8rem;
+    line-height: 1.25;
+  }
+  .official-report .invoice-lines-compact td.text-left {
+    padding-left: 8px;
+    font-weight: 600;
+  }
+
+  .official-report .invoice-totals-block {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0;
+    page-break-inside: avoid;
+  }
+  .official-report .invoice-totals-table {
+    width: auto;
+    min-width: 280px;
+    border-top: none;
+  }
+  .official-report .invoice-totals-table th,
+  .official-report .invoice-totals-table td {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    border: 1px solid #333;
+  }
+  .official-report .invoice-totals-table th {
+    background: #fff;
+    font-weight: 700;
+    text-align: right;
+    text-transform: none;
+    white-space: nowrap;
+  }
+  .official-report .invoice-totals-table td {
+    text-align: right;
+    min-width: 120px;
+    font-weight: 700;
+  }
+  .official-report .invoice-totals-table .grand-total th,
+  .official-report .invoice-totals-table .grand-total td {
+    background: #fdecea;
+    color: var(--report-accent);
+    font-size: 0.9rem;
+  }
+
+  .official-report .invoice-signature-block {
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+    margin-top: 40px;
+    padding-top: 12px;
+    page-break-inside: avoid;
+    flex-wrap: wrap;
+  }
+  .official-report .invoice-sign-col {
+    flex: 1 1 220px;
+    max-width: 300px;
+  }
+  .official-report .invoice-sign-col-right {
+    margin-left: auto;
+    text-align: right;
+  }
+  .official-report .invoice-sign-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #666;
+  }
+  .official-report .invoice-mcharazo {
+    margin: 2px 0 0;
+    font-family: "Great Vibes", "Segoe Script", "Brush Script MT", cursive;
+    font-size: 2.6rem;
+    line-height: 1.1;
+    color: #1a1a1a;
+    min-height: 2.4rem;
+  }
+  .official-report .invoice-sign-space {
+    min-height: 2.4rem;
+  }
+  .official-report .invoice-sign-line {
+    margin-top: 2px;
+    border-bottom: 1px solid #444;
+    width: 100%;
+    max-width: 240px;
+  }
+  .official-report .invoice-sign-col-right .invoice-sign-line {
+    margin-left: auto;
+  }
+  .official-report .invoice-sign-caption {
+    margin-top: 5px;
+    font-size: 0.75rem;
+    color: #555;
+    font-weight: 600;
+  }
+
+  @media print {
+    .official-report .invoice-mcharazo {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .official-report .invoice-lines thead {
+      display: table-header-group;
+    }
+    .official-report .invoice-totals-block,
+    .official-report .invoice-signature-block {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .official-report .invoice-totals-table .grand-total th,
+    .official-report .invoice-totals-table .grand-total td {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .official-report .official-stamp {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+</style>
 @endsection
 
 @section('scripts')

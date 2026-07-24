@@ -12,12 +12,6 @@
   <th class="text-right">{{ money($vatBreakdown['vat']) }}</th>
 </tr>
 @endif
-@if((float) $sale->amount_paid > 0)
-<tr>
-  <th colspan="4" class="text-right text-success">Amount Paid</th>
-  <th class="text-right text-success">{{ money($sale->amount_paid) }}</th>
-</tr>
-@endif
 @if($balanceDue > 0)
 <tr>
   <th colspan="4" class="text-right text-danger">Balance Due</th>
