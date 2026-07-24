@@ -18,13 +18,28 @@
           @csrf @method('PUT')
           <div class="form-group">
             <label class="control-label">Supplier Name</label>
-            <input class="form-control" type="text" name="name" value="{{ $supplier->name }}" required>
+            <input class="form-control" type="text" name="name" value="{{ old('name', $supplier->name) }}" required>
           </div>
+          @if(($branches ?? collect())->count() > 1 && Auth::user()->seesBusinessWideData())
+          <div class="form-group">
+            <label class="control-label">Branch</label>
+            <select class="form-control" name="branch_id" required>
+              <option value="">-- Select Branch --</option>
+              @foreach($branches as $branch)
+                <option value="{{ $branch->id }}" {{ (int) old('branch_id', $defaultBranchId) === (int) $branch->id ? 'selected' : '' }}>
+                  {{ $branch->name }}
+                </option>
+              @endforeach
+            </select>
+          </div>
+          @elseif(($defaultBranchId ?? null))
+            <input type="hidden" name="branch_id" value="{{ $defaultBranchId }}">
+          @endif
           <div class="form-group">
             <label class="control-label">Phone Number</label>
             <div class="input-group">
               <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
-              <input class="form-control" type="text" name="phone" value="{{ str_replace('+255', '', $supplier->phone) }}" maxlength="9" required>
+              <input class="form-control" type="text" name="phone" value="{{ old('phone', str_replace('+255', '', $supplier->phone)) }}" maxlength="9" required>
             </div>
           </div>
           <div class="form-group">

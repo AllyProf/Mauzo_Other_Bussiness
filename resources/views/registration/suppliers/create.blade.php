@@ -18,8 +18,23 @@
           @csrf
           <div class="form-group">
             <label class="control-label">Supplier Name</label>
-            <input class="form-control" type="text" name="name" placeholder="e.g. Arusha Auto Parts" required>
+            <input class="form-control" type="text" name="name" value="{{ old('name') }}" placeholder="e.g. Arusha Auto Parts" required>
           </div>
+          @if(($branches ?? collect())->count() > 1 && Auth::user()->seesBusinessWideData())
+          <div class="form-group">
+            <label class="control-label">Branch</label>
+            <select class="form-control" name="branch_id" required>
+              <option value="">-- Select Branch --</option>
+              @foreach($branches as $branch)
+                <option value="{{ $branch->id }}" {{ (int) old('branch_id', $defaultBranchId) === (int) $branch->id ? 'selected' : '' }}>
+                  {{ $branch->name }}
+                </option>
+              @endforeach
+            </select>
+          </div>
+          @elseif(($defaultBranchId ?? null))
+            <input type="hidden" name="branch_id" value="{{ $defaultBranchId }}">
+          @endif
           <div class="form-group">
             <label class="control-label">Phone Number</label>
             <div class="input-group">

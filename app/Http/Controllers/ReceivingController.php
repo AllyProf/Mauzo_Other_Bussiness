@@ -63,7 +63,12 @@ class ReceivingController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('receive_stock');
 
         $business = Auth::user()->business;
-        $suppliers = Supplier::where('business_id', $business->id)->get();
+        $branchFilterId = $this->resolveBranchFilterId();
+        $suppliersQuery = Supplier::where('business_id', $business->id)->orderBy('name');
+        if ($branchFilterId) {
+            $suppliersQuery->where('branch_id', $branchFilterId);
+        }
+        $suppliers = $suppliersQuery->get();
 
         $branches = Branch::query()
             ->where('business_id', $business->id)
