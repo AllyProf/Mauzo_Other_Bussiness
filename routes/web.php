@@ -308,6 +308,8 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::delete('/petty-cash/{expense}', [App\Http\Controllers\PettyCashController::class, 'destroy'])->name('petty-cash.destroy');
 
     // Supplier Management
+    Route::post('/suppliers/migrate-from-branch', [App\Http\Controllers\SupplierController::class, 'migrateFromBranch'])->name('suppliers.migrate-from-branch');
+    Route::get('/suppliers/branch/{branch}/list', [App\Http\Controllers\SupplierController::class, 'listForBranch'])->name('suppliers.list-for-branch');
     Route::resource('/suppliers', App\Http\Controllers\SupplierController::class);
 
     // Customer Management
