@@ -30,8 +30,9 @@
             <div class="col-md-6">
               <div class="form-group">
                 <label class="control-label">Item Name</label>
-                <input class="form-control @error('name') is-invalid @enderror" type="text" name="name" value="{{ old('name', $item->name) }}" required>
-                @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                <input class="form-control @error('name') is-invalid @enderror" type="text" name="name" value="{{ old('name', $item->name) }}" required autocomplete="off">
+                @error('name') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                @include('items.partials.name-duplicate-check', ['excludeId' => $item->id])
               </div>
               <div class="form-group">
                 <label class="control-label">Category</label>

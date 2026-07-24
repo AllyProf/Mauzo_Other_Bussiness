@@ -315,6 +315,69 @@ class ItemController extends Controller
         return view('items.create', $formContext);
     }
 
+    public function checkName(Request $request)
+    {
+        $this->authorizeAny(['add_items', 'edit_items']);
+
+        $name = trim((string) $request->query('name', ''));
+        $excludeId = $request->query('exclude_id');
+
+        if (mb_strlen($name) < 2) {
+            return response()->json([
+                'exact' => false,
+                'matches' => [],
+            ]);
+        }
+
+        $businessId = Auth::user()->business_id;
+        $normalized = mb_strtolower($name);
+
+        $baseQuery = Item::query()
+            ->where('business_id', $businessId)
+            ->when($excludeId, fn ($q) => $q->where('id', '!=', (int) $excludeId));
+
+        if ($branchFilterId = $this->itemFormBranchFilterId()) {
+            $baseQuery->where(function ($q) use ($branchFilterId) {
+                $q->whereHas('category', fn ($c) => $c->where('branch_id', $branchFilterId))
+                    ->orWhereNull('category_id');
+            });
+        }
+
+        $exact = (clone $baseQuery)
+            ->whereRaw('LOWER(TRIM(name)) = ?', [$normalized])
+            ->with('category:id,name')
+            ->first();
+
+        $matches = (clone $baseQuery)
+            ->where('name', 'like', '%'.$name.'%')
+            ->with('category:id,name')
+            ->orderByRaw('CASE WHEN LOWER(TRIM(name)) = ? THEN 0 ELSE 1 END', [$normalized])
+            ->orderBy('name')
+            ->limit(8)
+            ->get()
+            ->map(fn (Item $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'brand' => $item->brand,
+                'category' => $item->category?->name,
+                'sku' => $item->sku,
+                'url' => route('items.show', $item->id),
+                'exact' => mb_strtolower(trim($item->name)) === $normalized,
+            ])
+            ->values()
+            ->all();
+
+        return response()->json([
+            'exact' => (bool) $exact,
+            'exact_item' => $exact ? [
+                'id' => $exact->id,
+                'name' => $exact->name,
+                'url' => route('items.show', $exact->id),
+            ] : null,
+            'matches' => $matches,
+        ]);
+    }
+
     public function store(Request $request)
     {
         \Illuminate\Support\Facades\Gate::authorize('add_items');
@@ -347,6 +410,10 @@ class ItemController extends Controller
         }
 
         $request->validate($rules);
+
+        if ($duplicateError = $this->duplicateItemNameError($request->name, $business->id)) {
+            return redirect()->back()->withInput()->withErrors(['name' => $duplicateError]);
+        }
 
         if ($scopeError = $this->validateItemBusinessTypeScope($request, $business)) {
             return redirect()->back()->withInput()->with('error', $scopeError);
@@ -431,6 +498,10 @@ class ItemController extends Controller
         }
 
         $request->validate($rules);
+
+        if ($duplicateError = $this->duplicateItemNameError($request->name, $business->id, $item->id)) {
+            return redirect()->back()->withInput()->withErrors(['name' => $duplicateError]);
+        }
 
         if ($scopeError = $this->validateItemBusinessTypeScope($request, $business)) {
             return redirect()->back()->withInput()->with('error', $scopeError);
@@ -602,6 +673,29 @@ class ItemController extends Controller
         }
 
         return active_branch_id();
+    }
+
+    private function duplicateItemNameError(string $name, int $businessId, ?int $excludeId = null): ?string
+    {
+        $normalized = mb_strtolower(trim($name));
+
+        $query = Item::query()
+            ->where('business_id', $businessId)
+            ->whereRaw('LOWER(TRIM(name)) = ?', [$normalized])
+            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId));
+
+        if ($branchFilterId = $this->itemFormBranchFilterId()) {
+            $query->where(function ($q) use ($branchFilterId) {
+                $q->whereHas('category', fn ($c) => $c->where('branch_id', $branchFilterId))
+                    ->orWhereNull('category_id');
+            });
+        }
+
+        if (! $query->exists()) {
+            return null;
+        }
+
+        return 'An item with this name already exists. Use a different name or open the existing item.';
     }
 
     /**
