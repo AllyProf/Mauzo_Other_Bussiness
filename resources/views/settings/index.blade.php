@@ -601,6 +601,24 @@
                 </label>
               </div>
             </div>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="sms_branch_compare_weekly_enabled" name="sms_branch_compare_weekly_enabled" value="1" {{ old('sms_branch_compare_weekly_enabled', $automation['sms_branch_compare_weekly_enabled'] ?? false) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="sms_branch_compare_weekly_enabled">
+                  <strong>Weekly branch comparison SMS</strong>
+                  <br><small class="text-muted">Last 7 days sales by branch (needs 2+ branches). Same weekday/time as weekly reports.</small>
+                </label>
+              </div>
+            </div>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="sms_receiving_report_daily_enabled" name="sms_receiving_report_daily_enabled" value="1" {{ old('sms_receiving_report_daily_enabled', $automation['sms_receiving_report_daily_enabled'] ?? false) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="sms_receiving_report_daily_enabled">
+                  <strong>Daily purchase / stock-in SMS</strong>
+                  <br><small class="text-muted">Yesterday’s stock received: total cost, receipts, and supplier count. Skips empty days.</small>
+                </label>
+              </div>
+            </div>
             <div class="form-row mb-3">
               <div class="form-group col-md-4 mb-2 mb-md-0">
                 <label class="small font-weight-bold" for="sms_report_send_time">Send time</label>

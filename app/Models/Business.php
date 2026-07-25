@@ -342,6 +342,8 @@ class Business extends Model
             'sms_debt_overdue_staff' => true,
             'sms_daily_report_enabled' => false,
             'sms_weekly_report_enabled' => false,
+            'sms_branch_compare_weekly_enabled' => false,
+            'sms_receiving_report_daily_enabled' => false,
             'sms_report_send_time' => '18:00',
             'sms_weekly_report_day' => 1,
             'email_sales_report_enabled' => false,

@@ -20,9 +20,11 @@ class SendBusinessOwnerReportSms extends Command
         $emailCounts = $emailReports->sendDueScheduledReports();
 
         $this->info(sprintf(
-            'Owner report SMS — daily: %d, weekly: %d, skipped: %d, failed: %d.',
+            'Owner report SMS — daily: %d, weekly: %d, branch_compare: %d, receiving: %d, skipped: %d, failed: %d.',
             $smsCounts['daily'],
             $smsCounts['weekly'],
+            $smsCounts['branch_compare'] ?? 0,
+            $smsCounts['receiving'] ?? 0,
             $smsCounts['skipped'],
             $smsCounts['failed'],
         ));

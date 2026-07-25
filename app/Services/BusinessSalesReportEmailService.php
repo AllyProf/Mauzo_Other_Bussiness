@@ -9,6 +9,8 @@ use App\Models\BusinessOwnerExpense;
 use App\Models\DayClosing;
 use App\Models\Item;
 use App\Models\OwnerDailyReport;
+use App\Models\Receiving;
+use App\Models\ReceivingItem;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SalePayment;
@@ -475,7 +477,9 @@ class BusinessSalesReportEmailService
      *   expenses: array{staff_total: float, owner_total: float, total: float, staff_rows: Collection, owner_rows: Collection},
      *   comparison: array{label: string, previous_gross: float, previous_orders: int, previous_collected: float, gross_change_pct: float|null, orders_change_pct: float|null, collected_change_pct: float|null},
      *   lowStock: Collection,
-     *   shortages: Collection
+     *   shortages: Collection,
+     *   receivedItems: array{receipts: int, lines: int, total_amount: float, rows: Collection},
+     *   stockValue: array{item_count: int, pieces: float, selling_value: float, cost_value: float}
      * }
      */
     private function buildReportExtras(
@@ -492,6 +496,8 @@ class BusinessSalesReportEmailService
             'comparison' => $this->comparePreviousPeriod($business, $from, $to, $periodType, $sales),
             'lowStock' => $this->lowStockItems($business),
             'shortages' => $this->pendingShortages($business),
+            'receivedItems' => $this->receivedItemsForPeriod($business, $from, $to),
+            'stockValue' => $this->overallStockValue($business),
         ];
     }
 
@@ -725,6 +731,79 @@ class BusinessSalesReportEmailService
                 'staff' => $row->recorder?->name ?? '—',
             ])
             ->values();
+    }
+
+    /**
+     * @return array{receipts: int, lines: int, total_amount: float, rows: Collection<int, array{date: string, reference: string, supplier: string, item: string, qty_label: string, amount: float}>}
+     */
+    private function receivedItemsForPeriod(Business $business, string $from, string $to, int $limit = 20): array
+    {
+        $receivings = Receiving::query()
+            ->where('business_id', $business->id)
+            ->whereBetween('received_date', [$from, $to])
+            ->where(function ($q) {
+                $q->whereNull('status')->orWhere('status', '!=', 'cancelled');
+            })
+            ->with(['items.item.receivingPackaging', 'supplier'])
+            ->orderByDesc('received_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $rows = collect();
+        foreach ($receivings as $receiving) {
+            foreach ($receiving->items as $line) {
+                /** @var ReceivingItem $line */
+                $amount = max(0, ((float) $line->cost_price * (float) $line->quantity) - (float) ($line->discount_amount ?? 0));
+                $rows->push([
+                    'date' => Carbon::parse($receiving->received_date)->format('d M Y'),
+                    'reference' => (string) ($receiving->reference_no ?: '#'.$receiving->id),
+                    'supplier' => $receiving->supplier?->name ?? '—',
+                    'item' => $line->item?->name ?? 'Item',
+                    'qty_label' => $line->receivedQuantityLabel($line->item),
+                    'amount' => $amount,
+                ]);
+            }
+        }
+
+        return [
+            'receipts' => $receivings->count(),
+            'lines' => $rows->count(),
+            'total_amount' => (float) $receivings->sum('total_amount'),
+            'rows' => $rows->take($limit)->values(),
+        ];
+    }
+
+    /**
+     * @return array{item_count: int, pieces: float, selling_value: float, cost_value: float}
+     */
+    private function overallStockValue(Business $business): array
+    {
+        $items = Item::query()
+            ->where('business_id', $business->id)
+            ->where('current_stock', '>', 0)
+            ->with(['packagings'])
+            ->get(['id', 'current_stock']);
+
+        $sellingValue = 0.0;
+        $costValue = 0.0;
+        $piecesTotal = 0.0;
+
+        foreach ($items as $item) {
+            $pieces = (float) $item->current_stock;
+            $piecesTotal += $pieces;
+            $pkg = $item->packagings->sortBy('quantity_per_unit')->first()
+                ?? $item->packagings->first();
+            $qpu = max(1, (int) ($pkg?->quantity_per_unit ?? 1));
+            $sellingValue += $pieces * ((float) ($pkg?->selling_price ?? 0) / $qpu);
+            $costValue += $pieces * ((float) ($pkg?->cost_price ?? 0) / $qpu);
+        }
+
+        return [
+            'item_count' => $items->count(),
+            'pieces' => $piecesTotal,
+            'selling_value' => round($sellingValue, 2),
+            'cost_value' => round($costValue, 2),
+        ];
     }
 
     /**

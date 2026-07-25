@@ -185,6 +185,8 @@ class BusinessSettingsController extends Controller
                     'sms_debt_overdue_staff' => $request->boolean('sms_debt_overdue_staff'),
                     'sms_daily_report_enabled' => $request->boolean('sms_daily_report_enabled'),
                     'sms_weekly_report_enabled' => $request->boolean('sms_weekly_report_enabled'),
+                    'sms_branch_compare_weekly_enabled' => $request->boolean('sms_branch_compare_weekly_enabled'),
+                    'sms_receiving_report_daily_enabled' => $request->boolean('sms_receiving_report_daily_enabled'),
                     'sms_report_send_time' => (string) $request->sms_report_send_time,
                     'sms_weekly_report_day' => (int) $request->sms_weekly_report_day,
                     'email_sales_report_enabled' => $request->boolean('email_sales_report_enabled'),

@@ -61,6 +61,9 @@
     $compare = $comparison ?? null;
     $lowStockRows = $lowStock ?? collect();
     $shortageRows = $shortages ?? collect();
+    $receivedData = $receivedItems ?? ['receipts' => 0, 'lines' => 0, 'total_amount' => 0, 'rows' => collect()];
+    $receivedRows = collect($receivedData['rows'] ?? []);
+    $stockVal = $stockValue ?? ['item_count' => 0, 'pieces' => 0, 'selling_value' => 0, 'cost_value' => 0];
     $fmtPct = function ($pct) {
         if ($pct === null) {
             return '—';
@@ -156,6 +159,24 @@
             </td>
         </tr>
         @endif
+        <tr>
+            <td>
+                <span class="label">Stock items (on hand)</span>
+                <span class="value muted">{{ number_format((int) ($stockVal['item_count'] ?? 0)) }}</span>
+            </td>
+            <td>
+                <span class="label">Stock value (selling)</span>
+                <span class="value">{{ $m($stockVal['selling_value'] ?? 0) }}</span>
+            </td>
+            <td>
+                <span class="label">Stock value (cost)</span>
+                <span class="value muted">{{ $m($stockVal['cost_value'] ?? 0) }}</span>
+            </td>
+            <td>
+                <span class="label">Received this period</span>
+                <span class="value muted">{{ number_format((int) ($receivedData['lines'] ?? 0)) }} lines</span>
+            </td>
+        </tr>
     </table>
 
     <div class="section">Collection vs sales</div>
@@ -305,6 +326,37 @@
             @endforeach
             </tbody>
         </table>
+        @endif
+    @endif
+
+    @if($receivedRows->isNotEmpty())
+        <div class="section">Items received ({{ $receivedData['receipts'] ?? 0 }} receipts · TZS {{ $m($receivedData['total_amount'] ?? 0) }})</div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width:12%;">Date</th>
+                    <th class="left" style="width:14%;">Ref</th>
+                    <th class="left" style="width:18%;">Supplier</th>
+                    <th class="left" style="width:30%;">Item</th>
+                    <th style="width:14%;">Qty</th>
+                    <th style="width:12%;">Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach($receivedRows as $row)
+                <tr>
+                    <td>{{ $row['date'] }}</td>
+                    <td class="left">{{ $row['reference'] }}</td>
+                    <td class="left">{{ $row['supplier'] }}</td>
+                    <td class="left">{{ $row['item'] }}</td>
+                    <td>{{ $row['qty_label'] }}</td>
+                    <td>{{ $m($row['amount'] ?? 0) }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+        @if(($receivedData['lines'] ?? 0) > $receivedRows->count())
+            <div class="note">Showing {{ $receivedRows->count() }} of {{ $receivedData['lines'] }} received lines.</div>
         @endif
     @endif
 
