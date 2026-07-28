@@ -73,15 +73,15 @@
     <h1><i class="fa fa-shopping-cart"></i> {{ __('pages.sales.title') }}</h1>
     <p>
       @if($showAllHistory ?? false)
-        Showing all your past sales and orders history
+        Showing all your past sales — products and services
       @elseif(($shiftContext ?? '') === 'current')
-        Current shift #{{ $openShift->id }} sales, plus any unpaid orders from earlier shifts
+        Current shift #{{ $openShift->id }} sales (products &amp; services), plus any unpaid orders from earlier shifts
       @elseif(($shiftContext ?? '') === 'none')
         Open a shift to record new sales — previous shift sales are in Shift History
       @elseif($scopedToSelf ?? false)
-        Your sales activity only
+        Your sales activity only (products &amp; services)
       @else
-        View all completed sales
+        All sales — products and services
       @endif
     </p>
     <div class="sales-title-actions d-print-none">
@@ -220,8 +220,26 @@
 <div class="row">
   <div class="col-md-12">
     <div class="tile">
+      @php
+        $saleSourceFilter = $saleSourceFilter ?? 'all';
+        $sourceQuery = request()->except('source', 'page');
+      @endphp
+      <div class="business-type-tabs mb-3 px-3 pt-3" id="saleSourceTabs">
+        <a href="{{ route('sales.index', $sourceQuery + ['source' => 'all']) }}"
+           class="business-type-tab text-decoration-none {{ $saleSourceFilter === 'all' ? 'active' : '' }}">
+          <i class="fa fa-th-large"></i> All
+        </a>
+        <a href="{{ route('sales.index', $sourceQuery + ['source' => 'products']) }}"
+           class="business-type-tab text-decoration-none {{ $saleSourceFilter === 'products' ? 'active' : '' }}">
+          <i class="fa fa-cube"></i> Products
+        </a>
+        <a href="{{ route('sales.index', $sourceQuery + ['source' => 'services']) }}"
+           class="business-type-tab text-decoration-none {{ $saleSourceFilter === 'services' ? 'active' : '' }}">
+          <i class="fa fa-briefcase"></i> Services
+        </a>
+      </div>
       @if($multiBusiness ?? false)
-      <div class="business-type-tabs mb-3" id="businessTypeTabs">
+      <div class="business-type-tabs mb-3 px-3" id="businessTypeTabs">
         <button type="button" class="business-type-tab active" data-business-type="all">
           <i class="fa fa-th-large"></i> All
         </button>
@@ -254,18 +272,30 @@
             @foreach($sales as $sale)
                 @php
                   $businessTypeKeys = $sale->items
-                      ->map(fn ($line) => $line->item?->category?->source_business_type_key ?: 'other')
+                      ->map(function ($line) {
+                          if ($line->service_id) {
+                              return $line->service?->category?->source_service_type_key ?: 'other';
+                          }
+
+                          return $line->item?->category?->source_business_type_key ?: 'other';
+                      })
                       ->unique()
                       ->values();
                   $isCarriedOver = ($openShift ?? null)
                       && (int) $sale->shift_id !== (int) $openShift->id
                       && in_array($sale->payment_status, ['pending', 'partial', 'debt'], true);
+                  $hasServiceLines = $sale->items->contains(fn ($line) => ! empty($line->service_id));
+                  $hasProductLines = $sale->items->contains(fn ($line) => ! empty($line->item_id));
                 @endphp
                 <tr data-business-types="{{ $businessTypeKeys->implode(',') }}">
                     <td data-order="{{ $sale->id }}">{{ \Carbon\Carbon::parse($sale->sale_date)->format('M d, Y') }}</td>
                     <td>
                       {{ $sale->reference_no }}
-                      @if($sale->isServicePos()) <span class="badge badge-info">{{ __('tables.status.service') }}</span>@endif
+                      @if($sale->isServicePos() || ($hasServiceLines && ! $hasProductLines))
+                        <span class="badge badge-info">Service</span>
+                      @elseif($hasServiceLines && $hasProductLines)
+                        <span class="badge badge-secondary">Mixed</span>
+                      @endif
                       @if($isCarriedOver)
                         <span class="badge badge-warning" title="Unpaid from a previous shift">Shift #{{ $sale->shift_id }}</span>
                       @endif
@@ -453,9 +483,16 @@
             });
 
             const autoPaySaleId = @json(request()->query('pay'));
+            const alsoPayRaw = @json(request()->query('also_pay'));
             if (autoPaySaleId) {
                 const $payBtn = $('.open-payment-modal-btn[data-sale-id="' + autoPaySaleId + '"]').first();
                 if ($payBtn.length) {
+                    const alsoPayIds = Array.isArray(alsoPayRaw)
+                        ? alsoPayRaw
+                        : (alsoPayRaw ? [alsoPayRaw] : []);
+                    if (alsoPayIds.length) {
+                        $payBtn.attr('data-also-pay', JSON.stringify(alsoPayIds.map(String)));
+                    }
                     setTimeout(function () { $payBtn.trigger('click'); }, 400);
                 }
             }

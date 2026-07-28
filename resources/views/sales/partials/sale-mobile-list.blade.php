@@ -25,7 +25,15 @@
       <div>
         <div class="sales-mobile-ref">
           {{ $sale->reference_no }}
-          @if($sale->isServicePos()) <span class="badge badge-info">{{ __('tables.status.service') }}</span>@endif
+          @php
+            $hasServiceLines = $sale->items->contains(fn ($line) => ! empty($line->service_id));
+            $hasProductLines = $sale->items->contains(fn ($line) => ! empty($line->item_id));
+          @endphp
+          @if($sale->isServicePos() || ($hasServiceLines && ! $hasProductLines))
+            <span class="badge badge-info">Service</span>
+          @elseif($hasServiceLines && $hasProductLines)
+            <span class="badge badge-secondary">Mixed</span>
+          @endif
           @if($isCarriedOver)
             <span class="badge badge-warning">Shift #{{ $sale->shift_id }}</span>
           @endif

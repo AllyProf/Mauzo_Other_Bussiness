@@ -55,7 +55,7 @@
       <a href="{{ route('services.materials') }}" class="btn btn-outline-secondary ml-1"><i class="fa fa-cubes"></i> Materials Stock</a>
       @endcanany
       @can('process_sales')
-      <a href="{{ route('service-pos.create') }}" class="btn btn-success"><i class="fa fa-desktop"></i> Service POS</a>
+      <a href="{{ route('sales.create') }}" class="btn btn-success"><i class="fa fa-desktop"></i> Point of Sale</a>
       @endcan
     </div>
   </div>
@@ -119,7 +119,7 @@
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
     <h3 class="tile-title mb-0">Categories &amp; services</h3>
     @can('process_sales')
-    <a href="{{ route('service-pos.create') }}" class="btn btn-success btn-sm"><i class="fa fa-desktop"></i> Open POS</a>
+    <a href="{{ route('sales.create') }}" class="btn btn-success btn-sm"><i class="fa fa-desktop"></i> Open POS</a>
     @endcan
   </div>
 

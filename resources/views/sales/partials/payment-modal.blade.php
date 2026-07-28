@@ -18,7 +18,9 @@
                     <div class="col-sm-6 col-6 mt-2"><strong>Already Paid:</strong> <span id="payAmountPaid"></span></div>
                     <div class="col-sm-6 col-6 mt-2 text-sm-right text-right"><strong class="text-danger">Balance Due:</strong> <span id="payBalance"></span></div>
                 </div>
+                <p class="mb-0 mt-2 small" id="linkedOrdersNote" style="display:none;"></p>
             </div>
+            <div id="linkedSaleInputs"></div>
 
             <h6 class="text-muted text-uppercase mb-2"><i class="fa fa-list"></i> Order Items</h6>
             <p class="small text-muted mb-2">Adjust each line with a custom unit price or a discount before collecting payment.</p>

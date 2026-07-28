@@ -28,6 +28,18 @@
     .business-type-pill.active:hover { color: #fff; border-color: #343a40; }
     .business-type-pill i { margin-right: 5px; }
 
+    .catalog-mode-pills { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .catalog-mode-pill {
+        cursor: pointer; padding: 8px 16px; border-radius: 6px; background: #fff; color: #495057;
+        font-size: 13px; font-weight: 700; border: 2px solid #dee2e6;
+    }
+    .catalog-mode-pill.active { background: #940000; color: #fff; border-color: #940000; }
+    .catalog-mode-pill:hover:not(.active) { border-color: #940000; color: #940000; }
+    .item-card.service-card { border-color: #17a2b8; }
+    .item-card.service-card:hover { border-color: #138496; box-shadow: 0 4px 8px rgba(23,162,184,.15); }
+    .item-card.service-card .item-icon { color: #17a2b8; }
+    .item-card.service-card .add-btn { color: #17a2b8; }
+
     .view-toggles { display: flex; gap: 10px; margin-bottom: 10px; }
     .view-btn { padding: 5px 10px; border: 1px solid #ced4da; background: #fff; border-radius: 4px; cursor: pointer; color: #6c757d; }
     .view-btn.active { background: #940000; color: #fff; border-color: #940000; }
@@ -369,24 +381,47 @@
 @endsection
 
 @section('content')
-<div class="pos-page pos-products-tab-active">
+@php
+  $retailEnabled = $retailEnabled ?? true;
+  $servicesEnabled = $servicesEnabled ?? false;
+  $defaultCatalog = $defaultCatalog ?? ($retailEnabled ? 'products' : 'services');
+  $showCatalogToggle = $retailEnabled && $servicesEnabled;
+@endphp
+<div class="pos-page pos-products-tab-active" data-default-catalog="{{ $defaultCatalog }}">
 @if($openShift ?? false)
 <div class="alert alert-success mb-3 py-2">
   <i class="fa fa-clock-o"></i> <strong>Shift #{{ $openShift->id }}</strong> open since {{ $openShift->opened_at->format('h:i A') }}
   <a href="{{ route('shifts.show', $openShift) }}" class="alert-link ml-2">View shift</a>
-  <a href="{{ route('day-closing.index', ['shift' => $openShift->id]) }}" class="alert-link ml-2">End shift / handover</a>
+  @if($retailEnabled && $servicesEnabled)
+    <a href="{{ route('day-closing.index', ['shift' => $openShift->id]) }}" class="alert-link ml-2">Products handover</a>
+    <a href="{{ route('services.handover', ['shift' => $openShift->id]) }}" class="alert-link ml-2">Services handover</a>
+  @elseif($servicesEnabled)
+    <a href="{{ route('services.handover', ['shift' => $openShift->id]) }}" class="alert-link ml-2">End shift / handover</a>
+  @else
+    <a href="{{ route('day-closing.index', ['shift' => $openShift->id]) }}" class="alert-link ml-2">End shift / handover</a>
+  @endif
 </div>
 @endif
-@if($multiBusiness ?? count($businessTypes ?? []) > 1)
+@if(($multiBusiness ?? false) || ($multiServiceBusiness ?? false))
 <div class="alert alert-light border mb-3 py-2">
   <i class="fa fa-info-circle text-primary"></i>
-  <strong>Multi-department shop:</strong> pick a department to filter items, then choose a category.
+  <strong>Multi-department shop:</strong> pick a department to filter, then choose a category.
+</div>
+@endif
+@if($showCatalogToggle)
+<div class="catalog-mode-pills" id="catalogModePills">
+  <button type="button" class="catalog-mode-pill {{ $defaultCatalog === 'products' ? 'active' : '' }}" data-catalog="products">
+    <i class="fa fa-cube"></i> Products
+  </button>
+  <button type="button" class="catalog-mode-pill {{ $defaultCatalog === 'services' ? 'active' : '' }}" data-catalog="services">
+    <i class="fa fa-briefcase"></i> Services
+  </button>
 </div>
 @endif
 
 <div class="pos-mobile-tabs d-lg-none" id="posMobileTabs">
   <button type="button" class="pos-mobile-tab active" data-pos-tab="products">
-    <i class="fa fa-th"></i> Products
+    <i class="fa fa-th"></i> <span id="mobileCatalogTabLabel">{{ $defaultCatalog === 'services' ? 'Services' : 'Products' }}</span>
   </button>
   <button type="button" class="pos-mobile-tab" data-pos-tab="cart">
     <i class="fa fa-shopping-basket"></i> Cart
@@ -395,37 +430,56 @@
 </div>
 
 <div class="pos-container">
-    <!-- LEFT SIDE: ITEMS GRID -->
+    <!-- LEFT SIDE: ITEMS / SERVICES GRID -->
     <div class="pos-left">
         <div class="search-bar">
             <i class="fa fa-search"></i>
-            <input type="text" id="searchInput" placeholder="Search items...">
+            <input type="text" id="searchInput" placeholder="{{ ($defaultCatalog ?? 'products') === 'services' ? 'Search services...' : 'Search items...' }}">
         </div>
 
-        @if($multiBusiness ?? count($businessTypes ?? []) > 1)
-        <div class="business-type-pills mb-2" id="businessTypePills">
-            <button type="button" class="business-type-pill active" data-key="all"><i class="fa fa-th-large"></i> All Departments</button>
-            @foreach($businessTypes as $type)
-            <button type="button" class="business-type-pill" data-key="{{ $type['key'] }}"><i class="fa {{ $type['icon'] }}"></i> {{ $type['label'] }}</button>
-            @endforeach
+        <div class="catalog-products-only" style="{{ ($defaultCatalog ?? 'products') === 'products' ? '' : 'display:none;' }}">
+            @if($multiBusiness ?? count($businessTypes ?? []) > 1)
+            <div class="business-type-pills mb-2" id="businessTypePills">
+                <button type="button" class="business-type-pill active" data-key="all"><i class="fa fa-th-large"></i> All Departments</button>
+                @foreach($businessTypes as $type)
+                <button type="button" class="business-type-pill" data-key="{{ $type['key'] }}"><i class="fa {{ $type['icon'] }}"></i> {{ $type['label'] }}</button>
+                @endforeach
+            </div>
+            @endif
         </div>
-        @endif
+
+        <div class="catalog-services-only" style="{{ ($defaultCatalog ?? 'products') === 'services' ? '' : 'display:none;' }}">
+            @if($multiServiceBusiness ?? false)
+            <div class="business-type-pills mb-2" id="serviceBusinessTypePills">
+                <button type="button" class="business-type-pill active" data-key="all"><i class="fa fa-th-large"></i> All Types</button>
+                @foreach($serviceBusinessTypes ?? [] as $type)
+                <button type="button" class="business-type-pill" data-key="{{ $type['key'] }}"><i class="fa {{ $type['icon'] ?? 'fa-briefcase' }}"></i> {{ $type['label'] }}</button>
+                @endforeach
+            </div>
+            @endif
+        </div>
         
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="category-pills" id="categoryPills" style="margin-bottom: 0;">
+            <div class="category-pills catalog-products-only" id="categoryPills" style="margin-bottom: 0; {{ ($defaultCatalog ?? 'products') === 'products' ? '' : 'display:none;' }}">
                 <button type="button" class="category-pill active" data-id="all">All Items</button>
                 @foreach($categories as $cat)
                     <button type="button" class="category-pill" data-id="{{ $cat->id }}" data-business-type="{{ $cat->source_business_type_key ?: 'other' }}">{{ $cat->name }}</button>
                 @endforeach
             </div>
-            <div class="view-toggles">
+            <div class="category-pills catalog-services-only" id="serviceCategoryPills" style="margin-bottom: 0; {{ ($defaultCatalog ?? 'products') === 'services' ? '' : 'display:none;' }}">
+                <button type="button" class="category-pill active" data-id="all">All Services</button>
+                @foreach($serviceCategories ?? [] as $cat)
+                    <button type="button" class="category-pill" data-id="{{ $cat->id }}" data-business-type="{{ $cat->source_service_type_key ?: 'other' }}">{{ $cat->name }}</button>
+                @endforeach
+            </div>
+            <div class="view-toggles catalog-products-only" style="{{ ($defaultCatalog ?? 'products') === 'products' ? '' : 'display:none;' }}">
                 <button class="view-btn active" id="btnGrid" title="Grid View"><i class="fa fa-th"></i></button>
                 <button class="view-btn" id="btnList" title="List View"><i class="fa fa-list"></i></button>
             </div>
         </div>
 
         <div class="items-grid" id="itemsContainer">
-            <!-- Items rendered via JS -->
+            <!-- Items / services rendered via JS -->
         </div>
     </div>
 
@@ -439,7 +493,7 @@
             <div class="cart-empty" id="emptyCartMessage">
                 <i class="fa fa-shopping-cart"></i>
                 <h5>Empty Order</h5>
-                <p>Select items from the left to start</p>
+                <p>Select products or services from the left to start</p>
             </div>
             <div id="cartItemsList">
                 <!-- Cart items rendered via JS -->
@@ -489,6 +543,9 @@
                     <span>Grand Total</span>
                     <span id="grandTotalLabel">TZS 0</span>
                 </div>
+                <p class="small text-muted mb-2" id="splitOrderHint" style="display:none;">
+                    <i class="fa fa-info-circle"></i> Products and services become <strong>2 orders in history</strong>, but you pay <strong>once</strong> for both.
+                </p>
 
                 <button type="submit" class="place-order-btn" id="placeOrderBtn" disabled>
                     <i class="fa fa-file-text-o mr-2"></i> PLACE ORDER
@@ -557,17 +614,56 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 @include('sales.partials.customer-picker-scripts')
 <script>
-    // Prepare data
-    const itemsByCategory = @json($itemsByCategory);
-    const hasMultipleBusinessTypes = @json($multiBusiness ?? count($businessTypes ?? []) > 1);
-    let activeBusinessType = hasMultipleBusinessTypes ? 'all' : 'all';
+    // Prepare data — unified Products + Services POS
+    const itemsByCategory = @json($itemsByCategory ?? new \stdClass());
+    const servicesByCategory = @json($servicesByCategory ?? new \stdClass());
+    const hasMultipleBusinessTypes = @json($multiBusiness ?? false);
+    const hasMultipleServiceTypes = @json($multiServiceBusiness ?? false);
+    const retailEnabled = @json($retailEnabled ?? true);
+    const servicesEnabled = @json($servicesEnabled ?? false);
+    let catalogMode = @json($defaultCatalog ?? 'products'); // 'products' | 'services'
+    let activeBusinessType = 'all';
+    let activeServiceBusinessType = 'all';
     let allItems = [];
-    Object.keys(itemsByCategory).forEach(catId => {
-        itemsByCategory[catId].forEach(item => {
+    let allServices = [];
+
+    Object.keys(itemsByCategory || {}).forEach(catId => {
+        (itemsByCategory[catId] || []).forEach(item => {
             item.categoryId = catId;
+            item.lineType = 'product';
             allItems.push(item);
         });
     });
+    Object.keys(servicesByCategory || {}).forEach(catId => {
+        (servicesByCategory[catId] || []).forEach(service => {
+            service.categoryId = catId;
+            service.lineType = 'service';
+            service.sku = '';
+            allServices.push(service);
+        });
+    });
+
+    function setCatalogMode(mode) {
+        if (!retailEnabled && mode === 'products') mode = 'services';
+        if (!servicesEnabled && mode === 'services') mode = 'products';
+        catalogMode = mode;
+
+        $('#catalogModePills .catalog-mode-pill').removeClass('active');
+        $(`#catalogModePills .catalog-mode-pill[data-catalog="${mode}"]`).addClass('active');
+
+        $('.catalog-products-only').toggle(mode === 'products');
+        $('.catalog-services-only').toggle(mode === 'services');
+
+        $('#searchInput').attr('placeholder', mode === 'services' ? 'Search services...' : 'Search items...');
+        $('#mobileCatalogTabLabel').text(mode === 'services' ? 'Services' : 'Products');
+
+        if (mode === 'products') {
+            syncCategoryPillsVisibility();
+        } else {
+            syncServiceCategoryPillsVisibility();
+        }
+        filterCatalog();
+    }
 
     function syncCategoryPillsVisibility() {
         if (!hasMultipleBusinessTypes) {
@@ -595,6 +691,32 @@
         }
     }
 
+    function syncServiceCategoryPillsVisibility() {
+        if (!hasMultipleServiceTypes) {
+            return;
+        }
+
+        $('#serviceCategoryPills .category-pill').each(function () {
+            const $pill = $(this);
+            const pillId = String($pill.attr('data-id') || '');
+
+            if (pillId === 'all') {
+                $pill.show();
+                return;
+            }
+
+            const matches = activeServiceBusinessType === 'all'
+                || String($pill.attr('data-business-type')) === String(activeServiceBusinessType);
+
+            $pill.toggle(matches);
+        });
+
+        if ($('#serviceCategoryPills .category-pill.active:visible').length === 0) {
+            $('#serviceCategoryPills .category-pill').removeClass('active');
+            $('#serviceCategoryPills .category-pill[data-id="all"]').addClass('active');
+        }
+    }
+
     function filterItems() {
         const searchTerm = $('#searchInput').val().toLowerCase();
         const activeCatId = String($('#categoryPills .category-pill.active:visible').first().attr('data-id')
@@ -613,15 +735,46 @@
         if (searchTerm) {
             filtered = filtered.filter(item =>
                 item.name.toLowerCase().includes(searchTerm) ||
-                item.sku.toLowerCase().includes(searchTerm)
+                (item.sku || '').toLowerCase().includes(searchTerm)
             );
         }
 
         renderItems(filtered);
     }
 
+    function filterServices() {
+        const searchTerm = $('#searchInput').val().toLowerCase();
+        const activeCatId = String($('#serviceCategoryPills .category-pill.active:visible').first().attr('data-id')
+            || $('#serviceCategoryPills .category-pill[data-id="all"]').attr('data-id') || 'all');
+
+        let filtered = allServices.filter(s => (s.price || 0) > 0);
+
+        if (hasMultipleServiceTypes && activeServiceBusinessType !== 'all') {
+            filtered = filtered.filter(s => String(s.businessTypeKey) === String(activeServiceBusinessType));
+        }
+
+        if (activeCatId !== 'all') {
+            filtered = filtered.filter(s => String(s.categoryId) === String(activeCatId));
+        }
+
+        if (searchTerm) {
+            filtered = filtered.filter(s => s.name.toLowerCase().includes(searchTerm));
+        }
+
+        renderServices(filtered);
+    }
+
+    function filterCatalog() {
+        if (catalogMode === 'services') {
+            filterServices();
+        } else {
+            filterItems();
+        }
+    }
+
     let cart = [];
     let currentModalItem = null;
+    let currentModalService = null;
     let currentView = 'grid';
 
     function formatTZS(amount) {
@@ -776,6 +929,34 @@
         }
     }
 
+    function renderServices(services) {
+        const container = $('#itemsContainer');
+        container.empty();
+        container.removeClass('items-list').addClass('items-grid');
+
+        if (services.length === 0) {
+            container.html('<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #adb5bd;"><i class="fa fa-briefcase fa-3x mb-3"></i><br>No services found. <a href="{{ route('services.categories') }}">Configure services</a></div>');
+            return;
+        }
+
+        services.forEach(service => {
+            const card = `
+                <div class="item-card service-card" onclick="openServiceModal(${service.id})">
+                    <div class="item-icon"><i class="fa fa-briefcase"></i></div>
+                    <div class="item-title">${service.name}</div>
+                    <div class="item-meta">
+                        <div class="item-stock">${service.unit_label || 'unit'}</div>
+                        <div class="item-price">TSh ${formatTZS(service.price)}</div>
+                    </div>
+                    <div class="add-btn">
+                        <i class="fa fa-plus-circle"></i> Add
+                    </div>
+                </div>
+            `;
+            container.append(card);
+        });
+    }
+
     // Modal Logic
     let currentModalPackaging = null;
 
@@ -847,6 +1028,7 @@
     }
 
     window.openModal = function(itemId) {
+        currentModalService = null;
         const item = allItems.find(i => i.id == itemId);
         if (!item || stockPieces(item) <= 0) return;
 
@@ -854,6 +1036,25 @@
         currentModalPackaging = defaultPackaging(item);
         refreshModalPackaging();
         
+        $('#addToCartModal').modal('show');
+    };
+
+    window.openServiceModal = function(serviceId) {
+        currentModalItem = null;
+        currentModalPackaging = null;
+        const service = allServices.find(s => s.id == serviceId);
+        if (!service) return;
+
+        currentModalService = service;
+        $('#modalItemName').text(service.name);
+        $('#modalStockText').text(service.unit_label || 'unit');
+        $('#modalPackagingGroup').hide();
+        $('#modalPriceEditGroup').hide();
+        $('#modalPriceDisplay').show();
+        $('#modalPrice').text(formatTZS(service.price));
+        $('#modalPriceUnit').text('per ' + (service.unit_label || 'unit'));
+        $('#modalQtyInput').val(1).attr('max', 9999);
+        $('#modalQtyLabel').text('Quantity (' + (service.unit_label || 'units') + ')');
         $('#addToCartModal').modal('show');
     };
 
@@ -872,20 +1073,46 @@
 
     $('#qtyPlus').click(function() {
         let val = parseInt($('#modalQtyInput').val()) || 1;
-        let max = parseInt($('#modalQtyInput').attr('max'));
+        let max = parseInt($('#modalQtyInput').attr('max')) || 9999;
         if (val < max) $('#modalQtyInput').val(val + 1);
     });
 
     $('#modalQtyInput').on('change input', function() {
         let val = parseInt($(this).val()) || 1;
-        let max = parseInt($(this).attr('max'));
+        let max = parseInt($(this).attr('max')) || 9999;
         if (val > max) $(this).val(max);
         if (val < 1) $(this).val(1);
     });
 
     $('#confirmAddToCart').click(function() {
-        if (!currentModalItem) return;
         const qty = parseInt($('#modalQtyInput').val()) || 1;
+
+        if (currentModalService) {
+            const cartKey = 'service:' + currentModalService.id;
+            const existing = cart.find(i => i.cartKey === cartKey);
+            if (existing) {
+                existing.qty += qty;
+            } else {
+                cart.push({
+                    cartKey: cartKey,
+                    lineType: 'service',
+                    id: currentModalService.id,
+                    name: currentModalService.name + ' (' + (currentModalService.unit_label || 'unit') + ')',
+                    price: parseFloat(currentModalService.price) || 0,
+                    qty: qty,
+                    maxQty: 9999,
+                });
+            }
+            currentModalService = null;
+            $('#addToCartModal').modal('hide');
+            renderCart();
+            if (isMobilePos()) {
+                $('#posMobileBar').addClass('is-visible');
+            }
+            return;
+        }
+
+        if (!currentModalItem) return;
         const packaging = currentModalPackaging || defaultPackaging(currentModalItem);
         const maxQty = packagingMaxQty(currentModalItem, packaging);
         if (maxQty <= 0) return;
@@ -900,7 +1127,7 @@
             }
         }
 
-        const cartKey = currentModalItem.id + ':' + (packaging.id || 'default');
+        const cartKey = 'product:' + currentModalItem.id + ':' + (packaging.id || 'default');
         
         const existingItem = cart.find(i => i.cartKey === cartKey);
         if (existingItem) {
@@ -913,6 +1140,7 @@
         } else {
             cart.push({
                 cartKey: cartKey,
+                lineType: 'product',
                 id: currentModalItem.id,
                 item_packaging_id: packaging.id,
                 name: currentModalItem.name + packagingLabel(currentModalItem, packaging),
@@ -940,6 +1168,7 @@
         if (cart.length === 0) {
             $('#emptyCartMessage').show();
             $('#placeOrderBtn').prop('disabled', true);
+            $('#splitOrderHint').hide();
             updateTotals(0);
             updateMobilePosChrome(0);
             return;
@@ -949,6 +1178,8 @@
         $('#placeOrderBtn').prop('disabled', false);
 
         let grandTotal = 0;
+        let productIndex = 0;
+        let serviceIndex = 0;
 
         cart.forEach((item, index) => {
             const subtotal = item.qty * item.price;
@@ -966,17 +1197,30 @@
             `;
             list.append(html);
 
-            // Add hidden inputs for form submission
-            hiddenInputs.append(`
-                <input type="hidden" name="items[${index}][id]" value="${item.id}">
-                <input type="hidden" name="items[${index}][item_packaging_id]" value="${item.item_packaging_id || ''}">
-                <input type="hidden" name="items[${index}][qty]" value="${item.qty}">
-                <input type="hidden" name="items[${index}][price]" value="${item.price}">
-            `);
+            if (item.lineType === 'service') {
+                hiddenInputs.append(`
+                    <input type="hidden" name="services[${serviceIndex}][service_id]" value="${item.id}">
+                    <input type="hidden" name="services[${serviceIndex}][qty]" value="${item.qty}">
+                    <input type="hidden" name="services[${serviceIndex}][price]" value="${item.price}">
+                `);
+                serviceIndex++;
+            } else {
+                hiddenInputs.append(`
+                    <input type="hidden" name="items[${productIndex}][id]" value="${item.id}">
+                    <input type="hidden" name="items[${productIndex}][item_packaging_id]" value="${item.item_packaging_id || ''}">
+                    <input type="hidden" name="items[${productIndex}][qty]" value="${item.qty}">
+                    <input type="hidden" name="items[${productIndex}][price]" value="${item.price}">
+                `);
+                productIndex++;
+            }
         });
 
         updateTotals(grandTotal);
         updateMobilePosChrome(grandTotal);
+
+        const hasProducts = cart.some(i => i.lineType !== 'service');
+        const hasServices = cart.some(i => i.lineType === 'service');
+        $('#splitOrderHint').toggle(hasProducts && hasServices);
     }
 
     window.removeFromCart = function(index) {
@@ -990,6 +1234,10 @@
     }
 
     // Event Listeners
+    $('#catalogModePills .catalog-mode-pill').click(function() {
+        setCatalogMode($(this).attr('data-catalog'));
+    });
+
     $('#businessTypePills .business-type-pill').click(function() {
         $('#businessTypePills .business-type-pill').removeClass('active');
         $(this).addClass('active');
@@ -997,30 +1245,40 @@
         $('#categoryPills .category-pill').removeClass('active');
         $('#categoryPills .category-pill[data-id="all"]').addClass('active');
         syncCategoryPillsVisibility();
-        filterItems();
+        filterCatalog();
     });
 
-    $('.category-pill').click(function() {
-        $('.category-pill').removeClass('active');
+    $('#serviceBusinessTypePills .business-type-pill').click(function() {
+        $('#serviceBusinessTypePills .business-type-pill').removeClass('active');
         $(this).addClass('active');
-        filterItems();
+        activeServiceBusinessType = String($(this).attr('data-key') || 'all');
+        $('#serviceCategoryPills .category-pill').removeClass('active');
+        $('#serviceCategoryPills .category-pill[data-id="all"]').addClass('active');
+        syncServiceCategoryPillsVisibility();
+        filterCatalog();
+    });
+
+    $('#categoryPills .category-pill, #serviceCategoryPills .category-pill').click(function() {
+        $(this).closest('.category-pills').find('.category-pill').removeClass('active');
+        $(this).addClass('active');
+        filterCatalog();
     });
 
     $('#btnGrid').click(function() {
         currentView = 'grid';
         $('.view-btn').removeClass('active');
         $(this).addClass('active');
-        filterItems();
+        filterCatalog();
     });
 
     $('#btnList').click(function() {
         currentView = 'list';
         $('.view-btn').removeClass('active');
         $(this).addClass('active');
-        filterItems();
+        filterCatalog();
     });
 
-    $('#searchInput').on('input', filterItems);
+    $('#searchInput').on('input', filterCatalog);
 
     $('#posMobileTabs .pos-mobile-tab').on('click', function () {
         setPosMobileTab(String($(this).data('pos-tab') || 'products'));
@@ -1035,7 +1293,8 @@
     });
 
     syncCategoryPillsVisibility();
-    filterItems();
+    syncServiceCategoryPillsVisibility();
+    setCatalogMode(catalogMode);
 
     $('#posCustomerSelect').select2({
         width: '100%',

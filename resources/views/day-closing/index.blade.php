@@ -301,7 +301,7 @@
         </div>
         @can('view_reports')
           @if($serviceMenuContext ?? false)
-          <a href="{{ route('services.sales.index') }}" class="btn btn-secondary ml-2"><i class="fa fa-list-alt"></i> Service Sales</a>
+          <a href="{{ route('sales.index') }}" class="btn btn-secondary ml-2"><i class="fa fa-list-alt"></i> Sales</a>
           @else
           <a href="{{ route('day-closing.history') }}" class="btn btn-secondary ml-2"><i class="fa fa-history"></i> History</a>
           @endif
@@ -943,7 +943,7 @@
           @if(!($canSubmitHandover ?? true))
             <div class="alert alert-info mb-3">
               <h5 class="mb-1"><i class="fa fa-info-circle"></i> No active shift</h5>
-              <p class="mb-0">Open a shift from <a href="{{ ($serviceMenuContext ?? false) ? route('service-pos.create') : route('shifts.index') }}" class="alert-link font-weight-bold">{{ ($serviceMenuContext ?? false) ? 'Service POS' : 'Sales Shifts' }}</a> before you can submit handover.</p>
+              <p class="mb-0">Open a shift from <a href="{{ ($serviceMenuContext ?? false) ? route('sales.create') : route('shifts.index') }}" class="alert-link font-weight-bold">{{ ($serviceMenuContext ?? false) ? 'Point of Sale' : 'Sales Shifts' }}</a> before you can submit handover.</p>
             </div>
           @else
           <div class="alert alert-warning">

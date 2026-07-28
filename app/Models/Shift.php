@@ -73,6 +73,11 @@ class Shift extends Model
         return $this->hasOne(DayClosing::class);
     }
 
+    public function dayClosings(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(DayClosing::class);
+    }
+
     public static function latestClosedAwaitingHandover(int $userId, int $businessId): ?self
     {
         return self::where('business_id', $businessId)

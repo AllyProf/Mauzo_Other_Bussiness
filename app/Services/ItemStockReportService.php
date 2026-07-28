@@ -27,19 +27,21 @@ class ItemStockReportService
 
     private const ALT_ROW = 'F9F9F9';
 
-    public function build(User $user): array
+    public function build(User $user, ?int $branchFilterIdOverride = null, ?Business $businessOverride = null): array
     {
-        $business = $user->business;
+        $business = $businessOverride ?? $user->business;
         $businessId = $business->id;
         $automation = $business->automationSettings();
         $lowStockThreshold = (int) ($automation['low_stock_threshold'] ?? 5);
         $canViewValue = (bool) $user->seesBusinessWideData();
 
-        $branchFilterId = null;
-        if (! $canViewValue && $user->branch_id) {
-            $branchFilterId = (int) $user->branch_id;
-        } elseif ($branchId = active_branch_id()) {
-            $branchFilterId = $branchId;
+        $branchFilterId = $branchFilterIdOverride;
+        if ($branchFilterId === null) {
+            if (! $canViewValue && $user->branch_id) {
+                $branchFilterId = (int) $user->branch_id;
+            } elseif ($branchId = active_branch_id()) {
+                $branchFilterId = $branchId;
+            }
         }
 
         $viewingAllBranches = $canViewValue && ! $branchFilterId;

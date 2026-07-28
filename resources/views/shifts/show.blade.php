@@ -10,8 +10,19 @@
   </div>
   <div>
     @if($shift->isOpen() && $shift->user_id === Auth::id())
+      @php
+        $retailEnabled = Auth::user()->business?->isRetailEnabled() ?? true;
+        $servicesEnabled = Auth::user()->business?->servicesMenuVisible() ?? false;
+      @endphp
       <a href="{{ route('sales.create') }}" class="btn btn-primary mr-1"><i class="fa fa-shopping-cart"></i> POS</a>
-      <a href="{{ route('day-closing.index', ['shift' => $shift->id]) }}" class="btn btn-warning"><i class="fa fa-balance-scale"></i> End Shift / Handover</a>
+      @if($retailEnabled && $servicesEnabled)
+        <a href="{{ route('day-closing.index', ['shift' => $shift->id]) }}" class="btn btn-warning mr-1"><i class="fa fa-shopping-cart"></i> Products Handover</a>
+        <a href="{{ route('services.handover', ['shift' => $shift->id]) }}" class="btn btn-warning"><i class="fa fa-briefcase"></i> Services Handover</a>
+      @elseif($servicesEnabled)
+        <a href="{{ route('services.handover', ['shift' => $shift->id]) }}" class="btn btn-warning"><i class="fa fa-balance-scale"></i> End Shift / Handover</a>
+      @else
+        <a href="{{ route('day-closing.index', ['shift' => $shift->id]) }}" class="btn btn-warning"><i class="fa fa-balance-scale"></i> End Shift / Handover</a>
+      @endif
     @endif
     <a href="{{ route('shifts.index') }}" class="btn btn-secondary"><i class="fa fa-arrow-left"></i> All Shifts</a>
   </div>

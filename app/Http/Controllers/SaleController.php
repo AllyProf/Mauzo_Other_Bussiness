@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SalePayment;
+use App\Models\Service;
+use App\Models\ServiceCategory;
 use App\Models\Shift;
 use App\Models\ShiftStockCheck;
 use App\Models\Item;
@@ -63,6 +65,23 @@ class SaleController extends Controller
 
         $salesQuery = Sale::where('business_id', $businessId);
         $carriedOverUnpaidCount = 0;
+
+        $saleSourceFilter = request()->query('source');
+        if (! in_array($saleSourceFilter, ['products', 'services'], true)) {
+            $saleSourceFilter = 'all';
+        }
+
+        if ($saleSourceFilter === 'services') {
+            $salesQuery->where(function ($q) {
+                $q->whereIn('sale_source', ['service_pos', 'service_invoice'])
+                    ->orWhereHas('items', fn ($items) => $items->whereNotNull('service_id'));
+            });
+        } elseif ($saleSourceFilter === 'products') {
+            $salesQuery->where(function ($q) {
+                $q->whereNull('sale_source')
+                    ->orWhereNotIn('sale_source', ['service_pos', 'service_invoice']);
+            });
+        }
         
         $dateFrom = request()->query('date_from');
         $dateTo = request()->query('date_to');
@@ -115,8 +134,12 @@ class SaleController extends Controller
             }
         } elseif ($this->actsAsBusinessWideViewer()) {
             if ($branchFilterId) {
-                $salesQuery->whereHas('items.item.category', function ($query) use ($branchFilterId) {
-                    $query->where('branch_id', $branchFilterId);
+                $salesQuery->where(function ($query) use ($branchFilterId) {
+                    $query->whereHas('items.item.category', function ($q) use ($branchFilterId) {
+                        $q->where('branch_id', $branchFilterId);
+                    })->orWhereHas('items.service', function ($q) use ($branchFilterId) {
+                        $q->where('branch_id', $branchFilterId);
+                    });
                 });
             }
         } else {
@@ -147,7 +170,7 @@ class SaleController extends Controller
         ];
 
         $sales = (clone $salesQuery)
-            ->with(['user', 'items.item.category', 'items.itemPackaging.packagingType', 'items.service', 'customer'])
+            ->with(['user', 'items.item.category', 'items.itemPackaging.packagingType', 'items.service.category', 'customer'])
             ->latest('id')
             ->paginate(15);
 
@@ -178,6 +201,7 @@ class SaleController extends Controller
             'dateFrom',
             'dateTo',
             'period',
+            'saleSourceFilter',
         ));
     }
 
@@ -196,8 +220,14 @@ class SaleController extends Controller
             return $redirect;
         }
 
-        // POS Screen
         $business = $this->requireCurrentBusiness();
+        $retailEnabled = $business->isRetailEnabled();
+        $servicesEnabled = $business->servicesMenuVisible();
+
+        if (! $retailEnabled && ! $servicesEnabled) {
+            return redirect()->route('home')
+                ->with('warning', 'Neither retail nor services POS is enabled for this business.');
+        }
 
         $branchFilterId = null;
         if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
@@ -206,42 +236,50 @@ class SaleController extends Controller
             $branchFilterId = $branchId;
         }
 
-        $templates = config('category_templates', []);
-
-        if ($branchFilterId) {
-            $businessTypes = collect($business->importedTypesForBranch($branchFilterId))
-                ->map(function ($type) use ($templates) {
-                    $key = (string) ($type['key'] ?? '');
-
-                    return [
-                        'key' => $key,
-                        'label' => (string) ($type['label'] ?? $key),
-                        'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
-                    ];
-                })
-                ->values()
-                ->all();
-        } else {
-            $businessTypes = $business->posBusinessTypesMeta();
-        }
-
-        $multiBusiness = count($businessTypes) > 1;
         $activeBranchName = $branchFilterId
             ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? Auth::user()->branch?->name ?? 'Branch')
             : null;
         $viewingAllBranches = $this->actsAsBusinessWideViewer() && ! $branchFilterId;
+        $customers = $this->activeCustomers();
 
-        $categoryRecords = Category::where('business_id', $business->id)
-            ->has('items')
-            ->when($branchFilterId, fn ($query) => $query->where('branch_id', $branchFilterId))
-            ->when(! $this->actsAsBusinessWideViewer() && ($typeKeys = Auth::user()->assignedBusinessTypeKeys()) !== [], fn ($query) => $query->whereIn('source_business_type_key', $typeKeys))
-            ->with(['items.packagings.packagingType'])
-            ->orderBy('name')
-            ->get();
+        $categories = collect();
+        $itemsByCategory = collect();
+        $businessTypes = [];
+        $multiBusiness = false;
 
-        $stockContext = app(SaleStockService::class)->shiftStockContext($openShift);
+        if ($retailEnabled) {
+            $templates = config('category_templates', []);
 
-        $itemsByCategory = $categoryRecords->mapWithKeys(function ($cat) use ($openShift, $stockContext) {
+            if ($branchFilterId) {
+                $businessTypes = collect($business->importedTypesForBranch($branchFilterId))
+                    ->map(function ($type) use ($templates) {
+                        $key = (string) ($type['key'] ?? '');
+
+                        return [
+                            'key' => $key,
+                            'label' => (string) ($type['label'] ?? $key),
+                            'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
+                        ];
+                    })
+                    ->values()
+                    ->all();
+            } else {
+                $businessTypes = $business->posBusinessTypesMeta();
+            }
+
+            $multiBusiness = count($businessTypes) > 1;
+
+            $categoryRecords = Category::where('business_id', $business->id)
+                ->has('items')
+                ->when($branchFilterId, fn ($query) => $query->where('branch_id', $branchFilterId))
+                ->when(! $this->actsAsBusinessWideViewer() && ($typeKeys = Auth::user()->assignedBusinessTypeKeys()) !== [], fn ($query) => $query->whereIn('source_business_type_key', $typeKeys))
+                ->with(['items.packagings.packagingType'])
+                ->orderBy('name')
+                ->get();
+
+            $stockContext = app(SaleStockService::class)->shiftStockContext($openShift);
+
+            $itemsByCategory = $categoryRecords->mapWithKeys(function ($cat) use ($openShift, $stockContext) {
                 $typeKey = $cat->source_business_type_key ?: 'other';
                 $stockService = app(SaleStockService::class);
                 $items = $cat->items->map(function ($item) use ($openShift, $stockContext, $typeKey, $stockService) {
@@ -263,15 +301,15 @@ class SaleController extends Controller
                     $defaultPackaging = $defaultRow['packaging'] ?? null;
 
                     return [
-                        'id'            => $item->id,
-                        'name'          => $item->name,
-                        'sku'           => $item->sku ?? '',
-                        'stock'         => $available,
-                        'stock_pieces'  => $available,
-                        'stock_unit'    => 'pcs',
+                        'id' => $item->id,
+                        'name' => $item->name,
+                        'sku' => $item->sku ?? '',
+                        'stock' => $available,
+                        'stock_pieces' => $available,
+                        'stock_unit' => 'pcs',
                         'selling_price' => (float) (optional($defaultPackaging)->selling_price ?? 0),
                         'default_packaging_id' => $defaultPackaging?->id,
-                        'packagings'    => $normalized->map(function ($row) use ($available) {
+                        'packagings' => $normalized->map(function ($row) use ($available) {
                             $p = $row['packaging'];
                             $qpu = (int) $row['quantity_per_unit'];
 
@@ -288,14 +326,62 @@ class SaleController extends Controller
                 })->filter()->values();
 
                 return [$cat->id => $items];
-            })
-            ->filter(fn ($items) => $items->isNotEmpty());
+            })->filter(fn ($items) => $items->isNotEmpty());
 
-        $categories = $categoryRecords
-            ->filter(fn ($cat) => $itemsByCategory->has($cat->id))
-            ->values();
+            $categories = $categoryRecords
+                ->filter(fn ($cat) => $itemsByCategory->has($cat->id))
+                ->values();
+        }
 
-        $customers = $this->activeCustomers();
+        $serviceCategories = collect();
+        $servicesByCategory = collect();
+        $serviceBusinessTypes = [];
+        $multiServiceBusiness = false;
+
+        if ($servicesEnabled) {
+            if ($branchFilterId) {
+                $serviceBusinessTypes = $business->branchServicePosTypesMeta($branchFilterId);
+            } else {
+                $serviceBusinessTypes = $business->servicePosTypesMeta();
+            }
+
+            $multiServiceBusiness = count($serviceBusinessTypes) > 1;
+
+            $serviceCategoryRecords = ServiceCategory::query()
+                ->where('business_id', $business->id)
+                ->whereHas('services', fn ($q) => $q->where('is_active', true))
+                ->when($branchFilterId, fn ($q) => $q->where('branch_id', $branchFilterId))
+                ->orderBy('name')
+                ->get();
+
+            $servicesByCategory = ServiceCategory::query()
+                ->where('business_id', $business->id)
+                ->when($branchFilterId, fn ($q) => $q->where('branch_id', $branchFilterId))
+                ->with(['activeServices'])
+                ->get()
+                ->mapWithKeys(function ($cat) {
+                    $typeKey = $cat->source_service_type_key ?: 'other';
+                    $services = $cat->activeServices->map(fn (Service $s) => [
+                        'id' => $s->id,
+                        'name' => $s->name,
+                        'unit_label' => $s->unit_label,
+                        'price' => (float) $s->price,
+                        'businessTypeKey' => $typeKey,
+                    ])->values();
+
+                    return [$cat->id => $services];
+                })
+                ->filter(fn ($services) => $services->isNotEmpty());
+
+            $serviceCategories = $serviceCategoryRecords
+                ->filter(fn ($cat) => $servicesByCategory->has($cat->id))
+                ->values();
+        }
+
+        $defaultCatalog = $retailEnabled ? 'products' : 'services';
+        if ($retailEnabled && $servicesEnabled && $categories->isEmpty() && $serviceCategories->isNotEmpty()) {
+            $defaultCatalog = 'services';
+        }
 
         return view('sales.create', compact(
             'categories',
@@ -307,6 +393,13 @@ class SaleController extends Controller
             'activeBranchName',
             'branchFilterId',
             'viewingAllBranches',
+            'retailEnabled',
+            'servicesEnabled',
+            'serviceCategories',
+            'servicesByCategory',
+            'serviceBusinessTypes',
+            'multiServiceBusiness',
+            'defaultCatalog',
         ));
     }
 
@@ -315,6 +408,7 @@ class SaleController extends Controller
         $this->authorizeAny(['process_sales']);
 
         $businessId = $this->currentBusinessId();
+        $business = $this->requireCurrentBusiness();
         $openShift = Shift::openForUser(Auth::id(), $businessId);
         if (Auth::user()->requiresOpenShift() && ! $openShift) {
             return redirect()->route('shifts.create')
@@ -327,102 +421,187 @@ class SaleController extends Controller
 
         $request->validate([
             'sale_date' => 'required|date',
-            'items' => 'required|array|min:1',
-            'items.*.id' => 'required|exists:items,id',
+            'items' => 'nullable|array',
+            'items.*.id' => 'required_with:items|exists:items,id',
             'items.*.item_packaging_id' => 'nullable|exists:item_packagings,id',
-            'items.*.qty' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric|min:0.01',
+            'items.*.qty' => 'required_with:items|integer|min:1',
+            'items.*.price' => 'required_with:items|numeric|min:0.01',
+            'services' => 'nullable|array',
+            'services.*.service_id' => 'required_with:services|exists:services,id',
+            'services.*.qty' => 'required_with:services|integer|min:1',
+            'services.*.price' => 'required_with:services|numeric|min:0',
             'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', $businessId)],
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:50',
+            'notes' => 'nullable|string|max:1000',
         ]);
+
+        $activeItems = array_values(array_filter($request->input('items', []) ?: [], fn ($i) => ($i['qty'] ?? 0) > 0));
+        $activeServices = array_values(array_filter($request->input('services', []) ?: [], fn ($s) => ($s['qty'] ?? 0) > 0));
+
+        if (empty($activeItems) && empty($activeServices)) {
+            return redirect()->back()->with('error', 'Add at least one product or service to the cart.')->withInput();
+        }
+
+        if (! empty($activeItems) && ! $business->isRetailEnabled()) {
+            return redirect()->back()->with('error', 'Retail products are not enabled for this business.')->withInput();
+        }
+
+        if (! empty($activeServices) && ! $business->servicesMenuVisible()) {
+            return redirect()->back()->with('error', 'Services are not enabled for this business.')->withInput();
+        }
 
         DB::beginTransaction();
 
         try {
-            $ref = 'ORD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
+            if (! empty($activeItems)) {
+                $stockContext = app(SaleStockService::class)->shiftStockContext($openShift);
+                $stockService = app(SaleStockService::class);
 
-            $activeItems = array_filter($request->items, fn($i) => ($i['qty'] ?? 0) > 0);
+                foreach ($activeItems as $i) {
+                    $item = Item::with('packagings')->find($i['id']);
+                    $packaging = ! empty($i['item_packaging_id'])
+                        ? $item->packagings->firstWhere('id', (int) $i['item_packaging_id'])
+                        : $item->packagings->sortBy('quantity_per_unit')->first();
+                    $stockNeeded = $item->stockUnitsForPackaging((int) $i['qty'], $packaging);
+                    $available = $stockService->availableStockForShift($item, $openShift, $stockContext);
 
-            if (empty($activeItems)) {
-                return redirect()->back()->with('error', 'Please enter at least one item with quantity > 0.')->withInput();
-            }
+                    if ($stockNeeded > $available) {
+                        DB::rollBack();
 
-            $total_amount = 0;
-            foreach ($activeItems as $i) {
-                $total_amount += ($i['qty'] * $i['price']);
-            }
+                        $unitLabel = $packaging?->packagingType?->name ?? 'unit';
 
-            $stockContext = app(SaleStockService::class)->shiftStockContext($openShift);
-            $stockService = app(SaleStockService::class);
-
-            foreach ($activeItems as $i) {
-                $item = Item::with('packagings')->find($i['id']);
-                $packaging = ! empty($i['item_packaging_id'])
-                    ? $item->packagings->firstWhere('id', (int) $i['item_packaging_id'])
-                    : $item->packagings->sortBy('quantity_per_unit')->first();
-                $stockNeeded = $item->stockUnitsForPackaging((int) $i['qty'], $packaging);
-                $available = $stockService->availableStockForShift($item, $openShift, $stockContext);
-
-                if ($stockNeeded > $available) {
-                    DB::rollBack();
-
-                    $unitLabel = $packaging?->packagingType?->name ?? 'unit';
-
-                    return redirect()->back()
-                        ->with('error', "Not enough stock for {$item->name} ({$unitLabel}). Available: {$available} pieces.")
-                        ->withInput();
+                        return redirect()->back()
+                            ->with('error', "Not enough stock for {$item->name} ({$unitLabel}). Available: {$available} pieces.")
+                            ->withInput();
+                    }
                 }
             }
 
             $customerFields = $this->resolveCustomerFields($request);
+            $createdSales = [];
 
-            $sale = Sale::create([
-                'business_id' => $businessId,
-                'user_id' => Auth::id(),
-                'shift_id' => $openShift?->id,
-                'reference_no' => $ref,
-                'sale_source' => 'pos',
-                'stock_deducted' => false,
-                'sale_date' => $request->sale_date,
-                'total_amount' => $total_amount,
-                'amount_paid' => 0,
-                'payment_status' => 'pending',
-                'customer_id' => $customerFields['customer_id'],
-                'customer_name' => $customerFields['customer_name'],
-                'customer_phone' => $customerFields['customer_phone'],
-                'notes' => $request->notes,
-            ]);
+            // Products → separate ORD- sale
+            if (! empty($activeItems)) {
+                $productTotal = 0;
+                foreach ($activeItems as $i) {
+                    $productTotal += ((float) $i['qty'] * (float) $i['price']);
+                }
 
-            foreach ($activeItems as $i) {
-                $subtotal = $i['qty'] * $i['price'];
-                $item = Item::with('packagings')->find($i['id']);
-                $packaging = ! empty($i['item_packaging_id'])
-                    ? $item->packagings->firstWhere('id', (int) $i['item_packaging_id'])
-                    : $item->packagings->sortBy('quantity_per_unit')->first();
-                $unitCost = (float) (optional($packaging)->cost_price ?? 0);
-
-                SaleItem::create([
-                    'sale_id' => $sale->id,
-                    'item_id' => $i['id'],
-                    'item_packaging_id' => $packaging?->id,
-                    'quantity' => $i['qty'],
-                    'unit_price' => $i['price'],
-                    'list_unit_price' => $i['price'],
-                    'cost_price' => $unitCost,
-                    'subtotal' => $subtotal,
+                $productRef = 'ORD-'.date('Ymd').'-'.strtoupper(substr(uniqid(), -4));
+                $productSale = Sale::create([
+                    'business_id' => $businessId,
+                    'user_id' => Auth::id(),
+                    'shift_id' => $openShift?->id,
+                    'reference_no' => $productRef,
+                    'sale_source' => 'pos',
+                    'stock_deducted' => false,
+                    'consumables_deducted' => true,
+                    'sale_date' => $request->sale_date,
+                    'total_amount' => $productTotal,
+                    'amount_paid' => 0,
+                    'payment_status' => 'pending',
+                    'customer_id' => $customerFields['customer_id'],
+                    'customer_name' => $customerFields['customer_name'],
+                    'customer_phone' => $customerFields['customer_phone'],
+                    'notes' => $request->notes,
                 ]);
 
-                if ($packaging && (float) $packaging->selling_price <= 0 && (float) $i['price'] > 0) {
-                    $packaging->update(['selling_price' => (float) $i['price']]);
+                foreach ($activeItems as $i) {
+                    $subtotal = $i['qty'] * $i['price'];
+                    $item = Item::with('packagings')->find($i['id']);
+                    $packaging = ! empty($i['item_packaging_id'])
+                        ? $item->packagings->firstWhere('id', (int) $i['item_packaging_id'])
+                        : $item->packagings->sortBy('quantity_per_unit')->first();
+                    $unitCost = (float) (optional($packaging)->cost_price ?? 0);
+
+                    SaleItem::create([
+                        'sale_id' => $productSale->id,
+                        'item_id' => $i['id'],
+                        'item_packaging_id' => $packaging?->id,
+                        'quantity' => $i['qty'],
+                        'unit_price' => $i['price'],
+                        'list_unit_price' => $i['price'],
+                        'cost_price' => $unitCost,
+                        'subtotal' => $subtotal,
+                    ]);
+
+                    if ($packaging && (float) $packaging->selling_price <= 0 && (float) $i['price'] > 0) {
+                        $packaging->update(['selling_price' => (float) $i['price']]);
+                    }
                 }
+
+                $createdSales[] = $productSale;
+            }
+
+            // Services → separate SRV- sale
+            if (! empty($activeServices)) {
+                $serviceTotal = 0;
+                foreach ($activeServices as $s) {
+                    $serviceTotal += ((float) $s['qty'] * (float) $s['price']);
+                }
+
+                $serviceRef = 'SRV-'.date('Ymd').'-'.strtoupper(substr(uniqid(), -4));
+                $serviceSale = Sale::create([
+                    'business_id' => $businessId,
+                    'user_id' => Auth::id(),
+                    'shift_id' => $openShift?->id,
+                    'reference_no' => $serviceRef,
+                    'sale_source' => 'service_pos',
+                    'stock_deducted' => false,
+                    'consumables_deducted' => false,
+                    'sale_date' => $request->sale_date,
+                    'total_amount' => $serviceTotal,
+                    'amount_paid' => 0,
+                    'payment_status' => 'pending',
+                    'customer_id' => $customerFields['customer_id'],
+                    'customer_name' => $customerFields['customer_name'],
+                    'customer_phone' => $customerFields['customer_phone'],
+                    'notes' => $request->notes,
+                ]);
+
+                foreach ($activeServices as $line) {
+                    $service = Service::find($line['service_id']);
+                    if (! $service || $service->business_id !== $businessId) {
+                        throw new \InvalidArgumentException('Invalid service selected.');
+                    }
+
+                    $qty = (float) $line['qty'];
+                    $price = (float) $line['price'];
+                    $subtotal = $qty * $price;
+
+                    SaleItem::create([
+                        'sale_id' => $serviceSale->id,
+                        'item_id' => null,
+                        'service_id' => $service->id,
+                        'line_description' => $service->name.' ('.$service->unit_label.')',
+                        'quantity' => $qty,
+                        'unit_price' => $price,
+                        'list_unit_price' => $price,
+                        'cost_price' => 0,
+                        'subtotal' => $subtotal,
+                    ]);
+                }
+
+                $createdSales[] = $serviceSale;
             }
 
             DB::commit();
             $openShift?->refreshTotals();
 
-            return redirect()->route('sales.index', ['pay' => $sale->id])
-                ->with('success', "Order placed successfully ($ref). Complete payment below.");
+            $refs = collect($createdSales)->pluck('reference_no')->implode(' + ');
+            $paySale = $createdSales[0];
+            $redirectParams = ['pay' => $paySale->id];
+
+            if (count($createdSales) === 2) {
+                $redirectParams['also_pay'] = $createdSales[1]->id;
+                $message = "2 orders saved ({$refs}). Pay once below — one payment covers both.";
+            } else {
+                $message = "Order placed successfully ({$refs}). Complete payment below.";
+            }
+
+            return redirect()->route('sales.index', $redirectParams)
+                ->with('success', $message);
 
         } catch (\Exception $e) {
             DB::rollback();
@@ -454,6 +633,28 @@ class SaleController extends Controller
 
         if (in_array($sale->payment_status, ['paid', 'cancelled'])) {
             return redirect()->back()->with('error', 'This sale is already fully paid or cancelled.');
+        }
+
+        $linkedIds = collect((array) $request->input('linked_sale_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0 && $id !== (int) $sale->id)
+            ->unique()
+            ->values();
+
+        if ($linkedIds->isNotEmpty()) {
+            $linkedSales = Sale::query()
+                ->where('business_id', $businessId)
+                ->whereIn('id', $linkedIds)
+                ->whereNotIn('payment_status', ['paid', 'cancelled'])
+                ->get();
+
+            foreach ($linkedSales as $linkedSale) {
+                $this->ensureCanAccessStaffRecord((int) $linkedSale->user_id);
+            }
+
+            if ($linkedSales->isNotEmpty()) {
+                return $this->payLinkedCheckout($request, $sale, $linkedSales, $business, $businessId);
+            }
         }
 
         $balanceDue = (float) $sale->total_amount - (float) $sale->amount_paid;
@@ -942,6 +1143,187 @@ class SaleController extends Controller
 
             return redirect()->back()->with('error', 'Error processing split payment: '.$e->getMessage());
         }
+    }
+
+    /**
+     * One payment covering a primary sale + linked checkout sales (e.g. products ORD + services SRV).
+     *
+     * @param  \Illuminate\Support\Collection<int, Sale>  $linkedSales
+     */
+    private function payLinkedCheckout(Request $request, Sale $primarySale, $linkedSales, $business, int $businessId)
+    {
+        $sales = collect([$primarySale])->merge($linkedSales)->unique('id')->values();
+
+        $combinedBalance = $sales->sum(fn (Sale $s) => max(0, (float) $s->total_amount - (float) $s->amount_paid));
+
+        if ($combinedBalance <= 0) {
+            return redirect()->back()->with('error', 'These sales have no balance remaining.');
+        }
+
+        $request->validate([
+            'payment_method' => ['required', 'string', Rule::in($business->enabledPaymentMethodKeys())],
+        ]);
+
+        $method = $business->findPaymentMethod($request->payment_method);
+
+        if (($method['type'] ?? '') === 'credit') {
+            $request->validate([
+                'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', $businessId)],
+                'customer_name' => 'required|string|max:255',
+                'customer_phone' => 'nullable|string|max:50',
+                'due_date' => 'required|date',
+                'notes' => 'nullable|string|max:1000',
+            ]);
+
+            $customerFields = $this->resolveCustomerFields($request);
+
+            DB::beginTransaction();
+            try {
+                foreach ($sales as $sale) {
+                    $balance = max(0, (float) $sale->total_amount - (float) $sale->amount_paid);
+                    if ($balance <= 0) {
+                        continue;
+                    }
+
+                    $status = $sale->amount_paid > 0 ? 'partial' : 'debt';
+                    $updateData = [
+                        'payment_status' => $status,
+                        'customer_id' => $customerFields['customer_id'],
+                        'customer_name' => $customerFields['customer_name'],
+                        'customer_phone' => $customerFields['customer_phone'],
+                        'due_date' => $request->due_date,
+                    ];
+
+                    if ($request->filled('notes')) {
+                        $updateData['notes'] = $this->appendSaleNote($sale, $request->notes);
+                    }
+
+                    $sale->update($updateData);
+                    $sale->refresh();
+                    app(SaleStockService::class)->deductIfPaid(
+                        $sale,
+                        $sale->shift_id ? Shift::find($sale->shift_id) : null
+                    );
+                }
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+
+                return redirect()->back()->with('error', $e->getMessage());
+            }
+
+            $sales->pluck('shift_id')->filter()->unique()->each(fn ($id) => Shift::find($id)?->refreshTotals());
+
+            $refs = $sales->pluck('reference_no')->implode(' + ');
+
+            return redirect()->back()->with(
+                'success',
+                'Orders '.$refs.' saved as credit. Combined balance '.money($combinedBalance).' due '.$request->due_date.'.'
+            );
+        }
+
+        $request->validate([
+            'amount_paid' => 'required|numeric|min:0.01',
+        ]);
+
+        if (! empty($method['requires_reference'])) {
+            $request->validate([
+                'payment_provider' => 'required|string|max:255',
+                'transaction_reference' => 'required|string|max:255',
+            ]);
+        }
+
+        $amountRemaining = min((float) $request->amount_paid, $combinedBalance);
+        $willBePartial = $amountRemaining < $combinedBalance;
+
+        if ($willBePartial) {
+            $request->validate([
+                'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('business_id', $businessId)],
+                'customer_name' => 'required|string|max:255',
+                'customer_phone' => 'required|string|max:50',
+                'due_date' => 'required|date',
+                'notes' => 'required|string|max:1000',
+            ]);
+        }
+
+        DB::beginTransaction();
+        try {
+            $customerFields = $willBePartial || $request->filled('customer_id')
+                ? $this->resolveCustomerFields($request)
+                : null;
+
+            foreach ($sales as $sale) {
+                $balance = max(0, (float) $sale->total_amount - (float) $sale->amount_paid);
+                if ($balance <= 0 || $amountRemaining <= 0) {
+                    continue;
+                }
+
+                $amountToPay = min($amountRemaining, $balance);
+                $amountRemaining -= $amountToPay;
+
+                SalePayment::create([
+                    'sale_id' => $sale->id,
+                    'user_id' => Auth::id(),
+                    'amount' => $amountToPay,
+                    'payment_method' => $request->payment_method,
+                    'payment_provider' => $request->payment_provider,
+                    'transaction_reference' => $request->transaction_reference,
+                ]);
+
+                $newAmountPaid = (float) $sale->amount_paid + $amountToPay;
+                $status = ($newAmountPaid >= (float) $sale->total_amount) ? 'paid' : 'partial';
+
+                $updateData = [
+                    'amount_paid' => $newAmountPaid,
+                    'payment_status' => $status,
+                    'payment_method' => $request->payment_method,
+                ];
+
+                if ($status !== 'paid' || $willBePartial) {
+                    if ($customerFields) {
+                        $updateData['customer_id'] = $customerFields['customer_id'];
+                        $updateData['customer_name'] = $customerFields['customer_name'];
+                        $updateData['customer_phone'] = $customerFields['customer_phone'];
+                    }
+                    if ($willBePartial) {
+                        $updateData['due_date'] = $request->due_date;
+                        $updateData['notes'] = $this->appendSaleNote($sale, $request->notes);
+                    }
+                } elseif ($status === 'paid') {
+                    $updateData['due_date'] = null;
+                    if ($customerFields) {
+                        $updateData['customer_id'] = $customerFields['customer_id'];
+                        $updateData['customer_name'] = $customerFields['customer_name'];
+                        $updateData['customer_phone'] = $customerFields['customer_phone'];
+                    }
+                }
+
+                $sale->update($updateData);
+                $sale->refresh();
+                app(SaleStockService::class)->deductIfPaid(
+                    $sale,
+                    $sale->shift_id ? Shift::find($sale->shift_id) : null
+                );
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
+        $sales->pluck('shift_id')->filter()->unique()->each(fn ($id) => Shift::find($id)?->refreshTotals());
+
+        $paidTotal = min((float) $request->amount_paid, $combinedBalance);
+        $refs = $sales->pluck('reference_no')->implode(' + ');
+        $message = 'One payment of '.money($paidTotal).' recorded for '.$refs.'.';
+
+        if ($willBePartial) {
+            $message .= ' Remaining balance due '.$request->due_date.'.';
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     private function scopeCarriedOverUnpaidSales($query, int $userId, int $currentShiftId): void

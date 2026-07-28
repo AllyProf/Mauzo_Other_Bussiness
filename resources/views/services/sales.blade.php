@@ -22,7 +22,7 @@
     @if(($requiresOpenShift ?? false) && !($openShift ?? null))
       <a href="{{ route('shifts.create') }}" class="btn btn-warning"><i class="fa fa-clock-o"></i> Open Shift</a>
     @else
-      <a href="{{ route('service-pos.create') }}" class="btn btn-success"><i class="fa fa-desktop"></i> Service POS</a>
+      <a href="{{ route('sales.create') }}" class="btn btn-success"><i class="fa fa-desktop"></i> Point of Sale</a>
     @endif
     <a href="{{ route('services.materials') }}" class="btn btn-outline-secondary ml-1"><i class="fa fa-cubes"></i> Materials Stock</a>
   </div>
@@ -135,7 +135,7 @@
             </td>
           </tr>
           @empty
-          <tr><td colspan="7" class="text-center text-muted py-4">No service sales yet. Use <a href="{{ route('service-pos.create') }}">Service POS</a> to record a sale.</td></tr>
+          <tr><td colspan="7" class="text-center text-muted py-4">No service sales yet. Use <a href="{{ route('sales.create') }}">Point of Sale</a> to record a sale.</td></tr>
           @endforelse
         </tbody>
       </table>

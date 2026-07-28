@@ -135,8 +135,19 @@
       @endcanany
     @else
       <div class="shifts-title-actions">
+        @php
+          $retailEnabled = Auth::user()->business?->isRetailEnabled() ?? true;
+          $servicesEnabled = Auth::user()->business?->servicesMenuVisible() ?? false;
+        @endphp
         <a href="{{ route('sales.create') }}" class="btn btn-primary"><i class="fa fa-shopping-cart"></i> Go to POS</a>
-        <a href="{{ route('day-closing.index', ['shift' => $openShift->id]) }}" class="btn btn-warning"><i class="fa fa-balance-scale"></i> End Shift / Handover</a>
+        @if($retailEnabled && $servicesEnabled)
+          <a href="{{ route('day-closing.index', ['shift' => $openShift->id]) }}" class="btn btn-warning"><i class="fa fa-shopping-cart"></i> Products Handover</a>
+          <a href="{{ route('services.handover', ['shift' => $openShift->id]) }}" class="btn btn-warning"><i class="fa fa-briefcase"></i> Services Handover</a>
+        @elseif($servicesEnabled)
+          <a href="{{ route('services.handover', ['shift' => $openShift->id]) }}" class="btn btn-warning"><i class="fa fa-balance-scale"></i> End Shift / Handover</a>
+        @else
+          <a href="{{ route('day-closing.index', ['shift' => $openShift->id]) }}" class="btn btn-warning"><i class="fa fa-balance-scale"></i> End Shift / Handover</a>
+        @endif
       </div>
     @endif
   @endif
@@ -170,7 +181,7 @@
       @if($openShift->opening_variance_count > 0)
         <span class="badge badge-warning ml-2">{{ $openShift->opening_variance_count }} opening stock variance(s)</span>
       @endif
-      — <a href="{{ route('day-closing.index', ['shift' => $openShift->id]) }}" class="alert-link font-weight-bold">Submit handover to end shift</a>
+      — <a href="{{ route((Auth::user()->business?->isRetailEnabled() ?? true) ? 'day-closing.index' : 'services.handover', ['shift' => $openShift->id]) }}" class="alert-link font-weight-bold">Submit handover to end shift</a>
     </div>
   </div>
 </div>
@@ -182,7 +193,7 @@
     <div class="alert alert-warning mb-0">
       <strong><i class="fa fa-balance-scale"></i> Handover pending</strong> for Shift #{{ $pendingHandoverShift->id }}
       (closed {{ $pendingHandoverShift->closed_at->format('M d, Y h:i A') }}).
-      <a href="{{ route('day-closing.index', ['shift' => $pendingHandoverShift->id]) }}" class="alert-link font-weight-bold">Go to Daily Reconciliation</a>
+      <a href="{{ route((Auth::user()->business?->isRetailEnabled() ?? true) ? 'day-closing.index' : 'services.handover', ['shift' => $pendingHandoverShift->id]) }}" class="alert-link font-weight-bold">Go to {{ (Auth::user()->business?->isRetailEnabled() ?? true) ? 'Daily Reconciliation' : 'Service Handover' }}</a>
     </div>
   </div>
 </div>
@@ -360,7 +371,16 @@
                     </a>
                   @endif
                   @if($shift->isOpen() && $shift->user_id === Auth::id())
-                    <a href="{{ route('day-closing.index', ['shift' => $shift->id]) }}" class="btn btn-sm btn-warning" title="End shift / handover"><i class="fa fa-balance-scale"></i></a>
+                    @php
+                      $retailEnabled = Auth::user()->business?->isRetailEnabled() ?? true;
+                      $servicesEnabled = Auth::user()->business?->servicesMenuVisible() ?? false;
+                    @endphp
+                    @if($retailEnabled)
+                      <a href="{{ route('day-closing.index', ['shift' => $shift->id]) }}" class="btn btn-sm btn-warning" title="Products handover"><i class="fa fa-shopping-cart"></i></a>
+                    @endif
+                    @if($servicesEnabled)
+                      <a href="{{ route('services.handover', ['shift' => $shift->id]) }}" class="btn btn-sm btn-warning" title="Services handover"><i class="fa fa-briefcase"></i></a>
+                    @endif
                   @endif
                 </td>
               </tr>

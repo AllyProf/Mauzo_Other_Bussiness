@@ -11,12 +11,26 @@ class RegistrationFunnelService
     public function track(Request $request, string $event, array $metadata = []): void
     {
         RegistrationFunnelEvent::create([
-            'session_id' => $request->session()->getId(),
+            'session_id' => $this->resolveSessionId($request),
             'event' => $event,
             'metadata' => $metadata ?: null,
             'ip_address' => $request->ip(),
             'created_at' => now(),
         ]);
+    }
+
+    private function resolveSessionId(Request $request): string
+    {
+        if ($request->hasSession()) {
+            return $request->session()->getId();
+        }
+
+        $deviceId = trim((string) $request->header('X-Device-Id', ''));
+        if ($deviceId !== '') {
+            return substr('api:'.$deviceId, 0, 64);
+        }
+
+        return 'api:'.substr(hash('sha256', (string) $request->ip().'|'.(string) $request->userAgent()), 0, 59);
     }
 
     /**

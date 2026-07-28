@@ -419,12 +419,30 @@
         updateCustomerInfoVisibility();
     }
 
-    function openPaymentModal(saleId, ref, totalAmount, amountPaid, customerId, customerName, customerPhone, dueDate, items) {
-        currentTotal = parseFloat(totalAmount) || 0;
-        currentPaid = parseFloat(amountPaid) || 0;
+    function openPaymentModal(saleId, ref, totalAmount, amountPaid, customerId, customerName, customerPhone, dueDate, items, linkedSales) {
+        linkedSales = linkedSales || [];
+
+        let total = parseFloat(totalAmount) || 0;
+        let paid = parseFloat(amountPaid) || 0;
+        let refs = [ref].filter(Boolean);
+        let allItems = (items || []).slice();
+
+        linkedSales.forEach(function (linked) {
+            total += parseFloat(linked.total) || 0;
+            paid += parseFloat(linked.paid) || 0;
+            if (linked.ref) {
+                refs.push(linked.ref);
+            }
+            (linked.items || []).forEach(function (item) {
+                allItems.push(item);
+            });
+        });
+
+        currentTotal = total;
+        currentPaid = paid;
         currentBalance = Math.max(0, currentTotal - currentPaid);
 
-        payLineItems = (items || []).map(function(item) {
+        payLineItems = allItems.map(function(item) {
             return {
                 id: item.id,
                 name: item.name,
@@ -437,10 +455,24 @@
             };
         });
 
-        $('#payRef').text(ref);
+        $('#payRef').text(refs.join(' + '));
         $('#payOrderTotal').text(formatMoneyLabel(currentTotal));
         $('#payAmountPaid').text(formatMoneyLabel(currentPaid));
         $('#payBalance').text(formatMoneyLabel(currentBalance));
+
+        const $linkedInputs = $('#linkedSaleInputs').empty();
+        if (linkedSales.length) {
+            linkedSales.forEach(function (linked) {
+                $linkedInputs.append(
+                    $('<input>', { type: 'hidden', name: 'linked_sale_ids[]', value: linked.id })
+                );
+            });
+            $('#linkedOrdersNote')
+                .show()
+                .html('<i class="fa fa-link"></i> One payment covers <strong>' + refs.length + ' separate orders</strong> in history: ' + refs.join(' + '));
+        } else {
+            $('#linkedOrdersNote').hide().empty();
+        }
 
         $('#paymentForm').attr('action', `/sales/${saleId}/pay`);
 
@@ -480,6 +512,30 @@
         $('#paymentModal').modal('show');
     }
 
+    function collectLinkedSalesFromButtons(alsoPayIds) {
+        const linked = [];
+        (alsoPayIds || []).forEach(function (id) {
+            const $btn = $('.open-payment-modal-btn[data-sale-id="' + id + '"]').first();
+            if (! $btn.length) {
+                return;
+            }
+            let items = [];
+            try {
+                items = JSON.parse($btn.attr('data-items') || '[]');
+            } catch (e) {
+                items = [];
+            }
+            linked.push({
+                id: $btn.data('sale-id'),
+                ref: $btn.attr('data-ref') || '',
+                total: $btn.data('total'),
+                paid: $btn.data('paid'),
+                items: items,
+            });
+        });
+        return linked;
+    }
+
     $(document).on('click', '.open-payment-modal-btn', function() {
         const $btn = $(this);
         let items = [];
@@ -487,6 +543,14 @@
             items = JSON.parse($btn.attr('data-items') || '[]');
         } catch (e) {
             items = [];
+        }
+
+        let alsoPayIds = [];
+        try {
+            const raw = $btn.attr('data-also-pay') || '[]';
+            alsoPayIds = JSON.parse(raw);
+        } catch (e) {
+            alsoPayIds = [];
         }
 
         openPaymentModal(
@@ -498,7 +562,8 @@
             $btn.attr('data-customer-name') || '',
             $btn.attr('data-customer-phone') || '',
             $btn.attr('data-due-date') || null,
-            items
+            items,
+            collectLinkedSalesFromButtons(alsoPayIds)
         );
     });
 

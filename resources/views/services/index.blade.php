@@ -112,7 +112,7 @@
         <h3 class="tile-title mb-0">Service catalog & prices</h3>
         @can('process_sales')
         <div class="btn-group">
-          <a href="{{ route('service-pos.create') }}" class="btn btn-success"><i class="fa fa-desktop"></i> Service POS</a>
+          <a href="{{ route('sales.create') }}" class="btn btn-success"><i class="fa fa-desktop"></i> Point of Sale</a>
           @if(plan_feature('invoices'))
           <a href="{{ route('service-invoices.create') }}" class="btn btn-outline-primary"><i class="fa fa-file-text-o"></i> New Invoice</a>
           <a href="{{ route('service-invoices.index') }}" class="btn btn-outline-secondary"><i class="fa fa-list"></i> Invoices</a>

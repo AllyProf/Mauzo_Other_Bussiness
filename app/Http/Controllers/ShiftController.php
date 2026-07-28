@@ -468,7 +468,7 @@ class ShiftController extends Controller
             abort(403, 'Only the shift owner can close this shift.');
         }
 
-        return redirect()->route('day-closing.index', ['shift' => $shift->id]);
+        return redirect()->route($this->preferredHandoverRouteName(), ['shift' => $shift->id]);
     }
 
     public function close(Request $request, Shift $shift)
@@ -483,7 +483,18 @@ class ShiftController extends Controller
             abort(403, 'Only the shift owner can close this shift.');
         }
 
-        return redirect()->route('day-closing.index', ['shift' => $shift->id]);
+        return redirect()->route($this->preferredHandoverRouteName(), ['shift' => $shift->id]);
+    }
+
+    private function preferredHandoverRouteName(): string
+    {
+        $business = Auth::user()?->business;
+
+        if ($business && ! $business->isRetailEnabled() && $business->servicesMenuVisible()) {
+            return 'services.handover';
+        }
+
+        return 'day-closing.index';
     }
 
     private function authorizeShiftAccess(Shift $shift): void

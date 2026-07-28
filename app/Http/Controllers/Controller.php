@@ -125,7 +125,12 @@ abstract class Controller
 
         $status = $policy->shiftOverdueStatus($openShift, $business);
 
-        return redirect()->route('day-closing.index', ['shift' => $openShift->id])
+        $handoverRoute = 'day-closing.index';
+        if ($business && ! $business->isRetailEnabled() && $business->servicesMenuVisible()) {
+            $handoverRoute = 'services.handover';
+        }
+
+        return redirect()->route($handoverRoute, ['shift' => $openShift->id])
             ->with('error', $status['message']);
     }
 

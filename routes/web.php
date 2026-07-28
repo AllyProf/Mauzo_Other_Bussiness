@@ -201,15 +201,21 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::post('/services/materials/{material}/receive', [App\Http\Controllers\ServiceCatalogController::class, 'receiveMaterial'])->name('services.materials.receive');
     Route::post('/services/categories', [App\Http\Controllers\ServiceCatalogController::class, 'storeCategory'])->name('services.categories.store');
     Route::delete('/services/categories/{category}', [App\Http\Controllers\ServiceCatalogController::class, 'destroyCategory'])->name('services.categories.destroy');
-    Route::get('/services/sales', [App\Http\Controllers\ServiceSaleController::class, 'index'])->name('services.sales.index');
+    Route::get('/services/sales', function () {
+        return redirect()->route('sales.index', request()->query());
+    })->name('services.sales.index');
     Route::get('/services/handover', [App\Http\Controllers\DayClosingController::class, 'index'])->name('services.handover');
     Route::get('/services/master-sheet', [App\Http\Controllers\OwnerDailyReportController::class, 'serviceIndex'])->name('services.master-sheet');
     Route::post('/services/import-templates', [App\Http\Controllers\ServiceCatalogController::class, 'importTemplates'])->name('services.import-templates');
     Route::post('/services/catalog', [App\Http\Controllers\ServiceCatalogController::class, 'storeService'])->name('services.store');
     Route::put('/services/{service}', [App\Http\Controllers\ServiceCatalogController::class, 'updateService'])->name('services.update');
     Route::delete('/services/{service}', [App\Http\Controllers\ServiceCatalogController::class, 'destroyService'])->name('services.destroy');
-    Route::get('/service-pos', [App\Http\Controllers\ServiceSaleController::class, 'create'])->name('service-pos.create');
-    Route::post('/service-pos', [App\Http\Controllers\ServiceSaleController::class, 'store'])->name('service-pos.store');
+    // Legacy service POS URLs → unified /sales/create
+    Route::redirect('/service-pos', '/sales/create')->name('service-pos.create');
+    Route::post('/service-pos', function () {
+        return redirect()->route('sales.create')
+            ->with('info', 'Use the unified Point of Sale at Sales → create. Services are available there.');
+    })->name('service-pos.store');
     Route::get('/service-invoices', [App\Http\Controllers\ServiceInvoiceController::class, 'index'])->name('service-invoices.index');
     Route::get('/service-invoices/create', [App\Http\Controllers\ServiceInvoiceController::class, 'create'])->name('service-invoices.create');
     Route::post('/service-invoices', [App\Http\Controllers\ServiceInvoiceController::class, 'store'])->name('service-invoices.store');
@@ -232,11 +238,10 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::get('/invoices/{invoice}', [App\Http\Controllers\InvoiceController::class, 'show'])->name('invoices.show');
     Route::get('/live-sales', [App\Http\Controllers\LiveSalesController::class, 'index'])->name('live-sales.index');
 
-    Route::middleware('check.business.retail')->group(function () {
+    // Unified POS — retail products and/or services (no separate /service-pos screen)
     Route::resource('/sales', App\Http\Controllers\SaleController::class);
     Route::post('/sales/{sale}/pay', [App\Http\Controllers\SaleController::class, 'pay'])->name('sales.pay');
     Route::post('/sales/{sale}/cancel', [App\Http\Controllers\SaleController::class, 'cancel'])->name('sales.cancel');
-    });
 
     // Sales Shifts
     Route::get('/shifts', [App\Http\Controllers\ShiftController::class, 'index'])->name('shifts.index');
