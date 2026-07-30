@@ -24,11 +24,11 @@ class DayClosingController extends Controller
     private bool $serviceHandoverContext = false;
 
     public function __construct(
-        private OwnerDailyReportService $reportService,
-        private BusinessTypeBreakdownService $businessTypeBreakdown,
-        private BusinessStaffSmsService $staffSms,
-        private BusinessStaffMailService $staffMail,
-        private BusinessSalesReportEmailService $salesReportEmail,
+        protected OwnerDailyReportService $reportService,
+        protected BusinessTypeBreakdownService $businessTypeBreakdown,
+        protected BusinessStaffSmsService $staffSms,
+        protected BusinessStaffMailService $staffMail,
+        protected BusinessSalesReportEmailService $salesReportEmail,
     )
     {
     }

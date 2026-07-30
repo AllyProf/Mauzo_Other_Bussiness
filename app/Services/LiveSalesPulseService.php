@@ -164,6 +164,99 @@ class LiveSalesPulseService
         ];
     }
 
+    /**
+     * Structured JSON for mobile API (no HTML fragments).
+     *
+     * @return array<string, mixed>
+     */
+    public function apiPayload(array $snapshot): array
+    {
+        $shift = $snapshot['active_shift'];
+        $context = $snapshot['context'];
+
+        return [
+            'synced_at' => now()->toIso8601String(),
+            'context' => [
+                'mode' => $context['mode'],
+                'date' => $context['date'],
+                'scope_label' => $context['scope_label'],
+                'filter_note' => $snapshot['filter_note'] ?? '',
+            ],
+            'shift' => $shift ? [
+                'id' => $shift->id,
+                'user_id' => $shift->user_id,
+                'cashier' => $shift->user?->name,
+                'opened_at' => $shift->opened_at?->toIso8601String(),
+                'status' => $shift->status,
+            ] : null,
+            'kpis' => [
+                'total_revenue' => (float) $snapshot['total_revenue'],
+                'cash_revenue' => (float) $snapshot['today_cash'],
+                'digital_revenue' => (float) $snapshot['today_digital'],
+                'gross_profit' => (float) $snapshot['shift_profit'],
+                'money_in_circulation' => (float) $snapshot['money_in_circulation'],
+                'margin_percent' => (float) $snapshot['margin_percent'],
+                'total_orders' => (int) $snapshot['total_orders'],
+                'active_orders' => (int) $snapshot['active_orders'],
+                'served_orders' => (int) $snapshot['served_orders'],
+            ],
+            'hourly_velocity' => collect($snapshot['hourly_data'])
+                ->map(fn ($count, $hour) => [
+                    'hour' => (int) $hour,
+                    'label' => sprintf('%02d:00', (int) $hour),
+                    'orders' => (int) $count,
+                ])
+                ->values()
+                ->all(),
+            'category_mix' => [
+                'products' => round((float) $snapshot['category_mix']['products'], 2),
+                'services' => round((float) $snapshot['category_mix']['services'], 2),
+            ],
+            'live_feed' => collect($snapshot['live_feed'])->map(function (Sale $sale) {
+                $isService = $sale->usesServices();
+
+                return [
+                    'id' => $sale->id,
+                    'reference_no' => $sale->reference_no,
+                    'sale_source' => $sale->sale_source ?? 'pos',
+                    'channel' => $isService ? 'service' : 'store',
+                    'payment_status' => $sale->payment_status,
+                    'payment_method' => $sale->payment_method,
+                    'total_amount' => (float) $sale->total_amount,
+                    'amount_paid' => (float) $sale->amount_paid,
+                    'customer_name' => $sale->customer_name,
+                    'cashier' => $sale->user?->name,
+                    'items_count' => $sale->items->count(),
+                    'item_summary' => $sale->items
+                        ->take(3)
+                        ->map(fn ($line) => $line->service_id
+                            ? ($line->line_description ?: $line->service?->name ?: 'Service')
+                            : ($line->item?->name ?? 'Item'))
+                        ->values()
+                        ->all(),
+                    'created_at' => $sale->created_at?->toIso8601String(),
+                    'created_at_label' => $sale->created_at?->diffForHumans(),
+                ];
+            })->values()->all(),
+            'staff_pulse' => collect($snapshot['staff_pulse'])->map(fn ($row) => [
+                'user_id' => (int) $row->user_id,
+                'name' => $row->name,
+                'orders' => (int) $row->orders,
+                'revenue' => (float) $row->revenue,
+            ])->values()->all(),
+            'top_products' => collect($snapshot['top_products'])->map(fn ($row) => [
+                'name' => $row->name,
+                'qty' => (float) $row->total_qty,
+                'revenue' => (float) $row->revenue,
+            ])->values()->all(),
+            'top_services' => collect($snapshot['top_services'])->map(fn ($row) => [
+                'name' => $row->name,
+                'qty' => (float) $row->total_qty,
+                'revenue' => (float) $row->revenue,
+            ])->values()->all(),
+        ];
+    }
+
     private function openShiftForBusiness(int $businessId, ?int $branchFilterId): ?Shift
     {
         $query = Shift::query()

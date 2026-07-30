@@ -947,21 +947,20 @@ class OwnerDailyReportService
         $expenseList = collect();
         foreach ($closing->expenses ?? [] as $ex) {
             $expenseList->push([
+                'id' => null,
                 'description' => $ex->description,
                 'amount' => (float) $ex->amount,
-                'category' => 'Staff',
+                'category' => 'other',
+                'category_label' => 'Staff',
                 'fund_source' => $fundSource,
+                'deletable' => false,
+                'source' => 'staff_handover',
             ]);
         }
 
         if ($isLastHandoverOfDay) {
             foreach ($this->branchScopedOwnerExpenses($business->id, $date)->get() as $ex) {
-                $expenseList->push([
-                    'description' => $ex->description,
-                    'amount' => (float) $ex->amount,
-                    'category' => $ex->categoryLabel(),
-                    'fund_source' => $ex->fund_source ?? 'circulation',
-                ]);
+                $expenseList->push($this->formatOwnerExpenseListItem($ex));
             }
         }
 
@@ -1042,20 +1041,19 @@ class OwnerDailyReportService
         $expenseList = collect();
         foreach ($closing->expenses ?? [] as $ex) {
             $expenseList->push([
+                'id' => null,
                 'description' => $ex->description,
                 'amount' => (float) $ex->amount,
-                'category' => 'Staff',
+                'category' => 'other',
+                'category_label' => 'Staff',
                 'fund_source' => $fundSource,
+                'deletable' => false,
+                'source' => 'staff_handover',
             ]);
         }
 
         foreach ($this->serviceOwnerExpensesForDate($business, $date) as $ex) {
-            $expenseList->push([
-                'description' => $ex->description,
-                'amount' => (float) $ex->amount,
-                'category' => $ex->categoryLabel(),
-                'fund_source' => $ex->fund_source ?? 'circulation',
-            ]);
+            $expenseList->push($this->formatOwnerExpenseListItem($ex));
         }
 
         $staffRecoveries = $this->staffRecoveryTotals($closing);
@@ -1693,12 +1691,7 @@ class OwnerDailyReportService
 
         $expenseList = collect();
         foreach ($this->branchScopedOwnerExpenses($business->id, $dateString)->get() as $ex) {
-            $expenseList->push([
-                'description' => $ex->description,
-                'amount' => (float) $ex->amount,
-                'category' => $ex->categoryLabel(),
-                'fund_source' => $ex->fund_source ?? 'circulation',
-            ]);
+            $expenseList->push($this->formatOwnerExpenseListItem($ex));
         }
 
         $hasOpenShift = $this->hasOpenShiftForDate($business, $dateString);
@@ -2018,6 +2011,20 @@ class OwnerDailyReportService
             'owner_expenses' => (float) $rows->sum('amount'),
             'owner_circulation_expenses' => (float) $rows->where('fund_source', 'circulation')->sum('amount'),
             'owner_profit_expenses' => (float) $rows->where('fund_source', 'profit')->sum('amount'),
+        ];
+    }
+
+    private function formatOwnerExpenseListItem(BusinessOwnerExpense $ex): array
+    {
+        return [
+            'id' => (int) $ex->id,
+            'description' => $ex->description,
+            'amount' => (float) $ex->amount,
+            'category' => $ex->category ?: 'other',
+            'category_label' => $ex->categoryLabel(),
+            'fund_source' => $ex->fund_source ?? 'circulation',
+            'deletable' => true,
+            'source' => 'owner',
         ];
     }
 

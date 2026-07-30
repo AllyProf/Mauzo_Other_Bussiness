@@ -72,7 +72,7 @@ class OwnerReportController extends ApiController
         }
 
         $user = $request->user();
-        $branchFilterId = $this->branchFilterId($user);
+        $branchFilterId = $this->branchFilterId($user, $request);
 
         try {
             $data = $this->reports->storeExpense(
@@ -147,10 +147,17 @@ class OwnerReportController extends ApiController
         }
     }
 
-    private function branchFilterId($user): ?int
+    private function branchFilterId($user, ?Request $request = null): ?int
     {
         if (! $user->seesBusinessWideData() && $user->branch_id) {
             return (int) $user->branch_id;
+        }
+
+        if ($request?->filled('branch_id')) {
+            $requested = (int) $request->input('branch_id');
+            if ($requested > 0 && $this->tenantContext()->ownerBranches()->contains('id', $requested)) {
+                return $requested;
+            }
         }
 
         return $this->tenantContext()->branchId();

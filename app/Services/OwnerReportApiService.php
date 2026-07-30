@@ -149,7 +149,7 @@ class OwnerReportApiService
             ]);
         }
 
-        return $this->withWebContext($user, $businessId, $branchFilterId, function () use ($user, $businessId, $date, $payload) {
+        return $this->withWebContext($user, $businessId, $branchFilterId, function () use ($user, $businessId, $branchFilterId, $date, $payload) {
             $business = Business::findOrFail($businessId);
             $parsedDate = Carbon::parse($date)->toDateString();
 
@@ -158,7 +158,15 @@ class OwnerReportApiService
                 'amount' => 'required|numeric|min:0.01',
                 'category' => 'nullable|in:restock,payment,salary,operational,other',
                 'fund_source' => 'nullable|in:circulation,profit',
+                'branch_id' => 'nullable|integer|min:1',
             ])->validate();
+
+            $expenseBranchId = $this->resolveExpenseBranchId(
+                $user,
+                $businessId,
+                $branchFilterId,
+                isset($validated['branch_id']) ? (int) $validated['branch_id'] : null
+            );
 
             $report = OwnerDailyReport::where('business_id', $businessId)
                 ->whereDate('report_date', $parsedDate)
@@ -178,6 +186,7 @@ class OwnerReportApiService
 
                 $expense = BusinessOwnerExpense::create([
                     'business_id' => $businessId,
+                    'branch_id' => $expenseBranchId,
                     'owner_daily_report_id' => $report?->id,
                     'expense_date' => $parsedDate,
                     'description' => $validated['description'],
@@ -191,8 +200,8 @@ class OwnerReportApiService
                 DB::commit();
 
                 return [
-                    'expense' => $this->formatExpense($expense),
-                    'day' => $this->showDay($user, $businessId, $branchFilterId, $parsedDate),
+                    'expense' => $this->formatExpense($expense->fresh()),
+                    'day' => $this->showDay($user, $businessId, $expenseBranchId ?? $branchFilterId, $parsedDate),
                 ];
             } catch (\Throwable $e) {
                 DB::rollBack();
@@ -220,7 +229,18 @@ class OwnerReportApiService
 
         $parsedDate = Carbon::parse($date)->toDateString();
 
-        if ($expense->report && $expense->report->status === 'finalized') {
+        if ($expense->expense_date?->toDateString() !== $parsedDate) {
+            throw ValidationException::withMessages([
+                'expense' => 'Expense does not belong to this date.',
+            ]);
+        }
+
+        $dayReport = OwnerDailyReport::where('business_id', $businessId)
+            ->whereDate('report_date', $parsedDate)
+            ->first();
+
+        if (($expense->report && $expense->report->status === 'finalized')
+            || ($dayReport && $dayReport->status === 'finalized')) {
             throw ValidationException::withMessages([
                 'date' => 'Cannot delete expense from a finalized report.',
             ]);
@@ -228,6 +248,7 @@ class OwnerReportApiService
 
         return $this->withWebContext($user, $businessId, $branchFilterId, function () use ($user, $businessId, $branchFilterId, $expense, $parsedDate) {
             $business = Business::findOrFail($businessId);
+            $deletedId = (int) $expense->id;
             $expense->delete();
 
             $dayClosing = DayClosing::where('business_id', $businessId)
@@ -236,7 +257,7 @@ class OwnerReportApiService
             $this->reportService->syncReport($business, $parsedDate, $dayClosing);
 
             return [
-                'deleted_expense_id' => $expense->id,
+                'deleted_expense_id' => $deletedId,
                 'day' => $this->showDay($user, $businessId, $branchFilterId, $parsedDate),
             ];
         });
@@ -445,12 +466,30 @@ class OwnerReportApiService
      */
     private function formatExpenseList(Collection|array $items): array
     {
-        return collect($items)->map(fn (array $ex) => [
-            'description' => $ex['description'] ?? '',
-            'amount' => (float) ($ex['amount'] ?? 0),
-            'category' => $ex['category'] ?? null,
-            'fund_source' => $ex['fund_source'] ?? 'circulation',
-        ])->values()->all();
+        return collect($items)->map(function (array $ex) {
+            $category = $ex['category'] ?? null;
+            $categoryLabel = $ex['category_label'] ?? null;
+
+            // Legacy rows stored the display label in `category`.
+            if ($categoryLabel === null && is_string($category) && ! array_key_exists($category, BusinessOwnerExpense::CATEGORIES)) {
+                $categoryLabel = $category;
+                $category = 'other';
+            }
+
+            $id = isset($ex['id']) && $ex['id'] !== null ? (int) $ex['id'] : null;
+            $deletable = (bool) ($ex['deletable'] ?? ($id !== null));
+
+            return [
+                'id' => $id,
+                'description' => $ex['description'] ?? '',
+                'amount' => (float) ($ex['amount'] ?? 0),
+                'category' => $category,
+                'category_label' => $categoryLabel ?? (BusinessOwnerExpense::CATEGORIES[$category] ?? null),
+                'fund_source' => $ex['fund_source'] ?? 'circulation',
+                'deletable' => $deletable,
+                'source' => $ex['source'] ?? ($deletable ? 'owner' : 'staff_handover'),
+            ];
+        })->values()->all();
     }
 
     /**
@@ -477,13 +516,52 @@ class OwnerReportApiService
     {
         return [
             'id' => $expense->id,
+            'branch_id' => $expense->branch_id ? (int) $expense->branch_id : null,
             'description' => $expense->description,
             'amount' => (float) $expense->amount,
             'category' => $expense->category,
             'category_label' => $expense->categoryLabel(),
             'fund_source' => $expense->fund_source ?? 'circulation',
             'expense_date' => $expense->expense_date?->toDateString(),
+            'deletable' => true,
+            'source' => 'owner',
         ];
+    }
+
+    private function resolveExpenseBranchId(
+        User $user,
+        int $businessId,
+        ?int $branchFilterId,
+        ?int $requestedBranchId
+    ): ?int {
+        $candidate = $requestedBranchId ?: $branchFilterId;
+
+        if (! $candidate) {
+            if (! $user->seesBusinessWideData() && $user->branch_id) {
+                return (int) $user->branch_id;
+            }
+
+            return null;
+        }
+
+        $belongs = Branch::query()
+            ->where('id', $candidate)
+            ->where('business_id', $businessId)
+            ->exists();
+
+        if (! $belongs) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'The selected branch is not part of this business.',
+            ]);
+        }
+
+        if (! $user->seesBusinessWideData() && $user->branch_id && (int) $user->branch_id !== $candidate) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'You can only record expenses for your assigned branch.',
+            ]);
+        }
+
+        return $candidate;
     }
 
     /**

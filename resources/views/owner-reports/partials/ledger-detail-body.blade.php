@@ -11,7 +11,7 @@
           <tbody>
             @forelse($ledger['expense_list'] as $ex)
               <tr>
-                <td>{{ $ex['description'] }} <small class="text-muted">({{ $ex['category'] }})</small></td>
+                <td>{{ $ex['description'] }} <small class="text-muted">({{ $ex['category_label'] ?? $ex['category'] }})</small></td>
                 <td class="text-right font-weight-bold">TZS {{ number_format($ex['amount'], 0) }}</td>
               </tr>
             @empty
@@ -39,7 +39,7 @@
           <tbody>
             @forelse($ledger['expense_list'] as $ex)
               <tr>
-                <td>{{ $ex['description'] }} <small class="text-muted">({{ $ex['category'] }})</small></td>
+                <td>{{ $ex['description'] }} <small class="text-muted">({{ $ex['category_label'] ?? $ex['category'] }})</small></td>
                 <td class="text-right font-weight-bold">
                   TZS {{ number_format($ex['amount'], 0) }}
                   <span class="badge {{ $ex['fund_source'] === 'profit' ? 'badge-info' : 'badge-secondary' }} small" style="font-size:0.6rem;">{{ __('owner_reports.fund.'.$ex['fund_source']) }}</span>

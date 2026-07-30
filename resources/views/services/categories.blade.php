@@ -231,6 +231,13 @@
 
 @canany(['manage_categories','edit_items'])
 @foreach($services as $service)
+{{-- Delete form must stay outside the edit form — nested forms make Save submit as DELETE --}}
+@canany(['manage_categories', 'delete_items'])
+<form id="deleteService{{ $service->id }}" method="POST" action="{{ route('services.destroy', $service) }}" class="d-none">
+  @csrf
+  @method('DELETE')
+</form>
+@endcanany
 <div class="modal fade" id="editService{{ $service->id }}" tabindex="-1">
   <div class="modal-dialog">
     <form class="modal-content" method="POST" action="{{ route('services.update', $service) }}">
@@ -263,14 +270,10 @@
       </div>
       <div class="modal-footer d-flex justify-content-between">
         @canany(['manage_categories', 'delete_items'])
-        <form method="POST" action="{{ route('services.destroy', $service) }}" class="mb-0">
-          @csrf
-          @method('DELETE')
-          <button type="submit" class="btn btn-outline-danger"
-            onclick="confirmAction(event, 'Delete service?', 'Remove &quot;{{ $service->name }}&quot; from the catalog. Past sales stay in history.')">
-            <i class="fa fa-trash"></i> Delete
-          </button>
-        </form>
+        <button type="submit" form="deleteService{{ $service->id }}" class="btn btn-outline-danger"
+          onclick="confirmAction(event, 'Delete service?', 'Remove &quot;{{ $service->name }}&quot; from the catalog. Past sales stay in history.')">
+          <i class="fa fa-trash"></i> Delete
+        </button>
         @else
         <span></span>
         @endcanany

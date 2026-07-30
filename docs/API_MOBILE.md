@@ -239,7 +239,34 @@ Pass `branch_id: null` or omit to view **all branches**.
 ```
 
 ### Branches
-`GET /branches`
+
+**Full docs:** [`API_BRANCHES.md`](API_BRANCHES.md)
+
+| Method | Endpoint | Permission | Description |
+|--------|----------|------------|-------------|
+| GET | `/branches` | any (full if `manage_branches`) | List branches |
+| POST | `/branches` | `manage_branches` | Register branch |
+| PUT | `/branches/{id}` | `manage_branches` | Update branch |
+| DELETE | `/branches/{id}` | `manage_branches` | Delete branch |
+
+Switch active branch: `POST /auth/switch-branch`
+
+---
+
+## Business settings
+
+Same as web `/settings` — profile, finance, payments, automation, shift rules, subscription (read-only).
+
+**Full docs:** [`API_SETTINGS.md`](API_SETTINGS.md)
+
+| Method | Endpoint | Permission |
+|--------|----------|------------|
+| GET | `/settings` | `manage_business_settings` or `manage_payment_methods` |
+| PUT | `/settings/profile` | `manage_business_settings` |
+| PUT | `/settings/finance` | `manage_business_settings` |
+| PUT | `/settings/automation` | `manage_business_settings` |
+| PUT | `/settings/shift-rules` | `manage_business_settings` |
+| PUT | `/settings/payment-methods` | `manage_payment_methods` or `manage_business_settings` |
 
 ---
 
@@ -705,6 +732,40 @@ Use `GET /customers/create-form` first for regions. Duplicate phone returns 422.
 
 ---
 
+## Customer communications
+
+Send SMS/email to customers — same as web `/customer-communications`.
+
+**Full docs:** [`API_CUSTOMER_COMMUNICATIONS.md`](API_CUSTOMER_COMMUNICATIONS.md)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/customer-communications` | Quota, customers, logs, scheduled campaigns |
+| POST | `/customer-communications/send` | Send now or schedule |
+| DELETE | `/customer-communications/campaigns/{id}` | Cancel scheduled message |
+
+**Permission:** `manage_customer_communications` or `manage_customers`. Requires `customer_communication` plan feature.
+
+---
+
+## Sales targets
+
+Set daily / weekly / monthly revenue goals by branch, department, or staff — same as web `/sales-targets`.
+
+**Full docs:** [`API_SALES_TARGETS.md`](API_SALES_TARGETS.md)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/sales-targets` | List + form options (`?branch_id=`, `?business_type=`, `?page=`) |
+| GET | `/sales-targets/{id}` | Detail with live progress |
+| POST | `/sales-targets` | Create / upsert |
+| PUT | `/sales-targets/{id}` | Update |
+| DELETE | `/sales-targets/{id}` | Remove |
+
+**Permission:** `manage_sales_targets` or `manage_business_settings`. Requires `sales_targets` plan feature.
+
+---
+
 ## Day closing / handover
 
 End-of-shift cash count, expenses, reconciliation, and owner verification — same as web `/day-closing`.
@@ -788,6 +849,98 @@ Owner daily financial ledger — same as web `/owner-reports`.
 | POST | `/owner-reports/{date}/finalize` | Owner | Finalize day (carry circulation forward) |
 
 Each ledger row includes `review_api_path` and `day_review_api_path` linking to day-closing APIs for handover detail.
+
+---
+
+## Staff (roles & employees)
+
+Same as web `/roles`, `/roles/create`, `/employees`, and `/employees/create`.
+
+**Full docs:** [`API_STAFF.md`](API_STAFF.md)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/roles` | List roles |
+| GET | `/roles/create-form` | Permission groups + presets |
+| POST | `/roles` | Create role |
+| GET | `/employees` | Staff list (`?q=` search) |
+| GET | `/employees/create-form` | Branches, roles, business types (`?branch_id=`) |
+| POST | `/employees` | Register employee |
+
+**Permission:** `manage_staff`  
+**Prerequisite:** create at least one role; branch must have imported business types (Categories).
+
+---
+
+## Petty Cash
+
+Issue cash from circulation or profit for restock, payments, salaries, or operations.
+
+**Full docs:** [`API_PETTY_CASH.md`](API_PETTY_CASH.md)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/petty-cash` | Index: balances, expenses history, categories, staff |
+| GET | `/petty-cash/balances` | Refresh balances for a date (`?date=&business_type=`) |
+| POST | `/petty-cash` | Issue petty cash |
+| DELETE | `/petty-cash/{id}` | Remove petty cash entry |
+
+**Permission:** `manage_petty_cash` (issue/delete) or `view_reports` (read-only)
+
+---
+
+## Live Sales Pulse
+
+Real-time sales monitor — same as web `/live-sales`. KPIs, hourly velocity, live feed, staff leaderboard, trending products/services.
+
+**Full docs:** [`API_LIVE_SALES.md`](API_LIVE_SALES.md)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/live-sales` | Full pulse snapshot (`?business_type=&branch_id=`) |
+
+**Permission:** `view_live_sales` / `view_reports` / `view_sales_history` / `process_sales`  
+**Tip:** Poll every 5–10s while the screen is open.
+
+---
+
+## Invoices
+
+Product invoices — same as web `/invoices` and `/invoices/create`. Creates pending `sale_source: invoice` documents; pay later via `POST /sales/{id}/pay`.
+
+**Full docs:** [`API_INVOICES.md`](API_INVOICES.md)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/invoices` | List invoices + stats |
+| GET | `/invoices/create-form` | Catalog, customers, business types, shift |
+| POST | `/invoices` | Create invoice |
+| GET | `/invoices/{id}` | Invoice detail + payment methods |
+
+**Permission:** `create_invoices` / `view_invoices` (or `process_sales` / `view_sales_history`)  
+**Prerequisite:** open shift when required
+
+---
+
+## Business reports
+
+Same as web `/reports/*` (Circulation vs Profit, Daily Sales, Expenses, Profit, Sales Analytics, Products, Debts).
+
+**Full docs:** [`API_REPORTS.md`](API_REPORTS.md)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/reports` | Catalog of reports + date defaults |
+| GET | `/reports/circulation-profit` | Circulation vs profit chart + daily rows |
+| GET | `/reports/daily-sales` | Daily gross / collected / orders |
+| GET | `/reports/expenses` | Staff + owner expenses |
+| GET | `/reports/profit` | Gross / net profit by day |
+| GET | `/reports/sales-analytics` | By method, staff, source |
+| GET | `/reports/products` | Product & category performance |
+| GET | `/reports/debts` | Aging, debtors, outstanding |
+
+**Query:** `?start_date=&end_date=&business_type=&branch_id=` (range 5–62 days)  
+**Permission:** `view_reports`
 
 ---
 
@@ -914,6 +1067,8 @@ Use `user.permissions` from login/me response. Server enforces the same rules as
 | `view_sales_history` | Sales list |
 | `manage_debts` | Debts screen |
 | `manage_customers` | Customers list / register / edit / delete |
+| `manage_customer_communications` | Customer SMS/email campaigns |
+| `manage_sales_targets` | Sales targets (daily / weekly / monthly) |
 | `manage_categories` | Categories CRUD / import / clear |
 | `manage_packaging` | Packagings CRUD / import / clear |
 | `manage_suppliers` | Suppliers CRUD / migrate |
@@ -954,7 +1109,7 @@ Owners receive **all** permissions automatically.
 - **Pagination:** `meta.current_page`, `meta.last_page`, `meta.total`
 - **Dates:** `YYYY-MM-DD` for sale_date, due_date
 - **Branch context:** Owners call switch endpoints; staff are fixed to their branch
-- **Phase 2 (not in API yet):** invoices, service POS, push notifications
+- **Phase 2 (not in API yet):** service POS, push notifications
 
 ---
 
@@ -992,6 +1147,15 @@ POST   /auth/switch-branch
 GET    /dashboard/today
 GET    /payment-methods
 GET    /branches
+POST   /branches
+PUT    /branches/{id}
+DELETE /branches/{id}
+GET    /settings
+PUT    /settings/profile
+PUT    /settings/finance
+PUT    /settings/automation
+PUT    /settings/shift-rules
+PUT    /settings/payment-methods
 GET    /categories
 POST   /categories
 POST   /categories/import-templates
@@ -1060,4 +1224,39 @@ POST   /customers
 GET    /customers/{id}
 PUT    /customers/{id}
 DELETE /customers/{id}
+GET    /customer-communications
+POST   /customer-communications/send
+DELETE /customer-communications/campaigns/{id}
+GET    /sales-targets
+POST   /sales-targets
+GET    /sales-targets/{id}
+PUT    /sales-targets/{id}
+DELETE /sales-targets/{id}
+GET    /roles
+GET    /roles/create-form
+POST   /roles
+GET    /employees
+GET    /employees/create-form
+POST   /employees
+PUT    /employees/{id}
+POST   /employees/{id}/reset-password
+POST   /employees/{id}/toggle-status
+DELETE /employees/{id}
+GET    /petty-cash
+GET    /petty-cash/balances
+POST   /petty-cash
+DELETE /petty-cash/{id}
+GET    /live-sales
+GET    /invoices
+GET    /invoices/create-form
+POST   /invoices
+GET    /invoices/{id}
+GET    /reports
+GET    /reports/circulation-profit
+GET    /reports/daily-sales
+GET    /reports/expenses
+GET    /reports/profit
+GET    /reports/sales-analytics
+GET    /reports/products
+GET    /reports/debts
 ```

@@ -473,7 +473,7 @@ Renders as:
 | `handover_scope` | string? | `retail`, `service`, etc. |
 | `status_color` | string? | Hex color from web |
 | `day_review_api_path` | string? | Boss day review link |
-| `expense_list` | array | `{ description, amount, category, fund_source }` |
+| `expense_list` | array | `{ id?, description, amount, category, category_label, fund_source, deletable, source }` — owner rows include `id` + `deletable: true` |
 | `platform_breakdown` | array | `{ key, label, amount }` |
 | `business_type_breakdown` | array | Per-type sales split |
 

@@ -1,18 +1,28 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BranchController;
 use App\Http\Controllers\Api\V1\BusinessRegistrationController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CustomerController;
+use App\Http\Controllers\Api\V1\CustomerCommunicationController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DayClosingController;
 use App\Http\Controllers\Api\V1\DebtController;
+use App\Http\Controllers\Api\V1\EmployeeController;
+use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\ItemController;
+use App\Http\Controllers\Api\V1\LiveSalesController;
 use App\Http\Controllers\Api\V1\OwnerReportController;
 use App\Http\Controllers\Api\V1\PackagingController;
 use App\Http\Controllers\Api\V1\ReceivingController;
 use App\Http\Controllers\Api\V1\ReferenceController;
+use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\PettyCashController;
+use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SaleController;
+use App\Http\Controllers\Api\V1\SalesTargetController;
 use App\Http\Controllers\Api\V1\ShiftController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use Illuminate\Support\Facades\Route;
@@ -38,7 +48,18 @@ Route::prefix('v1')->group(function () {
         Route::get('/dashboard/today', [DashboardController::class, 'today']);
 
         Route::get('/payment-methods', [ReferenceController::class, 'paymentMethods']);
-        Route::get('/branches', [ReferenceController::class, 'branches']);
+        Route::get('/branches', [BranchController::class, 'index']);
+        Route::post('/branches', [BranchController::class, 'store']);
+        Route::put('/branches/{branch}', [BranchController::class, 'update']);
+        Route::delete('/branches/{branch}', [BranchController::class, 'destroy']);
+
+        // Business settings (same as web /settings)
+        Route::get('/settings', [SettingsController::class, 'index']);
+        Route::put('/settings/profile', [SettingsController::class, 'updateProfile']);
+        Route::put('/settings/finance', [SettingsController::class, 'updateFinance']);
+        Route::put('/settings/automation', [SettingsController::class, 'updateAutomation']);
+        Route::put('/settings/shift-rules', [SettingsController::class, 'updateShiftRules']);
+        Route::put('/settings/payment-methods', [SettingsController::class, 'updatePaymentMethods']);
 
         Route::get('/shifts', [ShiftController::class, 'index']);
         Route::get('/shifts/current', [ShiftController::class, 'current']);
@@ -95,6 +116,15 @@ Route::prefix('v1')->group(function () {
         Route::post('/sales/{sale}/pay', [SaleController::class, 'pay']);
         Route::post('/sales/{sale}/cancel', [SaleController::class, 'cancel']);
 
+        // Live Sales Pulse (same as web /live-sales)
+        Route::get('/live-sales', [LiveSalesController::class, 'index']);
+
+        // Invoices (product invoices — same as web /invoices)
+        Route::get('/invoices', [InvoiceController::class, 'index']);
+        Route::get('/invoices/create-form', [InvoiceController::class, 'createForm']);
+        Route::post('/invoices', [InvoiceController::class, 'store']);
+        Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
+
         Route::get('/debts', [DebtController::class, 'index']);
         Route::post('/debts/{sale}/collect', [DebtController::class, 'collect']);
 
@@ -112,6 +142,16 @@ Route::prefix('v1')->group(function () {
         Route::delete('/owner-reports/{date}/expenses/{expense}', [OwnerReportController::class, 'destroyExpense'])->where('date', '[0-9]{4}-[0-9]{2}-[0-9]{2}');
         Route::post('/owner-reports/{date}/finalize', [OwnerReportController::class, 'finalize'])->where('date', '[0-9]{4}-[0-9]{2}-[0-9]{2}');
 
+        // Business reports (same as web /reports/*)
+        Route::get('/reports', [ReportController::class, 'index']);
+        Route::get('/reports/circulation-profit', [ReportController::class, 'circulationProfit']);
+        Route::get('/reports/daily-sales', [ReportController::class, 'dailySales']);
+        Route::get('/reports/expenses', [ReportController::class, 'expenses']);
+        Route::get('/reports/profit', [ReportController::class, 'profit']);
+        Route::get('/reports/sales-analytics', [ReportController::class, 'salesAnalytics']);
+        Route::get('/reports/products', [ReportController::class, 'products']);
+        Route::get('/reports/debts', [ReportController::class, 'debts']);
+
         Route::get('/customers', [CustomerController::class, 'index']);
         Route::get('/customers/create-form', [CustomerController::class, 'createForm']);
         Route::get('/customers/search', [CustomerController::class, 'search']);
@@ -119,5 +159,33 @@ Route::prefix('v1')->group(function () {
         Route::get('/customers/{customer}', [CustomerController::class, 'show']);
         Route::put('/customers/{customer}', [CustomerController::class, 'update']);
         Route::delete('/customers/{customer}', [CustomerController::class, 'destroy']);
+
+        Route::get('/customer-communications', [CustomerCommunicationController::class, 'index']);
+        Route::post('/customer-communications/send', [CustomerCommunicationController::class, 'send']);
+        Route::delete('/customer-communications/campaigns/{campaign}', [CustomerCommunicationController::class, 'cancelCampaign']);
+
+        Route::get('/sales-targets', [SalesTargetController::class, 'index']);
+        Route::post('/sales-targets', [SalesTargetController::class, 'store']);
+        Route::get('/sales-targets/{salesTarget}', [SalesTargetController::class, 'show']);
+        Route::put('/sales-targets/{salesTarget}', [SalesTargetController::class, 'update']);
+        Route::delete('/sales-targets/{salesTarget}', [SalesTargetController::class, 'destroy']);
+
+        Route::get('/roles', [RoleController::class, 'index']);
+        Route::get('/roles/create-form', [RoleController::class, 'createForm']);
+        Route::post('/roles', [RoleController::class, 'store']);
+
+        Route::get('/employees', [EmployeeController::class, 'index']);
+        Route::get('/employees/create-form', [EmployeeController::class, 'createForm']);
+        Route::post('/employees', [EmployeeController::class, 'store']);
+        Route::put('/employees/{employee}', [EmployeeController::class, 'update']);
+        Route::post('/employees/{employee}/reset-password', [EmployeeController::class, 'resetPassword']);
+        Route::post('/employees/{employee}/toggle-status', [EmployeeController::class, 'toggleStatus']);
+        Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy']);
+
+        // Petty Cash
+        Route::get('/petty-cash', [PettyCashController::class, 'index']);
+        Route::get('/petty-cash/balances', [PettyCashController::class, 'balances']);
+        Route::post('/petty-cash', [PettyCashController::class, 'store']);
+        Route::delete('/petty-cash/{expense}', [PettyCashController::class, 'destroy']);
     });
 });
