@@ -133,6 +133,38 @@ class PlatformAdminService
             ->values();
     }
 
+    /**
+     * Platform admins selected in settings to receive new business-registration SMS/email.
+     *
+     * @return Collection<int, User>
+     */
+    public function registrationNotificationStaff(): Collection
+    {
+        $ids = platform_settings('registration_sms_staff_ids', []);
+        if (is_string($ids)) {
+            $decoded = json_decode($ids, true);
+            $ids = is_array($decoded) ? $decoded : (preg_split('/[\s,]+/', $ids) ?: []);
+        }
+
+        $ids = collect(is_array($ids) ? $ids : [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return collect();
+        }
+
+        return User::query()
+            ->where('is_active', true)
+            ->whereIn('role', ['super_admin', 'platform_staff'])
+            ->whereIn('id', $ids)
+            ->orderBy('name')
+            ->get();
+    }
+
     public function assignableRoles(): Collection
     {
         return PlatformAdminRole::query()

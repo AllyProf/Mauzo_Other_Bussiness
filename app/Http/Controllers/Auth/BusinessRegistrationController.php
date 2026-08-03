@@ -63,7 +63,8 @@ class BusinessRegistrationController extends Controller
             $result = $this->registration->register(
                 $request,
                 $payload,
-                (string) $request->input('verification_code')
+                (string) $request->input('verification_code'),
+                'web'
             );
 
             $pendingMessage = $result['message'];

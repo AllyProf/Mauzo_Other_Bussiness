@@ -39,6 +39,7 @@ class Business extends Model
         'invoice_vat_inclusive',
         'is_active',
         'pending_approval',
+        'registration_source',
         'expense_deduct_from',
         'circulation_balance',
         'automation_settings',
@@ -527,6 +528,26 @@ class Business extends Model
     public function isPendingApproval(): bool
     {
         return (bool) $this->pending_approval;
+    }
+
+    public function registrationSourceLabel(): string
+    {
+        return match ($this->registration_source) {
+            'mobile' => 'Mobile App',
+            'web' => 'Web',
+            'admin' => 'Admin',
+            default => 'Unknown',
+        };
+    }
+
+    public function registrationSourceBadgeClass(): string
+    {
+        return match ($this->registration_source) {
+            'mobile' => 'badge-primary',
+            'web' => 'badge-info',
+            'admin' => 'badge-secondary',
+            default => 'badge-light',
+        };
     }
 
     public function statusLabel(): string

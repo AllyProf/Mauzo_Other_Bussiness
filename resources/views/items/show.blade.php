@@ -2,6 +2,27 @@
 
 @section('title', 'Item Details - ' . $item->name)
 
+@section('styles')
+<style>
+  .item-show-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .item-show-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 40px;
+    margin: 0;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+</style>
+@endsection
+
 @section('content')
 <div class="app-title">
   <div>
@@ -42,10 +63,11 @@
         <strong>Description:</strong>
         <p class="text-muted">{{ $item->description ?: 'No description provided.' }}</p>
       </div>
-      <div class="tile-footer">
+      <div class="tile-footer item-show-actions">
         @can('edit_items')
         <a class="btn btn-info" href="{{ route('items.edit', $item->id) }}"><i class="fa fa-edit"></i> Edit Item</a>
         @endcan
+        <a class="btn btn-success" href="{{ route('items.barcodes.print', $item) }}" target="_blank"><i class="fa fa-barcode"></i> Print Barcodes</a>
         <a class="btn btn-secondary" href="{{ route('items.index') }}"><i class="fa fa-arrow-left"></i> Back to List</a>
         <a class="btn btn-primary" href="{{ route('items.history', $item->id) }}"><i class="fa fa-history"></i> Stock History</a>
       </div>
@@ -85,6 +107,7 @@
                 <tr>
                     <th>Selling Unit</th>
                     <th>Contains (pieces)</th>
+                    <th>Barcode</th>
                     <th>Last Buying Price</th>
                     <th>Current Selling Price</th>
                 </tr>
@@ -94,6 +117,7 @@
                 <tr>
                     <td><strong>{{ $pkg->packagingType->name }}</strong></td>
                     <td>{{ $pkg->quantity_per_unit }}</td>
+                    <td><code>{{ $pkg->barcode ?: '—' }}</code></td>
                     <td>TZS {{ number_format($pkg->cost_price, 2) }}</td>
                     <td>TZS {{ number_format($pkg->selling_price, 2) }}</td>
                 </tr>
@@ -101,7 +125,7 @@
             </tbody>
             <tfoot class="bg-light">
                 <tr>
-                    <th colspan="2" class="text-right">Total pieces in stock:</th>
+                    <th colspan="3" class="text-right">Total pieces in stock:</th>
                     <th colspan="2">{{ fmod($item->current_stock, 1.0) === 0.0 ? (int) $item->current_stock : number_format($item->current_stock, 2) }}</th>
                 </tr>
             </tfoot>

@@ -662,7 +662,7 @@
                   <th class="audit-col-bg text-center">Expected</th>
                   <th class="audit-col-bg">Collected</th>
                   <th class="audit-col-bg">Credit</th>
-                  <th class="text-center">Pay Status</th>
+                  <th class="text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -699,6 +699,12 @@
                   <td class="text-center">
                     @if($data['status'] === 'posted')
                       <span class="status-pill badge-success">Posted</span>
+                    @elseif($data['status'] === 'awaiting_verify')
+                      <span class="status-pill badge-warning">Awaiting verify</span>
+                    @elseif($data['status'] === 'needs_close')
+                      <span class="status-pill badge-info">Needs close</span>
+                    @elseif($data['status'] === 'needs_handover')
+                      <span class="status-pill badge-warning">Needs handover</span>
                     @elseif($data['status'] === 'paid')
                       <span class="status-pill badge-success">Paid</span>
                     @elseif($data['status'] === 'partial')
@@ -717,13 +723,14 @@
           @if(!($ownerDirectClosing ?? null) && ($canPostOwnerDirectSales ?? false))
           <div class="alert alert-light border mb-3">
             <i class="fa fa-info-circle"></i>
-            When you sell services yourself, use <strong>Close Service Day &amp; Post to Master Sheet</strong> below — no shift is required for owners.
+            When you sell services yourself, use <strong>Verify &amp; Close</strong> below — no shift is required for owners.
           </div>
           @endif
         @elseif(!($ownerDirectClosing ?? null) && ($canPostOwnerDirectSales ?? false))
         <div class="alert alert-light border mb-3">
           <i class="fa fa-info-circle"></i>
-          When you sell yourself, use <strong>Close Day &amp; Post to Master Sheet</strong> below — no separate staff handover is needed.
+          When you sell yourself, use <strong>Verify &amp; Close</strong> below for <em>your</em> sales only.
+          Staff handovers stay separate — verify each staff card too before finalizing the day on the Master Sheet.
         </div>
         @endif
 
@@ -791,16 +798,35 @@
                           placeholder="Any other notes for this day...">{{ old('report_notes') }}</textarea>
               </div>
 
+              @if($ownerDirectFinancePreview ?? null)
+              <div class="bg-white rounded border p-3 mb-3">
+                <div class="font-weight-bold mb-2"><i class="fa fa-calculator"></i> Posts to Master Sheet after Verify &amp; Close</div>
+                <div class="row text-center">
+                  <div class="col-md-4 mb-2 mb-md-0">
+                    <small class="text-uppercase text-muted font-weight-bold">Margin</small>
+                    <div class="font-weight-bold">{{ money($ownerDirectFinancePreview['gross_profit'] ?? 0) }}</div>
+                    <small class="text-muted">Sales − cost</small>
+                  </div>
+                  <div class="col-md-4 mb-2 mb-md-0">
+                    <small class="text-uppercase text-muted font-weight-bold">Profit</small>
+                    <div class="font-weight-bold text-success">{{ money($ownerDirectFinancePreview['net_profit'] ?? 0) }}</div>
+                    <small class="text-muted">Taken from handover</small>
+                  </div>
+                  <div class="col-md-4">
+                    <small class="text-uppercase text-muted font-weight-bold">Circulation</small>
+                    <div class="font-weight-bold text-primary">{{ money($ownerDirectFinancePreview['circulation_refill'] ?? 0) }}</div>
+                    <small class="text-muted">Rest of your {{ money($ownerDirectExpectedHandover ?? 0) }}</small>
+                  </div>
+                </div>
+              </div>
+              @endif
+
               <div class="d-flex flex-wrap justify-content-between align-items-center">
                 <p class="small text-muted mb-2 mb-md-0">
-                  @if($serviceMenuContext ?? false)
-                    This posts your service sales to the Master Sheet (Reports → Master Sheet).
-                  @else
-                    This posts your sales to the Master Sheet and closes any open shift you used today.
-                  @endif
+                  One click verifies and posts to the Master Sheet. Finalize the day there when you are ready.
                 </p>
-                <button type="button" class="btn btn-primary" id="postOwnerSalesBtn">
-                  <i class="fa fa-check"></i> {{ ($serviceMenuContext ?? false) ? 'Close Service Day & Post to Master Sheet' : 'Close Day & Post to Master Sheet' }}
+                <button type="button" class="btn btn-success" id="postOwnerSalesBtn">
+                  <i class="fa fa-check"></i> {{ ($serviceMenuContext ?? false) ? 'Verify &amp; Close Service Day' : 'Verify &amp; Close' }}
                 </button>
               </div>
             </form>
@@ -1300,12 +1326,12 @@ jQuery(function($) {
       : 'Confirm handover of <strong>TZS ' + actual.toLocaleString() + '</strong> for <strong>{{ $displayDate }}</strong> and post to the Master Sheet?';
 
     Swal.fire({
-      title: short > 0 ? 'Close Day With Money Short?' : 'Close Day & Post to Master Sheet?',
+      title: short > 0 ? 'Post With Money Short?' : 'Post to Master Sheet?',
       html: confirmHtml,
       icon: short > 0 ? 'warning' : 'question',
       showCancelButton: true,
       confirmButtonColor: '#940000',
-      confirmButtonText: short > 0 ? 'Yes, record short & post' : 'Yes, close day'
+      confirmButtonText: short > 0 ? 'Yes, record short & post' : 'Yes, post'
     }).then((result) => {
       if (result.isConfirmed) {
         $('#postOwnerSalesForm').submit();

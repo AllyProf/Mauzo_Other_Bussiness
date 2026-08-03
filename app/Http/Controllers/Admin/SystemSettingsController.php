@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Admin\Concerns\EnsuresPlatformAdmin;
 use App\Models\AuditLog;
 use App\Models\Plan;
+use App\Models\User;
 use App\Services\PlatformSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,8 +27,24 @@ class SystemSettingsController extends Controller
 
         $settings = $this->settings->all();
         $plans = Plan::orderBy('price')->get();
+        $platformStaff = User::query()
+            ->whereIn('role', ['super_admin', 'platform_staff'])
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'phone', 'role']);
 
-        return view('admin.settings.index', compact('settings', 'plans'));
+        $selectedRegistrationSmsStaffIds = collect($settings['registration_sms_staff_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->values()
+            ->all();
+
+        return view('admin.settings.index', compact(
+            'settings',
+            'plans',
+            'platformStaff',
+            'selectedRegistrationSmsStaffIds'
+        ));
     }
 
     public function updateProfile(Request $request)
@@ -153,6 +170,13 @@ class SystemSettingsController extends Controller
             'admin_ip_allowlist' => 'nullable|string|max:2000',
             'admin_notification_email' => 'nullable|email|max:255',
             'admin_notification_phone' => 'nullable|string|max:30',
+            'registration_sms_staff_ids' => 'nullable|array',
+            'registration_sms_staff_ids.*' => [
+                'integer',
+                Rule::exists('users', 'id')->where(function ($query) {
+                    $query->whereIn('role', ['super_admin', 'platform_staff'])->where('is_active', true);
+                }),
+            ],
             'audit_log_retention_days' => 'required|integer|min:30|max:3650',
             'sms_enabled' => 'nullable|boolean',
             'sms_registration_verification' => 'nullable|boolean',
@@ -168,6 +192,7 @@ class SystemSettingsController extends Controller
             'sms_ticket_reply_business' => 'nullable|boolean',
             'sms_staff_welcome' => 'nullable|boolean',
             'sms_demo_lead_admin' => 'nullable|boolean',
+            'sms_registration_submitted_admin' => 'nullable|boolean',
             'email_enabled' => 'nullable|boolean',
             'email_registration_verification' => 'nullable|boolean',
             'email_registration_approved' => 'nullable|boolean',
@@ -182,6 +207,7 @@ class SystemSettingsController extends Controller
             'email_ticket_reply_business' => 'nullable|boolean',
             'email_staff_welcome' => 'nullable|boolean',
             'email_demo_lead_admin' => 'nullable|boolean',
+            'email_registration_submitted_admin' => 'nullable|boolean',
         ]);
 
         $this->settings->update([
@@ -190,6 +216,7 @@ class SystemSettingsController extends Controller
             'admin_ip_allowlist' => $data['admin_ip_allowlist'] ?? '',
             'admin_notification_email' => $data['admin_notification_email'] ?? '',
             'admin_notification_phone' => $data['admin_notification_phone'] ?? '',
+            'registration_sms_staff_ids' => array_values(array_map('intval', $data['registration_sms_staff_ids'] ?? [])),
             'audit_log_retention_days' => $data['audit_log_retention_days'],
             'sms_enabled' => $request->boolean('sms_enabled'),
             'sms_registration_verification' => $request->boolean('sms_registration_verification'),
@@ -205,6 +232,7 @@ class SystemSettingsController extends Controller
             'sms_ticket_reply_business' => $request->boolean('sms_ticket_reply_business'),
             'sms_staff_welcome' => $request->boolean('sms_staff_welcome'),
             'sms_demo_lead_admin' => $request->boolean('sms_demo_lead_admin'),
+            'sms_registration_submitted_admin' => $request->boolean('sms_registration_submitted_admin'),
             'email_enabled' => $request->boolean('email_enabled'),
             'email_registration_verification' => $request->boolean('email_registration_verification'),
             'email_registration_approved' => $request->boolean('email_registration_approved'),
@@ -219,6 +247,7 @@ class SystemSettingsController extends Controller
             'email_ticket_reply_business' => $request->boolean('email_ticket_reply_business'),
             'email_staff_welcome' => $request->boolean('email_staff_welcome'),
             'email_demo_lead_admin' => $request->boolean('email_demo_lead_admin'),
+            'email_registration_submitted_admin' => $request->boolean('email_registration_submitted_admin'),
         ]);
 
         AuditLog::log('UPDATE_PLATFORM_SETTINGS', 'Updated security settings (maintenance mode)');

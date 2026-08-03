@@ -225,14 +225,33 @@
       </div>
       <div class="col-4 mb-2">
         <div class="small text-muted text-uppercase font-weight-bold">Profit</div>
-        <div class="h5 mb-0 text-success">{{ money($financeData['net_profit'] ?? 0) }}</div>
+        <div class="h5 mb-0 {{ ($financeData['net_profit'] ?? 0) > 0 ? 'text-success' : 'text-muted' }}">{{ money($financeData['net_profit'] ?? 0) }}</div>
+        @if(($financeData['expense_deduct_from'] ?? 'circulation') === 'profit' && ($financeData['gross_profit'] ?? 0) > 0)
+          <div class="small text-muted">
+            Margin {{ money($financeData['gross_profit']) }}
+            @if(($dayClosing->total_expenses ?? 0) > 0)
+              − expenses {{ money($dayClosing->total_expenses) }}
+            @endif
+          </div>
+        @endif
       </div>
       <div class="col-4 mb-2">
         <div class="small text-muted text-uppercase font-weight-bold">Circulation</div>
-        <div class="h5 mb-0 text-primary">{{ money($financeData['closing_circulation'] ?? 0) }}</div>
-        <div class="small text-muted">Capital from this handover</div>
+        <div class="h5 mb-0 text-primary">{{ money($financeData['closing_circulation'] ?? $financeData['circulation_refill'] ?? 0) }}</div>
+        <div class="small text-muted">Handover cash after profit take</div>
       </div>
     </div>
+    @if(($financeData['expense_deduct_from'] ?? '') === 'profit'
+        && ($dayClosing->total_expenses ?? 0) > 0
+        && ($financeData['gross_profit'] ?? 0) > 0
+        && ($financeData['net_profit'] ?? 0) <= 0)
+      <div class="alert alert-light border small mb-0 mt-2">
+        <i class="fa fa-info-circle"></i>
+        Shop setting: expenses come from <strong>profit</strong>.
+        This shift’s margin ({{ money($financeData['gross_profit']) }}) is less than expenses ({{ money($dayClosing->total_expenses) }}),
+        so posted profit is <strong>0</strong> and the full handover ({{ money($financeData['net_handover'] ?? $dayClosing->expectedHandoverAmount()) }}) goes to circulation.
+      </div>
+    @endif
   </div>
   @endif
 

@@ -258,6 +258,43 @@ class PlatformMailService
         );
     }
 
+    public function notifyAdminNewRegistration(Business $business): bool
+    {
+        if (! $this->actionEnabled('registration_submitted_admin')) {
+            return false;
+        }
+
+        $platformName = $this->platformName();
+        $subject = "{$platformName} — New Business Registration";
+        $body = "A new business registered and is awaiting approval.\n\n"
+            ."Business: {$business->name}\n"
+            .'Source: '.$business->registrationSourceLabel()."\n"
+            .'Contact: '.($business->contact_person ?? '—')."\n"
+            .'Phone: '.($business->phone ?? '—')."\n"
+            .'Email: '.($business->email ?? '—')."\n"
+            .'Region: '.($business->region ?? '—')."\n"
+            .'District: '.($business->district ?? '—')."\n\n"
+            .'Approve in Admin → Businesses.';
+
+        $sent = false;
+        $seenEmails = [];
+
+        foreach (app(PlatformAdminService::class)->registrationNotificationStaff() as $staff) {
+            $email = strtolower(trim((string) ($staff->email ?? '')));
+            if (! $this->isDeliverableEmail($email) || in_array($email, $seenEmails, true)) {
+                continue;
+            }
+
+            $seenEmails[] = $email;
+
+            if ($this->send($email, $subject, $body, 'registration_submitted_admin', $staff->name)) {
+                $sent = true;
+            }
+        }
+
+        return $sent;
+    }
+
     public function sendStaffWelcome(User $user, string $password): bool
     {
         $platformName = $this->platformName();

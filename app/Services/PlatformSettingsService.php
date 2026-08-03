@@ -43,6 +43,7 @@ class PlatformSettingsService
             'admin_ip_allowlist' => '',
             'admin_notification_email' => '',
             'admin_notification_phone' => '',
+            'registration_sms_staff_ids' => [],
             'audit_log_retention_days' => 365,
 
             'scheduler_last_run_at' => null,
@@ -61,11 +62,13 @@ class PlatformSettingsService
             'sms_ticket_reply_business' => true,
             'sms_staff_welcome' => true,
             'sms_demo_lead_admin' => true,
+            'sms_registration_submitted_admin' => true,
 
             'sms_template_registration_verification' => '{platform_name}: Your verification code is {code}. It expires in 10 minutes.',
             'sms_template_registration_pending' => 'Usajili wako wa biashara ya {business_name} umepokelewa na unasubiri idhini. Utapata ujumbe mfupi mara utakapokubaliwa.',
             'sms_template_registration_approved' => 'Usajili wa biashara {business_name} umekubaliwa. Ingia kupitia email yako ambayo ni {login_email}. Nenosiri: {password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}',
             'sms_template_registration_rejected' => '{platform_name}: Your registration for {business_name} was not approved. Contact support for help.',
+            'sms_template_registration_submitted_admin' => '{platform_name}: New business registration ({source}) — {business_name}. Contact: {contact_person}. Phone: {phone}. Region: {region}. Approve in Admin → Businesses.',
             'sms_template_business_registered' => 'Akaunti yako ya biashara {business_name} iko tayari. Ingia kupitia email yako ambayo ni {login_email}. Nenosiri: {password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}',
             'sms_template_business_linked' => 'Biashara {business_name} imeongezwa kwenye akaunti yako. Ingia kupitia email yako ambayo ni {login_email}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}',
             'sms_template_password_reset' => '{platform_name}: Nenosiri lako limewekwa upya. Ingia kupitia email yako ambayo ni {login_email}. Nenosiri jipya: {password}. Endapo una changamoto yoyote tumia namba hii kuwasiliana nasi: {support_phone}',
@@ -86,6 +89,7 @@ class PlatformSettingsService
             'email_ticket_reply_business' => true,
             'email_staff_welcome' => true,
             'email_demo_lead_admin' => true,
+            'email_registration_submitted_admin' => true,
 
             'default_billing_model' => 'fixed_monthly',
             'default_profit_share_percent' => 5,

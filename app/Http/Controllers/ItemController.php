@@ -446,7 +446,9 @@ class ItemController extends Controller
             'selling_price' => 0,
         ]);
 
-        return redirect()->route('items.index')->with('success', 'Item registered successfully.');
+        return redirect()
+            ->route('items.barcodes.print', $item)
+            ->with('success', 'Item registered successfully. Print barcode labels below.');
     }
 
     public function show(Item $item)
@@ -549,11 +551,62 @@ class ItemController extends Controller
         return redirect()->route('items.index')->with('success', 'Item deleted successfully.');
     }
 
+    public function printBarcodes(Item $item)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('view_inventory');
+        if ($item->business_id != Auth::user()->business_id) {
+            abort(403);
+        }
+
+        $item->load(['packagings.packagingType', 'category']);
+        $barcodeService = app(\App\Services\ItemBarcodeService::class);
+
+        foreach ($item->packagings as $packaging) {
+            $barcodeService->ensureBarcode($packaging, (int) $item->business_id);
+        }
+
+        $item->load(['packagings.packagingType']);
+
+        $copies = max(1, min(48, (int) request('copies', 1)));
+        $widthFactor = max(1, min(5, (int) request('width_factor', 2)));
+        $height = max(30, min(150, (int) request('height', 60)));
+        $labelWidth = max(140, min(400, (int) request('label_width', 220)));
+        $formApplied = request()->boolean('applied');
+        $showName = $formApplied ? request()->boolean('show_name') : true;
+        $showPrice = $formApplied ? request()->boolean('show_price') : true;
+        $showCode = $formApplied ? request()->boolean('show_code') : true;
+
+        $labels = $item->packagings->sortBy('quantity_per_unit')->values()->map(function ($pkg) use ($item, $barcodeService, $widthFactor, $height) {
+            $code = (string) $pkg->barcode;
+
+            return [
+                'item_name' => $item->name,
+                'packaging_name' => $pkg->packagingType?->name ?? 'Unit',
+                'barcode' => $code,
+                'selling_price' => (float) $pkg->selling_price,
+                'barcode_png' => $barcodeService->pngBase64($code, $widthFactor, $height),
+            ];
+        });
+
+        return view('items.print-barcodes', [
+            'item' => $item,
+            'labels' => $labels,
+            'copies' => $copies,
+            'widthFactor' => $widthFactor,
+            'height' => $height,
+            'labelWidth' => $labelWidth,
+            'showName' => $showName,
+            'showPrice' => $showPrice,
+            'showCode' => $showCode,
+        ]);
+    }
+
     private function syncSellingPackagings(Item $item, array $rows, array $firstPrices = []): void
     {
         $existing = $item->packagings()->get()->keyBy('packaging_id');
         $item->packagings()->delete();
         $isFirst = true;
+        $created = [];
 
         foreach ($rows as $row) {
             if (empty($row['packaging_id'])) {
@@ -573,16 +626,23 @@ class ItemController extends Controller
                 $sell = (float) ($previous?->selling_price ?? 0);
             }
 
-            ItemPackaging::create([
+            $created[] = ItemPackaging::create([
                 'item_id' => $item->id,
                 'packaging_id' => $row['packaging_id'],
                 'quantity_per_unit' => max(1, (int) ($row['quantity_per_unit'] ?? 1)),
                 'cost_price' => $cost,
                 'selling_price' => $sell,
+                'barcode' => $previous?->barcode,
             ]);
 
             $isFirst = false;
         }
+
+        app(\App\Services\ItemBarcodeService::class)->assignMissingBarcodes(
+            (int) $item->business_id,
+            $created,
+            $existing
+        );
     }
 
     /**

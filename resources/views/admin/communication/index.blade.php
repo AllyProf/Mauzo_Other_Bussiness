@@ -267,6 +267,20 @@
                       <button type="button" class="placeholder-btn" data-target="tpl_pending" data-variable="{business_name}">{business_name}</button>
                     </div>
                   </div>
+
+                  <div class="form-group mt-3">
+                    <label class="font-weight-bold">New Registration Alert (Admin Staff)</label>
+                    <textarea name="sms_template_registration_submitted_admin" id="tpl_reg_admin" class="form-control form-control-sm" rows="3" required>{{ old('sms_template_registration_submitted_admin', $settings['sms_template_registration_submitted_admin'] ?? '') }}</textarea>
+                    <div class="mt-1">
+                      <button type="button" class="placeholder-btn" data-target="tpl_reg_admin" data-variable="{platform_name}">{platform_name}</button>
+                      <button type="button" class="placeholder-btn" data-target="tpl_reg_admin" data-variable="{business_name}">{business_name}</button>
+                      <button type="button" class="placeholder-btn" data-target="tpl_reg_admin" data-variable="{contact_person}">{contact_person}</button>
+                      <button type="button" class="placeholder-btn" data-target="tpl_reg_admin" data-variable="{phone}">{phone}</button>
+                      <button type="button" class="placeholder-btn" data-target="tpl_reg_admin" data-variable="{region}">{region}</button>
+                      <button type="button" class="placeholder-btn" data-target="tpl_reg_admin" data-variable="{district}">{district}</button>
+                      <button type="button" class="placeholder-btn" data-target="tpl_reg_admin" data-variable="{source}">{source}</button>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="tile p-3 mb-4" style="background: #fafafa; border: 1px solid #eaeaea;">

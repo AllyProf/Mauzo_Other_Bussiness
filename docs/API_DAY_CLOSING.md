@@ -58,13 +58,18 @@ Content-Type: application/json
 | `GET` | `/day-closing/pending` | Owner | Pending / disputed queue |
 | `GET` | `/day-closing/{id}` | Staff/Owner | Full handover detail |
 | `POST` | `/day-closing/{id}/verify` | Owner | Approve or dispute |
+| `GET` | `/day-closing/owner-direct` | Owner | Preview owner's own POS sales for a date |
+| `POST` | `/day-closing/owner-direct` | Owner | One-step Verify & Close owner POS sales |
 
 **Permissions**
 - Preview / submit: `submit_day_closing` or `process_sales`
 - List / show: also `verify_day_closing`, `view_reports`, `view_closing_history`
 - Pending + verify: **owner only**
+- Owner-direct post: **owner only** (not a staff handover)
 
-**Note:** Owners **cannot submit** their own shift handover via this API (they verify staff). Web “post owner direct sales” is a separate owner-only Master Sheet action — not exposed on mobile yet.
+**Important:** Owners do **not** submit a cashier-style handover (`POST /day-closing`). When the owner sells on POS, they use **owner-direct** (`/day-closing/owner-direct`) — one-step Verify & Close (verified + Master Sheet draft). Finalize separately on Master Sheet.
+
+`GET /day-closing/review?date=` includes an `owner_direct` block with `can_post`, totals, and `platform_breakdown`.
 
 ---
 
@@ -271,8 +276,75 @@ Must verify the **oldest** pending handover first.
 
 Passing `dispute_reason` sets status to `disputed`.
 
-On verify, Master Sheet sync / day finalize runs (same as web). SMS/email notify the staff member.
+On verify, Master Sheet sync runs (same as web). The day is **not** auto-finalized — finalize on Master Sheet when ready. SMS/email notify the staff member.
 
+---
+
+## 8. Owner direct sales (when owner sells on POS)
+
+Same as web `/day-closing` → **Post to Master Sheet**.
+
+Owner sales do **not** appear as a staff handover card. They are posted separately and create an auto-`verified` `DayClosing` with `shift_id: null`.
+
+### Preview
+
+```
+GET /api/v1/day-closing/owner-direct?date=2026-07-31
+```
+
+Also returned inside `GET /day-closing/review?date=…` → `data.owner_direct`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "available": true,
+    "can_post": true,
+    "already_posted": false,
+    "awaiting_verify": false,
+    "status": null,
+    "posted_closing_id": null,
+    "summary": {
+      "sales_count": 3,
+      "gross_sales": 150000,
+      "amount_collected": 150000,
+      "outstanding_sales": 0,
+      "cancelled_sales": 0
+    },
+    "expected_handover": 150000,
+    "platform_breakdown": [
+      { "key": "cash", "label": "Cash", "method": "cash", "amount": 150000 }
+    ],
+    "hint": "You sold on POS today. One step: Verify & Close to post to the Master Sheet."
+  }
+}
+```
+
+### Post (one-step Verify & Close)
+
+```
+POST /api/v1/day-closing/owner-direct
+```
+
+```json
+{
+  "closing_date": "2026-07-31",
+  "actual_received": 150000,
+  "shortage_note": null,
+  "report_notes": "Owner counter sales",
+  "handover_scope": "retail"
+}
+```
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `closing_date` | Yes | Date of the owner POS sales |
+| `actual_received` | Yes | Cash counted (defaults idea = `expected_handover`) |
+| `shortage_note` | If short | Required when actual &lt; expected |
+| `report_notes` | No | |
+| `handover_scope` | No | `retail` (default) or `service` |
+
+Creates a `verified` closing and syncs Master Sheet as draft. Does **not** auto-finalize — finalize on Master Sheet / `POST /owner-reports/{date}/finalize` when ready.
 ---
 
 ## Status values

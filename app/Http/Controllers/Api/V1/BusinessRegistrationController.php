@@ -65,7 +65,8 @@ class BusinessRegistrationController extends ApiController
             $result = $this->registration->register(
                 $request,
                 $payload,
-                (string) $request->input('verification_code')
+                (string) $request->input('verification_code'),
+                'mobile'
             );
 
             $business = $result['business'];

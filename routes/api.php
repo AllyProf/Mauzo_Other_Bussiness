@@ -9,10 +9,12 @@ use App\Http\Controllers\Api\V1\CustomerCommunicationController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DayClosingController;
 use App\Http\Controllers\Api\V1\DebtController;
+use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\EmployeeController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\ItemController;
 use App\Http\Controllers\Api\V1\LiveSalesController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OwnerReportController;
 use App\Http\Controllers\Api\V1\PackagingController;
 use App\Http\Controllers\Api\V1\ReceivingController;
@@ -44,6 +46,15 @@ Route::prefix('v1')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/switch-business', [AuthController::class, 'switchBusiness']);
         Route::post('/auth/switch-branch', [AuthController::class, 'switchBranch']);
+
+        // In-app notifications (poll-based — no Firebase)
+        Route::post('/devices', [DeviceController::class, 'store']);
+        Route::delete('/devices/{token}', [DeviceController::class, 'destroy'])->where('token', '.*');
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::get('/notifications/preferences', [NotificationController::class, 'preferences']);
+        Route::put('/notifications/preferences', [NotificationController::class, 'updatePreferences']);
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+        Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
 
         Route::get('/dashboard/today', [DashboardController::class, 'today']);
 
@@ -96,7 +107,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/items/create-form', [ItemController::class, 'createForm']);
         Route::get('/items/check-name', [ItemController::class, 'checkName']);
         Route::get('/items/search', [ItemController::class, 'search']);
+        Route::get('/items/lookup-barcode', [ItemController::class, 'lookupBarcode']);
         Route::post('/items', [ItemController::class, 'store']);
+        Route::get('/items/{item}/barcodes', [ItemController::class, 'barcodes']);
+        Route::get('/items/{item}/barcodes/print', [ItemController::class, 'printBarcodesData']);
 
         Route::get('/receivings', [ReceivingController::class, 'index']);
         Route::get('/receivings/create-form', [ReceivingController::class, 'createForm']);
@@ -131,6 +145,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/day-closing/preview', [DayClosingController::class, 'preview']);
         Route::get('/day-closing/pending', [DayClosingController::class, 'pending']);
         Route::get('/day-closing/review', [DayClosingController::class, 'review']);
+        Route::get('/day-closing/owner-direct', [DayClosingController::class, 'ownerDirectPreview']);
+        Route::post('/day-closing/owner-direct', [DayClosingController::class, 'postOwnerDirectSales']);
         Route::get('/day-closing', [DayClosingController::class, 'index']);
         Route::post('/day-closing', [DayClosingController::class, 'store']);
         Route::get('/day-closing/{dayClosing}', [DayClosingController::class, 'show']);

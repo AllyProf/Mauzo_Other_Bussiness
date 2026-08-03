@@ -209,6 +209,7 @@ class PlatformCommunicationController extends Controller
             'sms_template_registration_pending' => 'required|string',
             'sms_template_registration_approved' => 'required|string',
             'sms_template_registration_rejected' => 'required|string',
+            'sms_template_registration_submitted_admin' => 'required|string',
             'sms_template_business_registered' => 'required|string',
             'sms_template_business_linked' => 'required|string',
             'sms_template_password_reset' => 'required|string',

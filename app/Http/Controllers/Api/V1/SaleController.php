@@ -9,7 +9,6 @@ use App\Models\SaleItem;
 use App\Models\SalePayment;
 use App\Models\Shift;
 use App\Models\User;
-use App\Services\Api\ApiTenantContext;
 use App\Services\SalePaymentRecorder;
 use App\Services\SaleStockService;
 use Illuminate\Http\JsonResponse;
@@ -47,10 +46,12 @@ class SaleController extends ApiController
       $query->where('payment_status', $request->payment_status);
     }
 
+    $branchFilterId = $this->resolveSalesBranchFilterId($user, $request);
+
     if (! $user->seesBusinessWideData()) {
       $query->where('user_id', $user->id);
     } else {
-      $this->scopeSalesToBranch($query);
+      $this->scopeSalesToBranchCatalog($query, $branchFilterId);
     }
 
     $sales = $query->paginate(min(50, (int) $request->get('per_page', 20)));
@@ -62,6 +63,8 @@ class SaleController extends ApiController
         'last_page' => $sales->lastPage(),
         'per_page' => $sales->perPage(),
         'total' => $sales->total(),
+        'branch_id' => $branchFilterId,
+        'viewing_all_branches' => $user->seesBusinessWideData() && ! $branchFilterId,
       ],
     ]);
   }
@@ -342,20 +345,47 @@ class SaleController extends ApiController
     return null;
   }
 
-  private function scopeSalesToBranch($query): void
+  /**
+   * Same idea as web /sales: owners use active branch (or ?branch_id=); staff locked to own branch.
+   * Pass branch_id=0 or omit with no switched branch to view all (owners only).
+   */
+  private function resolveSalesBranchFilterId(User $user, Request $request): ?int
   {
-    $ctx = app(ApiTenantContext::class);
-    $branchId = $ctx->branchId();
+    if (! $user->seesBusinessWideData() && $user->branch_id) {
+      return (int) $user->branch_id;
+    }
+
+    if ($request->exists('branch_id')) {
+      $raw = $request->input('branch_id');
+      if ($raw === null || $raw === '' || (int) $raw === 0) {
+        return null;
+      }
+      $requested = (int) $raw;
+      if ($requested > 0 && $this->tenantContext()->ownerBranches()->contains('id', $requested)) {
+        return $requested;
+      }
+
+      return null;
+    }
+
+    return $this->tenantContext()->branchId();
+  }
+
+  /**
+   * Match web SaleController: filter by product/service catalog branch, not only seller's user.branch_id.
+   */
+  private function scopeSalesToBranchCatalog($query, ?int $branchId): void
+  {
     if (! $branchId) {
       return;
     }
 
-    $businessId = $ctx->businessId();
-    $query->whereIn('user_id', User::query()
-      ->where('business_id', $businessId)
-      ->where(function ($q) use ($branchId) {
-        $q->where('branch_id', $branchId)->orWhereNull('branch_id');
-      })
-      ->pluck('id'));
+    $query->where(function ($q) use ($branchId) {
+      $q->whereHas('items.item.category', function ($categoryQuery) use ($branchId) {
+        $categoryQuery->where('branch_id', $branchId);
+      })->orWhereHas('items.service', function ($serviceQuery) use ($branchId) {
+        $serviceQuery->where('branch_id', $branchId);
+      });
+    });
   }
 }

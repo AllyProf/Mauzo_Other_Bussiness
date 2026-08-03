@@ -52,6 +52,8 @@ Content-Type: application/json
 | `PUT` | `/items/{id}` | Update item |
 | `DELETE` | `/items/{id}` | Delete item |
 | `GET` | `/items/search` | POS search (stock > 0 only) |
+| `GET` | `/items/lookup-barcode` | POS scan lookup (`?code=`) |
+| `GET` | `/items/{id}/barcodes` | Label data + PNG base64 for print |
 
 ### Permissions
 
@@ -62,7 +64,8 @@ Content-Type: application/json
 | Check name | `add_items` or `edit_items` |
 | Update | `edit_items` |
 | Delete | `delete_items` |
-| POS search | `process_sales` or `view_inventory` |
+| POS search / barcode lookup | `process_sales` or `view_inventory` |
+| Barcode labels | `view_inventory`, `add_items`, `edit_items`, or `process_sales` |
 
 ---
 
@@ -328,7 +331,62 @@ Confirm in UI before calling — this permanently removes the item.
 
 `GET /items/search?q=&limit=30`
 
-Only items with **stock > 0** and a category. Used by the sales screen.
+Only items with **stock > 0** and a category. Used by the sales screen. Also matches exact packaging `barcode`.
+
+Each packaging in the response includes `barcode`.
+
+---
+
+## 8. Barcode scan lookup (fast checkout)
+
+`GET /items/lookup-barcode?code=ML001000000123`
+
+Resolves a **selling packaging** barcode generated at item register.
+
+```json
+{
+  "success": true,
+  "data": {
+    "barcode": "ML001000000123",
+    "item": {
+      "id": 226,
+      "name": "Castle Lite Can",
+      "sku": "SP-…",
+      "current_stock": 40,
+      "in_stock": true
+    },
+    "packaging": {
+      "id": 501,
+      "name": "Can",
+      "quantity_per_unit": 1,
+      "selling_price": 3500,
+      "barcode": "ML001000000123"
+    },
+    "cart_line": {
+      "item_id": 226,
+      "item_packaging_id": 501,
+      "quantity": 1,
+      "unit_price": 3500
+    }
+  }
+}
+```
+
+**Flutter flow:** open camera → scan → `lookup-barcode` → push `cart_line` into cart → pay.
+
+`404` if code is unknown for this business.
+
+---
+
+## 9. Barcode labels (print data)
+
+`GET /items/{id}/barcodes`
+
+Returns each selling packaging barcode + `barcode_png_base64` for on-device / Bluetooth label print.
+
+Web print page (browser): `/items/{id}/barcodes/print`
+
+Barcodes are **auto-generated when the item is registered** (one code per selling packaging). Receiving stock does not create new barcodes.
 
 ---
 

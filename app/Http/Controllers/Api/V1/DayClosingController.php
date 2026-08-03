@@ -92,6 +92,60 @@ class DayClosingController extends ApiController
         }
     }
 
+    public function ownerDirectPreview(Request $request): JsonResponse
+    {
+        if ($request->user()->role !== 'owner') {
+            return $this->forbidden('Only the business owner can post direct POS sales.');
+        }
+
+        $request->validate([
+            'date' => 'required|date',
+        ]);
+
+        try {
+            $data = $this->handover
+                ->forBusiness($this->apiBusinessId())
+                ->ownerDirectPreview(
+                    $request->user(),
+                    $this->apiBusinessId(),
+                    $request->get('date')
+                );
+
+            return $this->success($data);
+        } catch (ValidationException $e) {
+            return $this->error('Validation failed.', 422, $e->errors());
+        }
+    }
+
+    public function postOwnerDirectSales(Request $request): JsonResponse
+    {
+        if ($request->user()->role !== 'owner') {
+            return $this->forbidden('Only the business owner can post direct POS sales.');
+        }
+
+        try {
+            $data = $this->handover
+                ->forBusiness($this->apiBusinessId())
+                ->postOwnerDirectSalesApi(
+                    $request->user(),
+                    $this->apiBusinessId(),
+                    $request->all()
+                );
+
+            $message = 'Your direct POS sales are posted to the Master Sheet — finalize the day there when ready.';
+
+            if (($data['money_short'] ?? 0) > 0) {
+                $message = 'Your direct POS sales are posted with a money short. Finalize the day on the Master Sheet when ready.';
+            }
+
+            return $this->success($data, $message, 201);
+        } catch (ValidationException $e) {
+            return $this->error($e->getMessage() ?: 'Validation failed.', 422, $e->errors());
+        } catch (\Throwable $e) {
+            return $this->error('Failed to post owner sales: '.$e->getMessage(), 500);
+        }
+    }
+
     public function index(Request $request): JsonResponse
     {
         if ($deny = $this->authorizeApiAny([

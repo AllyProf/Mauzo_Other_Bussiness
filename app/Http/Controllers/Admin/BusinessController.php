@@ -230,6 +230,7 @@ class BusinessController extends Controller
             'expiry_date' => $expiryDate,
             'is_active' => true,
             'owner_user_id' => $ownerUserId,
+            'registration_source' => 'admin',
         ], $this->normalizeBillingInput($request)));
 
         if ($linkExistingOwner) {

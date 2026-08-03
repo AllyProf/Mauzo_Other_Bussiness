@@ -269,6 +269,12 @@ class DayClosingHandoverService extends DayClosingController
                 // non-blocking
             }
 
+            try {
+                app(InAppNotificationService::class)->notifyHandoverSubmitted($closing);
+            } catch (\Throwable) {
+                // non-blocking
+            }
+
             return $closing;
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -290,11 +296,15 @@ class DayClosingHandoverService extends DayClosingController
             throw ValidationException::withMessages(['verify' => 'This reconciliation is already verified.']);
         }
 
-        $nextPending = $this->nextPendingHandoverToVerify($dayClosing->business_id);
-        if ($nextPending && $nextPending->id !== $dayClosing->id) {
-            throw ValidationException::withMessages([
-                'verify' => 'Verify the oldest pending handover first (#'.$nextPending->id.').',
-            ]);
+        $isOwnerDirect = $this->isOwnerDirectClosing($dayClosing);
+
+        if (! $isOwnerDirect) {
+            $nextPending = $this->nextPendingHandoverToVerify($dayClosing->business_id);
+            if ($nextPending && $nextPending->id !== $dayClosing->id) {
+                throw ValidationException::withMessages([
+                    'verify' => 'Verify the oldest pending handover first (#'.$nextPending->id.').',
+                ]);
+            }
         }
 
         $expected = (float) ($dayClosing->net_amount ?: collect($dayClosing->payment_breakdown ?? [])->sum());
@@ -319,6 +329,12 @@ class DayClosingHandoverService extends DayClosingController
                 'shortage_note' => $moneyShort > 0 ? ($data['shortage_note'] ?? null) : null,
             ]);
 
+            try {
+                app(InAppNotificationService::class)->notifyHandoverVerified($dayClosing->fresh(['user', 'business']), rejected: true);
+            } catch (\Throwable) {
+                // non-blocking
+            }
+
             return $dayClosing->fresh(['expenses', 'user', 'shift', 'verifier']);
         }
 
@@ -339,16 +355,17 @@ class DayClosingHandoverService extends DayClosingController
             $dayClosing->closing_date->toDateString(),
             $dayClosing
         );
-        $this->reportService->tryFinalizeDayIfReady(
-            $dayClosing->business,
-            $dayClosing->closing_date->toDateString(),
-            $dayClosing,
-            (int) $owner->id
-        );
+        // Do not auto-finalize — owner finalizes explicitly on Master Sheet / owner-reports.
 
         try {
             $this->staffSms->notifyStaffHandoverVerified($dayClosing->business, $owner, $dayClosing->fresh(['user']));
             $this->staffMail->notifyStaffHandoverVerified($dayClosing->business, $owner, $dayClosing->fresh(['user']));
+        } catch (\Throwable) {
+            // non-blocking
+        }
+
+        try {
+            app(InAppNotificationService::class)->notifyHandoverVerified($dayClosing->fresh(['user', 'business']), rejected: false);
         } catch (\Throwable) {
             // non-blocking
         }
@@ -455,10 +472,241 @@ class DayClosingHandoverService extends DayClosingController
                 'staff' => ['id' => $s->user?->id, 'name' => $s->user?->name],
             ])->values()->all(),
             'next_to_verify' => $nextPending ? $this->pendingRow($nextPending) : null,
+            'owner_direct' => $this->buildOwnerDirectApiBlock($owner, $businessId, $date),
             'deep_link' => [
                 'web' => '/day-closing?date='.$date.($focusId ? '#handover-'.$focusId : ''),
                 'api_handover' => $focusId ? '/day-closing/'.$focusId : null,
             ],
+        ];
+    }
+
+    /**
+     * Owner POS sales for a date — same as web "Post to Master Sheet" card.
+     *
+     * @return array<string, mixed>
+     */
+    public function ownerDirectPreview(User $owner, int $businessId, string $date): array
+    {
+        $this->forBusiness($businessId);
+        Auth::setUser($owner);
+
+        if ($owner->role !== 'owner') {
+            throw ValidationException::withMessages([
+                'owner' => 'Only the business owner can post direct POS sales.',
+            ]);
+        }
+
+        return $this->buildOwnerDirectApiBlock($owner, $businessId, $date);
+    }
+
+    /**
+     * One-step Verify & Close for owner's own POS sales (verified + Master Sheet draft sync).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public function postOwnerDirectSalesApi(User $owner, int $businessId, array $data): array
+    {
+        $this->forBusiness($businessId);
+        Auth::setUser($owner);
+
+        if ($owner->role !== 'owner') {
+            throw ValidationException::withMessages([
+                'owner' => 'Only the business owner can post direct POS sales.',
+            ]);
+        }
+
+        $validated = validator($data, [
+            'closing_date' => 'required|date',
+            'report_notes' => 'nullable|string|max:2000',
+            'actual_received' => 'required|numeric|min:0',
+            'shortage_note' => 'nullable|string|max:1000',
+            'handover_scope' => 'nullable|in:retail,service',
+        ])->validate();
+
+        $date = $validated['closing_date'];
+        $scope = $validated['handover_scope'] ?? 'retail';
+        $this->serviceHandoverContext = $scope === 'service';
+
+        if ($this->ownerDirectClosingExists($businessId, $date, (int) $owner->id)) {
+            throw ValidationException::withMessages([
+                'closing_date' => $scope === 'service'
+                    ? 'Your direct service sales for this date are already closed.'
+                    : 'Your direct POS sales for this date are already closed.',
+            ]);
+        }
+
+        $summary = $this->buildOwnerDirectSummary($businessId, $date);
+
+        if (($summary['sales_count'] ?? 0) === 0) {
+            throw ValidationException::withMessages([
+                'closing_date' => $scope === 'service'
+                    ? 'No direct service sales found for this date.'
+                    : 'No direct POS sales found for this date.',
+            ]);
+        }
+
+        $platformBreakdown = $this->buildPlatformBreakdown(
+            $businessId,
+            $date,
+            null,
+            (int) $owner->id,
+            $summary['sales']
+        );
+
+        $paymentBreakdown = collect($platformBreakdown)->mapWithKeys(fn ($item, $key) => [$key => (float) $item['amount']])->all();
+        $cashReceived = (float) ($paymentBreakdown['cash'] ?? 0);
+        $mobileReceived = collect($paymentBreakdown)->filter(fn ($_, $k) => $this->platformMethod($k, $platformBreakdown) === 'mobile_money')->sum();
+        $bankReceived = collect($paymentBreakdown)->filter(fn ($_, $k) => $this->platformMethod($k, $platformBreakdown) === 'bank')->sum();
+        $expected = array_sum($paymentBreakdown);
+        $actual = (float) $validated['actual_received'];
+        $moneyShort = max(0, round($expected - $actual, 2));
+
+        if ($moneyShort > 0 && empty($validated['shortage_note'])) {
+            throw ValidationException::withMessages([
+                'shortage_note' => ['Shortage note is required when actual received is less than expected.'],
+            ]);
+        }
+
+        $ownerShiftIds = collect($summary['sales'])
+            ->pluck('shift_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        DB::beginTransaction();
+
+        try {
+            $this->closeOwnerShiftsForDirectPost($businessId, $ownerShiftIds);
+
+            $closing = DayClosing::create([
+                'business_id' => $businessId,
+                'user_id' => $owner->id,
+                'shift_id' => null,
+                'handover_scope' => $this->ownerDirectHandoverScope(),
+                'closing_date' => $date,
+                'status' => 'verified',
+                'sales_count' => $summary['sales_count'],
+                'gross_sales' => $summary['gross_sales'],
+                'amount_collected' => $summary['amount_collected'],
+                'outstanding_sales' => $summary['outstanding_sales'],
+                'payments_received' => $expected,
+                'cash_received' => $cashReceived,
+                'mobile_received' => $mobileReceived,
+                'bank_received' => $bankReceived,
+                'payment_breakdown' => $paymentBreakdown,
+                'cancelled_sales' => $summary['cancelled_sales'],
+                'total_expenses' => 0,
+                'net_amount' => $expected,
+                'expected_handover' => $expected,
+                'actual_received' => $actual,
+                'money_short' => $moneyShort,
+                'shortage_note' => $moneyShort > 0 ? ($validated['shortage_note'] ?? null) : null,
+                'report_notes' => $validated['report_notes'] ?? null,
+                'submitted_at' => now(),
+                'verified_by' => $owner->id,
+                'verified_at' => now(),
+            ]);
+
+            $closing->load(['expenses', 'user', 'business']);
+
+            if (! $this->serviceHandoverContext) {
+                $this->reportService->syncReport($closing->business, $date, $closing);
+                // Do not auto-finalize — owner finalizes explicitly on Master Sheet / owner-reports.
+            }
+
+            DB::commit();
+
+            try {
+                $this->salesReportEmail->sendOnShiftClose(
+                    $closing->business,
+                    $owner,
+                    $closing
+                );
+            } catch (\Throwable) {
+                // non-blocking
+            }
+
+            return [
+                'handover' => $this->handoverDetail($closing->fresh(['user', 'shift', 'verifier', 'expenses']), $owner),
+                'is_owner_direct' => true,
+                'day_finalized' => false,
+                'awaiting_verify' => false,
+                'money_short' => $moneyShort,
+            ];
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildOwnerDirectApiBlock(User $owner, int $businessId, string $date): array
+    {
+        if ($owner->role !== 'owner') {
+            return [
+                'available' => false,
+                'can_post' => false,
+                'already_posted' => false,
+                'posted_closing_id' => null,
+                'summary' => null,
+                'expected_handover' => 0,
+                'platform_breakdown' => [],
+            ];
+        }
+
+        $postedQuery = DayClosing::where('business_id', $businessId)
+            ->whereDate('closing_date', $date)
+            ->whereNull('shift_id')
+            ->where('user_id', $owner->id);
+        $this->applyOwnerDirectClosingScope($postedQuery);
+        $posted = $postedQuery->first();
+
+        $summary = $this->buildOwnerDirectSummary($businessId, $date);
+        $canPost = ! $posted && ($summary['sales_count'] ?? 0) > 0;
+        $platformBreakdown = [];
+        $expected = 0.0;
+
+        if ($canPost || ($summary['sales_count'] ?? 0) > 0) {
+            $platformBreakdown = collect($this->buildPlatformBreakdown(
+                $businessId,
+                $date,
+                null,
+                (int) $owner->id,
+                $summary['sales']
+            ))->map(fn ($row, $key) => [
+                'key' => $key,
+                'label' => $row['label'] ?? $key,
+                'method' => $row['method'] ?? null,
+                'amount' => (float) ($row['amount'] ?? 0),
+            ])->values()->all();
+            $expected = collect($platformBreakdown)->sum('amount');
+        }
+
+        return [
+            'available' => true,
+            'can_post' => $canPost,
+            'already_posted' => (bool) $posted,
+            'awaiting_verify' => false,
+            'status' => $posted?->status,
+            'posted_closing_id' => $posted?->id,
+            'summary' => [
+                'sales_count' => (int) ($summary['sales_count'] ?? 0),
+                'gross_sales' => (float) ($summary['gross_sales'] ?? 0),
+                'amount_collected' => (float) ($summary['amount_collected'] ?? 0),
+                'outstanding_sales' => (float) ($summary['outstanding_sales'] ?? 0),
+                'cancelled_sales' => (int) ($summary['cancelled_sales'] ?? 0),
+            ],
+            'expected_handover' => (float) $expected,
+            'platform_breakdown' => $platformBreakdown,
+            'hint' => $canPost
+                ? 'You sold on POS today. One step: Verify & Close to post to the Master Sheet.'
+                : ($posted
+                    ? 'Your direct POS sales for this date are already closed & posted.'
+                    : 'No unposted owner POS sales for this date.'),
         ];
     }
 
@@ -475,6 +723,7 @@ class DayClosingHandoverService extends DayClosingController
             'staff' => ['id' => $c->user?->id, 'name' => $c->user?->name],
             'shift_id' => $c->shift_id,
             'net_amount' => (float) $c->net_amount,
+            'is_owner_direct' => $this->isOwnerDirectClosing($c),
             'review_url' => '/day-closing?date='.$c->closing_date->toDateString().'#handover-'.$c->id,
         ];
     }

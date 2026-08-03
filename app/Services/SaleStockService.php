@@ -42,6 +42,12 @@ class SaleStockService
         $sale->update(['stock_deducted' => true]);
         app(ServiceConsumableService::class)->deductForSale($sale->fresh());
         $this->refreshShiftTotals($sale);
+
+        try {
+            app(InAppNotificationService::class)->notifyStockAfterSale($sale->fresh(['business', 'user', 'items.item']));
+        } catch (\Throwable) {
+            // non-blocking
+        }
     }
 
     public function restoreForSale(Sale $sale): void

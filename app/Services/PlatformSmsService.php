@@ -381,6 +381,63 @@ class PlatformSmsService
         );
     }
 
+    public function notifyAdminNewRegistration(Business $business): bool
+    {
+        if (! $this->actionEnabled('registration_submitted_admin')) {
+            return false;
+        }
+
+        $platformName = $this->platformName();
+        $template = $this->settings->get(
+            'sms_template_registration_submitted_admin',
+            '{platform_name}: New business registration ({source}) — {business_name}. Contact: {contact_person}. Phone: {phone}. Region: {region}. Approve in Admin → Businesses.'
+        );
+        $message = str_replace(
+            ['{platform_name}', '{business_name}', '{contact_person}', '{phone}', '{region}', '{district}', '{source}'],
+            [
+                $platformName,
+                $business->name,
+                (string) ($business->contact_person ?? '—'),
+                (string) ($business->phone ?? '—'),
+                (string) ($business->region ?? '—'),
+                (string) ($business->district ?? '—'),
+                $business->registrationSourceLabel(),
+            ],
+            $template
+        );
+
+        $sent = false;
+        $seenPhones = [];
+
+        foreach (app(PlatformAdminService::class)->registrationNotificationStaff() as $staff) {
+            $phone = trim((string) ($staff->phone ?? ''));
+            if ($phone === '') {
+                continue;
+            }
+
+            $normalized = $this->formatPhoneNumber($phone);
+            if (in_array($normalized, $seenPhones, true)) {
+                continue;
+            }
+
+            $seenPhones[] = $normalized;
+
+            if ($this->sendToPhone(
+                $phone,
+                $message,
+                'registration_submitted_admin',
+                'registration_submitted_admin',
+                $business->id,
+                $staff->id,
+                $staff->name,
+            )) {
+                $sent = true;
+            }
+        }
+
+        return $sent;
+    }
+
     public function sendStaffWelcome(User $user, string $password): bool
     {
         $platformName = $this->platformName();

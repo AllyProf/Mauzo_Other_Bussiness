@@ -7,8 +7,16 @@
         <div class="dc-mobile-meta">{{ $data['staff']->email }}</div>
       @endif
     </div>
-    @if($data['status'] === 'paid' || $data['status'] === 'posted')
-      <span class="status-pill badge-success">{{ $data['status'] === 'posted' ? 'Posted' : 'Paid' }}</span>
+    @if($data['status'] === 'posted')
+      <span class="status-pill badge-success">Posted</span>
+    @elseif($data['status'] === 'awaiting_verify')
+      <span class="status-pill badge-warning">Awaiting verify</span>
+    @elseif($data['status'] === 'needs_close')
+      <span class="status-pill badge-info">Needs close</span>
+    @elseif($data['status'] === 'needs_handover')
+      <span class="status-pill badge-warning">Needs handover</span>
+    @elseif($data['status'] === 'paid')
+      <span class="status-pill badge-success">Paid</span>
     @elseif($data['status'] === 'partial')
       <span class="status-pill badge-warning">Partial</span>
     @else

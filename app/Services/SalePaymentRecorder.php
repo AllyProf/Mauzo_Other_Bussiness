@@ -114,6 +114,12 @@ class SalePaymentRecorder
         app(SaleStockService::class)->deductIfPaid($this->sale->fresh());
 
         if ($amountToPay > 0) {
+            try {
+                app(InAppNotificationService::class)->notifyPaymentReceived($this->sale->fresh(['business', 'user']), $amountToPay);
+            } catch (\Throwable) {
+                // non-blocking
+            }
+
             return 'Invoice saved on credit with '.money($amountToPay).' collected now. Balance '.money($balanceDue - $amountToPay).' due '.$request->due_date.'.';
         }
 
@@ -157,6 +163,12 @@ class SalePaymentRecorder
         $this->sale->update($updateData);
 
         app(SaleStockService::class)->deductIfPaid($this->sale->fresh());
+
+        try {
+            app(InAppNotificationService::class)->notifyPaymentReceived($this->sale->fresh(['business', 'user']), $amountToPay);
+        } catch (\Throwable) {
+            // non-blocking
+        }
 
         if ($status === 'partial') {
             $remaining = (float) $this->sale->total_amount - $newAmountPaid;

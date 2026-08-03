@@ -345,14 +345,14 @@
               <div class="col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Admin Notification Email</label>
-                  <input type="email" name="admin_notification_email" class="form-control" value="{{ old('admin_notification_email', $settings['admin_notification_email'] ?? '') }}" placeholder="Alerts for tickets & demo leads">
+                  <input type="email" name="admin_notification_email" class="form-control" value="{{ old('admin_notification_email', $settings['admin_notification_email'] ?? '') }}" placeholder="Alerts for tickets, demos & registrations">
                 </div>
               </div>
               <div class="col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Admin Notification Phone</label>
                   <input type="text" name="admin_notification_phone" class="form-control" value="{{ old('admin_notification_phone', $settings['admin_notification_phone'] ?? '') }}" placeholder="+255... or 07...">
-                  <small class="text-muted">SMS alerts for tickets and demo leads. Falls back to Support Phone if empty.</small>
+                  <small class="text-muted">Fallback SMS for tickets and demo leads. New registrations use the staff list below.</small>
                 </div>
               </div>
               <div class="col-md-6">
@@ -361,6 +361,39 @@
                   <input type="number" name="audit_log_retention_days" class="form-control" min="30" max="3650" value="{{ old('audit_log_retention_days', $settings['audit_log_retention_days'] ?? 365) }}" required>
                 </div>
               </div>
+            </div>
+            <div class="form-group">
+              <label class="control-label font-weight-bold">Registration SMS recipients (platform staff)</label>
+              <p class="small text-muted mb-2">Choose which platform staff get SMS/email when a business registers at /register-business. Staff need a phone number on their profile to receive SMS.</p>
+              @php
+                $selectedStaffIds = old('registration_sms_staff_ids', $selectedRegistrationSmsStaffIds ?? []);
+                $selectedStaffIds = collect($selectedStaffIds)->map(fn ($id) => (int) $id)->all();
+              @endphp
+              @if(($platformStaff ?? collect())->isEmpty())
+                <div class="alert alert-light border mb-0">No active platform staff found. Create staff under Admin → Staff first.</div>
+              @else
+                <div class="border rounded p-3" style="max-height: 240px; overflow-y: auto;">
+                  @foreach($platformStaff as $staffMember)
+                    <div class="custom-control custom-checkbox mb-2">
+                      <input type="checkbox"
+                             class="custom-control-input"
+                             id="reg_sms_staff_{{ $staffMember->id }}"
+                             name="registration_sms_staff_ids[]"
+                             value="{{ $staffMember->id }}"
+                             {{ in_array((int) $staffMember->id, $selectedStaffIds, true) ? 'checked' : '' }}>
+                      <label class="custom-control-label" for="reg_sms_staff_{{ $staffMember->id }}">
+                        <strong>{{ $staffMember->name }}</strong>
+                        <span class="text-muted">({{ $staffMember->role === 'super_admin' ? 'Super admin' : 'Platform staff' }})</span>
+                        <br>
+                        <small class="text-muted">
+                          {{ $staffMember->email }}
+                          · {{ $staffMember->phone ?: 'No phone — SMS skipped' }}
+                        </small>
+                      </label>
+                    </div>
+                  @endforeach
+                </div>
+              @endif
             </div>
             <hr>
             <h6 class="font-weight-bold mb-3"><i class="fa fa-comment"></i> System SMS Notifications</h6>
@@ -389,6 +422,7 @@
                 'sms_ticket_reply_business' => ['Ticket reply (business)', 'Alert to business phone when support replies.'],
                 'sms_staff_welcome' => ['New platform staff', 'Credentials SMS when you create admin staff with a phone number.'],
                 'sms_demo_lead_admin' => ['Demo lead (admin)', 'Alert when someone submits the landing demo form.'],
+                'sms_registration_submitted_admin' => ['New business registration (admin)', 'Alert when someone registers at /register-business. Sent only to the platform staff you selected above (must have a phone).'],
               ];
             @endphp
             @foreach($smsToggles as $key => [$label, $help])
@@ -429,6 +463,7 @@
                 'email_ticket_reply_business' => ['Ticket reply (business)', 'Alert to business email when support replies.'],
                 'email_staff_welcome' => ['New platform staff', 'Credentials email when you create admin staff.'],
                 'email_demo_lead_admin' => ['Demo lead (admin)', 'Alert when someone submits the landing demo form.'],
+                'email_registration_submitted_admin' => ['New business registration (admin)', 'Email when someone registers at /register-business. Sent only to the platform staff you selected above.'],
               ];
             @endphp
             @foreach($emailToggles as $key => [$label, $help])

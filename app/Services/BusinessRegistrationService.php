@@ -148,11 +148,14 @@ class BusinessRegistrationService
     }
 
     /**
+     * @param  'web'|'mobile'|'admin'  $source
      * @return array{business: Business, message: string, pending_approval: bool}
      */
-    public function register(Request $request, array $payload, string $verificationCode): array
+    public function register(Request $request, array $payload, string $verificationCode, string $source = 'web'): array
     {
         $this->assertRegistrationOpen();
+
+        $source = in_array($source, ['web', 'mobile', 'admin'], true) ? $source : 'web';
 
         $phone255 = $this->platformSms->formatPhoneNumber($payload['phone']);
 
@@ -186,6 +189,7 @@ class BusinessRegistrationService
             'expiry_date' => null,
             'is_active' => false,
             'pending_approval' => true,
+            'registration_source' => $source,
             'category_business_types' => [[
                 'key' => $payload['business_type'],
                 'label' => $businessTypeLabel,
@@ -210,8 +214,23 @@ class BusinessRegistrationService
 
         $this->platformSms->sendRegistrationPending($business);
 
+        try {
+            $this->platformSms->notifyAdminNewRegistration($business);
+        } catch (\Throwable) {
+            // Non-blocking
+        }
+
+        try {
+            $this->platformMail->notifyAdminNewRegistration($business);
+        } catch (\Throwable) {
+            // Non-blocking
+        }
+
         $this->verificationService->forget($phone255);
-        $this->funnelService->track($request, 'registration_submitted', ['business_id' => $business->id]);
+        $this->funnelService->track($request, 'registration_submitted', [
+            'business_id' => $business->id,
+            'registration_source' => $source,
+        ]);
 
         return [
             'business' => $business->fresh(),

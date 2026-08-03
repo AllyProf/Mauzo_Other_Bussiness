@@ -151,6 +151,7 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::get('/items/stock/export/pdf', [App\Http\Controllers\ItemController::class, 'exportStockPdf'])->name('items.stock.export.pdf');
     Route::get('/items/stock/export/excel', [App\Http\Controllers\ItemController::class, 'exportStockExcel'])->name('items.stock.export.excel');
     Route::get('/items/check-name', [App\Http\Controllers\ItemController::class, 'checkName'])->name('items.check-name');
+    Route::get('/items/{item}/barcodes/print', [App\Http\Controllers\ItemController::class, 'printBarcodes'])->name('items.barcodes.print');
     Route::get('/items/{item}/history', [App\Http\Controllers\ItemController::class, 'history'])->name('items.history');
     Route::resource('/items', App\Http\Controllers\ItemController::class);
     

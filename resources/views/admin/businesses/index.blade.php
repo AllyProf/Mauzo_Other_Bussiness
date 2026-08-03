@@ -19,7 +19,7 @@
     @if($pendingRegistrations->isNotEmpty())
     <div class="tile mb-4" style="border-left: 4px solid #f39c12;">
       <h3 class="tile-title text-warning"><i class="fa fa-hourglass-half"></i> Pending Registrations ({{ $pendingRegistrations->count() }})</h3>
-      <p class="text-muted mb-3">Review new sign-ups from the public registration page. Approve to start their free trial, or reject to remove the request.</p>
+      <p class="text-muted mb-3">Review new sign-ups from the public registration page or mobile app. Approve to start their free trial, or reject to remove the request.</p>
       <div class="table-responsive">
         <table class="table table-hover table-bordered mb-0">
           <thead>
@@ -29,6 +29,7 @@
               <th>{{ __('tables.columns.phone') }}</th>
               <th>{{ __('tables.columns.region') }}</th>
               <th>Business Type</th>
+              <th>Source</th>
               <th>Registered</th>
               <th class="text-center">Actions</th>
             </tr>
@@ -41,6 +42,18 @@
               <td>{{ $business->phone ?? '—' }}</td>
               <td>{{ $business->region ?? '—' }}<br><small class="text-muted">{{ $business->district ?? '' }}</small></td>
               <td>{{ collect($business->categoryBusinessTypesList())->first()['label'] ?? '—' }}</td>
+              <td>
+                <span class="badge {{ $business->registrationSourceBadgeClass() }}">
+                  @if($business->registration_source === 'mobile')
+                    <i class="fa fa-mobile"></i>
+                  @elseif($business->registration_source === 'web')
+                    <i class="fa fa-globe"></i>
+                  @elseif($business->registration_source === 'admin')
+                    <i class="fa fa-user-secret"></i>
+                  @endif
+                  {{ $business->registrationSourceLabel() }}
+                </span>
+              </td>
               <td>{{ $business->created_at->format('M d, Y h:i A') }}</td>
               <td class="text-center text-nowrap">
                 <a href="{{ route('admin.businesses.edit', $business->id) }}" class="btn btn-info btn-sm mr-1" title="View details"><i class="fa fa-eye"></i></a>
@@ -93,6 +106,17 @@
                   @if($business->email)
                   <br><small class="text-muted">{{ $business->email }}</small>
                   @endif
+                  <br>
+                  <span class="badge {{ $business->registrationSourceBadgeClass() }} mt-1">
+                    @if($business->registration_source === 'mobile')
+                      <i class="fa fa-mobile"></i>
+                    @elseif($business->registration_source === 'web')
+                      <i class="fa fa-globe"></i>
+                    @elseif($business->registration_source === 'admin')
+                      <i class="fa fa-user-secret"></i>
+                    @endif
+                    {{ $business->registrationSourceLabel() }}
+                  </span>
                 </td>
                 <td><span class="badge badge-info">{{ $business->plan->name ?? 'No Plan' }}</span></td>
                 <td>
@@ -234,6 +258,19 @@
             <div class="col-md-6 col-lg-4 mb-2">
               <strong>Registered</strong><br>
               {{ $business->created_at->format('M d, Y') }}
+            </div>
+            <div class="col-md-6 col-lg-4 mb-2">
+              <strong>Registration Source</strong><br>
+              <span class="badge {{ $business->registrationSourceBadgeClass() }}">
+                @if($business->registration_source === 'mobile')
+                  <i class="fa fa-mobile"></i>
+                @elseif($business->registration_source === 'web')
+                  <i class="fa fa-globe"></i>
+                @elseif($business->registration_source === 'admin')
+                  <i class="fa fa-user-secret"></i>
+                @endif
+                {{ $business->registrationSourceLabel() }}
+              </span>
             </div>
           </div>
         </div>

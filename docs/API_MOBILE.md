@@ -307,7 +307,16 @@ Cashiers with `open_shift` / `process_sales` must open a shift before selling.
 ### Search
 `GET /items/search?q=filter&limit=30`
 
-Returns items with stock > 0 and packaging prices.
+Returns items with stock > 0 and packaging prices (includes `barcode` per packaging).
+
+### Scan barcode (fast checkout)
+`GET /items/lookup-barcode?code=ML001000000123`
+
+Returns item + packaging + ready `cart_line`. Use after camera/hardware scan.
+
+### Barcode labels
+`GET /items/{id}/barcodes` — PNG base64 for print  
+Web: `/items/{id}/barcodes/print`
 
 ### Detail
 `GET /items/{id}`
@@ -334,6 +343,8 @@ An item is a sellable product: name, category, receiving unit, and selling packa
 | PUT | `/items/{id}` | Update |
 | DELETE | `/items/{id}` | Delete |
 | GET | `/items/search` | POS search (stock > 0) |
+| GET | `/items/lookup-barcode` | POS scan by barcode |
+| GET | `/items/{id}/barcodes` | Label PNGs for print |
 
 ### Create (register)
 `POST /items`
@@ -610,11 +621,20 @@ If partial cancel is needed and `partial_ok` is not `true`, API returns **409** 
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/sales` | List sales (`?shift_id=`, `?date=`, `?payment_status=`) |
+| GET | `/sales` | List sales (`?shift_id=`, `?date=`, `?payment_status=`, `?branch_id=`) |
 | POST | `/sales` | Create order (pending payment) |
 | GET | `/sales/{id}` | Receipt detail |
 | POST | `/sales/{id}/pay` | Collect payment |
 | POST | `/sales/{id}/cancel` | Cancel unpaid sale |
+
+### Sales history branch filter (same as web `/sales`)
+
+| Who | Behavior |
+|-----|----------|
+| **Staff** | Own sales only |
+| **Owner** | Active branch from `POST /auth/switch-branch`, or pass `?branch_id=10`. Use `branch_id=0` / omit with no switch = **all branches** |
+
+Filter matches web: sales whose **products/services belong to that branch** (item category / service `branch_id`). Response includes `meta.branch_id` and `meta.viewing_all_branches`.
 
 ### Create sale
 `POST /sales`
@@ -766,6 +786,26 @@ Set daily / weekly / monthly revenue goals by branch, department, or staff — s
 
 ---
 
+## In-app notifications
+
+Poll-based inbox + banners — **no Firebase**. Backend stores rows; app polls while logged in.
+
+**Full docs:** [`API_NOTIFICATIONS.md`](API_NOTIFICATIONS.md)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/devices` | Register device after login |
+| DELETE | `/devices/{token}` | Unregister on logout |
+| GET | `/notifications` | Inbox / poll (`?unread_only=true&limit=30`) |
+| PATCH | `/notifications/{id}/read` | Mark one read |
+| POST | `/notifications/read-all` | Mark all read |
+| GET | `/notifications/preferences` | Category toggles |
+| PUT | `/notifications/preferences` | Update toggles |
+
+**MVP events wired:** day-closing handover submit/verify/dispute, payment received, low/out of stock after sales.
+
+---
+
 ## Day closing / handover
 
 End-of-shift cash count, expenses, reconciliation, and owner verification — same as web `/day-closing`.
@@ -782,6 +822,8 @@ Staff submit a **handover** (declared cash / mobile / bank + expenses). Owner ve
 | POST | `/day-closing` | Staff | Submit handover |
 | GET | `/day-closing` | All | History (`?date=`, `?status=`, `?per_page=`) |
 | GET | `/day-closing/review` | Owner | Boss day review (`?date=` + optional `handover_id`) — same as web `/day-closing?date=…#handover-…` |
+| GET | `/day-closing/owner-direct` | Owner | Preview owner's own POS sales for date |
+| POST | `/day-closing/owner-direct` | Owner | One-step Verify & Close owner POS sales |
 | GET | `/day-closing/pending` | Owner | Pending / disputed queue |
 | GET | `/day-closing/{id}` | All | Full handover detail |
 | POST | `/day-closing/{id}/verify` | Owner | Approve or dispute |
@@ -790,7 +832,7 @@ Staff submit a **handover** (declared cash / mobile / bank + expenses). Owner ve
 
 `GET /day-closing/review?date=2026-06-18&handover_id=15`
 
-Returns all handovers for that date (sorted like web), `focus_handover_id` (scroll/open this card), pending from other days, shifts still awaiting handover, and `next_to_verify`.
+Returns staff handover cards, pending queue, awaiting shifts, **`owner_direct`** (Verify & Close card), and `next_to_verify`.
 
 Or open one card directly: `GET /day-closing/15`
 
@@ -816,9 +858,9 @@ Or open one card directly: `GET /day-closing/15`
 
 - `platform_amounts` keys = `platform_breakdown[].key` from preview (optional — defaults to system totals)  
 - Expenses reduce the matching payment method  
-- **Owners cannot submit** their own handover here (verify only)
+- **Owners cannot submit** a staff handover here
 
-### Owner verify
+### Owner verify staff handovers
 `GET /day-closing/pending` → `POST /day-closing/{id}/verify`
 
 **Approve:**
@@ -832,6 +874,24 @@ Or open one card directly: `GET /day-closing/15`
 **Dispute:** add `"dispute_reason": "…"`.  
 `shortage_note` required when actual &lt; expected. Oldest pending must be verified first.
 
+### Owner sold on POS (one-step Verify & Close)
+
+Owner sales do **not** show as a staff handover. On web: one button **Verify & Close**.
+
+1. `GET /day-closing/review?date=today` → check `owner_direct.can_post`  
+   (or `GET /day-closing/owner-direct?date=today`)
+2. If `can_post: true` → show Verify & Close card with `expected_handover`
+3. `POST /day-closing/owner-direct` → creates `verified` closing and syncs Master Sheet (draft)
+
+```json
+{
+  "closing_date": "2026-07-31",
+  "actual_received": 150000,
+  "report_notes": "Owner counter sales"
+}
+```
+
+Does **not** auto-finalize. Finalize later on Master Sheet / owner-reports.
 ---
 
 ## Owner reports / Master Sheet
@@ -1092,7 +1152,7 @@ Owners receive **all** permissions automatically.
 1. Login → store token securely
 2. GET /auth/me → build navigation from permissions
 3. If needs_shift_opened → GET /shifts/open-form → POST /shifts/open
-4. GET /items/search → cart → POST /sales → POST /sales/{id}/pay
+4. GET /items/search **or** GET /items/lookup-barcode → cart → POST /sales → POST /sales/{id}/pay
 5. Stock-in: GET /receivings/create-form → POST /receivings
 6. End of shift: GET /day-closing/preview → POST /day-closing
 7. Owner: GET /day-closing/pending → POST /day-closing/{id}/verify
@@ -1144,6 +1204,13 @@ POST   /auth/logout
 GET    /auth/me
 POST   /auth/switch-business
 POST   /auth/switch-branch
+POST   /devices
+DELETE /devices/{token}
+GET    /notifications
+PATCH  /notifications/{id}/read
+POST   /notifications/read-all
+GET    /notifications/preferences
+PUT    /notifications/preferences
 GET    /dashboard/today
 GET    /payment-methods
 GET    /branches
@@ -1187,7 +1254,9 @@ GET    /items/stock
 GET    /items/create-form
 GET    /items/check-name
 GET    /items/search
+GET    /items/lookup-barcode
 POST   /items
+GET    /items/{id}/barcodes
 GET    /items/{id}/history
 GET    /items/{item}
 PUT    /items/{item}
@@ -1208,6 +1277,8 @@ POST   /debts/{sale}/collect
 GET    /day-closing/preview
 GET    /day-closing/pending
 GET    /day-closing/review
+GET    /day-closing/owner-direct
+POST   /day-closing/owner-direct
 GET    /day-closing
 POST   /day-closing
 GET    /day-closing/{id}

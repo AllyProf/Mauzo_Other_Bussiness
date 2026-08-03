@@ -324,7 +324,9 @@ class ItemController extends ApiController
 
             return $this->success([
                 'item' => $this->itemDetailPayload($item),
-            ], 'Item registered successfully.', 201);
+                'barcodes_url' => url('/api/v1/items/'.$item->id.'/barcodes'),
+                'web_print_url' => url('/items/'.$item->id.'/barcodes/print'),
+            ], 'Item registered successfully. Barcodes generated — print labels or fetch /items/{id}/barcodes.', 201);
         } catch (ValidationException $e) {
             return $this->error('Validation failed.', 422, $e->errors());
         }
@@ -357,7 +359,8 @@ class ItemController extends ApiController
             $query->where(function ($inner) use ($q) {
                 $inner->where('name', 'like', "%{$q}%")
                     ->orWhere('sku', 'like', "%{$q}%")
-                    ->orWhere('brand', 'like', "%{$q}%");
+                    ->orWhere('brand', 'like', "%{$q}%")
+                    ->orWhereHas('packagings', fn ($p) => $p->where('barcode', $q));
             });
         }
 
@@ -387,12 +390,123 @@ class ItemController extends ApiController
                         'quantity_per_unit' => (int) $row['quantity_per_unit'],
                         'selling_price' => (float) $pkg->selling_price,
                         'cost_price' => (float) $pkg->cost_price,
+                        'barcode' => $pkg->barcode,
                     ];
                 })->values(),
             ];
         })->values();
 
         return $this->success(['items' => $items]);
+    }
+
+    /**
+     * Fast POS scan: resolve a selling packaging by barcode.
+     */
+    public function lookupBarcode(Request $request): JsonResponse
+    {
+        if ($deny = $this->authorizeApiAny(['process_sales', 'view_inventory'])) {
+            return $deny;
+        }
+
+        $data = $request->validate([
+            'code' => 'required|string|max:64',
+        ]);
+
+        $code = trim($data['code']);
+        $businessId = $this->apiBusinessId();
+
+        $packaging = ItemPackaging::query()
+            ->where('barcode', $code)
+            ->whereHas('item', function ($q) use ($businessId, $request) {
+                $q->where('business_id', $businessId);
+                $this->scopeItemsForPos($q, $request->user());
+            })
+            ->with(['packagingType', 'item.category', 'item.receivingPackaging', 'item.packagings.packagingType'])
+            ->first();
+
+        if (! $packaging) {
+            return $this->error('Barcode not found for this business.', 404);
+        }
+
+        $item = $packaging->item;
+        $stockDisplay = app(ItemStockDisplayService::class);
+        $info = $stockDisplay->format($item);
+
+        return $this->success([
+            'barcode' => $packaging->barcode,
+            'item' => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'sku' => $item->sku,
+                'brand' => $item->brand,
+                'category' => $item->category?->name,
+                'current_stock' => (float) $item->current_stock,
+                'stock_display' => $info['stock_display'] ?? (string) $item->current_stock,
+                'unit' => $info['unit_name'] ?? 'Unit',
+                'in_stock' => (float) $item->current_stock > 0,
+            ],
+            'packaging' => [
+                'id' => $packaging->id,
+                'packaging_id' => $packaging->packaging_id,
+                'name' => $packaging->packagingType?->name ?? 'Unit',
+                'quantity_per_unit' => (int) $packaging->quantity_per_unit,
+                'selling_price' => (float) $packaging->selling_price,
+                'cost_price' => (float) $packaging->cost_price,
+                'barcode' => $packaging->barcode,
+            ],
+            'cart_line' => [
+                'item_id' => $item->id,
+                'item_packaging_id' => $packaging->id,
+                'quantity' => 1,
+                'unit_price' => (float) $packaging->selling_price,
+            ],
+        ]);
+    }
+
+    public function barcodes(Request $request, Item $item): JsonResponse
+    {
+        if ($deny = $this->authorizeApiAny(['view_inventory', 'add_items', 'edit_items', 'process_sales'])) {
+            return $deny;
+        }
+
+        if ((int) $item->business_id !== $this->apiBusinessId()) {
+            return $this->forbidden();
+        }
+
+        $item->load(['packagings.packagingType']);
+        $barcodeService = app(\App\Services\ItemBarcodeService::class);
+
+        foreach ($item->packagings as $packaging) {
+            $barcodeService->ensureBarcode($packaging, (int) $item->business_id);
+        }
+
+        $item->refresh()->load(['packagings.packagingType']);
+
+        return $this->success([
+            'item' => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'sku' => $item->sku,
+            ],
+            'labels' => $item->packagings->sortBy('quantity_per_unit')->values()->map(function ($pkg) use ($barcodeService) {
+                $code = (string) $pkg->barcode;
+
+                return [
+                    'item_packaging_id' => $pkg->id,
+                    'packaging_name' => $pkg->packagingType?->name ?? 'Unit',
+                    'barcode' => $code,
+                    'selling_price' => (float) $pkg->selling_price,
+                    'barcode_png_base64' => $barcodeService->pngBase64($code),
+                    'print_hint' => 'Use barcode_png_base64 as data:image/png;base64,... for label preview/print',
+                ];
+            }),
+            'web_print_url' => url('/items/'.$item->id.'/barcodes/print'),
+        ]);
+    }
+
+    public function printBarcodesData(Request $request, Item $item): JsonResponse
+    {
+        return $this->barcodes($request, $item);
     }
 
     public function show(Request $request, Item $item): JsonResponse
@@ -574,6 +688,7 @@ class ItemController extends ApiController
                     'quantity_per_unit' => (int) $row['quantity_per_unit'],
                     'selling_price' => (float) $pkg->selling_price,
                     'cost_price' => (float) $pkg->cost_price,
+                    'barcode' => $pkg->barcode,
                 ];
             })->values(),
         ];
@@ -781,6 +896,7 @@ class ItemController extends ApiController
         $existing = $item->packagings()->get()->keyBy('packaging_id');
         $item->packagings()->delete();
         $isFirst = true;
+        $created = [];
 
         foreach ($rows as $row) {
             if (empty($row['packaging_id'])) {
@@ -800,16 +916,23 @@ class ItemController extends ApiController
                 $sell = (float) ($previous?->selling_price ?? 0);
             }
 
-            ItemPackaging::create([
+            $created[] = ItemPackaging::create([
                 'item_id' => $item->id,
                 'packaging_id' => $row['packaging_id'],
                 'quantity_per_unit' => max(1, (int) ($row['quantity_per_unit'] ?? 1)),
                 'cost_price' => $cost,
                 'selling_price' => $sell,
+                'barcode' => $previous?->barcode,
             ]);
 
             $isFirst = false;
         }
+
+        app(\App\Services\ItemBarcodeService::class)->assignMissingBarcodes(
+            (int) $item->business_id,
+            $created,
+            $existing
+        );
     }
 
     private function scopeItemsForPos($query, $user): void

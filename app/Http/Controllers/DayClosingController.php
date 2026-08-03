@@ -240,6 +240,7 @@ class DayClosingController extends Controller
         $ownerDirectSummary = null;
         $ownerDirectExpectedHandover = 0;
         $canPostOwnerDirectSales = false;
+        $ownerDirectFinancePreview = null;
 
         if ($isBossReview) {
             $ownerDirectClosingQuery = DayClosing::where('business_id', $businessId)
@@ -264,6 +265,29 @@ class DayClosingController extends Controller
                     $ownerDirectSummary['sales']
                 );
                 $ownerDirectExpectedHandover = collect($ownerDirectPlatformBreakdown)->sum('amount');
+
+                $previewClosing = new DayClosing([
+                    'business_id' => $businessId,
+                    'user_id' => Auth::id(),
+                    'shift_id' => null,
+                    'handover_scope' => $this->ownerDirectHandoverScope(),
+                    'closing_date' => $date,
+                    'outstanding_sales' => $ownerDirectSummary['outstanding_sales'] ?? 0,
+                    'total_expenses' => 0,
+                ]);
+                $ownerGrossProfit = (float) ($this->reportService->calculateProfit(
+                    $businessId,
+                    $date,
+                    null,
+                    $previewClosing
+                )['gross_profit'] ?? 0);
+
+                $ownerDirectFinancePreview = $this->reportService->previewHandoverFinanceSplit(
+                    $business,
+                    (float) $ownerDirectExpectedHandover,
+                    $ownerGrossProfit,
+                    0
+                );
             }
         }
 
@@ -287,6 +311,16 @@ class DayClosingController extends Controller
                     'handoverSummary' => $this->buildHandoverSummary($ownerDirectClosing, ['total' => 0, 'count' => 0]),
                 ];
             }
+        }
+
+        if ($isBossReview) {
+            $staffRows = $this->enrichBossStaffRowStatuses(
+                $staffRows,
+                $businessId,
+                $date,
+                $canPostOwnerDirectSales,
+                $awaitingHandoverShifts
+            );
         }
 
         $serviceMenuContext = $this->serviceHandoverContext;
@@ -317,6 +351,7 @@ class DayClosingController extends Controller
             'ownerDirectClosing',
             'ownerDirectSummary',
             'ownerDirectExpectedHandover',
+            'ownerDirectFinancePreview',
             'ownerDirectCloseCard',
             'canPostOwnerDirectSales',
             'serviceMenuContext',
@@ -512,6 +547,12 @@ class DayClosingController extends Controller
                 // Non-blocking
             }
 
+            try {
+                app(\App\Services\InAppNotificationService::class)->notifyHandoverSubmitted($closing);
+            } catch (\Throwable) {
+                // Non-blocking
+            }
+
             if ($this->serviceHandoverContext) {
                 return redirect()->route('services.handover')
                     ->with('success', $shift
@@ -543,14 +584,19 @@ class DayClosingController extends Controller
             return redirect()->back()->with('error', 'This reconciliation is already verified.');
         }
 
-        $nextPending = $this->nextPendingHandoverToVerify($dayClosing->business_id);
-        if ($nextPending && $nextPending->id !== $dayClosing->id) {
-            $label = $nextPending->shift
-                ? 'Shift #'.$nextPending->shift->id
-                : ($nextPending->user->name ?? 'the oldest handover');
+        $isOwnerDirect = $this->isOwnerDirectClosing($dayClosing);
 
-            return redirect()->to($this->bossReconciliationUrl($nextPending))
-                ->with('error', "Verify {$label} first — oldest pending handover comes before this one.");
+        // Owner-direct closings are verified independently of the staff handover queue.
+        if (! $isOwnerDirect) {
+            $nextPending = $this->nextPendingHandoverToVerify($dayClosing->business_id);
+            if ($nextPending && $nextPending->id !== $dayClosing->id) {
+                $label = $nextPending->shift
+                    ? 'Shift #'.$nextPending->shift->id
+                    : ($nextPending->user->name ?? 'the oldest handover');
+
+                return redirect()->to($this->bossReconciliationUrl($nextPending))
+                    ->with('error', "Verify {$label} first — oldest pending handover comes before this one.");
+            }
         }
 
         $expected = (float) ($dayClosing->net_amount ?: collect($dayClosing->payment_breakdown ?? [])->sum());
@@ -580,6 +626,13 @@ class DayClosingController extends Controller
                 'shortage_note' => $moneyShort > 0 ? $request->shortage_note : null,
             ]);
 
+            try {
+                app(\App\Services\InAppNotificationService::class)
+                    ->notifyHandoverVerified($dayClosing->fresh(['user', 'business']), rejected: true);
+            } catch (\Throwable) {
+                // Non-blocking
+            }
+
             return redirect()->to($this->bossReconciliationUrl($dayClosing))
                 ->with('success', 'Reconciliation marked as disputed.');
         }
@@ -602,12 +655,7 @@ class DayClosingController extends Controller
             $dayClosing
         );
 
-        $finalizedReport = $this->reportService->tryFinalizeDayIfReady(
-            $dayClosing->business,
-            $dayClosing->closing_date->toDateString(),
-            $dayClosing,
-            (int) Auth::id()
-        );
+        // Do not auto-finalize — owner finalizes explicitly on Master Sheet / owner-reports.
 
         try {
             $this->staffSms->notifyStaffHandoverVerified(
@@ -624,22 +672,56 @@ class DayClosingController extends Controller
             // Non-blocking
         }
 
+        try {
+            app(\App\Services\InAppNotificationService::class)
+                ->notifyHandoverVerified($dayClosing->fresh(['user', 'business']), rejected: false);
+        } catch (\Throwable) {
+            // Non-blocking
+        }
+
+        if ($isOwnerDirect) {
+            try {
+                $this->salesReportEmail->sendOnShiftClose(
+                    $dayClosing->business,
+                    Auth::user(),
+                    $dayClosing
+                );
+            } catch (\Throwable) {
+                // Non-blocking
+            }
+
+            $isServiceClose = ($dayClosing->handover_scope ?? '') === 'service';
+            $redirect = redirect()->to(
+                route($isServiceClose ? 'services.handover' : 'day-closing.index', [
+                    'date' => $dayClosing->closing_date->toDateString(),
+                ]).'#owner-day-close'
+            );
+
+            if ($moneyShort > 0) {
+                return $redirect->with(
+                    'success',
+                    'Your day is closed with a money short of '.money($moneyShort).'. Posted to the Master Sheet — finalize there when ready.'
+                )->with('info', 'View all money shorts on the Money Shorts page.');
+            }
+
+            return $redirect->with(
+                'success',
+                'Your day is closed & posted to the Master Sheet — finalize there when ready.'
+            );
+        }
+
         $redirect = redirect()->to($this->bossReconciliationUrl($dayClosing));
 
         if ($moneyShort > 0) {
             return $redirect->with(
                 'success',
-                ($finalizedReport
-                    ? 'Handover verified with a money short of '.money($moneyShort).'. Day finalized and posted to the Master Sheet.'
-                    : 'Handover verified with a money short of '.money($moneyShort).'. Posted to the Master Sheet.')
+                'Handover verified with a money short of '.money($moneyShort).'. Posted to the Master Sheet — finalize the day there when ready.'
             )->with('info', 'View all money shorts on the Money Shorts page.');
         }
 
         return $redirect->with(
             'success',
-            $finalizedReport
-                ? 'Handover verified and day finalized. Debt, profit, and circulation are posted to the Master Sheet.'
-                : 'Handover verified. Debt, profit, and circulation are posted to the Master Sheet.'
+            'Handover verified. Debt, profit, and circulation are posted to the Master Sheet — finalize the day there when ready.'
         );
     }
 
@@ -663,8 +745,8 @@ class DayClosingController extends Controller
         if ($this->ownerDirectClosingExists($businessId, $date, Auth::id())) {
             return redirect()->route($isServiceClose ? 'services.handover' : 'day-closing.index', ['date' => $date])
                 ->with('error', $isServiceClose
-                    ? 'Your direct service sales for this date are already posted.'
-                    : 'Your direct POS sales for this date are already posted.');
+                    ? 'Your direct service sales for this date are already closed.'
+                    : 'Your direct POS sales for this date are already closed.');
         }
 
         $summary = $this->buildOwnerDirectSummary($businessId, $date);
@@ -748,14 +830,7 @@ class DayClosingController extends Controller
 
             if (! $isServiceClose) {
                 $this->reportService->syncReport($closing->business, $date, $closing);
-                $finalizedReport = $this->reportService->tryFinalizeDayIfReady(
-                    $closing->business,
-                    $date,
-                    $closing,
-                    (int) Auth::id()
-                );
-            } else {
-                $finalizedReport = null;
+                // Do not auto-finalize — owner finalizes explicitly on Master Sheet / owner-reports.
             }
 
             DB::commit();
@@ -770,27 +845,27 @@ class DayClosingController extends Controller
                 // Non-blocking
             }
 
-            $redirect = redirect()->to($this->ownerDirectClosingRedirectRoute($date));
+            $redirect = redirect()->to(
+                route($isServiceClose ? 'services.handover' : 'day-closing.index', ['date' => $date]).'#owner-day-close'
+            );
 
-            $postedLabel = $isServiceClose ? 'direct service sales' : 'direct POS sales';
+            $postedLabel = $isServiceClose ? 'service day' : 'day';
 
             if ($moneyShort > 0) {
                 return $redirect
-                    ->with('success', ($finalizedReport
-                        ? "Your {$postedLabel} are posted with a money short of ".money($moneyShort).'. Day finalized on the Master Sheet.'
-                        : "Your {$postedLabel} are posted with a money short of ".money($moneyShort).'.'))
+                    ->with('success', "Your {$postedLabel} is closed with a money short of ".money($moneyShort).'. Posted to the Master Sheet — finalize there when ready.')
                     ->with('info', 'View all money shorts on the Money Shorts page.');
             }
 
-            return $redirect
-                ->with('success', $finalizedReport
-                    ? "Your {$postedLabel} are posted and the day is finalized on the Master Sheet."
-                    : "Your {$postedLabel} are posted to the Master Sheet.");
+            return $redirect->with(
+                'success',
+                "Your {$postedLabel} is closed & posted to the Master Sheet — finalize there when ready."
+            );
         } catch (\Exception $e) {
             DB::rollBack();
 
             return redirect()->route($isServiceClose ? 'services.handover' : 'day-closing.index', ['date' => $date])
-                ->with('error', 'Failed to post sales: '.$e->getMessage());
+                ->with('error', 'Failed to close day: '.$e->getMessage());
         }
     }
 
@@ -1000,7 +1075,10 @@ class DayClosingController extends Controller
 
         $this->scopeDayClosingsForActiveBranch($query);
 
-        return $this->sortHandoversForBossReview($query->get())->first();
+        return $this->sortHandoversForBossReview($query->get())
+            ->filter(fn (DayClosing $closing) => ! $this->isOwnerDirectClosing($closing))
+            ->values()
+            ->first();
     }
 
     protected function buildHandoverCardsForBossReview($dayHandovers): \Illuminate\Support\Collection
@@ -1199,9 +1277,87 @@ class DayClosingController extends Controller
 
     protected function markOwnerStaffRowPosted(array $staffRows, DayClosing $ownerDirectClosing): array
     {
+        if ($ownerDirectClosing->status !== 'verified') {
+            return $staffRows;
+        }
+
         return collect($staffRows)->map(function (array $row) use ($ownerDirectClosing) {
             if (($row['staff']->id ?? null) === (int) $ownerDirectClosing->user_id) {
                 $row['status'] = 'posted';
+            }
+
+            return $row;
+        })->all();
+    }
+
+    /**
+     * Mark seller rows Posted once their handover (staff shift or owner-direct) is verified.
+     */
+    protected function markVerifiedHandoverStaffRowsPosted(array $staffRows, int $businessId, string $date): array
+    {
+        $verifiedUserIds = DayClosing::where('business_id', $businessId)
+            ->whereDate('closing_date', $date)
+            ->where('status', 'verified')
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($verifiedUserIds === []) {
+            return $staffRows;
+        }
+
+        return collect($staffRows)->map(function (array $row) use ($verifiedUserIds) {
+            if (in_array((int) ($row['staff']->id ?? 0), $verifiedUserIds, true)) {
+                $row['status'] = 'posted';
+            }
+
+            return $row;
+        })->all();
+    }
+
+    /**
+     * Boss seller table: show reconciliation status (not only customer payment status).
+     * posted | awaiting_verify | needs_close | needs_handover | paid | partial | pending
+     */
+    protected function enrichBossStaffRowStatuses(
+        array $staffRows,
+        int $businessId,
+        string $date,
+        bool $canPostOwnerDirectSales,
+        $awaitingHandoverShifts
+    ): array {
+        $closings = DayClosing::where('business_id', $businessId)
+            ->whereDate('closing_date', $date)
+            ->whereIn('status', ['submitted', 'verified', 'disputed'])
+            ->get(['user_id', 'status', 'shift_id']);
+
+        $statusByUser = [];
+        foreach ($closings as $closing) {
+            $uid = (int) $closing->user_id;
+            if (($statusByUser[$uid] ?? null) === 'verified') {
+                continue;
+            }
+            $statusByUser[$uid] = $closing->status;
+        }
+
+        $awaitingUserIds = collect($awaitingHandoverShifts)
+            ->map(fn (Shift $shift) => (int) $shift->user_id)
+            ->unique()
+            ->all();
+
+        return collect($staffRows)->map(function (array $row) use ($statusByUser, $canPostOwnerDirectSales, $awaitingUserIds) {
+            $uid = (int) ($row['staff']->id ?? 0);
+            $role = $row['staff']->role ?? '';
+            $closingStatus = $statusByUser[$uid] ?? null;
+
+            if ($closingStatus === 'verified') {
+                $row['status'] = 'posted';
+            } elseif (in_array($closingStatus, ['submitted', 'disputed'], true)) {
+                $row['status'] = 'awaiting_verify';
+            } elseif ($role === 'owner' && $canPostOwnerDirectSales && $uid === (int) Auth::id()) {
+                $row['status'] = 'needs_close';
+            } elseif (in_array($uid, $awaitingUserIds, true)) {
+                $row['status'] = 'needs_handover';
             }
 
             return $row;
