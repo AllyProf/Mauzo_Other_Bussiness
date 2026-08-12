@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\ReceivingController;
 use App\Http\Controllers\Api\V1\ReferenceController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\PettyCashController;
+use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SaleController;
@@ -46,6 +47,13 @@ Route::prefix('v1')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/switch-business', [AuthController::class, 'switchBusiness']);
         Route::post('/auth/switch-branch', [AuthController::class, 'switchBranch']);
+
+        // User profile (same as web /profile)
+        Route::get('/profile', [ProfileController::class, 'show']);
+        Route::put('/profile', [ProfileController::class, 'update']);
+        Route::post('/profile', [ProfileController::class, 'update']);
+        Route::put('/profile/password', [ProfileController::class, 'updatePassword']);
+        Route::post('/profile/password', [ProfileController::class, 'updatePassword']);
 
         // In-app notifications (poll-based — no Firebase)
         Route::post('/devices', [DeviceController::class, 'store']);

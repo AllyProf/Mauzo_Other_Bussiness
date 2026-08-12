@@ -11,6 +11,7 @@ use App\Models\ReceivingItem;
 use App\Models\SaleItem;
 use App\Models\StockLossItem;
 use App\Models\StockAdjustmentItem;
+use App\Services\ItemBarcodeService;
 use App\Services\ItemPackagingNormalizer;
 use App\Services\ItemStockDisplayService;
 use App\Services\ItemStockReportService;
@@ -447,8 +448,8 @@ class ItemController extends Controller
         ]);
 
         return redirect()
-            ->route('items.barcodes.print', $item)
-            ->with('success', 'Item registered successfully. Print barcode labels below.');
+            ->route('items.index')
+            ->with('success', 'Item registered successfully.');
     }
 
     public function show(Item $item)
@@ -551,6 +552,132 @@ class ItemController extends Controller
         return redirect()->route('items.index')->with('success', 'Item deleted successfully.');
     }
 
+    public function barcodesIndex()
+    {
+        \Illuminate\Support\Facades\Gate::authorize('view_inventory');
+
+        $business = Auth::user()->business;
+        $businessId = $business->id;
+        $branchFilterId = $this->barcodeBranchFilterId();
+
+        $items = $this->barcodeItemsQuery($businessId, $branchFilterId)
+            ->orderBy('name')
+            ->get();
+
+        $barcodeService = app(ItemBarcodeService::class);
+        foreach ($items as $item) {
+            foreach ($item->packagings as $packaging) {
+                $barcodeService->ensureBarcode($packaging, (int) $businessId);
+            }
+        }
+
+        if ($branchFilterId) {
+            $businessTypes = collect($business->importedTypesForBranch($branchFilterId))
+                ->map(function ($type) {
+                    $key = (string) ($type['key'] ?? '');
+                    $templates = config('category_templates', []);
+
+                    return [
+                        'key' => $key,
+                        'label' => (string) ($type['label'] ?? $key),
+                        'icon' => $templates[$key]['icon'] ?? (str_starts_with($key, 'custom:') ? 'fa-pencil' : 'fa-store'),
+                    ];
+                })
+                ->values()
+                ->all();
+        } else {
+            $businessTypes = $business->posBusinessTypesMeta();
+        }
+
+        $multiBusiness = count($businessTypes) > 1;
+
+        $categoryFilters = $items
+            ->filter(fn (Item $item) => $item->category)
+            ->unique(fn (Item $item) => (int) $item->category_id)
+            ->map(fn (Item $item) => [
+                'id' => (int) $item->category_id,
+                'name' => $item->category->name,
+                'slug' => Str::slug($item->category->name),
+                'business_type_key' => $item->category->source_business_type_key ?: 'other',
+            ])
+            ->sortBy('name')
+            ->values();
+
+        $hasUncategorizedItems = $items->contains(fn (Item $item) => ! $item->category_id);
+
+        $activeBranchName = $branchFilterId
+            ? (active_branch()?->name ?? Branch::find($branchFilterId)?->name ?? 'Branch')
+            : null;
+
+        return view('items.barcodes-index', compact(
+            'items',
+            'activeBranchName',
+            'businessTypes',
+            'multiBusiness',
+            'categoryFilters',
+            'hasUncategorizedItems',
+        ));
+    }
+
+    public function printBarcodesBulk(Request $request)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('view_inventory');
+
+        $businessId = (int) Auth::user()->business_id;
+        $branchFilterId = $this->barcodeBranchFilterId();
+        $settings = $this->resolveBarcodePrintSettings($request);
+
+        $itemsQuery = $this->barcodeItemsQuery($businessId, $branchFilterId);
+
+        if ($request->boolean('all')) {
+            $items = $itemsQuery->orderBy('name')->get();
+            $pageTitle = 'All items';
+        } elseif ($request->filled('category_id')) {
+            $categoryId = (int) $request->category_id;
+            $category = Category::where('business_id', $businessId)->findOrFail($categoryId);
+            $items = $itemsQuery->where('category_id', $categoryId)->orderBy('name')->get();
+            $pageTitle = $category->name;
+        } elseif ($request->get('category_scope') === 'uncategorized') {
+            $items = $itemsQuery->whereNull('category_id')->orderBy('name')->get();
+            $pageTitle = 'Uncategorized';
+        } elseif ($request->filled('items')) {
+            $itemIds = collect(is_array($request->items) ? $request->items : explode(',', (string) $request->items))
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $id > 0)
+                ->unique()
+                ->values();
+
+            if ($itemIds->isEmpty()) {
+                return redirect()->route('items.barcodes.index')->with('error', 'Select at least one item to print.');
+            }
+
+            $items = $itemsQuery->whereIn('id', $itemIds)->orderBy('name')->get();
+            $pageTitle = $items->count() === 1 ? $items->first()->name : $items->count().' items';
+        } else {
+            return redirect()->route('items.barcodes.index')->with('error', 'Nothing selected to print.');
+        }
+
+        if ($items->isEmpty()) {
+            return redirect()->route('items.barcodes.index')->with('error', 'No items found for printing.');
+        }
+
+        $barcodeService = app(ItemBarcodeService::class);
+        foreach ($items as $item) {
+            foreach ($item->packagings as $packaging) {
+                $barcodeService->ensureBarcode($packaging, $businessId);
+            }
+        }
+
+        $labels = $this->buildBarcodeLabels($items, $barcodeService, $settings);
+
+        return $this->barcodePrintView(
+            $labels,
+            $settings,
+            $pageTitle,
+            route('items.barcodes.print-bulk', $request->query()),
+        );
+    }
+
     public function printBarcodes(Item $item)
     {
         \Illuminate\Support\Facades\Gate::authorize('view_inventory');
@@ -559,45 +686,124 @@ class ItemController extends Controller
         }
 
         $item->load(['packagings.packagingType', 'category']);
-        $barcodeService = app(\App\Services\ItemBarcodeService::class);
+        $barcodeService = app(ItemBarcodeService::class);
+        $settings = $this->resolveBarcodePrintSettings(request());
 
         foreach ($item->packagings as $packaging) {
             $barcodeService->ensureBarcode($packaging, (int) $item->business_id);
         }
 
         $item->load(['packagings.packagingType']);
+        $labels = $this->buildBarcodeLabels(collect([$item]), $barcodeService, $settings);
 
-        $copies = max(1, min(48, (int) request('copies', 1)));
-        $widthFactor = max(1, min(5, (int) request('width_factor', 2)));
-        $height = max(30, min(150, (int) request('height', 60)));
-        $labelWidth = max(140, min(400, (int) request('label_width', 220)));
-        $formApplied = request()->boolean('applied');
-        $showName = $formApplied ? request()->boolean('show_name') : true;
-        $showPrice = $formApplied ? request()->boolean('show_price') : true;
-        $showCode = $formApplied ? request()->boolean('show_code') : true;
+        return $this->barcodePrintView(
+            $labels,
+            $settings,
+            $item->name,
+            route('items.barcodes.print', $item),
+            $item,
+        );
+    }
 
-        $labels = $item->packagings->sortBy('quantity_per_unit')->values()->map(function ($pkg) use ($item, $barcodeService, $widthFactor, $height) {
-            $code = (string) $pkg->barcode;
+    private function barcodeBranchFilterId(): ?int
+    {
+        if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
+            return (int) Auth::user()->branch_id;
+        }
 
-            return [
-                'item_name' => $item->name,
-                'packaging_name' => $pkg->packagingType?->name ?? 'Unit',
-                'barcode' => $code,
-                'selling_price' => (float) $pkg->selling_price,
-                'barcode_png' => $barcodeService->pngBase64($code, $widthFactor, $height),
-            ];
-        });
+        if ($branchId = active_branch_id()) {
+            return (int) $branchId;
+        }
 
+        return null;
+    }
+
+    private function barcodeItemsQuery(int $businessId, ?int $branchFilterId)
+    {
+        $query = Item::where('business_id', $businessId)
+            ->with(['category', 'packagings.packagingType']);
+
+        if ($branchFilterId) {
+            $query->whereHas('category', fn ($categoryQuery) => $categoryQuery->where('branch_id', $branchFilterId));
+        }
+
+        return $query;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resolveBarcodePrintSettings(Request $request): array
+    {
+        $formApplied = $request->boolean('applied');
+        $codeType = $request->input('code_type', 'qr');
+        if (! in_array($codeType, ['qr', 'barcode', 'both'], true)) {
+            $codeType = 'qr';
+        }
+
+        return [
+            'copies' => max(1, min(48, (int) $request->input('copies', 1))),
+            'widthFactor' => max(1, min(5, (int) $request->input('width_factor', 2))),
+            'height' => max(30, min(150, (int) $request->input('height', 60))),
+            'labelWidth' => max(140, min(400, (int) $request->input('label_width', 220))),
+            'showName' => $formApplied ? $request->boolean('show_name') : true,
+            'showPrice' => $formApplied ? $request->boolean('show_price') : true,
+            'showCode' => $formApplied ? $request->boolean('show_code') : true,
+            'codeType' => $codeType,
+            'qrSize' => max(80, min(280, (int) $request->input('qr_size', 140))),
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Item>  $items
+     * @param  array<string, mixed>  $settings
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function buildBarcodeLabels($items, ItemBarcodeService $barcodeService, array $settings)
+    {
+        $labels = collect();
+
+        foreach ($items as $item) {
+            foreach ($item->packagings->sortBy('quantity_per_unit')->values() as $pkg) {
+                $code = (string) $pkg->barcode;
+                $labels->push([
+                    'item_name' => $item->name,
+                    'packaging_name' => $pkg->packagingType?->name ?? 'Unit',
+                    'barcode' => $code,
+                    'selling_price' => (float) $pkg->selling_price,
+                    'barcode_png' => in_array($settings['codeType'], ['barcode', 'both'], true)
+                        ? $barcodeService->pngBase64($code, $settings['widthFactor'], $settings['height'])
+                        : null,
+                    'qr_png' => in_array($settings['codeType'], ['qr', 'both'], true)
+                        ? $barcodeService->qrPngBase64($code, $settings['qrSize'])
+                        : null,
+                ]);
+            }
+        }
+
+        return $labels;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $labels
+     * @param  array<string, mixed>  $settings
+     */
+    private function barcodePrintView($labels, array $settings, string $pageTitle, string $formAction, ?Item $item = null)
+    {
         return view('items.print-barcodes', [
             'item' => $item,
+            'pageTitle' => $pageTitle,
+            'formAction' => $formAction,
             'labels' => $labels,
-            'copies' => $copies,
-            'widthFactor' => $widthFactor,
-            'height' => $height,
-            'labelWidth' => $labelWidth,
-            'showName' => $showName,
-            'showPrice' => $showPrice,
-            'showCode' => $showCode,
+            'copies' => $settings['copies'],
+            'widthFactor' => $settings['widthFactor'],
+            'height' => $settings['height'],
+            'labelWidth' => $settings['labelWidth'],
+            'showName' => $settings['showName'],
+            'showPrice' => $settings['showPrice'],
+            'showCode' => $settings['showCode'],
+            'codeType' => $settings['codeType'],
+            'qrSize' => $settings['qrSize'],
         ]);
     }
 

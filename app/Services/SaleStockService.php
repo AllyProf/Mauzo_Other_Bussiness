@@ -82,6 +82,26 @@ class SaleStockService
         $this->refreshShiftTotals($sale);
     }
 
+    public function restoreSaleItemStock(SaleItem $saleItem): void
+    {
+        if ($saleItem->service_id) {
+            return;
+        }
+
+        $item = $saleItem->item;
+        if (! $item) {
+            return;
+        }
+
+        $restore = $item->stockUnitsForPackaging(
+            (int) $saleItem->quantity,
+            $saleItem->itemPackaging
+        );
+
+        $item->current_stock += $restore;
+        $item->save();
+    }
+
     public function deductIfPaid(Sale $sale, ?Shift $shift = null): void
     {
         if ($sale->stock_deducted) {

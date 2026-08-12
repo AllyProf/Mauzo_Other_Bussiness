@@ -270,6 +270,22 @@ Same as web `/settings` — profile, finance, payments, automation, shift rules,
 
 ---
 
+## User profile
+
+Same as web `/profile` — logged-in user’s name, email, phone, language, photo, and password.
+
+**Full docs:** [`API_PROFILE.md`](API_PROFILE.md)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/profile` | Profile + locales / password rules |
+| PUT / POST | `/profile` | Update details (POST for photo multipart) |
+| PUT / POST | `/profile/password` | Change password |
+
+Not the same as `/settings/profile` (business profile).
+
+---
+
 ## Shifts
 
 Cashiers with `open_shift` / `process_sales` must open a shift before selling.
@@ -1193,7 +1209,7 @@ curl -X POST http://localhost/SpareParts/public/api/v1/auth/login \
 
 ---
 
-## Endpoint summary (78 routes)
+## Endpoint summary (83 routes)
 
 ```
 GET    /register-business
@@ -1204,6 +1220,11 @@ POST   /auth/logout
 GET    /auth/me
 POST   /auth/switch-business
 POST   /auth/switch-branch
+GET    /profile
+PUT    /profile
+POST   /profile
+PUT    /profile/password
+POST   /profile/password
 POST   /devices
 DELETE /devices/{token}
 GET    /notifications

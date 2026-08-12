@@ -334,6 +334,11 @@
                     </div>
                 </td>
                 <td class="text-right font-weight-bold pay-line-total">${formatMoneyLabel(lineTotal)}</td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger pay-remove-line-btn" data-index="${index}" title="Remove item line">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </td>
             </tr>
         `;
     }
@@ -343,7 +348,7 @@
         body.empty();
 
         if (!payLineItems.length) {
-            body.append('<tr><td colspan="6" class="text-center text-muted py-3">No items on this order.</td></tr>');
+            body.append('<tr><td colspan="7" class="text-center text-muted py-3">No items on this order.</td></tr>');
             updateOrderTotalsFromItems();
             return;
         }
@@ -565,6 +570,48 @@
             items,
             collectLinkedSalesFromButtons(alsoPayIds)
         );
+    });
+
+    $(document).on('click', '.pay-remove-line-btn', function() {
+        const index = parseInt($(this).data('index'), 10);
+        if (payLineItems.length <= 1) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Cannot remove item',
+                    text: 'An order must have at least one item line. If you want to delete the whole order, please cancel the sale.',
+                    confirmButtonColor: '#940000'
+                });
+            } else {
+                alert('An order must have at least one item line. If you want to delete the whole order, please cancel the sale.');
+            }
+            return;
+        }
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Remove Item?',
+                text: 'Are you sure you want to remove this item line from the order?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, remove it',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    syncPayLineItemsFromDom();
+                    payLineItems.splice(index, 1);
+                    renderPayLineItems();
+                }
+            });
+        } else {
+            if (confirm('Are you sure you want to remove this item line from the order?')) {
+                syncPayLineItemsFromDom();
+                payLineItems.splice(index, 1);
+                renderPayLineItems();
+            }
+        }
     });
 
     $(document).on('change', '.pay-adjust-mode', function() {

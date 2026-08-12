@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'title' => 'QR Codes',
+    'subtitle' => 'Search items, filter by category, and print QR labels for POS scan.',
+    'search' => 'Search item',
+    'search_placeholder' => 'Type name, SKU, or code…',
+    'item' => 'Item',
+    'category' => 'Category',
+    'packaging' => 'Selling units',
+    'codes' => 'Codes',
+    'action' => 'Action',
+    'print' => 'Print QR',
+    'reset' => 'Reset',
+    'view' => 'View',
+    'no_items' => 'No items match your search.',
+    'branch' => 'Branch',
+    'all_categories' => 'All Categories',
+    'uncategorized' => 'Uncategorized',
+    'print_selected' => 'Print selected',
+    'print_visible' => 'Print visible',
+    'print_category' => 'Print category',
+    'print_all' => 'Print all',
+    'select_all_visible' => 'Select all visible',
+    'visible_count' => ':count visible · :selected selected',
+];

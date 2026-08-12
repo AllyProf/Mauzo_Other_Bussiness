@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'title' => 'Msimbo wa QR',
+    'subtitle' => 'Tafuta bidhaa, chuja kwa kundi, kisha chapisha lebo za QR kwa POS.',
+    'search' => 'Tafuta bidhaa',
+    'search_placeholder' => 'Andika jina, SKU, au msimbo…',
+    'item' => 'Bidhaa',
+    'category' => 'Kundi',
+    'packaging' => 'Vipimo vya kuuza',
+    'codes' => 'Misimbo',
+    'action' => 'Kitendo',
+    'print' => 'Chapisha QR',
+    'reset' => 'Ondoa',
+    'view' => 'Angalia',
+    'no_items' => 'Hakuna bidhaa zinazolingana na utafutaji.',
+    'branch' => 'Tawi',
+    'all_categories' => 'Makundi Yote',
+    'uncategorized' => 'Bila kundi',
+    'print_selected' => 'Chapisha zilizochaguliwa',
+    'print_visible' => 'Chapisha zinazoonekana',
+    'print_category' => 'Chapisha kundi',
+    'print_all' => 'Chapisha zote',
+    'select_all_visible' => 'Chagua zote zinazoonekana',
+    'visible_count' => ':count zinaonekana · :selected zimechaguliwa',
+];

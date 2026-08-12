@@ -24,6 +24,7 @@ return [
     'system_settings' => 'Mipangilio ya Mfumo',
     'registration' => 'Usajili wa Bidhaa',
     'items' => 'Bidhaa',
+    'qr_codes' => 'Msimbo wa QR',
     'item_stock' => 'Stock ya Bidhaa',
     'price_list' => 'Orodha ya Bei',
     'categories' => 'Makundi',

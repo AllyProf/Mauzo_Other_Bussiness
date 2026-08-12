@@ -15,6 +15,7 @@ use App\Models\Category;
 use App\Models\Customer;
 use App\Services\ItemPackagingNormalizer;
 use App\Services\SaleStockService;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -82,7 +83,12 @@ class SaleController extends Controller
                     ->orWhereNotIn('sale_source', ['service_pos', 'service_invoice']);
             });
         }
-        
+
+        $search = trim((string) request()->query('search', request()->query('q', '')));
+        $status = request()->query('status', request()->query('payment_status'));
+        $paymentMethodFilter = request()->query('payment_method');
+        $cashierIdFilter = request()->query('cashier_id', request()->query('user_id'));
+
         $dateFrom = request()->query('date_from');
         $dateTo = request()->query('date_to');
         $period = request()->query('period');
@@ -116,7 +122,15 @@ class SaleController extends Controller
             }
         }
 
-        $showAllHistory = request()->query('history') === 'all' || $dateFrom || $dateTo || $period;
+        $hasActiveFilter = $search !== ''
+            || ($status && $status !== 'all')
+            || ($paymentMethodFilter && $paymentMethodFilter !== 'all')
+            || ($cashierIdFilter && $cashierIdFilter !== 'all')
+            || $dateFrom
+            || $dateTo
+            || $period;
+
+        $showAllHistory = request()->query('history') === 'all' || $hasActiveFilter;
 
         if ($requiresOpenShift) {
             if ($showAllHistory || !$openShift) {
@@ -144,6 +158,30 @@ class SaleController extends Controller
             }
         } else {
             $salesQuery->where('user_id', Auth::id());
+        }
+
+        if ($cashierIdFilter && $cashierIdFilter !== 'all') {
+            $salesQuery->where('user_id', (int) $cashierIdFilter);
+        }
+
+        if ($status && in_array($status, ['paid', 'partial', 'debt', 'pending', 'cancelled'], true)) {
+            $salesQuery->where('payment_status', $status);
+        }
+
+        if ($paymentMethodFilter && $paymentMethodFilter !== 'all') {
+            $salesQuery->where('payment_method', $paymentMethodFilter);
+        }
+
+        if ($search !== '') {
+            $salesQuery->where(function ($q) use ($search) {
+                $q->where('reference_no', 'like', "%{$search}%")
+                    ->orWhere('customer_name', 'like', "%{$search}%")
+                    ->orWhere('customer_phone', 'like', "%{$search}%")
+                    ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$search}%")->orWhere('phone', 'like', "%{$search}%"))
+                    ->orWhereHas('items.item', fn ($i) => $i->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%")->orWhere('barcode', 'like', "%{$search}%"))
+                    ->orWhereHas('items.service', fn ($s) => $s->where('name', 'like', "%{$search}%"));
+            });
         }
 
         if ($dateFrom) {
@@ -176,11 +214,27 @@ class SaleController extends Controller
 
         $customers = $this->activeCustomers();
         $paymentMethods = $business->enabledPaymentMethods();
+        $cashiers = User::where('business_id', $businessId)->select('id', 'name')->orderBy('name')->get();
 
         $scopedToSelf = $requiresOpenShift || ! $this->actsAsBusinessWideViewer();
         $shiftContext = $requiresOpenShift
             ? ($openShift ? 'current' : 'none')
             : ($scopedToSelf ? 'self' : 'all');
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'html_table' => view('sales.partials.sale-table-rows', compact('sales', 'openShift', 'shiftContext', 'showAllHistory'))->render(),
+                'html_mobile' => view('sales.partials.sale-mobile-list', compact('sales', 'openShift', 'shiftContext'))->render(),
+                'pagination' => $sales->appends(request()->query())->links('pagination::bootstrap-4')->render(),
+                'stats' => [
+                    'total_sales' => number_format($stats['total_sales']),
+                    'gross_sales' => 'TZS ' . number_format($stats['gross_sales'], 0),
+                    'collected' => 'TZS ' . number_format($stats['collected'], 0),
+                    'outstanding' => 'TZS ' . number_format($stats['outstanding'], 0),
+                ],
+                'total' => $sales->total(),
+            ]);
+        }
 
         return view('sales.index', compact(
             'sales',
@@ -192,6 +246,7 @@ class SaleController extends Controller
             'carriedOverUnpaidCount',
             'customers',
             'paymentMethods',
+            'cashiers',
             'activeBranchName',
             'branchFilterId',
             'viewingAllBranches',
@@ -202,6 +257,10 @@ class SaleController extends Controller
             'dateTo',
             'period',
             'saleSourceFilter',
+            'search',
+            'status',
+            'paymentMethodFilter',
+            'cashierIdFilter'
         ));
     }
 
@@ -900,20 +959,34 @@ class SaleController extends Controller
 
     private function applySaleLineAdjustments(Sale $sale, array $lineItems): void
     {
-        $sale->load('items');
+        $sale->load('items.item', 'items.itemPackaging');
         $submittedIds = collect($lineItems)->pluck('id')->map(fn ($id) => (int) $id)->all();
 
-        if (count($submittedIds) !== $sale->items->count()) {
-            throw new \InvalidArgumentException('All order lines must be included when adjusting prices.');
+        if (count($submittedIds) > $sale->items->count()) {
+            throw new \InvalidArgumentException('Invalid order lines selected.');
         }
 
+        $itemsToDelete = $sale->items->filter(fn ($item) => ! in_array((int) $item->id, $submittedIds, true));
+
+        if ($itemsToDelete->count() === $sale->items->count()) {
+            throw new \InvalidArgumentException('Cannot remove all items from order. Please cancel the sale if you want to remove all items.');
+        }
+
+        foreach ($itemsToDelete as $removedItem) {
+            if ($sale->stock_deducted) {
+                app(SaleStockService::class)->restoreSaleItemStock($removedItem);
+            }
+            $removedItem->delete();
+        }
+
+        $sale->load('items');
         $newTotal = 0;
 
         foreach ($lineItems as $line) {
             $saleItem = $sale->items->firstWhere('id', (int) $line['id']);
 
             if (! $saleItem) {
-                throw new \InvalidArgumentException('Invalid order line selected.');
+                continue;
             }
 
             $qty = (float) $saleItem->quantity;

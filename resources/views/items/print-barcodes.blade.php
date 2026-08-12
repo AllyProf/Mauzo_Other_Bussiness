@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Barcode labels — {{ $item->name }}</title>
+  <title>{{ $codeType === 'qr' ? 'QR' : ($codeType === 'barcode' ? 'Barcode' : 'QR & Barcode') }} labels — {{ $pageTitle ?? $item?->name }}</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, Helvetica, sans-serif; margin: 16px; color: #111; }
@@ -13,9 +13,9 @@
     .toolbar .field { display: flex; flex-direction: column; gap: 4px; }
     .toolbar label { font-size: 12px; font-weight: 700; color: #444; }
     .toolbar input[type="number"], .toolbar select {
-      width: 88px; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px;
+      min-width: 88px; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px;
     }
-    .toolbar .checks { display: flex; gap: 12px; align-items: center; padding-bottom: 4px; }
+    .toolbar .checks { display: flex; gap: 12px; align-items: center; padding-bottom: 4px; flex-wrap: wrap; }
     .toolbar .checks label { font-weight: 500; display: flex; gap: 4px; align-items: center; }
     .toolbar a, .toolbar button {
       display: inline-block; padding: 8px 14px; border: 1px solid #940000; background: #940000; color: #fff;
@@ -34,9 +34,14 @@
     }
     .label .name { font-weight: 700; font-size: 13px; margin-bottom: 2px; word-break: break-word; }
     .label .pkg { font-size: 11px; color: #444; margin-bottom: 6px; }
-    .label img {
+    .label img.barcode-img {
       max-width: 100%;
       height: {{ (int) $height }}px;
+      object-fit: contain;
+    }
+    .label img.qr-img {
+      width: {{ (int) $qrSize }}px;
+      height: {{ (int) $qrSize }}px;
       object-fit: contain;
     }
     .label .code { font-family: Consolas, monospace; font-size: 11px; margin-top: 4px; letter-spacing: 0.5px; word-break: break-all; }
@@ -49,8 +54,25 @@
   </style>
 </head>
 <body>
-  <form method="GET" action="{{ route('items.barcodes.print', $item) }}" class="toolbar no-print">
+  <form method="GET" action="{{ $formAction ?? route('items.barcodes.print', $item) }}" class="toolbar no-print">
     <input type="hidden" name="applied" value="1">
+    @foreach(request()->only(['items', 'all', 'category_id', 'category_scope']) as $key => $value)
+      @if($value !== null && $value !== '')
+        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+      @endif
+    @endforeach
+    <div class="field">
+      <label for="code_type">Label type</label>
+      <select id="code_type" name="code_type">
+        <option value="qr" @selected($codeType === 'qr')>QR code</option>
+        <option value="barcode" @selected($codeType === 'barcode')>Barcode</option>
+        <option value="both" @selected($codeType === 'both')>QR + Barcode</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="qr_size">QR size (px)</label>
+      <input id="qr_size" type="number" name="qr_size" min="80" max="280" value="{{ $qrSize }}">
+    </div>
     <div class="field">
       <label for="width_factor">Bar thickness</label>
       <select id="width_factor" name="width_factor">
@@ -76,10 +98,12 @@
       <label><input type="checkbox" name="show_price" value="1" @checked($showPrice)> Price</label>
       <label><input type="checkbox" name="show_code" value="1" @checked($showCode)> Code text</label>
     </div>
-    <button type="submit" class="secondary">Apply size</button>
+    <button type="submit" class="secondary">Apply</button>
     <button type="button" onclick="window.print()">Print labels</button>
-    <a class="secondary" href="{{ route('items.show', $item) }}">Back to item</a>
-    <a class="secondary" href="{{ route('items.index') }}">All items</a>
+    <a class="secondary" href="{{ route('items.barcodes.index') }}">QR list</a>
+    @if($item)
+    <a class="secondary" href="{{ route('items.show', $item) }}">Item details</a>
+    @endif
   </form>
 
   @if(session('success'))
@@ -87,8 +111,8 @@
   @endif
 
   <p class="hint no-print">
-    Adjust bar thickness / height / label width, click <strong>Apply size</strong>, then <strong>Print labels</strong>.
-    Each selling packaging has its own barcode for mobile POS scan.
+    Choose QR, barcode, or both. Click <strong>Apply</strong>, then <strong>Print labels</strong>.
+    Each selling packaging has its own scannable code for mobile POS.
   </p>
 
   <div class="sheet">
@@ -99,7 +123,12 @@
             <div class="name">{{ $label['item_name'] }}</div>
             <div class="pkg">{{ $label['packaging_name'] }}</div>
           @endif
-          <img src="data:image/png;base64,{{ $label['barcode_png'] }}" alt="{{ $label['barcode'] }}">
+          @if($label['qr_png'])
+            <img class="qr-img" src="data:image/png;base64,{{ $label['qr_png'] }}" alt="{{ $label['barcode'] }}">
+          @endif
+          @if($label['barcode_png'])
+            <img class="barcode-img" src="data:image/png;base64,{{ $label['barcode_png'] }}" alt="{{ $label['barcode'] }}">
+          @endif
           @if($showCode)
             <div class="code">{{ $label['barcode'] }}</div>
           @endif

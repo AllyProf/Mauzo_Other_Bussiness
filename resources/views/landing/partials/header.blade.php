@@ -11,6 +11,12 @@
         <li><a href="{{ route('landing.index') }}#about">About</a></li>
         <li><a href="{{ route('landing.index') }}#pricing">Pricing</a></li>
         <li><a href="{{ route('landing.index') }}#contact">Contact</a></li>
+        <li class="d-xl-none"><a href="{{ route('login') }}">Login</a></li>
+        @if($registrationOpen ?? true)
+          <li class="d-xl-none"><a href="{{ route('register.business') }}">Get Started</a></li>
+        @else
+          <li class="d-xl-none"><a href="{{ route('landing.index') }}#contact">Request Demo</a></li>
+        @endif
       </ul>
       <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
     </nav>

@@ -102,7 +102,7 @@
       @endif
 
       @php
-        $filtersActive = request('period') || request('date_from') || request('date_to');
+        $filtersActive = request('period') || request('date_from') || request('date_to') || request('search') || request('q') || request('status') || request('payment_method') || request('cashier_id');
       @endphp
       <button type="button" class="btn btn-sm {{ $filtersActive ? 'btn-info' : 'btn-outline-info' }}" data-toggle="collapse" data-target="#filterCollapse" aria-expanded="{{ $filtersActive ? 'true' : 'false' }}" aria-controls="filterCollapse">
         <i class="fa fa-filter"></i> Filters
@@ -177,7 +177,7 @@
   </div>
 </div>
 
-<!-- Date and Period Filters -->
+<!-- Date, Search, and Status Filters -->
 <div class="row d-print-none collapse {{ $filtersActive ? 'show' : '' }} mb-3" id="filterCollapse">
   <div class="col-md-12">
     <div class="tile p-3">
@@ -185,32 +185,72 @@
         @if(request('history'))
           <input type="hidden" name="history" value="{{ request('history') }}">
         @endif
+        <input type="hidden" name="source" id="filterSource" value="{{ $saleSourceFilter ?? 'all' }}">
         
-        <div class="col-md-4 form-group mb-2 mb-md-0">
+        <div class="col-md-3 form-group mb-2">
+          <label class="font-weight-bold"><i class="fa fa-search"></i> Search</label>
+          <input type="search" name="search" id="filterSearch" class="form-control form-control-sm" placeholder="Ref #, Customer, Cashier, Item..." value="{{ $search ?? request('search', request('q')) }}">
+        </div>
+
+        <div class="col-md-3 form-group mb-2">
           <label class="font-weight-bold"><i class="fa fa-calendar"></i> Predefined Period</label>
           <select name="period" id="filterPeriod" class="form-control form-control-sm">
             <option value="">-- Custom Date Range --</option>
-            <option value="today" {{ request('period') === 'today' ? 'selected' : '' }}>Today</option>
-            <option value="yesterday" {{ request('period') === 'yesterday' ? 'selected' : '' }}>Yesterday</option>
-            <option value="this_week" {{ request('period') === 'this_week' ? 'selected' : '' }}>This Week</option>
-            <option value="last_week" {{ request('period') === 'last_week' ? 'selected' : '' }}>Last Week</option>
-            <option value="this_month" {{ request('period') === 'this_month' ? 'selected' : '' }}>This Month</option>
-            <option value="last_month" {{ request('period') === 'last_month' ? 'selected' : '' }}>Last Month</option>
+            <option value="today" {{ (request('period') ?? $period ?? '') === 'today' ? 'selected' : '' }}>Today</option>
+            <option value="yesterday" {{ (request('period') ?? $period ?? '') === 'yesterday' ? 'selected' : '' }}>Yesterday</option>
+            <option value="this_week" {{ (request('period') ?? $period ?? '') === 'this_week' ? 'selected' : '' }}>This Week</option>
+            <option value="last_week" {{ (request('period') ?? $period ?? '') === 'last_week' ? 'selected' : '' }}>Last Week</option>
+            <option value="this_month" {{ (request('period') ?? $period ?? '') === 'this_month' ? 'selected' : '' }}>This Month</option>
+            <option value="last_month" {{ (request('period') ?? $period ?? '') === 'last_month' ? 'selected' : '' }}>Last Month</option>
           </select>
         </div>
 
-        <div class="col-md-3 form-group mb-2 mb-md-0">
+        <div class="col-md-3 form-group mb-2">
           <label class="font-weight-bold">Date From</label>
           <input type="date" name="date_from" id="filterDateFrom" class="form-control form-control-sm" value="{{ $dateFrom ?? request('date_from') }}">
         </div>
 
-        <div class="col-md-3 form-group mb-2 mb-md-0">
+        <div class="col-md-3 form-group mb-2">
           <label class="font-weight-bold">Date To</label>
           <input type="date" name="date_to" id="filterDateTo" class="form-control form-control-sm" value="{{ $dateTo ?? request('date_to') }}">
         </div>
 
-        <div class="col-md-2 mb-2 mb-md-0 text-right text-md-left">
-          <a href="{{ route('sales.index', ['history' => request('history')]) }}" class="btn btn-secondary btn-sm btn-block"><i class="fa fa-times"></i> Clear Filters</a>
+        <div class="col-md-3 form-group mb-2 mb-md-0">
+          <label class="font-weight-bold"><i class="fa fa-check-circle"></i> Payment Status</label>
+          <select name="status" id="filterStatus" class="form-control form-control-sm">
+            <option value="all" {{ ($status ?? request('status')) === 'all' || !($status ?? request('status')) ? 'selected' : '' }}>All Statuses</option>
+            <option value="paid" {{ ($status ?? request('status')) === 'paid' ? 'selected' : '' }}>Paid</option>
+            <option value="partial" {{ ($status ?? request('status')) === 'partial' ? 'selected' : '' }}>Partial</option>
+            <option value="debt" {{ ($status ?? request('status')) === 'debt' ? 'selected' : '' }}>Debt</option>
+            <option value="pending" {{ ($status ?? request('status')) === 'pending' ? 'selected' : '' }}>Pending</option>
+            <option value="cancelled" {{ ($status ?? request('status')) === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+          </select>
+        </div>
+
+        <div class="col-md-3 form-group mb-2 mb-md-0">
+          <label class="font-weight-bold"><i class="fa fa-credit-card"></i> Payment Method</label>
+          <select name="payment_method" id="filterPaymentMethod" class="form-control form-control-sm">
+            <option value="all">All Methods</option>
+            @foreach(($paymentMethods ?? []) as $methodKey => $methodLabel)
+              <option value="{{ $methodKey }}" {{ ($paymentMethodFilter ?? request('payment_method')) === $methodKey ? 'selected' : '' }}>{{ is_array($methodLabel) ? ($methodLabel['label'] ?? $methodKey) : $methodLabel }}</option>
+            @endforeach
+          </select>
+        </div>
+
+        @if(isset($cashiers) && count($cashiers) > 0)
+        <div class="col-md-3 form-group mb-2 mb-md-0">
+          <label class="font-weight-bold"><i class="fa fa-user"></i> Cashier</label>
+          <select name="cashier_id" id="filterCashier" class="form-control form-control-sm">
+            <option value="all">All Cashiers</option>
+            @foreach($cashiers as $c)
+              <option value="{{ $c->id }}" {{ (string)($cashierIdFilter ?? request('cashier_id')) === (string)$c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+            @endforeach
+          </select>
+        </div>
+        @endif
+
+        <div class="col-md-3 mb-2 mb-md-0 text-right text-md-left d-flex align-items-end">
+          <a href="{{ route('sales.index', ['history' => request('history')]) }}" id="resetFiltersBtn" class="btn btn-secondary btn-sm btn-block"><i class="fa fa-refresh"></i> Clear Filters</a>
         </div>
       </form>
     </div>
@@ -269,140 +309,11 @@
             </tr>
           </thead>
           <tbody>
-            @foreach($sales as $sale)
-                @php
-                  $businessTypeKeys = $sale->items
-                      ->map(function ($line) {
-                          if ($line->service_id) {
-                              return $line->service?->category?->source_service_type_key ?: 'other';
-                          }
-
-                          return $line->item?->category?->source_business_type_key ?: 'other';
-                      })
-                      ->unique()
-                      ->values();
-                  $isCarriedOver = ($openShift ?? null)
-                      && (int) $sale->shift_id !== (int) $openShift->id
-                      && in_array($sale->payment_status, ['pending', 'partial', 'debt'], true);
-                  $hasServiceLines = $sale->items->contains(fn ($line) => ! empty($line->service_id));
-                  $hasProductLines = $sale->items->contains(fn ($line) => ! empty($line->item_id));
-                @endphp
-                <tr data-business-types="{{ $businessTypeKeys->implode(',') }}">
-                    <td data-order="{{ $sale->id }}">{{ \Carbon\Carbon::parse($sale->sale_date)->format('M d, Y') }}</td>
-                    <td>
-                      {{ $sale->reference_no }}
-                      @if($sale->isServicePos() || ($hasServiceLines && ! $hasProductLines))
-                        <span class="badge badge-info">Service</span>
-                      @elseif($hasServiceLines && $hasProductLines)
-                        <span class="badge badge-secondary">Mixed</span>
-                      @endif
-                      @if($isCarriedOver)
-                        <span class="badge badge-warning" title="Unpaid from a previous shift">Shift #{{ $sale->shift_id }}</span>
-                      @endif
-                    </td>
-                    <td class="sold-items-cell">
-                      @php
-                        $soldPreview = $sale->soldItemsSummary(2);
-                        $soldFull = $sale->soldItemsSummary();
-                      @endphp
-                      @if($soldPreview)
-                        <span class="text-dark sold-items-preview" @if($soldFull !== $soldPreview) title="{{ $soldFull }}" @endif>{{ $soldPreview }}</span>
-                      @else
-                        <span class="text-muted">—</span>
-                      @endif
-                    </td>
-                    <td>{{ $sale->user->name }}</td>
-                    <td class="text-success font-weight-bold">{{ money($sale->total_amount) }}</td>
-                    <td>
-                        @if($sale->payment_status == 'paid')
-                            <span class="badge badge-success">{{ __('tables.status.paid') }}</span>
-                        @elseif($sale->payment_status == 'partial')
-                            <span class="badge badge-info">{{ __('tables.status.partial') }}</span>
-                        @elseif($sale->payment_status == 'debt')
-                            <span class="badge badge-danger">{{ __('tables.status.debt') }}</span>
-                        @elseif($sale->payment_status == 'cancelled')
-                            <span class="badge badge-secondary">{{ __('tables.status.cancelled') }}</span>
-                        @else
-                            <span class="badge badge-warning">{{ __('tables.status.pending') }}</span>
-                        @endif
-                    </td>
-                    <td>
-                        @if($sale->payment_status == 'pending')
-                            <span class="text-muted">Unpaid</span>
-                        @elseif($sale->payment_status == 'partial')
-                            Paid: {{ money($sale->amount_paid) }}<br>
-                            <small class="text-danger">Balance: {{ money($sale->total_amount - $sale->amount_paid) }}</small>
-                            @if($sale->customer_name)
-                                <br><small>{{ $sale->customer_name }}</small>
-                            @endif
-                            @if($sale->due_date)
-                                <br><small>Due: {{ \Carbon\Carbon::parse($sale->due_date)->format('M d, Y') }}</small>
-                            @endif
-                        @elseif($sale->payment_status == 'debt')
-                            <span class="text-danger">Owes: {{ money($sale->total_amount - $sale->amount_paid) }}</span><br>
-                            {{ $sale->customer_name ?? 'Customer' }}
-                            (Due: {{ $sale->due_date ? \Carbon\Carbon::parse($sale->due_date)->format('M d, Y') : 'Not set' }})
-                        @elseif($sale->payment_status == 'cancelled')
-                            <span class="text-muted">-</span>
-                        @else
-                            {{ ucfirst($sale->payment_method) }} 
-                            @if($sale->payment_provider)
-                                ({{ $sale->payment_provider }})
-                            @endif
-                        @endif
-                    </td>
-                    <td class="text-nowrap">
-                        @if(in_array($sale->payment_status, ['pending', 'partial', 'debt']))
-                            @php
-                                $payItems = $sale->items->map(function ($si) {
-                                    return [
-                                        'id' => $si->id,
-                                        'name' => $si->service_id
-                                            ? ($si->line_description ?: $si->service?->name ?? 'Service')
-                                            : ($si->item->name ?? 'Item'),
-                                        'qty' => (float) $si->quantity,
-                                        'unit_price' => (float) ($si->list_unit_price ?? $si->unit_price),
-                                    ];
-                                })->values();
-                            @endphp
-                            <button type="button"
-                              class="btn btn-sm btn-success open-payment-modal-btn"
-                              title="Record Payment"
-                              data-sale-id="{{ $sale->id }}"
-                              data-ref="{{ e($sale->reference_no) }}"
-                              data-total="{{ $sale->total_amount }}"
-                              data-paid="{{ $sale->amount_paid }}"
-                              data-customer-id="{{ $sale->customer_id ?? '' }}"
-                              data-customer-name="{{ e($sale->customer_name ?? '') }}"
-                              data-customer-phone="{{ e($sale->customer_phone ?? '') }}"
-                              data-due-date="{{ $sale->due_date ? \Carbon\Carbon::parse($sale->due_date)->format('Y-m-d') : '' }}"
-                              data-items='@json($payItems)'><i class="fa fa-money"></i></button>
-
-                            <form action="{{ route('sales.cancel', $sale->id) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('Are you sure you want to cancel this sale? Stock will be returned.');">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-danger" title="Cancel Sale"><i class="fa fa-times"></i></button>
-                            </form>
-                        @endif
-                        <a href="{{ route('invoices.show', $sale->id) }}" class="btn btn-sm btn-primary" title="View Invoice"><i class="fa fa-file-text-o"></i></a>
-                        <a href="{{ route('sales.show', $sale->id) }}" class="btn btn-sm btn-secondary" title="View Receipt"><i class="fa fa-eye"></i></a>
-                    </td>
-                </tr>
-            @endforeach
-            @if($sales->isEmpty())
-                <tr>
-                    <td colspan="8" class="text-center py-4 text-muted">
-                      @if(($shiftContext ?? '') === 'none' && !($showAllHistory ?? false))
-                        No active shift. Open a shift to start selling — closed shift sales are listed under <a href="{{ route('shifts.index') }}">Sales Shifts</a>.
-                      @else
-                        No sales records found.
-                      @endif
-                    </td>
-                </tr>
-            @endif
+            @include('sales.partials.sale-table-rows', ['sales' => $sales, 'openShift' => $openShift ?? null, 'shiftContext' => $shiftContext ?? '', 'showAllHistory' => $showAllHistory ?? false])
           </tbody>
         </table>
         </div>
-        <div class="d-flex justify-content-center mt-3">
+        <div class="d-flex justify-content-center mt-3" id="salesPaginationContainer">
           {{ $sales->appends(request()->query())->links('pagination::bootstrap-4') }}
         </div>
       </div>
@@ -423,6 +334,8 @@
         $(function () {
             const hasMultipleBusinessTypes = @json($multiBusiness ?? false);
             let activeBusinessType = 'all';
+            let table = null;
+            let searchTimer = null;
 
             function filterMobileSalesCards() {
                 let visible = 0;
@@ -437,14 +350,23 @@
                 $('#salesMobileNoMatch').toggleClass('d-none', visible > 0 || $('.sales-mobile-card').length === 0);
             }
 
-            const table = $('#salesTable').DataTable({
-                order: [[0, 'desc']],
-                columnDefs: [
-                    { targets: 0, type: 'num' },
-                ],
-            });
+            function initDataTable() {
+                if ($.fn.DataTable.isDataTable('#salesTable')) {
+                    $('#salesTable').DataTable().destroy();
+                }
+                table = $('#salesTable').DataTable({
+                    order: [[0, 'desc']],
+                    columnDefs: [
+                        { targets: 0, type: 'num' },
+                    ],
+                });
+                $(table.table().container()).addClass('sales-datatable-wrap');
+                if (hasMultipleBusinessTypes) {
+                    filterMobileSalesCards();
+                }
+            }
 
-            $(table.table().container()).addClass('sales-datatable-wrap');
+            initDataTable();
 
             if (hasMultipleBusinessTypes) {
                 $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
@@ -466,20 +388,120 @@
                     $('#businessTypeTabs .business-type-tab').removeClass('active');
                     $(this).addClass('active');
                     activeBusinessType = String($(this).attr('data-business-type') || 'all');
-                    table.draw();
+                    if (table) { table.draw(); }
                     filterMobileSalesCards();
                 });
-
-                filterMobileSalesCards();
             }
 
-            // Real-time filtering
-            $('#filterPeriod, #filterDateFrom, #filterDateTo').on('change', function () {
-                if ($(this).attr('id') === 'filterPeriod' && $(this).val() !== '') {
+            function fetchSalesRealtime(urlOverride) {
+                const url = urlOverride || $('#salesFilterForm').attr('action');
+                const formData = $('#salesFilterForm').serialize();
+                
+                $('#salesTable, #salesMobileList').css('opacity', 0.5);
+
+                $.ajax({
+                    url: url,
+                    type: 'GET',
+                    data: formData,
+                    dataType: 'json',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    success: function(response) {
+                        $('#salesTable, #salesMobileList').css('opacity', 1);
+
+                        if (response.stats) {
+                            $('.widget-small.primary .info p b').text(response.stats.total_sales);
+                            $('.widget-small.info .info p b').text(response.stats.gross_sales);
+                            $('.widget-small.success .info p b').text(response.stats.collected);
+                            $('.widget-small.danger .info p b').text(response.stats.outstanding);
+                        }
+
+                        if (response.html_table !== undefined) {
+                            $('#salesTable tbody').html(response.html_table);
+                        }
+                        if (response.html_mobile !== undefined) {
+                            $('#salesMobileList').html(response.html_mobile);
+                        }
+                        if (response.pagination !== undefined) {
+                            $('#salesPaginationContainer').html(response.pagination);
+                        }
+
+                        initDataTable();
+
+                        const fullUrl = url.split('?')[0] + '?' + formData;
+                        window.history.replaceState(null, '', fullUrl);
+                    },
+                    error: function(xhr) {
+                        $('#salesTable, #salesMobileList').css('opacity', 1);
+                        console.error('Failed to fetch sales in real time:', xhr);
+                    }
+                });
+            }
+
+            // Search input real-time debounced
+            $('#filterSearch').on('input keyup search', function () {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(function () {
+                    fetchSalesRealtime();
+                }, 300);
+            });
+
+            // Period change
+            $('#filterPeriod').on('change', function () {
+                if ($(this).val() !== '') {
                     $('#filterDateFrom').val('');
                     $('#filterDateTo').val('');
                 }
-                $('#salesFilterForm').submit();
+                fetchSalesRealtime();
+            });
+
+            // Date inputs change
+            $('#filterDateFrom, #filterDateTo').on('change', function () {
+                if ($(this).val() !== '') {
+                    $('#filterPeriod').val('');
+                }
+                fetchSalesRealtime();
+            });
+
+            // Status, Payment Method, Cashier selects change
+            $('#filterStatus, #filterPaymentMethod, #filterCashier').on('change', function () {
+                fetchSalesRealtime();
+            });
+
+            // Source tabs real-time click
+            $('#saleSourceTabs a').on('click', function (e) {
+                e.preventDefault();
+                $('#saleSourceTabs a').removeClass('active');
+                $(this).addClass('active');
+                const href = $(this).attr('href');
+                const urlParams = new URLSearchParams(href.split('?')[1] || '');
+                const sourceVal = urlParams.get('source') || 'all';
+                $('#filterSource').val(sourceVal);
+                fetchSalesRealtime();
+            });
+
+            // Pagination links real-time click
+            $(document).on('click', '#salesPaginationContainer a', function (e) {
+                e.preventDefault();
+                const href = $(this).attr('href');
+                if (href) {
+                    fetchSalesRealtime(href);
+                }
+            });
+
+            // Reset filters click
+            $('#resetFiltersBtn').on('click', function (e) {
+                e.preventDefault();
+                $('#filterSearch').val('');
+                $('#filterPeriod').val('');
+                $('#filterDateFrom').val('');
+                $('#filterDateTo').val('');
+                $('#filterStatus').val('all');
+                $('#filterPaymentMethod').val('all');
+                $('#filterCashier').val('all');
+                $('#filterSource').val('all');
+                $('#saleSourceTabs a').removeClass('active');
+                $('#saleSourceTabs a').first().addClass('active');
+                fetchSalesRealtime($(this).attr('href'));
             });
 
             const autoPaySaleId = @json(request()->query('pay'));

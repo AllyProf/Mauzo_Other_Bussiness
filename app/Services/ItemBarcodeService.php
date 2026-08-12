@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Models\ItemPackaging;
+use chillerlan\QRCode\Output\QRGdImagePNG;
+use chillerlan\QRCode\QRCode;
+use chillerlan\QRCode\QROptions;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 
 class ItemBarcodeService
@@ -56,6 +59,21 @@ class ItemBarcodeService
     {
         $generator = new BarcodeGeneratorPNG();
         $png = $generator->getBarcode($barcode, $generator::TYPE_CODE_128, $widthFactor, $height);
+
+        return base64_encode($png);
+    }
+
+    public function qrPngBase64(string $barcode, int $size = 140): string
+    {
+        $scale = max(3, min(12, (int) round($size / 25)));
+
+        $options = new QROptions([
+            'outputInterface' => QRGdImagePNG::class,
+            'scale' => $scale,
+            'outputBase64' => false,
+        ]);
+
+        $png = (new QRCode($options))->render($barcode);
 
         return base64_encode($png);
     }

@@ -104,7 +104,8 @@
                 <i class="treeview-indicator fa fa-angle-right"></i>
             </a>
             <ul class="treeview-menu" style="padding-left: 20px;">
-                <li><a class="treeview-item {{ Request::is('items') && !Request::is('items/stock') ? 'active' : '' }}" href="{{ route('items.index') }}"><i class="icon fa fa-barcode"></i> {{ __('menu.items') }}</a></li>
+                <li><a class="treeview-item {{ Request::is('items') && !Request::is('items/stock') && !Request::is('items/barcodes') ? 'active' : '' }}" href="{{ route('items.index') }}"><i class="icon fa fa-barcode"></i> {{ __('menu.items') }}</a></li>
+                <li><a class="treeview-item {{ Request::is('items/barcodes') ? 'active' : '' }}" href="{{ route('items.barcodes.index') }}"><i class="icon fa fa-qrcode"></i> {{ __('menu.qr_codes') }}</a></li>
                 <li><a class="treeview-item {{ Request::is('items/stock') ? 'active' : '' }}" href="{{ route('items.stock') }}"><i class="icon fa fa-cubes"></i> {{ __('menu.item_stock') }}</a></li>
                 <li><a class="treeview-item {{ Request::is('price-list*') ? 'active' : '' }}" href="{{ route('price-list.index') }}"><i class="icon fa fa-tags"></i> {{ __('menu.price_list') }}</a></li>
                 <li><a class="treeview-item {{ Request::is('categories*') ? 'active' : '' }}" href="{{ route('categories.index') }}"><i class="icon fa fa-list"></i> {{ __('menu.categories') }}</a></li>

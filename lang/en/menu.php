@@ -24,6 +24,7 @@ return [
     'system_settings' => 'System Settings',
     'registration' => 'Registration',
     'items' => 'Items',
+    'qr_codes' => 'QR Codes',
     'item_stock' => 'Item Stock',
     'price_list' => 'Price List',
     'categories' => 'Categories',

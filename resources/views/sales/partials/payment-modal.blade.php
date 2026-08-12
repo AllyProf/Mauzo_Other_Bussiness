@@ -23,7 +23,7 @@
             <div id="linkedSaleInputs"></div>
 
             <h6 class="text-muted text-uppercase mb-2"><i class="fa fa-list"></i> Order Items</h6>
-            <p class="small text-muted mb-2">Adjust each line with a custom unit price or a discount before collecting payment.</p>
+            <p class="small text-muted mb-2">Adjust prices, apply discounts, or remove unwanted items before collecting payment.</p>
             <div class="table-responsive mb-3">
                 <table class="table table-sm table-bordered mb-0" id="payItemsTable">
                     <thead class="thead-light">
@@ -34,6 +34,7 @@
                             <th style="width:120px;">Adjust By</th>
                             <th style="width:200px;">Value</th>
                             <th class="text-right" style="width:110px;">Line Total</th>
+                            <th class="text-center" style="width:40px;"><i class="fa fa-trash" title="Remove Item"></i></th>
                         </tr>
                     </thead>
                     <tbody id="payItemsBody"></tbody>
@@ -41,6 +42,7 @@
                         <tr>
                             <th colspan="5" class="text-right">Revised Order Total</th>
                             <th class="text-right text-success" id="payRevisedTotal">TZS 0</th>
+                            <th></th>
                         </tr>
                     </tfoot>
                 </table>
