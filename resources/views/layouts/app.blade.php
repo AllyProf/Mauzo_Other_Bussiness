@@ -418,6 +418,11 @@
             return;
           }
           showLoader();
+          setTimeout(function () {
+            if (e.defaultPrevented) {
+              hideLoader();
+            }
+          }, 0);
         }, true);
 
         // Bubble phase so page scripts can preventDefault (e.g. confirmation modals)

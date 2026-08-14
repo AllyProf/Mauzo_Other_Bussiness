@@ -102,7 +102,7 @@
       @endif
 
       @php
-        $filtersActive = request('period') || request('date_from') || request('date_to') || request('search') || request('q') || request('status') || request('payment_method') || request('cashier_id');
+        $filtersActive = request('period') || request('date_from') || request('date_to') || request('search') || request('q') || request('status') || request('payment_method');
       @endphp
       <button type="button" class="btn btn-sm {{ $filtersActive ? 'btn-info' : 'btn-outline-info' }}" data-toggle="collapse" data-target="#filterCollapse" aria-expanded="{{ $filtersActive ? 'true' : 'false' }}" aria-controls="filterCollapse">
         <i class="fa fa-filter"></i> Filters
@@ -186,39 +186,37 @@
           <input type="hidden" name="history" value="{{ request('history') }}">
         @endif
         <input type="hidden" name="source" id="filterSource" value="{{ $saleSourceFilter ?? 'all' }}">
-        
-        <div class="col-md-3 form-group mb-2">
+
+        <div class="col-md-4 col-lg-3 form-group mb-2">
           <label class="font-weight-bold"><i class="fa fa-search"></i> Search</label>
-          <input type="search" name="search" id="filterSearch" class="form-control form-control-sm" placeholder="Ref #, Customer, Cashier, Item..." value="{{ $search ?? request('search', request('q')) }}">
+          <input type="search" name="search" id="filterSearch" class="form-control form-control-sm" placeholder="Ref #, customer, item…" value="{{ $search ?? request('search', request('q')) }}">
         </div>
 
-        <div class="col-md-3 form-group mb-2">
-          <label class="font-weight-bold"><i class="fa fa-calendar"></i> Predefined Period</label>
+        <div class="col-md-4 col-lg-2 form-group mb-2">
+          <label class="font-weight-bold"><i class="fa fa-calendar"></i> Period</label>
           <select name="period" id="filterPeriod" class="form-control form-control-sm">
-            <option value="">-- Custom Date Range --</option>
+            <option value="">All dates</option>
             <option value="today" {{ (request('period') ?? $period ?? '') === 'today' ? 'selected' : '' }}>Today</option>
-            <option value="yesterday" {{ (request('period') ?? $period ?? '') === 'yesterday' ? 'selected' : '' }}>Yesterday</option>
-            <option value="this_week" {{ (request('period') ?? $period ?? '') === 'this_week' ? 'selected' : '' }}>This Week</option>
-            <option value="last_week" {{ (request('period') ?? $period ?? '') === 'last_week' ? 'selected' : '' }}>Last Week</option>
-            <option value="this_month" {{ (request('period') ?? $period ?? '') === 'this_month' ? 'selected' : '' }}>This Month</option>
-            <option value="last_month" {{ (request('period') ?? $period ?? '') === 'last_month' ? 'selected' : '' }}>Last Month</option>
+            <option value="this_week" {{ (request('period') ?? $period ?? '') === 'this_week' ? 'selected' : '' }}>This week</option>
+            <option value="this_month" {{ (request('period') ?? $period ?? '') === 'this_month' ? 'selected' : '' }}>This month</option>
+            <option value="custom" {{ (request('period') ?? $period ?? '') === 'custom' ? 'selected' : '' }}>Custom dates</option>
           </select>
         </div>
 
-        <div class="col-md-3 form-group mb-2">
-          <label class="font-weight-bold">Date From</label>
-          <input type="date" name="date_from" id="filterDateFrom" class="form-control form-control-sm" value="{{ $dateFrom ?? request('date_from') }}">
+        <div class="col-md-4 col-lg-2 form-group mb-2 js-custom-dates {{ (request('period') ?? $period ?? '') === 'custom' ? '' : 'd-none' }}">
+          <label class="font-weight-bold">From</label>
+          <input type="date" name="date_from" id="filterDateFrom" class="form-control form-control-sm" value="{{ (request('period') ?? '') === 'custom' ? request('date_from') : '' }}">
         </div>
 
-        <div class="col-md-3 form-group mb-2">
-          <label class="font-weight-bold">Date To</label>
-          <input type="date" name="date_to" id="filterDateTo" class="form-control form-control-sm" value="{{ $dateTo ?? request('date_to') }}">
+        <div class="col-md-4 col-lg-2 form-group mb-2 js-custom-dates {{ (request('period') ?? $period ?? '') === 'custom' ? '' : 'd-none' }}">
+          <label class="font-weight-bold">To</label>
+          <input type="date" name="date_to" id="filterDateTo" class="form-control form-control-sm" value="{{ (request('period') ?? '') === 'custom' ? request('date_to') : '' }}">
         </div>
 
-        <div class="col-md-3 form-group mb-2 mb-md-0">
-          <label class="font-weight-bold"><i class="fa fa-check-circle"></i> Payment Status</label>
+        <div class="col-md-4 col-lg-2 form-group mb-2">
+          <label class="font-weight-bold"><i class="fa fa-check-circle"></i> Status</label>
           <select name="status" id="filterStatus" class="form-control form-control-sm">
-            <option value="all" {{ ($status ?? request('status')) === 'all' || !($status ?? request('status')) ? 'selected' : '' }}>All Statuses</option>
+            <option value="all" {{ ($status ?? request('status')) === 'all' || !($status ?? request('status')) ? 'selected' : '' }}>All</option>
             <option value="paid" {{ ($status ?? request('status')) === 'paid' ? 'selected' : '' }}>Paid</option>
             <option value="partial" {{ ($status ?? request('status')) === 'partial' ? 'selected' : '' }}>Partial</option>
             <option value="debt" {{ ($status ?? request('status')) === 'debt' ? 'selected' : '' }}>Debt</option>
@@ -227,30 +225,9 @@
           </select>
         </div>
 
-        <div class="col-md-3 form-group mb-2 mb-md-0">
-          <label class="font-weight-bold"><i class="fa fa-credit-card"></i> Payment Method</label>
-          <select name="payment_method" id="filterPaymentMethod" class="form-control form-control-sm">
-            <option value="all">All Methods</option>
-            @foreach(($paymentMethods ?? []) as $methodKey => $methodLabel)
-              <option value="{{ $methodKey }}" {{ ($paymentMethodFilter ?? request('payment_method')) === $methodKey ? 'selected' : '' }}>{{ is_array($methodLabel) ? ($methodLabel['label'] ?? $methodKey) : $methodLabel }}</option>
-            @endforeach
-          </select>
-        </div>
-
-        @if(isset($cashiers) && count($cashiers) > 0)
-        <div class="col-md-3 form-group mb-2 mb-md-0">
-          <label class="font-weight-bold"><i class="fa fa-user"></i> Cashier</label>
-          <select name="cashier_id" id="filterCashier" class="form-control form-control-sm">
-            <option value="all">All Cashiers</option>
-            @foreach($cashiers as $c)
-              <option value="{{ $c->id }}" {{ (string)($cashierIdFilter ?? request('cashier_id')) === (string)$c->id ? 'selected' : '' }}>{{ $c->name }}</option>
-            @endforeach
-          </select>
-        </div>
-        @endif
-
-        <div class="col-md-3 mb-2 mb-md-0 text-right text-md-left d-flex align-items-end">
-          <a href="{{ route('sales.index', ['history' => request('history')]) }}" id="resetFiltersBtn" class="btn btn-secondary btn-sm btn-block"><i class="fa fa-refresh"></i> Clear Filters</a>
+        <div class="col-md-8 col-lg-3 form-group mb-2 d-flex align-items-end" style="gap: 8px;">
+          <button type="submit" class="btn btn-primary btn-sm"><i class="fa fa-filter"></i> Apply</button>
+          <a href="{{ route('sales.index', array_filter(['history' => request('history'), 'source' => $saleSourceFilter ?? request('source')])) }}" class="btn btn-secondary btn-sm"><i class="fa fa-refresh"></i> Clear</a>
         </div>
       </form>
     </div>
@@ -262,7 +239,7 @@
     <div class="tile">
       @php
         $saleSourceFilter = $saleSourceFilter ?? 'all';
-        $sourceQuery = request()->except('source', 'page');
+        $sourceQuery = request()->except('source', 'page', 'cashier_id', 'user_id');
       @endphp
       <div class="business-type-tabs mb-3 px-3 pt-3" id="saleSourceTabs">
         <a href="{{ route('sales.index', $sourceQuery + ['source' => 'all']) }}"
@@ -326,8 +303,6 @@
 @endsection
 
 @section('scripts')
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script type="text/javascript" src="{{ asset('panel-assets/js/plugins/jquery.dataTables.min.js') }}"></script>
     <script type="text/javascript" src="{{ asset('panel-assets/js/plugins/dataTables.bootstrap.min.js') }}"></script>
     <script type="text/javascript">
@@ -335,7 +310,6 @@
             const hasMultipleBusinessTypes = @json($multiBusiness ?? false);
             let activeBusinessType = 'all';
             let table = null;
-            let searchTimer = null;
 
             function filterMobileSalesCards() {
                 let visible = 0;
@@ -350,23 +324,19 @@
                 $('#salesMobileNoMatch').toggleClass('d-none', visible > 0 || $('.sales-mobile-card').length === 0);
             }
 
-            function initDataTable() {
-                if ($.fn.DataTable.isDataTable('#salesTable')) {
-                    $('#salesTable').DataTable().destroy();
-                }
-                table = $('#salesTable').DataTable({
-                    order: [[0, 'desc']],
-                    columnDefs: [
-                        { targets: 0, type: 'num' },
-                    ],
-                });
-                $(table.table().container()).addClass('sales-datatable-wrap');
-                if (hasMultipleBusinessTypes) {
-                    filterMobileSalesCards();
-                }
+            table = $('#salesTable').DataTable({
+                paging: false,
+                searching: false,
+                info: false,
+                order: [[0, 'desc']],
+                columnDefs: [
+                    { targets: 0, type: 'num' },
+                ],
+            });
+            $(table.table().container()).addClass('sales-datatable-wrap');
+            if (hasMultipleBusinessTypes) {
+                filterMobileSalesCards();
             }
-
-            initDataTable();
 
             if (hasMultipleBusinessTypes) {
                 $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
@@ -393,116 +363,15 @@
                 });
             }
 
-            function fetchSalesRealtime(urlOverride) {
-                const url = urlOverride || $('#salesFilterForm').attr('action');
-                const formData = $('#salesFilterForm').serialize();
-                
-                $('#salesTable, #salesMobileList').css('opacity', 0.5);
-
-                $.ajax({
-                    url: url,
-                    type: 'GET',
-                    data: formData,
-                    dataType: 'json',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                    success: function(response) {
-                        $('#salesTable, #salesMobileList').css('opacity', 1);
-
-                        if (response.stats) {
-                            $('.widget-small.primary .info p b').text(response.stats.total_sales);
-                            $('.widget-small.info .info p b').text(response.stats.gross_sales);
-                            $('.widget-small.success .info p b').text(response.stats.collected);
-                            $('.widget-small.danger .info p b').text(response.stats.outstanding);
-                        }
-
-                        if (response.html_table !== undefined) {
-                            $('#salesTable tbody').html(response.html_table);
-                        }
-                        if (response.html_mobile !== undefined) {
-                            $('#salesMobileList').html(response.html_mobile);
-                        }
-                        if (response.pagination !== undefined) {
-                            $('#salesPaginationContainer').html(response.pagination);
-                        }
-
-                        initDataTable();
-
-                        const fullUrl = url.split('?')[0] + '?' + formData;
-                        window.history.replaceState(null, '', fullUrl);
-                    },
-                    error: function(xhr) {
-                        $('#salesTable, #salesMobileList').css('opacity', 1);
-                        console.error('Failed to fetch sales in real time:', xhr);
-                    }
-                });
+            function toggleCustomDates() {
+                const isCustom = $('#filterPeriod').val() === 'custom';
+                $('.js-custom-dates').toggleClass('d-none', !isCustom);
+                if (!isCustom) {
+                    $('#filterDateFrom, #filterDateTo').val('');
+                }
             }
 
-            // Search input real-time debounced
-            $('#filterSearch').on('input keyup search', function () {
-                clearTimeout(searchTimer);
-                searchTimer = setTimeout(function () {
-                    fetchSalesRealtime();
-                }, 300);
-            });
-
-            // Period change
-            $('#filterPeriod').on('change', function () {
-                if ($(this).val() !== '') {
-                    $('#filterDateFrom').val('');
-                    $('#filterDateTo').val('');
-                }
-                fetchSalesRealtime();
-            });
-
-            // Date inputs change
-            $('#filterDateFrom, #filterDateTo').on('change', function () {
-                if ($(this).val() !== '') {
-                    $('#filterPeriod').val('');
-                }
-                fetchSalesRealtime();
-            });
-
-            // Status, Payment Method, Cashier selects change
-            $('#filterStatus, #filterPaymentMethod, #filterCashier').on('change', function () {
-                fetchSalesRealtime();
-            });
-
-            // Source tabs real-time click
-            $('#saleSourceTabs a').on('click', function (e) {
-                e.preventDefault();
-                $('#saleSourceTabs a').removeClass('active');
-                $(this).addClass('active');
-                const href = $(this).attr('href');
-                const urlParams = new URLSearchParams(href.split('?')[1] || '');
-                const sourceVal = urlParams.get('source') || 'all';
-                $('#filterSource').val(sourceVal);
-                fetchSalesRealtime();
-            });
-
-            // Pagination links real-time click
-            $(document).on('click', '#salesPaginationContainer a', function (e) {
-                e.preventDefault();
-                const href = $(this).attr('href');
-                if (href) {
-                    fetchSalesRealtime(href);
-                }
-            });
-
-            // Reset filters click
-            $('#resetFiltersBtn').on('click', function (e) {
-                e.preventDefault();
-                $('#filterSearch').val('');
-                $('#filterPeriod').val('');
-                $('#filterDateFrom').val('');
-                $('#filterDateTo').val('');
-                $('#filterStatus').val('all');
-                $('#filterPaymentMethod').val('all');
-                $('#filterCashier').val('all');
-                $('#filterSource').val('all');
-                $('#saleSourceTabs a').removeClass('active');
-                $('#saleSourceTabs a').first().addClass('active');
-                fetchSalesRealtime($(this).attr('href'));
-            });
+            $('#filterPeriod').on('change', toggleCustomDates);
 
             const autoPaySaleId = @json(request()->query('pay'));
             const alsoPayRaw = @json(request()->query('also_pay'));

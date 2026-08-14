@@ -87,7 +87,6 @@ class SaleController extends Controller
         $search = trim((string) request()->query('search', request()->query('q', '')));
         $status = request()->query('status', request()->query('payment_status'));
         $paymentMethodFilter = request()->query('payment_method');
-        $cashierIdFilter = request()->query('cashier_id', request()->query('user_id'));
 
         $dateFrom = request()->query('date_from');
         $dateTo = request()->query('date_to');
@@ -99,25 +98,18 @@ class SaleController extends Controller
                     $dateFrom = date('Y-m-d');
                     $dateTo = date('Y-m-d');
                     break;
-                case 'yesterday':
-                    $dateFrom = date('Y-m-d', strtotime('-1 day'));
-                    $dateTo = date('Y-m-d', strtotime('-1 day'));
-                    break;
                 case 'this_week':
                     $dateFrom = date('Y-m-d', strtotime('monday this week'));
                     $dateTo = date('Y-m-d', strtotime('sunday this week'));
-                    break;
-                case 'last_week':
-                    $dateFrom = date('Y-m-d', strtotime('monday last week'));
-                    $dateTo = date('Y-m-d', strtotime('sunday last week'));
                     break;
                 case 'this_month':
                     $dateFrom = date('Y-m-01');
                     $dateTo = date('Y-m-t');
                     break;
-                case 'last_month':
-                    $dateFrom = date('Y-m-01', strtotime('last month'));
-                    $dateTo = date('Y-m-t', strtotime('last month'));
+                case 'custom':
+                    break;
+                default:
+                    $period = null;
                     break;
             }
         }
@@ -125,7 +117,6 @@ class SaleController extends Controller
         $hasActiveFilter = $search !== ''
             || ($status && $status !== 'all')
             || ($paymentMethodFilter && $paymentMethodFilter !== 'all')
-            || ($cashierIdFilter && $cashierIdFilter !== 'all')
             || $dateFrom
             || $dateTo
             || $period;
@@ -158,10 +149,6 @@ class SaleController extends Controller
             }
         } else {
             $salesQuery->where('user_id', Auth::id());
-        }
-
-        if ($cashierIdFilter && $cashierIdFilter !== 'all') {
-            $salesQuery->where('user_id', (int) $cashierIdFilter);
         }
 
         if ($status && in_array($status, ['paid', 'partial', 'debt', 'pending', 'cancelled'], true)) {
@@ -214,7 +201,6 @@ class SaleController extends Controller
 
         $customers = $this->activeCustomers();
         $paymentMethods = $business->enabledPaymentMethods();
-        $cashiers = User::where('business_id', $businessId)->select('id', 'name')->orderBy('name')->get();
 
         $scopedToSelf = $requiresOpenShift || ! $this->actsAsBusinessWideViewer();
         $shiftContext = $requiresOpenShift
@@ -246,7 +232,6 @@ class SaleController extends Controller
             'carriedOverUnpaidCount',
             'customers',
             'paymentMethods',
-            'cashiers',
             'activeBranchName',
             'branchFilterId',
             'viewingAllBranches',
@@ -259,8 +244,7 @@ class SaleController extends Controller
             'saleSourceFilter',
             'search',
             'status',
-            'paymentMethodFilter',
-            'cashierIdFilter'
+            'paymentMethodFilter'
         ));
     }
 
