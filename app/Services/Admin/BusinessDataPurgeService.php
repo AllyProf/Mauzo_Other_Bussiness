@@ -31,6 +31,8 @@ use App\Models\Shift;
 use App\Models\ShiftStockCheck;
 use App\Models\StockLoss;
 use App\Models\StockLossItem;
+use App\Models\BranchTransfer;
+use App\Models\BranchTransferItem;
 use App\Models\Branch;
 use App\Models\Role;
 use App\Models\Supplier;
@@ -124,7 +126,9 @@ class BusinessDataPurgeService
 
         return [
             'sales' => $saleIds->count(),
-            'inventory' => Receiving::where('business_id', $id)->count() + StockLoss::where('business_id', $id)->count(),
+            'inventory' => Receiving::where('business_id', $id)->count()
+                + StockLoss::where('business_id', $id)->count()
+                + BranchTransfer::where('business_id', $id)->count(),
             'catalog' => Category::where('business_id', $id)->count()
                 + Item::where('business_id', $id)->count()
                 + Packaging::where('business_id', $id)->count()
@@ -286,6 +290,10 @@ class BusinessDataPurgeService
         $stockLossIds = StockLoss::where('business_id', $businessId)->pluck('id');
         $count += StockLossItem::whereIn('stock_loss_id', $stockLossIds)->delete();
         $count += StockLoss::where('business_id', $businessId)->delete();
+
+        $transferIds = BranchTransfer::where('business_id', $businessId)->pluck('id');
+        $count += BranchTransferItem::whereIn('branch_transfer_id', $transferIds)->delete();
+        $count += BranchTransfer::where('business_id', $businessId)->delete();
 
         return $count;
     }

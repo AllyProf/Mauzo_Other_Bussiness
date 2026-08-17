@@ -10,6 +10,7 @@ use App\Models\ItemPackaging;
 use App\Models\ReceivingItem;
 use App\Models\SaleItem;
 use App\Models\StockLossItem;
+use App\Models\BranchTransferItem;
 use App\Models\StockAdjustmentItem;
 use App\Services\ItemBarcodeService;
 use App\Services\ItemPackagingNormalizer;
@@ -251,6 +252,52 @@ class ItemController extends Controller
                     . ($cancelled ? ' — record cancelled, stock restored' : ''),
                 'status' => $cancelled ? 'Cancelled' : 'Recorded',
                 'counts_toward_totals' => ! $cancelled,
+            ]);
+        }
+
+        $transferLines = BranchTransferItem::query()
+            ->where(function ($q) use ($item) {
+                $q->where('from_item_id', $item->id)->orWhere('to_item_id', $item->id);
+            })
+            ->whereHas('transfer', fn ($q) => $q->where('business_id', Auth::user()->business_id))
+            ->with(['transfer.fromBranch', 'transfer.toBranch', 'transfer.user'])
+            ->get();
+
+        foreach ($transferLines as $line) {
+            $transfer = $line->transfer;
+            $cancelled = $transfer->isCancelled();
+            $pending = $transfer->isPending();
+            $isOut = (int) $line->from_item_id === (int) $item->id;
+
+            if (! $isOut && $pending) {
+                continue;
+            }
+
+            $movements->push([
+                'sort_date' => $transfer->transfer_date->format('Y-m-d') . ' ' . ($transfer->created_at?->format('H:i:s') ?? '00:00:00'),
+                'date' => $transfer->transfer_date->format('Y-m-d'),
+                'time' => $transfer->created_at?->format('h:i A') ?? '',
+                'type' => $isOut ? 'transfer_out' : 'transfer_in',
+                'type_label' => $cancelled
+                    ? 'Branch supply (Cancelled)'
+                    : ($pending
+                        ? 'Sent to branch (awaiting receive)'
+                        : ($isOut ? 'Supplied to branch' : 'Received from main')),
+                'badge' => $cancelled ? 'secondary' : ($pending ? 'warning' : ($isOut ? 'warning' : 'info')),
+                'reference' => $transfer->reference_no,
+                'reference_url' => route('branch-transfers.show', $transfer->id),
+                'quantity' => $line->quantity,
+                'quantity_label' => ($isOut ? '-' : '+') . $this->formatQty($line->quantity),
+                'quantity_unit' => $unitName,
+                'quantity_class' => $cancelled ? 'text-muted' : ($isOut ? 'text-danger' : 'text-success'),
+                'by' => $transfer->user->name ?? 'N/A',
+                'party' => $isOut ? ($transfer->toBranch->name ?? 'Branch') : ($transfer->fromBranch->name ?? 'Main'),
+                'party_label' => $isOut ? 'To' : 'From',
+                'details' => ($isOut ? 'Sent to ' : 'Received from ')
+                    . ($isOut ? ($transfer->toBranch->name ?? 'branch') : ($transfer->fromBranch->name ?? 'main'))
+                    . ($cancelled ? ' — supply cancelled, stock reversed' : ($pending ? ' — waiting for destination to receive' : '')),
+                'status' => $cancelled ? 'Cancelled' : ($pending ? 'Awaiting receive' : 'Completed'),
+                'counts_toward_totals' => ! $cancelled && ! ($pending && ! $isOut),
             ]);
         }
 

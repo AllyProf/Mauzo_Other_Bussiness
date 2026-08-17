@@ -484,6 +484,20 @@
             </a>
           </div>
           @endcan
+          @canany(['supply_to_branch', 'receive_branch_supply'])
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('branch-transfers.index') }}" class="btn btn-outline-success btn-block p-3 text-center owner-quick-link">
+              <i class="fa fa-exchange fa-2x mb-2"></i><br>{{ strtoupper(__('menu.supply_to_branch')) }}
+            </a>
+          </div>
+          @endcanany
+          @can('manage_staff')
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ route('roles.index') }}" class="btn btn-outline-secondary btn-block p-3 text-center owner-quick-link">
+              <i class="fa fa-shield fa-2x mb-2"></i><br>{{ strtoupper(__('menu.roles')) }}
+            </a>
+          </div>
+          @endcan
           @can('view_inventory')
           <div class="col-6 col-md-3 mb-3">
             <a href="{{ route('items.stock') }}" class="btn btn-outline-info btn-block p-3 text-center owner-quick-link">

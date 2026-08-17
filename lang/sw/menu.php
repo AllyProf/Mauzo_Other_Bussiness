@@ -32,6 +32,8 @@ return [
     'packaging_units' => 'Ufungashaji na Vipimo',
     'suppliers' => 'Wasambazaji',
     'receiving' => 'Kupokea Stock',
+    'stock_in' => 'Pokea Stock',
+    'supply_to_branch' => 'Gawa kwa Tawi',
     'stock_losses' => 'Hasara za Stock',
     'danger_zone' => 'Eneo Hatari',
     'stock_adjustments' => 'Marekebisho ya Stoki',

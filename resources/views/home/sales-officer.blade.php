@@ -261,6 +261,14 @@
               Item Stock
             </a>
           </div>
+          @canany(['supply_to_branch', 'receive_branch_supply'])
+          <div class="col-md-3 col-sm-6 mb-3">
+            <a href="{{ route('branch-transfers.index') }}" class="btn btn-outline-success btn-block btn-lg py-3">
+              <i class="fa fa-exchange fa-2x d-block mb-1"></i>
+              {{ __('menu.supply_to_branch') }}
+            </a>
+          </div>
+          @endcanany
           <div class="col-md-3 col-sm-6 mb-3">
             <a href="{{ route('shifts.index') }}" class="btn btn-dark btn-block btn-lg py-3">
               <i class="fa fa-history fa-2x d-block mb-1"></i>

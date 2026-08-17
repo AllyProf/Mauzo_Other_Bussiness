@@ -29,7 +29,7 @@
           <strong><i class="fa fa-info-circle"></i> How permissions work</strong>
           <ul class="mb-0 mt-2 small pl-3">
             <li><strong>Cashier</strong> — POS, invoices, payments, and daily reconciliation for their own shift.</li>
-            <li><strong>Store Manager</strong> — Full sales floor plus inventory receiving and debt management.</li>
+            <li><strong>Store Manager</strong> — Full sales floor plus inventory receiving, supply to branch, and debt management.</li>
             <li><strong>Supervisor</strong> — Oversight, verification, and reports without day-to-day POS.</li>
             <li>Use a preset below as a starting point, then fine-tune individual checkboxes.</li>
           </ul>
@@ -37,7 +37,7 @@
 
         <div class="form-group">
           <label class="control-label">Permissions</label>
-          <p class="text-muted small mb-3">Select what this role can access. Permissions are grouped by module to match the sidebar menu.</p>
+          <p class="text-muted small mb-3">Select what this role can access. Permissions are grouped by module to match the sidebar menu. Under <strong>Stock Receiving</strong>, tick <em>Send stock from main branch to other shops</em> and/or <em>Receive branch supplies into this shop’s stock</em> to allow Supply to Branch.</p>
           @include('staff.roles.partials.permission-fields', [
             'currentPermissions' => old('permissions', []),
           ])

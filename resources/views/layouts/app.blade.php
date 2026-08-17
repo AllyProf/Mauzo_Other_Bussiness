@@ -458,28 +458,28 @@
       @if(session('success'))
         Toast.fire({
           icon: 'success',
-          title: "{{ session('success') }}"
+          title: @json(session('success'))
         });
       @endif
 
       @if(session('error'))
         Toast.fire({
           icon: 'error',
-          title: "{{ session('error') }}"
+          title: @json(session('error'))
         });
       @endif
 
       @if(session('warning'))
         Toast.fire({
           icon: 'warning',
-          title: "{{ session('warning') }}"
+          title: @json(session('warning'))
         });
       @endif
 
       @if(session('info'))
         Toast.fire({
           icon: 'info',
-          title: "{{ session('info') }}"
+          title: @json(session('info'))
         });
       @endif
 
@@ -554,8 +554,10 @@
 
       function confirmAction(e, title = "Are you sure?", text = "You won't be able to revert this!") {
         e.preventDefault();
+        e.stopPropagation();
         var form = e.target.closest('form') || e.target.form;
-        var button = e.target.closest('button[type="submit"], input[type="submit"]') || e.target;
+        var button = e.target.closest('button, input[type="submit"]') || e.target;
+        if (!form) return;
         Swal.fire({
           title: title,
           text: text,

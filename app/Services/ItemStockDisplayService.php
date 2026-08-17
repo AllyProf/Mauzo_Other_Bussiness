@@ -111,6 +111,57 @@ class ItemStockDisplayService
         return $formattedPieces.' pcs';
     }
 
+    /**
+     * Stock in each packaging unit, e.g. "2 Carton · 5 Piece".
+     */
+    public function allUnitsDisplay(Item $item, ?float $pieces = null): string
+    {
+        $item->loadMissing(['packagings.packagingType', 'receivingPackaging']);
+        $pieces = $pieces ?? (float) $item->current_stock;
+        $packagingModels = $item->packagings->sortByDesc('quantity_per_unit')->values();
+        $normalized = $this->normalizer->normalizeItemPackagings($item, $packagingModels)
+            ->sortByDesc(fn (array $row) => (int) $row['quantity_per_unit'])
+            ->values();
+
+        if ($normalized->isEmpty()) {
+            $count = fmod($pieces, 1.0) === 0.0 ? (string) (int) $pieces : number_format($pieces, 2);
+
+            return $count.' pcs';
+        }
+
+        $remaining = $pieces;
+        $parts = [];
+
+        foreach ($normalized as $row) {
+            $qpu = max(1, (int) $row['quantity_per_unit']);
+            $name = $row['packaging']->packagingType->name ?? 'Unit';
+            $count = (int) floor($remaining / $qpu);
+
+            if ($qpu > 1) {
+                if ($count > 0) {
+                    $parts[] = $count.' '.$name;
+                    $remaining -= $count * $qpu;
+                }
+                continue;
+            }
+
+            $pieceCount = (int) round($remaining);
+            $parts[] = $pieceCount.' '.$name;
+            $remaining = 0;
+        }
+
+        if ($remaining > 0.009) {
+            $left = fmod($remaining, 1.0) === 0.0 ? (string) (int) $remaining : number_format($remaining, 2);
+            $parts[] = $left.' pcs';
+        }
+
+        if ($parts === []) {
+            return '0 pcs';
+        }
+
+        return implode(' · ', $parts);
+    }
+
     private function buildPackagingStockRow(string $name, int $quantityPerUnit, float $pieces): array
     {
         $qpu = max(1, $quantityPerUnit);

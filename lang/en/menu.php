@@ -32,6 +32,8 @@ return [
     'packaging_units' => 'Packaging & Units',
     'suppliers' => 'Suppliers',
     'receiving' => 'Receiving',
+    'stock_in' => 'Stock In',
+    'supply_to_branch' => 'Supply to Branch',
     'stock_losses' => 'Stock Losses',
     'danger_zone' => 'Danger Zone',
     'stock_adjustments' => 'Stock Adjustments',

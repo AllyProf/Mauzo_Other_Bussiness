@@ -182,6 +182,13 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::get('/receivings/{receiving}', [App\Http\Controllers\ReceivingController::class, 'show'])->name('receivings.show');
     Route::post('/receivings/{receiving}/cancel', [App\Http\Controllers\ReceivingController::class, 'cancel'])->name('receivings.cancel');
 
+    Route::get('/branch-transfers', [App\Http\Controllers\BranchTransferController::class, 'index'])->name('branch-transfers.index');
+    Route::get('/branch-transfers/create', [App\Http\Controllers\BranchTransferController::class, 'create'])->name('branch-transfers.create');
+    Route::post('/branch-transfers', [App\Http\Controllers\BranchTransferController::class, 'store'])->name('branch-transfers.store');
+    Route::get('/branch-transfers/{branchTransfer}', [App\Http\Controllers\BranchTransferController::class, 'show'])->name('branch-transfers.show');
+    Route::post('/branch-transfers/{branchTransfer}/receive', [App\Http\Controllers\BranchTransferController::class, 'receive'])->name('branch-transfers.receive');
+    Route::post('/branch-transfers/{branchTransfer}/cancel', [App\Http\Controllers\BranchTransferController::class, 'cancel'])->name('branch-transfers.cancel');
+
     // Stock losses (lost / damaged / destroyed)
     Route::get('/stock-losses', [App\Http\Controllers\StockLossController::class, 'index'])->name('stock-losses.index');
     Route::get('/stock-losses/create', [App\Http\Controllers\StockLossController::class, 'create'])->name('stock-losses.create');

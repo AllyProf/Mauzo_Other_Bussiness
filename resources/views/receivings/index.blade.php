@@ -41,9 +41,14 @@
     <h1><i class="fa fa-truck"></i> {{ __('pages.receivings.title') }}</h1>
     <p>{{ __('pages.receivings.subtitle') }}</p>
   </div>
-  @can('receive_stock')
-  <a href="{{ route('receivings.create') }}" class="btn btn-primary"><i class="fa fa-plus"></i> {{ __('pages.receivings.new_stock_in') }}</a>
-  @endcan
+  <div>
+    @can('receive_stock')
+    <a href="{{ route('receivings.create') }}" class="btn btn-primary"><i class="fa fa-plus"></i> {{ __('pages.receivings.new_stock_in') }}</a>
+    @endcan
+    @canany(['supply_to_branch', 'receive_branch_supply'])
+    <a href="{{ route('branch-transfers.index') }}" class="btn btn-outline-primary ml-2"><i class="fa fa-exchange"></i> {{ __('menu.supply_to_branch') }}</a>
+    @endcanany
+  </div>
 </div>
 
 @if($multiBusiness ?? false)

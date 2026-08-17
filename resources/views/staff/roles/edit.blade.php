@@ -28,7 +28,7 @@
 
         <div class="form-group">
           <label class="control-label">Permissions</label>
-          <p class="text-muted small mb-3">Update access for employees assigned to this role. Use presets or select permissions by module.</p>
+          <p class="text-muted small mb-3">Update access for employees assigned to this role. Use presets or select permissions by module. Under <strong>Stock Receiving</strong>, tick <em>Send stock from main branch to other shops</em> and/or <em>Receive branch supplies into this shop’s stock</em> to allow Supply to Branch.</p>
           @include('staff.roles.partials.permission-fields', [
             'currentPermissions' => old('permissions', $role->permissions ?? []),
           ])

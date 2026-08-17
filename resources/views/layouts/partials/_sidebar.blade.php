@@ -119,9 +119,23 @@
         @endif
 
         @if(business_retail_enabled())
-        @can('receive_stock')
-        <li><a class="app-menu__item {{ Request::is('receivings*') ? 'active' : '' }}" href="{{ route('receivings.index') }}" data-tour="menu-receiving"><i class="app-menu__icon fa fa-truck"></i><span class="app-menu__label">{{ __('menu.receiving') }}</span></a></li>
-        @endcan
+        @canany(['receive_stock', 'supply_to_branch', 'receive_branch_supply'])
+        <li class="treeview {{ Request::is('receivings*') || Request::is('branch-transfers*') ? 'is-expanded' : '' }}">
+            <a class="app-menu__item" href="#" data-toggle="treeview" data-tour="menu-receiving">
+                <i class="app-menu__icon fa fa-truck"></i>
+                <span class="app-menu__label">{{ __('menu.receiving') }}</span>
+                <i class="treeview-indicator fa fa-angle-right"></i>
+            </a>
+            <ul class="treeview-menu" style="padding-left: 20px;">
+                @can('receive_stock')
+                <li><a class="treeview-item {{ Request::is('receivings*') ? 'active' : '' }}" href="{{ route('receivings.index') }}"><i class="icon fa fa-download"></i> {{ __('menu.stock_in') }}</a></li>
+                @endcan
+                @canany(['supply_to_branch', 'receive_branch_supply'])
+                <li><a class="treeview-item {{ Request::is('branch-transfers*') ? 'active' : '' }}" href="{{ route('branch-transfers.index') }}"><i class="icon fa fa-exchange"></i> {{ __('menu.supply_to_branch') }}</a></li>
+                @endcanany
+            </ul>
+        </li>
+        @endcanany
         @canany(['record_stock_loss', 'view_stock_history', 'open_shift', 'process_sales'])
         <li><a class="app-menu__item {{ Request::is('stock-losses*') ? 'active' : '' }}" href="{{ route('stock-losses.index') }}" data-tour="menu-stock-losses"><i class="app-menu__icon fa fa-minus-circle"></i><span class="app-menu__label">{{ __('menu.stock_losses') }}</span></a></li>
         @endcanany
