@@ -108,7 +108,7 @@
                     <td class="text-left">{{ $receiving->reference_no }}</td>
                     <td>{{ \Carbon\Carbon::parse($receiving->received_date)->format('d M Y') }}</td>
                     <td>{{ $receiving->branch->name ?? '—' }}</td>
-                    <td>{{ $receiving->supplier->name ?? '—' }}</td>
+                    <td>{{ $receiving->sourceLabel() }}</td>
                     <td>{{ $receiving->user->name ?? '—' }}</td>
                     <td>{{ $receiving->items->count() }}</td>
                     <td class="amount">{{ $pdfMoney($receiving->total_amount) }}</td>

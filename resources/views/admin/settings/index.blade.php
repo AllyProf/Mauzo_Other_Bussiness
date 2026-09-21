@@ -206,7 +206,7 @@
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Expiry Warning (days)</label>
                   <input type="number" name="expiry_warning_days" class="form-control" min="1" max="90" value="{{ old('expiry_warning_days', $settings['expiry_warning_days']) }}" required>
-                  <small class="text-muted">Shown on your dashboard for expiring businesses.</small>
+                  <small class="text-muted">Start renewal SMS/email this many days before expiry. Also shown on the admin dashboard.</small>
                 </div>
               </div>
             </div>
@@ -230,11 +230,20 @@
             </div>
             <hr>
             <h5 class="mb-3 text-muted"><i class="fa fa-bell"></i> Payment Reminders & Auto-Suspend</h5>
+            <p class="small text-muted">Renewal messages used to go out every day in the warning window. Set the repeat interval below to control how often a business is contacted.</p>
             <div class="row">
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Renewal reminder repeat (days)</label>
+                  <input type="number" name="expiry_reminder_repeat_days" class="form-control" min="0" max="30" value="{{ old('expiry_reminder_repeat_days', $settings['expiry_reminder_repeat_days'] ?? 0) }}" required>
+                  <small class="text-muted">0 = send once only. 1 = every day. 3 = every 3 days. Resets when you extend their expiry.</small>
+                </div>
+              </div>
               <div class="col-md-4">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Invoice Reminder After (days)</label>
                   <input type="number" name="payment_reminder_days" class="form-control" min="1" max="90" value="{{ old('payment_reminder_days', $settings['payment_reminder_days'] ?? 7) }}" required>
+                  <small class="text-muted">Wait this many days after an unpaid invoice is issued, then send once.</small>
                 </div>
               </div>
               <div class="col-md-4">
@@ -521,7 +530,7 @@
       <div class="tile-body small text-muted">
         <p><strong>Platform</strong> — branding and support contacts shown to tenants.</p>
         <p><strong>Registration</strong> — controls the public signup page.</p>
-        <p><strong>Subscriptions</strong> — billing model defaults, grace period, and renewal payment info.</p>
+        <p><strong>Subscriptions</strong> — billing defaults, grace period, and how often renewal reminder SMS/email are sent.</p>
         <p><strong>Mail</strong> — SMTP for future system emails.</p>
         <p><strong>Security</strong> — maintenance mode and your admin password.</p>
       </div>

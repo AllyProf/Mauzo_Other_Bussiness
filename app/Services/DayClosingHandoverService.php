@@ -205,12 +205,13 @@ class DayClosingHandoverService extends DayClosingController
 
         try {
             if ($shift?->isOpen()) {
-                $shift->refreshTotals();
-                Shift::whereKey($shift->id)->update([
-                    'status' => 'closed',
-                    'closed_at' => now(),
-                ]);
-                $shift->refresh();
+                $this->markShiftClosed($shift, now());
+            } elseif ($user->requiresOpenShift()) {
+                $openShift = Shift::openForUser($user->id, $businessId);
+                if ($openShift) {
+                    $this->markShiftClosed($openShift, now());
+                    $shift = $openShift;
+                }
             }
 
             $summary = $this->buildDaySummary($businessId, $date, $shift, shiftOnly: (bool) $shift);
@@ -227,6 +228,7 @@ class DayClosingHandoverService extends DayClosingController
                 'business_id' => $businessId,
                 'user_id' => $user->id,
                 'shift_id' => $shift?->id,
+                'handover_scope' => $this->ownerDirectHandoverScope(),
                 'closing_date' => $date,
                 'status' => 'submitted',
                 'sales_count' => $summary['sales_count'],
@@ -738,15 +740,6 @@ class DayClosingHandoverService extends DayClosingController
         $card = $this->buildHandoverCardData($dayClosing);
 
         return $this->formatHandoverCard($card, $viewer);
-    }
-
-    protected function userRequiresShiftHandover(User $user): bool
-    {
-        if ($user->role === 'owner' || $user->seesBusinessWideData()) {
-            return false;
-        }
-
-        return $user->can('submit_day_closing') || $user->can('process_sales');
     }
 
     /**

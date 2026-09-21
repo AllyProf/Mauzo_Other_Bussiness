@@ -422,6 +422,7 @@ class BusinessSettingsApiService
             'sms_staff_handover_verified_staff' => $bool('sms_staff_handover_verified_staff', true),
             'sms_staff_stock_received_owner' => $bool('sms_staff_stock_received_owner', true),
             'sms_staff_stock_received_manager' => $bool('sms_staff_stock_received_manager', true),
+            'sms_staff_branch_supply_sent' => $bool('sms_staff_branch_supply_sent', true),
             'sms_staff_note_reminder' => $bool('sms_staff_note_reminder', true),
             'sms_debt_enabled' => $bool('sms_debt_enabled', true),
             'sms_debt_due_soon_customer' => $bool('sms_debt_due_soon_customer', true),

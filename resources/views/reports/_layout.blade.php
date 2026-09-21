@@ -202,6 +202,86 @@
     .report-page .app-title h1 { font-size: 1.15rem; }
     .report-page .app-breadcrumb { font-size: 0.85rem; }
   }
+
+  /* Hotel-style reports hub filter */
+  .reports-hub-filter {
+    background: #fff;
+    padding: 0 0 1rem;
+    border-bottom: 2px solid #940000;
+  }
+  .reports-hub-label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #343a40;
+    margin-bottom: 0.35rem;
+  }
+  .reports-hub-form .form-control {
+    border: 1px solid #ced4da;
+    border-radius: 3px;
+    height: calc(1.5em + 0.75rem + 2px);
+  }
+  .btn-reports-submit {
+    background: #940000;
+    border-color: #940000;
+    color: #fff;
+    font-weight: 700;
+    border-radius: 3px;
+    padding: 0.45rem 1.25rem;
+    margin-top: 1.45rem;
+  }
+  .btn-reports-submit:hover,
+  .btn-reports-submit:focus {
+    background: #7a0000;
+    border-color: #7a0000;
+    color: #fff;
+  }
+  @media (max-width: 767.98px) {
+    .btn-reports-submit { margin-top: 0; }
+  }
+
+  /* Daily report (hotel-style day vs period) */
+  .daily-report-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    font-size: 0.92rem;
+  }
+  .daily-report-table th,
+  .daily-report-table td {
+    border: 1px solid #ced4da;
+    padding: 0.65rem 0.85rem;
+    vertical-align: middle;
+  }
+  .daily-report-table thead th {
+    background: #495057;
+    color: #fff;
+    font-weight: 600;
+    text-align: center;
+  }
+  .daily-report-table .section-head td {
+    background: #e9ecef;
+    font-weight: 700;
+    color: #212529;
+  }
+  .daily-report-table .metric-label {
+    font-weight: 600;
+    color: #343a40;
+    text-align: left;
+  }
+  .daily-report-table .num {
+    text-align: right;
+    font-family: 'Courier New', Courier, monospace;
+    white-space: nowrap;
+  }
+  .daily-report-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
 </style>
 @endsection
 
@@ -209,19 +289,19 @@
 <div class="report-page">
 <div class="app-title">
   <div>
-    <h1><i class="fa fa-bar-chart"></i> {{ $title ?? 'Report' }}</h1>
-    <p>{{ $business->name ?? Auth::user()->business?->name }}</p>
+    <h1><i class="fa fa-bar-chart"></i> {{ __('menu.reports') }}</h1>
+    <p>{{ $title ?? __('menu.reports') }}@if(!empty($business?->name)) — {{ $business->name }}@endif</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
     <li class="breadcrumb-item"><a href="{{ url('/home') }}">Dashboard</a></li>
-    <li class="breadcrumb-item active">{{ $title ?? 'Report' }}</li>
+    <li class="breadcrumb-item active">{{ __('menu.reports') }}</li>
   </ul>
 </div>
 
 @include('reports.partials.business-type-tabs')
 
-@include('reports.partials.date-range-filter')
+@include('reports.partials.report-type-selector')
 
 @yield('report-content')
 </div>

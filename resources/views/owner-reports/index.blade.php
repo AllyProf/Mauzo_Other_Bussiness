@@ -103,7 +103,7 @@
     <li class="breadcrumb-item">{{ __('owner_reports.finance') }}</li>
     <li class="breadcrumb-item active">{{ __('owner_reports.daily_report') }}</li>
     @endif
-  </ul>
+    </ul>
 </div>
 
 <div class="tile d-print-none mb-3 py-2">
@@ -122,7 +122,7 @@
     <div class="col-6 col-md-2 form-group">
       <a href="{{ route($masterSheetRoute) }}" class="btn btn-outline-secondary btn-sm btn-block"><i class="fa fa-refresh"></i> {{ __('tables.filters.reset') }}</a>
     </div>
-    @if(Auth::user()->role === 'owner')
+    @if(! $serviceMenuContext && Auth::user()->role === 'owner')
     <div class="col-12 col-md-2 form-group">
       <a href="{{ route('settings.index') }}" class="btn btn-outline-dark btn-sm btn-block"><i class="fa fa-gears"></i> {{ __('common.settings') }}</a>
     </div>

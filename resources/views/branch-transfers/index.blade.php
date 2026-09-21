@@ -11,10 +11,16 @@
       if (! $canReceivePermission || ! $row->isPending()) {
           return false;
       }
-      if ($user->seesBusinessWideData() || ! $userBranchId) {
+      if ($user->role === 'owner' || ! $userBranchId) {
           return true;
       }
       return $userBranchId === (int) $row->to_branch_id;
+  };
+  $canUndoTransfer = function ($row) use ($user, $canUndo) {
+      if (! $canUndo || ! $row->isPending()) {
+          return false;
+      }
+      return $user->role === 'owner' || (int) $row->user_id === (int) $user->id;
   };
 @endphp
 <div class="app-title">
@@ -34,54 +40,6 @@
 @endif
 @if(session('error'))
   <div class="alert alert-danger">{{ session('error') }}</div>
-@endif
-
-@if(($pendingIncoming ?? collect())->isNotEmpty())
-<div class="tile border-warning mb-3" id="incoming">
-  <div class="tile-title-w-btn">
-    <h3 class="title text-warning mb-0"><i class="fa fa-download"></i> {{ __('branch_transfers.incoming') }} ({{ $pendingIncoming->count() }})</h3>
-    <span class="text-muted">{{ __('branch_transfers.incoming_hint') }}</span>
-  </div>
-  <div class="tile-body">
-    <div class="table-responsive">
-      <table class="table table-bordered mb-0">
-        <thead>
-          <tr>
-            <th>{{ __('branch_transfers.date') }}</th>
-            <th>{{ __('branch_transfers.reference') }}</th>
-            <th>{{ __('branch_transfers.from') }}</th>
-            <th>{{ __('branch_transfers.lines') }}</th>
-            <th>{{ __('branch_transfers.pieces') }}</th>
-            <th>{{ __('tables.columns.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          @foreach($pendingIncoming as $row)
-            <tr>
-              <td>{{ $row->transfer_date->format('d M Y') }}</td>
-              <td><strong>{{ $row->reference_no }}</strong></td>
-              <td>{{ $row->fromBranch?->name ?? '—' }}</td>
-              <td>{{ $row->total_items }}</td>
-              <td>{{ fmod($row->total_pieces, 1.0) === 0.0 ? (int) $row->total_pieces : number_format($row->total_pieces, 2) }}</td>
-              <td>
-                <a href="{{ route('branch-transfers.show', $row) }}" class="btn btn-sm btn-info"><i class="fa fa-eye"></i></a>
-                @if($canReceiveTransfer($row))
-                <form action="{{ route('branch-transfers.receive', $row) }}" method="POST" class="d-inline">
-                  @csrf
-                  <button type="button" class="btn btn-sm btn-success"
-                          onclick='confirmAction(event, @json(__("branch_transfers.receive_confirm_title")), @json(__("branch_transfers.receive_confirm_text")))'>
-                    <i class="fa fa-check"></i> {{ __('branch_transfers.receive') }}
-                  </button>
-                </form>
-                @endif
-              </td>
-            </tr>
-          @endforeach
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
 @endif
 
 <div class="row mb-3">
@@ -159,11 +117,13 @@
                   @csrf
                   <button type="button" class="btn btn-sm btn-success" title="{{ __('branch_transfers.receive') }}"
                           onclick='confirmAction(event, @json(__("branch_transfers.receive_confirm_title")), @json(__("branch_transfers.receive_confirm_text")))'>
-                    <i class="fa fa-check"></i>
+                    <i class="fa fa-check"></i> {{ __('branch_transfers.receive') }}
                   </button>
                 </form>
+                @elseif($row->isPending() && ! $canReceivePermission)
+                <span class="text-muted small">{{ __('branch_transfers.receive_permission_needed') }}</span>
                 @endif
-                @if($canUndo && ! $row->isCancelled())
+                @if($canUndoTransfer($row))
                 <form action="{{ route('branch-transfers.cancel', $row) }}" method="POST" class="d-inline">
                   @csrf
                   <button type="button" class="btn btn-sm btn-outline-danger" title="{{ __('branch_transfers.cancel') }}"
@@ -176,7 +136,7 @@
             </tr>
           @empty
             <tr>
-              <td colspan="7" class="text-center text-muted py-4">{{ __('branch_transfers.empty') }}</td>
+              <td colspan="7" class="text-center text-muted py-4">{{ ($canSend ?? false) ? __('branch_transfers.empty') : __('branch_transfers.empty_destination') }}</td>
             </tr>
           @endforelse
         </tbody>

@@ -44,10 +44,6 @@
   <div class="alert alert-warning">
     <i class="fa fa-clock-o"></i> {{ __('branch_transfers.awaiting_hint', ['branch' => $transfer->toBranch?->name]) }}
   </div>
-@elseif($transfer->isCompleted() && $canUndo)
-  <div class="alert alert-light border">
-    <i class="fa fa-undo text-danger"></i> {{ __('branch_transfers.undo_hint') }}
-  </div>
 @endif
 
 <div class="tile">

@@ -193,7 +193,7 @@ class OwnerDailyReportService
             ->where('payment_status', '!=', 'cancelled');
 
         if ($shiftId) {
-            $salesQuery->where('shift_id', $shiftId);
+            $salesQuery->where('shift_id', $shiftId)->whereDate('sale_date', $date);
         } elseif ($dayClosing) {
             $sales = $this->closingSales($dayClosing)->load(['items.item.packagings', 'items.service']);
 

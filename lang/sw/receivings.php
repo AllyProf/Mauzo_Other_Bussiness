@@ -88,4 +88,8 @@ return [
         'stamp_completed' => 'Imekamilika',
         'stamp_cancelled' => 'Imefutwa',
     ],
+
+    'branch_supply_from' => 'Ugawaji wa tawi · :branch',
+    'branch_supply_cancelled' => 'Upokeaji wa ugawaji (:ref) umefutwa na stock imerejeshwa.',
+    'cancel_blocked_sold' => 'Upokeaji huu hauwezi kufutwa kwa sababu baadhi ya stock tayari imeuzwa.',
 ];

@@ -57,6 +57,11 @@ class BranchTransfer extends Model
         return $this->hasMany(BranchTransferItem::class);
     }
 
+    public function receiving()
+    {
+        return $this->hasOne(Receiving::class);
+    }
+
     public function isPending(): bool
     {
         return $this->status === 'pending';

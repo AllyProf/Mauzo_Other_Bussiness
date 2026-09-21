@@ -607,6 +607,166 @@ class BusinessReportService
         ];
     }
 
+    /**
+     * Hotel-style daily snapshot: one report day vs month-to-date period.
+     */
+    public function dailySnapshotReport(Business $business, string $reportDate, ?string $businessTypeKey = null): array
+    {
+        $day = Carbon::parse($reportDate)->startOfDay();
+        $periodFrom = $day->copy()->startOfMonth()->toDateString();
+        $periodTo = $day->toDateString();
+
+        $dayStats = $this->snapshotSalesStats($business, $periodTo, $periodTo, $businessTypeKey);
+        $periodStats = $this->snapshotSalesStats($business, $periodFrom, $periodTo, $businessTypeKey);
+        $dayPayments = $this->snapshotPaymentBreakdown($business, $periodTo, $periodTo, $businessTypeKey);
+        $periodPayments = $this->snapshotPaymentBreakdown($business, $periodFrom, $periodTo, $businessTypeKey);
+
+        $methods = collect($dayPayments)->pluck('method')
+            ->merge(collect($periodPayments)->pluck('method'))
+            ->unique()
+            ->values();
+
+        $sources = $methods->map(function ($method) use ($dayPayments, $periodPayments, $business) {
+            $dayRow = collect($dayPayments)->firstWhere('method', $method);
+            $periodRow = collect($periodPayments)->firstWhere('method', $method);
+
+            return [
+                'method' => $method,
+                'label' => $dayRow['label'] ?? $periodRow['label'] ?? $business->paymentMethodLabel($method),
+                'day_orders' => (int) ($dayRow['orders'] ?? 0),
+                'day_amount' => (float) ($dayRow['amount'] ?? 0),
+                'period_orders' => (int) ($periodRow['orders'] ?? 0),
+                'period_amount' => (float) ($periodRow['amount'] ?? 0),
+            ];
+        })->sortByDesc('period_amount')->values()->all();
+
+        $ownerDay = OwnerDailyReport::where('business_id', $business->id)
+            ->whereDate('report_date', $periodTo)
+            ->first();
+        $ownerPeriod = OwnerDailyReport::where('business_id', $business->id)
+            ->whereBetween('report_date', [$periodFrom, $periodTo])
+            ->get();
+
+        return [
+            'report_date' => $periodTo,
+            'report_date_label' => $day->format('d-M'),
+            'period_label' => Carbon::parse($periodFrom)->format('d-M').' to '.$day->format('d-M'),
+            'period_from' => $periodFrom,
+            'period_to' => $periodTo,
+            'currency' => config('app.currency_code', 'TZS'),
+            'metrics' => [
+                [
+                    'label' => __('reports.daily.orders'),
+                    'day' => $dayStats['orders'],
+                    'period' => $periodStats['orders'],
+                    'format' => 'number',
+                ],
+                [
+                    'label' => __('reports.daily.gross_sales'),
+                    'day' => $dayStats['gross'],
+                    'period' => $periodStats['gross'],
+                    'format' => 'money',
+                ],
+                [
+                    'label' => __('reports.daily.collected'),
+                    'day' => $dayStats['collected'],
+                    'period' => $periodStats['collected'],
+                    'format' => 'money',
+                ],
+                [
+                    'label' => __('reports.daily.outstanding'),
+                    'day' => $dayStats['outstanding'],
+                    'period' => $periodStats['outstanding'],
+                    'format' => 'money',
+                ],
+                [
+                    'label' => __('reports.daily.avg_order'),
+                    'day' => $dayStats['avg_order'],
+                    'period' => $periodStats['avg_order'],
+                    'format' => 'money',
+                ],
+                [
+                    'label' => __('reports.daily.gross_profit'),
+                    'day' => (float) ($ownerDay->gross_profit ?? 0),
+                    'period' => (float) $ownerPeriod->sum('gross_profit'),
+                    'format' => 'money',
+                ],
+            ],
+            'sources' => $sources,
+            'source_totals' => [
+                'day_orders' => (int) array_sum(array_column($sources, 'day_orders')),
+                'day_amount' => (float) array_sum(array_column($sources, 'day_amount')),
+                'period_orders' => (int) array_sum(array_column($sources, 'period_orders')),
+                'period_amount' => (float) array_sum(array_column($sources, 'period_amount')),
+            ],
+        ];
+    }
+
+    private function snapshotSalesStats(Business $business, string $from, string $to, ?string $businessTypeKey = null): array
+    {
+        if ($businessTypeKey) {
+            $lines = $this->saleItemsQuery($business, $from, $to, $businessTypeKey)->with('sale')->get();
+            $saleIds = $lines->pluck('sale_id')->unique();
+            $orders = $saleIds->count();
+            $gross = (float) $lines->sum('subtotal');
+            $collected = (float) $lines->sum(function ($line) {
+                return (float) $line->sale->amount_paid * $this->proportionalLineShare($line);
+            });
+        } else {
+            $query = $this->scopedSales($business->id)
+                ->whereBetween('sale_date', [$from, $to])
+                ->where('payment_status', '!=', 'cancelled');
+            $orders = (int) (clone $query)->count();
+            $gross = (float) (clone $query)->sum('total_amount');
+            $collected = (float) (clone $query)->sum('amount_paid');
+        }
+
+        return [
+            'orders' => $orders,
+            'gross' => $gross,
+            'collected' => $collected,
+            'outstanding' => max(0, $gross - $collected),
+            'avg_order' => $orders > 0 ? $gross / $orders : 0,
+        ];
+    }
+
+    private function snapshotPaymentBreakdown(Business $business, string $from, string $to, ?string $businessTypeKey = null): array
+    {
+        if ($businessTypeKey) {
+            $saleIds = $this->saleItemsQuery($business, $from, $to, $businessTypeKey)
+                ->pluck('sale_id')
+                ->unique()
+                ->values()
+                ->all();
+            $payments = SalePayment::whereIn('sale_id', $saleIds ?: [-1])->get();
+            $sales = Sale::whereIn('id', $saleIds ?: [-1])->get()->keyBy('id');
+        } else {
+            $payments = SalePayment::whereHas('sale', function ($q) use ($business, $from, $to) {
+                $q->where('business_id', $business->id)
+                    ->whereBetween('sale_date', [$from, $to])
+                    ->where('payment_status', '!=', 'cancelled');
+                $this->scopeBranchUsers($q);
+                $this->scopeBranchSales($q);
+            })->get();
+            $sales = $this->scopedSales($business->id)
+                ->whereBetween('sale_date', [$from, $to])
+                ->where('payment_status', '!=', 'cancelled')
+                ->get()
+                ->keyBy('id');
+        }
+
+        return $payments->groupBy('payment_method')->map(function ($group, $method) use ($business, $sales) {
+            $saleIds = $group->pluck('sale_id')->unique();
+
+            return [
+                'method' => $method,
+                'label' => $business->paymentMethodLabel($method),
+                'orders' => $saleIds->filter(fn ($id) => $sales->has($id))->count(),
+                'amount' => (float) $group->sum('amount'),
+            ];
+        })->values()->all();
+    }
+
     private function scopedSales(int $businessId): Builder
     {
         $query = Sale::where('business_id', $businessId);

@@ -849,7 +849,12 @@
 @endphp
 
 @if($isBossReview ?? false)
-@php $openShiftsInProgress = ($awaitingHandoverShifts ?? collect())->filter(fn ($s) => $s->isOpen()); @endphp
+@php
+  $handedOverUserIds = collect($dayHandovers ?? [])->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+  $openShiftsInProgress = ($awaitingHandoverShifts ?? collect())->filter(
+      fn ($s) => $s->isOpen() && ! in_array((int) $s->user_id, $handedOverUserIds, true)
+  );
+@endphp
 @if($openShiftsInProgress->isNotEmpty())
 <div class="row">
   <div class="col-md-12">

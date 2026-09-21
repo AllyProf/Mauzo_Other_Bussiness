@@ -29,7 +29,12 @@ class PlatformReminderService
             ->whereDate('expiry_date', '>=', now())
             ->with('plan')
             ->each(function (Business $business) use (&$sent) {
+                if (! $this->shouldSendExpiryReminder($business)) {
+                    return;
+                }
+
                 if ($this->sendExpiryReminder($business)) {
+                    $business->forceFill(['expiry_reminder_sent_at' => now()])->save();
                     $sent++;
                 }
             });
@@ -92,6 +97,21 @@ class PlatformReminderService
             });
 
         return $suspended;
+    }
+
+    private function shouldSendExpiryReminder(Business $business): bool
+    {
+        $lastSent = $business->expiry_reminder_sent_at;
+        if (! $lastSent) {
+            return true;
+        }
+
+        $repeatDays = max(0, (int) $this->settings->get('expiry_reminder_repeat_days', 0));
+        if ($repeatDays <= 0) {
+            return false;
+        }
+
+        return $lastSent->lte(now()->subDays($repeatDays));
     }
 
     private function sendExpiryReminder(Business $business): bool

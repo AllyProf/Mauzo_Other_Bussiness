@@ -69,24 +69,51 @@
       <button class="app-search__button"><i class="fa fa-search"></i></button>
     </li>
     <!--Notification Menu-->
-    @if(Auth::user()->role != 'super_admin' && plan_feature('notes_reminders'))
+    @if(Auth::user()->role != 'super_admin')
+    @php
+      $headerNotes = $dueNoteReminders ?? collect();
+      $headerSupplies = $pendingBranchSupplies ?? collect();
+      $headerCount = (int) ($headerNotificationCount ?? (($dueNoteRemindersCount ?? 0) + ($pendingBranchSuppliesCount ?? 0)));
+      $hasHeaderNotes = $headerNotes->isNotEmpty();
+      $hasHeaderSupplies = $headerSupplies->isNotEmpty();
+    @endphp
     <li class="dropdown app-nav__action app-nav__notify">
       <a class="app-nav__item app-nav__icon-btn app-nav__icon-btn--badge" href="#" data-toggle="dropdown" aria-label="Show notifications">
         <i class="fa fa-bell-o"></i>
-        @if(($dueNoteRemindersCount ?? 0) > 0)
-          <span class="app-nav__badge badge badge-danger">{{ $dueNoteRemindersCount }}</span>
+        @if($headerCount > 0)
+          <span class="app-nav__badge badge badge-danger">{{ $headerCount }}</span>
         @endif
       </a>
       <ul class="app-notification dropdown-menu dropdown-menu-right">
-        @if(($dueNoteReminders ?? collect())->isEmpty())
-          <li class="app-notification__title">{{ __('common.no_due_reminders') }}</li>
+        @if(! $hasHeaderNotes && ! $hasHeaderSupplies)
+          <li class="app-notification__title">{{ __('common.no_notifications') }}</li>
           <div class="app-notification__content">
             <li class="px-3 py-2 text-muted small">{{ __('common.reminder_hint') }}</li>
           </div>
         @else
-          <li class="app-notification__title">{{ trans_choice('common.due_reminders', $dueNoteRemindersCount) }}</li>
+          <li class="app-notification__title">{{ trans_choice('common.header_notifications', $headerCount) }}</li>
           <div class="app-notification__content">
-            @foreach($dueNoteReminders as $reminder)
+            @foreach($headerSupplies as $supply)
+              <li>
+                <a class="app-notification__item" href="{{ route('branch-transfers.show', $supply) }}">
+                  <span class="app-notification__icon">
+                    <span class="fa-stack fa-lg">
+                      <i class="fa fa-circle fa-stack-2x text-warning"></i>
+                      <i class="fa fa-truck fa-stack-1x fa-inverse"></i>
+                    </span>
+                  </span>
+                  <div>
+                    <p class="app-notification__message">{{ __('common.incoming_supply_bell', [
+                      'ref' => $supply->reference_no,
+                      'from' => $supply->fromBranch?->name ?? __('branch_transfers.from'),
+                      'pieces' => fmod((float) $supply->total_pieces, 1.0) === 0.0 ? (int) $supply->total_pieces : number_format((float) $supply->total_pieces, 2),
+                    ]) }}</p>
+                    <p class="app-notification__meta">{{ $supply->created_at?->diffForHumans() }}</p>
+                  </div>
+                </a>
+              </li>
+            @endforeach
+            @foreach($headerNotes as $reminder)
               <li>
                 <a class="app-notification__item" href="{{ route('notes.index') }}">
                   <span class="app-notification__icon">
@@ -104,7 +131,15 @@
             @endforeach
           </div>
         @endif
-        <li class="app-notification__footer"><a href="{{ route('notes.index') }}">{{ __('common.manage_notes') }}</a></li>
+        <li class="app-notification__footer">
+          @if($hasHeaderSupplies)
+            <a href="{{ route('branch-transfers.index') }}">{{ __('common.view_incoming_supplies') }}</a>
+          @elseif(plan_feature('notes_reminders'))
+            <a href="{{ route('notes.index') }}">{{ __('common.manage_notes') }}</a>
+          @else
+            <a href="{{ route('branch-transfers.index') }}">{{ __('common.view_incoming_supplies') }}</a>
+          @endif
+        </li>
       </ul>
     </li>
     @else

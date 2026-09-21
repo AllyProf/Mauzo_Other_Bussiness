@@ -33,6 +33,7 @@ class PlatformSettingsService
 
             'grace_period_days' => 0,
             'expiry_warning_days' => 7,
+            'expiry_reminder_repeat_days' => 0,
             'auto_suspend_on_expiry' => true,
             'auto_email_billing_invoices' => true,
             'payment_reminder_days' => 7,

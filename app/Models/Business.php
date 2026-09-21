@@ -30,6 +30,7 @@ class Business extends Model
         'profit_share_basis',
         'minimum_monthly_fee',
         'expiry_date',
+        'expiry_reminder_sent_at',
         'tin_number',
         'contact_person',
         'logo_path',
@@ -54,6 +55,7 @@ class Business extends Model
 
     protected $casts = [
         'expiry_date' => 'date',
+        'expiry_reminder_sent_at' => 'datetime',
         'is_active' => 'boolean',
         'pending_approval' => 'boolean',
         'billing_price' => 'decimal:2',
@@ -70,6 +72,15 @@ class Business extends Model
         'custom_storage_limit' => 'integer',
         'feature_overrides' => 'array',
     ];
+
+    protected static function booted(): void
+    {
+        static::updating(function (self $business) {
+            if ($business->isDirty('expiry_date')) {
+                $business->expiry_reminder_sent_at = null;
+            }
+        });
+    }
 
     public static function defaultPaymentMethods(): array
     {
@@ -333,6 +344,7 @@ class Business extends Model
             'sms_staff_handover_verified_staff' => true,
             'sms_staff_stock_received_owner' => true,
             'sms_staff_stock_received_manager' => true,
+            'sms_staff_branch_supply_sent' => true,
             'sms_staff_note_reminder' => true,
             'sms_debt_enabled' => true,
             'sms_debt_due_soon_customer' => true,
@@ -400,6 +412,7 @@ class Business extends Model
             'sms_staff_template_handover_verified_staff' => '{business}: Your reconciliation for {date} was verified by {verifier}.{money_short_note}',
             'sms_staff_template_stock_received_owner' => '{business}: {receiver} received stock {reference} from {supplier} on {date}. {item_count} items ({total_pieces} pcs), cost TZS {total_cost}. {items_summary}',
             'sms_staff_template_stock_received_manager' => '{business}: Stock-in {reference} by {receiver} from {supplier} on {date}. {item_count} items ({total_pieces} pcs), cost TZS {total_cost}. {items_summary}',
+            'sms_staff_template_branch_supply_sent' => '{business}: Supply {reference} sent from {from_branch} to {to_branch} by {sender}. {item_count} items ({total_pieces} pcs). {items_summary} Open Supply to Branch and click Receive.',
             'sms_staff_template_note_reminder' => '{business} Reminder: {title} ({when}). {preview}',
         ];
     }
@@ -419,6 +432,7 @@ class Business extends Model
             'sms_staff_template_handover_verified_staff' => 'Handover verified (staff)',
             'sms_staff_template_stock_received_owner' => 'Stock received (owner)',
             'sms_staff_template_stock_received_manager' => 'Stock received (manager)',
+            'sms_staff_template_branch_supply_sent' => 'Branch supply sent (destination staff)',
             'sms_staff_template_note_reminder' => 'Note reminder',
         ];
     }

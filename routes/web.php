@@ -303,7 +303,8 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
 
     // Business Reports & Analytics
     Route::prefix('reports')->name('reports.')->group(function () {
-        Route::redirect('/', '/reports/circulation-profit');
+        Route::get('/', [App\Http\Controllers\ReportController::class, 'index'])->name('index');
+        Route::get('/daily-report', [App\Http\Controllers\ReportController::class, 'dailyReport'])->name('daily-report');
         Route::get('/circulation-profit', [App\Http\Controllers\ReportController::class, 'circulationProfit'])->name('circulation-profit');
         Route::get('/daily-sales', [App\Http\Controllers\ReportController::class, 'dailySales'])->name('daily-sales');
         Route::get('/expenses', [App\Http\Controllers\ReportController::class, 'expenses'])->name('expenses');

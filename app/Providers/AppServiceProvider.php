@@ -59,6 +59,9 @@ class AppServiceProvider extends ServiceProvider
                     'dueNoteReminders' => collect(),
                     'dueNoteRemindersCount' => 0,
                     'newNoteReminderToasts' => collect(),
+                    'pendingBranchSupplies' => collect(),
+                    'pendingBranchSuppliesCount' => 0,
+                    'headerNotificationCount' => 0,
                     'unreadAdminTickets' => 0,
                     'showSystemTour' => false,
                     'systemTourSteps' => [],
@@ -109,6 +112,30 @@ class AppServiceProvider extends ServiceProvider
                     $data['dueNoteRemindersCount'] = $dueReminders->count();
                     $data['newNoteReminderToasts'] = $newToasts;
                     }
+
+                    if ($notesBusinessId
+                        && ($user->can('receive_branch_supply') || $user->can('supply_to_branch'))
+                        && \Illuminate\Support\Facades\Schema::hasTable('branch_transfers')) {
+                        $pendingSuppliesQuery = \App\Models\BranchTransfer::query()
+                            ->where('business_id', $notesBusinessId)
+                            ->where('status', 'pending')
+                            ->with(['fromBranch'])
+                            ->latest()
+                            ->limit(10);
+
+                        if ($user->role !== 'owner' && $user->branch_id) {
+                            $pendingSuppliesQuery->where('to_branch_id', (int) $user->branch_id);
+                        } elseif ($user->role !== 'owner') {
+                            $pendingSuppliesQuery->whereRaw('1 = 0');
+                        }
+
+                        $pendingSupplies = $pendingSuppliesQuery->get();
+                        $data['pendingBranchSupplies'] = $pendingSupplies;
+                        $data['pendingBranchSuppliesCount'] = $pendingSupplies->count();
+                    }
+
+                    $data['headerNotificationCount'] = (int) $data['dueNoteRemindersCount']
+                        + (int) $data['pendingBranchSuppliesCount'];
                 }
 
                 $view->with($data);

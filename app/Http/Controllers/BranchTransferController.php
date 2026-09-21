@@ -18,27 +18,31 @@ class BranchTransferController extends Controller
     {
         $this->authorizeAny(['supply_to_branch', 'receive_branch_supply']);
 
-        $businessId = (int) Auth::user()->business_id;
+        $user = Auth::user();
+        $businessId = (int) $user->business_id;
+        $seesAllHistory = $this->seesAllTransferHistory();
+
         $query = BranchTransfer::query()
             ->where('business_id', $businessId)
             ->with(['fromBranch', 'toBranch', 'user'])
             ->latest();
 
-        if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
-            $branchId = (int) Auth::user()->branch_id;
-            $query->where(function ($q) use ($branchId) {
-                $q->where('from_branch_id', $branchId)->orWhere('to_branch_id', $branchId);
-            });
+        // Owner sees full history; staff see supplies they sent OR supplies to their branch.
+        if (! $seesAllHistory) {
+            $this->scopeTransfersForStaff($query, $user);
         }
 
         $transfers = $query->paginate(20);
 
+        // Incoming pending stays branch-scoped so destination staff can receive supplies
+        // sent by someone else (e.g. owner).
         $pendingQuery = BranchTransfer::query()
             ->where('business_id', $businessId)
             ->where('status', 'pending');
-        if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
-            $branchId = (int) Auth::user()->branch_id;
-            $pendingQuery->where('to_branch_id', $branchId);
+        if (! $seesAllHistory && $user->branch_id) {
+            $pendingQuery->where('to_branch_id', (int) $user->branch_id);
+        } elseif (! $seesAllHistory) {
+            $pendingQuery->whereRaw('1 = 0');
         }
         $pendingIncoming = (clone $pendingQuery)
             ->with(['fromBranch', 'toBranch', 'user'])
@@ -48,11 +52,8 @@ class BranchTransferController extends Controller
         $statsQuery = BranchTransfer::query()
             ->where('business_id', $businessId)
             ->where('status', 'completed');
-        if (! $this->actsAsBusinessWideViewer() && Auth::user()->branch_id) {
-            $branchId = (int) Auth::user()->branch_id;
-            $statsQuery->where(function ($q) use ($branchId) {
-                $q->where('from_branch_id', $branchId)->orWhere('to_branch_id', $branchId);
-            });
+        if (! $seesAllHistory) {
+            $this->scopeTransfersForStaff($statsQuery, $user);
         }
 
         $stats = [
@@ -202,7 +203,7 @@ class BranchTransferController extends Controller
             'transfer' => $branchTransfer,
             'lines' => $lines,
             'canReceive' => $this->canReceive($branchTransfer),
-            'canUndo' => $this->canSendFromMain($mainBranch) && ! $branchTransfer->isCancelled(),
+            'canUndo' => $this->canUndo($branchTransfer, $mainBranch),
             'showAfterReceive' => $branchTransfer->isPending() && $viewItemIsDestination,
             'stockBranchName' => $viewItemIsDestination
                 ? ($branchTransfer->toBranch?->name ?? __('branch_transfers.branch_stock'))
@@ -234,6 +235,11 @@ class BranchTransferController extends Controller
         $this->authorizeAny(['supply_to_branch']);
         $this->ensureAccess($branchTransfer);
 
+        $mainBranch = $this->transfers->mainBranch((int) Auth::user()->business_id);
+        if (! $this->canUndo($branchTransfer, $mainBranch)) {
+            return back()->with('error', __('branch_transfers.undo_not_allowed'));
+        }
+
         try {
             $this->transfers->cancel($branchTransfer);
         } catch (ValidationException $e) {
@@ -242,6 +248,36 @@ class BranchTransferController extends Controller
 
         return redirect()->route('branch-transfers.show', $branchTransfer)
             ->with('success', __('branch_transfers.cancelled'));
+    }
+
+    private function seesAllTransferHistory(): bool
+    {
+        return Auth::user()?->role === 'owner';
+    }
+
+    private function isTransferCreator(BranchTransfer $transfer): bool
+    {
+        return (int) $transfer->user_id === (int) Auth::id();
+    }
+
+    private function scopeTransfersForStaff($query, $user)
+    {
+        return $query->where(function ($scoped) use ($user) {
+            $scoped->where('user_id', $user->id);
+            if ($user->branch_id) {
+                $scoped->orWhere('to_branch_id', (int) $user->branch_id);
+            }
+        });
+    }
+
+    private function isDestinationStaff(BranchTransfer $transfer): bool
+    {
+        $user = Auth::user();
+        if (! $user?->branch_id) {
+            return false;
+        }
+
+        return (int) $user->branch_id === (int) $transfer->to_branch_id;
     }
 
     private function canSendFromMain(?\App\Models\Branch $mainBranch): bool
@@ -255,11 +291,25 @@ class BranchTransferController extends Controller
             return false;
         }
 
-        if ($this->actsAsBusinessWideViewer() || ! $user->branch_id) {
+        if ($this->seesAllTransferHistory() || ! $user->branch_id) {
             return true;
         }
 
         return (int) $user->branch_id === (int) $mainBranch->id;
+    }
+
+    private function canUndo(BranchTransfer $transfer, ?\App\Models\Branch $mainBranch): bool
+    {
+        // Undo only while awaiting receive — hide after destination has received.
+        if (! $transfer->isPending()) {
+            return false;
+        }
+
+        if (! $this->canSendFromMain($mainBranch)) {
+            return false;
+        }
+
+        return $this->seesAllTransferHistory() || $this->isTransferCreator($transfer);
     }
 
     private function canReceive(BranchTransfer $transfer): bool
@@ -273,7 +323,7 @@ class BranchTransferController extends Controller
             return false;
         }
 
-        if ($this->actsAsBusinessWideViewer() || ! $user->branch_id) {
+        if ($this->seesAllTransferHistory() || ! $user->branch_id) {
             return true;
         }
 
@@ -282,7 +332,7 @@ class BranchTransferController extends Controller
 
     private function viewerUsesDestinationStock(BranchTransfer $transfer): bool
     {
-        if ($this->actsAsBusinessWideViewer() || ! Auth::user()->branch_id) {
+        if ($this->seesAllTransferHistory() || ! Auth::user()->branch_id) {
             return true;
         }
 
@@ -291,17 +341,25 @@ class BranchTransferController extends Controller
 
     private function ensureAccess(BranchTransfer $transfer): void
     {
-        if ((int) $transfer->business_id !== (int) Auth::user()->business_id) {
+        $user = Auth::user();
+
+        if ((int) $transfer->business_id !== (int) $user->business_id) {
             abort(403);
         }
 
-        if ($this->actsAsBusinessWideViewer() || ! Auth::user()->branch_id) {
+        if ($this->seesAllTransferHistory()) {
             return;
         }
 
-        $branchId = (int) Auth::user()->branch_id;
-        if ((int) $transfer->from_branch_id !== $branchId && (int) $transfer->to_branch_id !== $branchId) {
-            abort(403);
+        if ($this->isTransferCreator($transfer)) {
+            return;
         }
+
+        // Destination shop staff can open supplies sent to their branch (pending or history).
+        if ($this->isDestinationStaff($transfer)) {
+            return;
+        }
+
+        abort(403);
     }
 }

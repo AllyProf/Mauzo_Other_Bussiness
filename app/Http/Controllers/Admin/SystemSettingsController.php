@@ -101,6 +101,7 @@ class SystemSettingsController extends Controller
         $data = $request->validate([
             'grace_period_days' => 'required|integer|min:0|max:90',
             'expiry_warning_days' => 'required|integer|min:1|max:90',
+            'expiry_reminder_repeat_days' => 'required|integer|min:0|max:30',
             'auto_suspend_on_expiry' => 'nullable|boolean',
             'auto_email_billing_invoices' => 'nullable|boolean',
             'payment_reminder_days' => 'required|integer|min:1|max:90',
@@ -115,6 +116,7 @@ class SystemSettingsController extends Controller
         $this->settings->update([
             'grace_period_days' => $data['grace_period_days'],
             'expiry_warning_days' => $data['expiry_warning_days'],
+            'expiry_reminder_repeat_days' => $data['expiry_reminder_repeat_days'],
             'auto_suspend_on_expiry' => $request->boolean('auto_suspend_on_expiry'),
             'auto_email_billing_invoices' => $request->boolean('auto_email_billing_invoices'),
             'payment_reminder_days' => $data['payment_reminder_days'],

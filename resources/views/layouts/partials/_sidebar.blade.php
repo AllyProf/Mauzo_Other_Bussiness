@@ -262,39 +262,24 @@
         <li><a class="app-menu__item {{ Request::is('shifts/stock-shortages*') ? 'active' : '' }}" href="{{ route('stock-shortages.index') }}" data-tour="menu-stock-shortages"><i class="app-menu__icon fa fa-warning"></i><span class="app-menu__label">{{ __('menu.stock_shortages') }}</span></a></li>
         @endcanany
         @canany(['view_reports', 'verify_day_closing', 'finalize_reports'])
-        @if(plan_feature_any(['reports_daily', 'reports_expenses', 'reports_sales', 'reports_products', 'reports_debts', 'reports_profit', 'reports_circulation', 'master_sheet']))
-        <li class="treeview {{ Request::is('reports*') || Request::is('owner-reports*') ? 'is-expanded' : '' }}">
-            <a class="app-menu__item" href="#" data-toggle="treeview" data-tour="menu-reports">
+        @if(plan_feature_any(['reports_daily', 'reports_expenses', 'reports_sales', 'reports_products', 'reports_debts', 'reports_profit', 'reports_circulation']))
+        <li>
+            <a class="app-menu__item {{ Request::is('reports*') ? 'active' : '' }}"
+               href="{{ route('reports.index') }}"
+               data-tour="menu-reports">
                 <i class="app-menu__icon fa fa-bar-chart"></i>
                 <span class="app-menu__label">{{ __('menu.reports') }}</span>
-                <i class="treeview-indicator fa fa-angle-right"></i>
             </a>
-            <ul class="treeview-menu" style="padding-left: 20px;">
-                @if(plan_feature('reports_circulation'))
-                <li><a class="treeview-item {{ Request::is('reports/circulation-profit') ? 'active' : '' }}" href="{{ route('reports.circulation-profit') }}"><i class="icon fa fa-exchange"></i> {{ __('menu.circulation_vs_profit') }}</a></li>
-                @endif
-                @if(plan_feature('reports_daily'))
-                <li><a class="treeview-item {{ Request::is('reports/daily-sales') ? 'active' : '' }}" href="{{ route('reports.daily-sales') }}"><i class="icon fa fa-calendar"></i> {{ __('menu.daily_sales') }}</a></li>
-                @endif
-                @if(plan_feature('reports_expenses'))
-                <li><a class="treeview-item {{ Request::is('reports/expenses') ? 'active' : '' }}" href="{{ route('reports.expenses') }}"><i class="icon fa fa-minus-circle"></i> {{ __('menu.expenses') }}</a></li>
-                @endif
-                @if(plan_feature('reports_profit'))
-                <li><a class="treeview-item {{ Request::is('reports/profit') ? 'active' : '' }}" href="{{ route('reports.profit') }}"><i class="icon fa fa-line-chart"></i> {{ __('menu.profit') }}</a></li>
-                @endif
-                @if(plan_feature('reports_sales'))
-                <li><a class="treeview-item {{ Request::is('reports/sales-analytics') ? 'active' : '' }}" href="{{ route('reports.sales-analytics') }}"><i class="icon fa fa-bar-chart"></i> {{ __('menu.sales_analytics') }}</a></li>
-                @endif
-                @if(plan_feature('reports_products'))
-                <li><a class="treeview-item {{ Request::is('reports/products') ? 'active' : '' }}" href="{{ route('reports.products') }}"><i class="icon fa fa-cubes"></i> {{ __('menu.products') }}</a></li>
-                @endif
-                @if(plan_feature('reports_debts'))
-                <li><a class="treeview-item {{ Request::is('reports/debts') ? 'active' : '' }}" href="{{ route('reports.debts') }}"><i class="icon fa fa-credit-card"></i> {{ __('menu.debt_report') }}</a></li>
-                @endif
-                @if(plan_feature('master_sheet'))
-                <li><a class="treeview-item {{ Request::is('owner-reports*') ? 'active' : '' }}" href="{{ route('owner-reports.index') }}"><i class="icon fa fa-list-alt"></i> {{ __('menu.master_sheet') }}</a></li>
-                @endif
-            </ul>
+        </li>
+        @endif
+        @if(plan_feature('master_sheet'))
+        <li>
+            <a class="app-menu__item {{ Request::is('owner-reports*') ? 'active' : '' }}"
+               href="{{ route('owner-reports.index') }}"
+               data-tour="menu-master-sheet">
+                <i class="app-menu__icon fa fa-list-alt"></i>
+                <span class="app-menu__label">{{ __('menu.master_sheet') }}</span>
+            </a>
         </li>
         @endif
         @endcanany

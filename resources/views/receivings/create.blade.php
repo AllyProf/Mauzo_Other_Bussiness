@@ -135,20 +135,10 @@
   }
   .cursor-pointer { cursor: pointer; }
 
-  .search-dropdown-menu {
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    background: #fff;
+  #search-results-dropdown {
     max-height: 320px;
     overflow-y: auto;
-    position: absolute;
-    width: 100%;
-    z-index: 1050;
-    margin-top: 4px;
   }
-  .search-item-option { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
-  .search-item-option:hover { background: #fef8f8; border-left: 3px solid #940000; }
   .row-flash { animation: flashRow 1.5s ease-out; }
   @keyframes flashRow {
     0% { background-color: rgba(148, 0, 0, 0.12); }
@@ -279,8 +269,16 @@
 
             <div class="form-group position-relative mb-0">
               <label class="font-weight-bold small text-uppercase text-muted"><i class="fa fa-search"></i> Quick Search Item</label>
-              <input type="text" id="item-search-input" class="form-control" placeholder="Type item name to add..." autocomplete="off">
-              <div id="search-results-dropdown" class="search-dropdown-menu" style="display: none;"></div>
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text"><i class="fa fa-search"></i></span>
+                </div>
+                <input type="text" id="item-search-input" class="form-control" placeholder="Search by name, brand or SKU..." autocomplete="off">
+                <div class="input-group-append">
+                  <button type="button" class="btn btn-outline-secondary" id="item-search-clear" title="Clear search">&times;</button>
+                </div>
+              </div>
+              <div id="search-results-dropdown" class="dropdown-menu w-100" style="display: none;"></div>
             </div>
           </div>
 
@@ -443,12 +441,26 @@
         allFlatItems.push({ ...item, categoryId: catId, branchId: branchId });
       });
     });
+    allFlatItems.sort(function (a, b) {
+      return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true });
+    });
+    Object.keys(itemsByCategory).forEach(function (catId) {
+      itemsByCategory[catId] = (itemsByCategory[catId] || []).slice().sort(function (a, b) {
+        return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true });
+      });
+    });
 
     const categoryFilter = $('#category_filter');
     const itemsTableBody = $('#itemsTableBody');
     const submitBtn = $('#submitBtn');
     const itemSearchInput = $('#item-search-input');
     const searchDropdown = $('#search-results-dropdown');
+
+    function sortReceiptItemsAlphabetically() {
+      receiptItems.sort(function (a, b) {
+        return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true });
+      });
+    }
 
     function cleanNum(val) {
       if (!val) return 0;
@@ -778,6 +790,7 @@
     }
 
     function renderTable() {
+      sortReceiptItemsAlphabetically();
       if (receiptItems.length === 0) {
         itemsTableBody.html(emptyTableHtml());
         updateSummaries();
@@ -872,51 +885,105 @@
 
     itemSearchInput.on('input', function () {
       const query = $(this).val().toLowerCase().trim();
-      if (query.length < 2) { searchDropdown.hide(); return; }
+      if (query.length < 1) {
+        searchDropdown.removeClass('show').hide();
+        itemsTableBody.find('tr.receiving-item-row').show();
+        return;
+      }
+
+      // Filter rows already on the receipt (search only — no qty changes)
+      itemsTableBody.find('tr.receiving-item-row').each(function () {
+        const idx = $(this).data('item-idx');
+        const item = receiptItems[idx];
+        if (!item) { $(this).hide(); return; }
+        const haystack = [item.name || '', item.sku || '', item.brand || ''].join(' ').toLowerCase();
+        $(this).toggle(haystack.includes(query));
+      });
+
       const branchId = getSelectedBranchId();
       const businessKey = hasMultipleBusinessTypes ? ($('#business-type-selector').val() || '') : '';
       const filtered = allFlatItems.filter(function (item) {
-        if (!item.name.toLowerCase().includes(query)) return false;
+        const haystack = [
+          item.name || '',
+          item.sku || '',
+          item.brand || '',
+        ].join(' ').toLowerCase();
+        if (!haystack.includes(query)) return false;
         if (branchId && String(item.branchId) !== branchId) return false;
         if (hasMultipleBusinessTypes && businessKey) {
           const catOption = categoryFilter.find('option[value="' + item.categoryId + '"]');
           if (catOption.length && String(catOption.attr('data-business-type')) !== String(businessKey)) return false;
         }
         return true;
+      }).sort(function (a, b) {
+        return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true });
       });
       if (!filtered.length) {
-        searchDropdown.html('<div class="p-3 text-muted small text-center">No items found.</div>').show();
+        searchDropdown
+          .html('<span class="dropdown-item disabled text-muted">No items found.</span>')
+          .addClass('show')
+          .show();
         return;
       }
       let html = '';
-      filtered.slice(0, 12).forEach(item => {
-        html += `<div class="search-item-option" data-id="${item.id}">
-          <strong>${item.name}</strong>
-          <small class="text-muted d-block">Stock: ${item.remains_display || formatStockQty(item.current_stock) + ' pcs'}</small>
-        </div>`;
+      filtered.slice(0, 20).forEach(item => {
+        html += `<button type="button" class="dropdown-item" data-id="${item.id}">${item.name}</button>`;
       });
-      searchDropdown.html(html).show();
+      searchDropdown.html(html).addClass('show').show();
+    });
+
+    $('#item-search-clear').on('click', function () {
+      itemSearchInput.val('').focus();
+      searchDropdown.removeClass('show').hide();
+      itemsTableBody.find('tr.receiving-item-row').show();
     });
 
     $(document).on('click', function (e) {
-      if (!$(e.target).closest('#item-search-input, #search-results-dropdown').length) searchDropdown.hide();
+      if (!$(e.target).closest('#item-search-input, #search-results-dropdown, #item-search-clear').length) {
+        searchDropdown.removeClass('show').hide();
+      }
     });
 
-    searchDropdown.on('click', '.search-item-option', function () {
+    function flashReceiptItemRow(itemId) {
+      itemsTableBody.find('tr.receiving-item-row').each(function () {
+        const idx = $(this).data('item-idx');
+        if (String(receiptItems[idx]?.id) !== String(itemId)) return;
+        const $row = $(this);
+        $row.addClass('row-flash');
+        const el = $row.get(0);
+        if (el && typeof el.scrollIntoView === 'function') {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        setTimeout(function () { $row.removeClass('row-flash'); }, 1600);
+      });
+    }
+
+    searchDropdown.on('click', '.dropdown-item[data-id]', function () {
       const item = allFlatItems.find(i => String(i.id) === String($(this).data('id')));
       if (!item) return;
+
+      if (!$('#supplier_id').val()) {
+        Swal.fire('Supplier Required', 'Please select a supplier first.', 'warning');
+        return;
+      }
+
       itemSearchInput.val('');
-      searchDropdown.hide();
+      searchDropdown.removeClass('show').hide();
+      itemsTableBody.find('tr.receiving-item-row').show();
+
       const existingIdx = receiptItems.findIndex(i => String(i.id) === String(item.id));
       if (existingIdx !== -1) {
-        receiptItems[existingIdx].quantity_received = cleanNum(receiptItems[existingIdx].quantity_received) + 1;
         renderTable();
-        itemsTableBody.find(`tr.receiving-item-row[data-item-idx="${existingIdx}"]`).addClass('row-flash');
-        Toast.fire({ icon: 'info', title: `${item.name} quantity increased` });
-      } else {
-        addItemFromCatalog(item, 1);
+        flashReceiptItemRow(item.id);
+        Toast.fire({ icon: 'info', title: `Found: ${item.name}` });
+        return;
+      }
+
+      // Select one item into the receipt (qty stays 0 — same as category load)
+      if (addItemFromCatalog(item, 0)) {
         renderTable();
-        Toast.fire({ icon: 'success', title: `${item.name} added to receipt` });
+        flashReceiptItemRow(item.id);
+        Toast.fire({ icon: 'success', title: `${item.name} added` });
       }
     });
 
@@ -928,7 +995,11 @@
         $(this).val('');
         return;
       }
-      const categoryItems = itemsByCategory[category] || [];
+      itemSearchInput.val('');
+      searchDropdown.removeClass('show').hide();
+      const categoryItems = (itemsByCategory[category] || []).slice().sort(function (a, b) {
+        return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true });
+      });
       if (!categoryItems.length) {
         Swal.fire('Empty Category', 'No items found in this category.', 'warning');
         return;

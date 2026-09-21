@@ -252,6 +252,83 @@ class BusinessStaffSmsService
         }
     }
 
+    /**
+     * SMS destination-branch staff (e.g. sales officers) when main sends a supply.
+     */
+    public function notifyBranchSupplySent(\App\Models\BranchTransfer $transfer): void
+    {
+        $transfer->loadMissing([
+            'business.plan',
+            'fromBranch',
+            'toBranch',
+            'user',
+            'items.fromItem',
+        ]);
+
+        $business = $transfer->business;
+        $sender = $transfer->user;
+        $toBranchId = (int) $transfer->to_branch_id;
+
+        if (! $business || ! $sender || $toBranchId <= 0) {
+            return;
+        }
+
+        if (! $this->actionEnabled($business, 'branch_supply_sent')) {
+            return;
+        }
+
+        $vars = $this->buildBranchSupplySentVars($transfer);
+        $notifiedPhones = [];
+
+        $recipients = User::query()
+            ->where('business_id', $business->id)
+            ->where('branch_id', $toBranchId)
+            ->where('is_active', true)
+            ->with('role_relation')
+            ->get()
+            ->filter(function (User $staff) use ($sender) {
+                if ((int) $staff->id === (int) $sender->id) {
+                    return false;
+                }
+
+                return $staff->can('receive_branch_supply');
+            })
+            ->values();
+
+        foreach ($recipients as $staff) {
+            $phone = $this->resolveUserPhone($business, $staff);
+            if (! filled($phone)) {
+                continue;
+            }
+
+            $phoneKey = $this->normalizePhoneKey($phone);
+            if (in_array($phoneKey, $notifiedPhones, true)) {
+                continue;
+            }
+
+            $message = $this->renderAutomationTemplate($business, 'sms_staff_template_branch_supply_sent', array_merge($vars, [
+                '{staff_name}' => $staff->name,
+            ]));
+
+            $sent = filled($staff->phone)
+                ? $this->send($business, $sender, $staff, $message, 'branch_supply_sent', 'branch_supply_sent')
+                : $this->sendInternal(
+                    $business,
+                    $sender,
+                    $phone,
+                    $message,
+                    'branch_supply_sent',
+                    'branch_supply_sent',
+                    $staff->name,
+                    $staff->id,
+                );
+
+            if ($sent) {
+                $notifiedPhones[] = $phoneKey;
+            }
+        }
+    }
+
     public function notifyStaffHandoverVerified(Business $business, User $verifier, DayClosing $closing): bool
     {
         $closing->loadMissing('user');
@@ -564,9 +641,6 @@ class BusinessStaffSmsService
     /**
      * @return array<string, string>
      */
-    /**
-     * @return array<string, string>
-     */
     public function buildHandoverSubmittedVars(Business $business, User $submitter, DayClosing $closing): array
     {
         $closing->loadMissing(['business', 'shift']);
@@ -673,6 +747,43 @@ class BusinessStaffSmsService
             '{items_summary}' => $itemsSummary,
             '{branch}' => $receiving->branch?->name ?? '',
             '{branch_suffix}' => $branchSuffix,
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function buildBranchSupplySentVars(\App\Models\BranchTransfer $transfer): array
+    {
+        $itemSummaries = [];
+        foreach ($transfer->items as $line) {
+            $name = $line->fromItem?->name ?? 'Item';
+            $label = method_exists($line, 'quantityLabel')
+                ? $line->quantityLabel()
+                : (fmod((float) $line->quantity, 1.0) === 0.0
+                    ? ((int) $line->quantity).' pcs'
+                    : number_format((float) $line->quantity, 2).' pcs');
+            $itemSummaries[] = $name.' '.$label;
+        }
+
+        $itemCount = count($itemSummaries);
+        $itemsSummary = $itemCount <= 3
+            ? implode(', ', $itemSummaries)
+            : implode(', ', array_slice($itemSummaries, 0, 2)).' +'.($itemCount - 2).' more';
+
+        $pieces = (float) $transfer->total_pieces;
+
+        return [
+            '{sender}' => $transfer->user?->name ?? 'Main branch',
+            '{reference}' => $transfer->reference_no,
+            '{from_branch}' => $transfer->fromBranch?->name ?? 'Main',
+            '{to_branch}' => $transfer->toBranch?->name ?? 'Branch',
+            '{date}' => $transfer->transfer_date?->format('d M Y') ?? now()->format('d M Y'),
+            '{item_count}' => (string) $itemCount,
+            '{total_pieces}' => fmod($pieces, 1.0) === 0.0
+                ? number_format($pieces, 0)
+                : number_format($pieces, 2),
+            '{items_summary}' => $itemsSummary !== '' ? $itemsSummary : '—',
         ];
     }
 

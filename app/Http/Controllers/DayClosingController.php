@@ -131,6 +131,8 @@ class DayClosingController extends Controller
                 $dayHandoversQuery->get()
             );
 
+            $this->closeShiftsAlreadyHandedOver($dayHandovers);
+
             $awaitingHandoverShiftsQuery = Shift::where('business_id', $businessId)
                 ->whereDoesntHave('dayClosing', function ($query) {
                     $this->applyOwnerDirectClosingScope($query);
@@ -469,12 +471,13 @@ class DayClosingController extends Controller
 
         try {
             if ($shift?->isOpen()) {
-                $shift->refreshTotals();
-                Shift::whereKey($shift->id)->update([
-                    'status' => 'closed',
-                    'closed_at' => now(),
-                ]);
-                $shift->refresh();
+                $this->markShiftClosed($shift, now());
+            } elseif (Auth::user()?->requiresOpenShift()) {
+                $openShift = Shift::openForUser(Auth::id(), $businessId);
+                if ($openShift) {
+                    $this->markShiftClosed($openShift, now());
+                    $shift = $openShift;
+                }
             }
 
             $summary = $this->buildDaySummary($businessId, $date, $shift, shiftOnly: (bool) $shift);
@@ -1216,34 +1219,39 @@ class DayClosingController extends Controller
 
     protected function resolveShiftHandoverStats(DayClosing $closing, $sales, array $debtCollections = []): array
     {
-        $active = collect($sales)->where('payment_status', '!=', 'cancelled');
-        $computedOrders = $active->count();
-        $computedGross = (float) $active->sum('total_amount');
-        $computedCollected = (float) $active->sum('amount_paid');
-        $computedUnpaid = max(0, $computedGross - $computedCollected);
         $debtTotal = (float) ($debtCollections['total'] ?? 0);
         $debtCount = (int) ($debtCollections['count'] ?? 0);
+        $storedOrders = (int) $closing->sales_count;
+        $storedGross = (float) $closing->gross_sales;
+        $storedCollected = (float) $closing->amount_collected;
+        $storedUnpaid = max(
+            (float) $closing->outstanding_sales,
+            max(0, $storedGross - $storedCollected)
+        );
 
-        if ($computedOrders > 0) {
+        if ($storedOrders > 0 || $storedGross > 0) {
             return [
-                'orders' => $computedOrders,
-                'gross' => $computedGross,
-                'collected' => $computedCollected,
-                'unpaid' => $computedUnpaid,
+                'orders' => $storedOrders,
+                'gross' => $storedGross,
+                'collected' => $storedCollected,
+                'unpaid' => $storedUnpaid,
                 'handover' => (float) $closing->net_amount,
                 'prior_shift_orders' => $debtCount,
                 'prior_shift_collected' => $debtTotal,
             ];
         }
 
-        $storedGross = (float) $closing->gross_sales;
-        $storedCollected = (float) $closing->amount_collected;
+        $active = collect($sales)->where('payment_status', '!=', 'cancelled');
+        $computedOrders = $active->count();
+        $computedGross = (float) $active->sum('total_amount');
+        $computedCollected = (float) $active->sum('amount_paid');
+        $computedUnpaid = max(0, $computedGross - $computedCollected);
 
         return [
-            'orders' => (int) $closing->sales_count,
-            'gross' => $storedGross,
-            'collected' => $storedCollected,
-            'unpaid' => max((float) $closing->outstanding_sales, max(0, $storedGross - $storedCollected)),
+            'orders' => $computedOrders,
+            'gross' => $computedGross,
+            'collected' => $computedCollected,
+            'unpaid' => $computedUnpaid,
             'handover' => (float) $closing->net_amount,
             'prior_shift_orders' => $debtCount,
             'prior_shift_collected' => $debtTotal,
@@ -1398,6 +1406,64 @@ class DayClosingController extends Controller
         return Auth::user()->can('view_boss_financial_review') && ! $this->requiresShiftHandover();
     }
 
+    protected function userRequiresShiftHandover(?User $user): bool
+    {
+        if (! $user || in_array($user->role, ['owner', 'super_admin'], true)) {
+            return false;
+        }
+
+        if (! $user->requiresOpenShift()) {
+            return false;
+        }
+
+        return $user->can('submit_day_closing') || $user->can('process_sales') || $user->can('open_shift');
+    }
+
+    protected function closeShiftsAlreadyHandedOver($dayHandovers): void
+    {
+        foreach ($dayHandovers as $closing) {
+            $staff = $closing->user;
+            if (! $staff || ! $staff->requiresOpenShift()) {
+                continue;
+            }
+
+            if ($closing->shift_id) {
+                $shift = $closing->shift ?? Shift::find($closing->shift_id);
+                if ($shift?->isOpen()) {
+                    $this->markShiftClosed($shift, $closing->submitted_at);
+                }
+
+                continue;
+            }
+
+            $openShift = Shift::openForUser((int) $closing->user_id, (int) $closing->business_id);
+            if (! $openShift) {
+                continue;
+            }
+
+            $this->markShiftClosed($openShift, $closing->submitted_at);
+            $closing->update(['shift_id' => $openShift->id]);
+            $closing->setRelation('shift', $openShift->fresh());
+        }
+    }
+
+    protected function markShiftClosed(Shift $shift, $closedAt = null): void
+    {
+        if ($shift->isOpen()) {
+            $shift->refreshTotals();
+        }
+
+        if ($shift->status === 'closed' && $shift->closed_at) {
+            return;
+        }
+
+        $shift->update([
+            'status' => 'closed',
+            'closed_at' => $shift->closed_at ?? $closedAt ?? now(),
+        ]);
+        $shift->refresh();
+    }
+
     protected function canViewBossFinancials(?DayClosing $dayClosing = null): bool
     {
         if (! Auth::user()->can('view_boss_financial_review')) {
@@ -1413,11 +1479,7 @@ class DayClosingController extends Controller
 
     protected function requiresShiftHandover(): bool
     {
-        if ($this->actsAsBusinessWideViewer()) {
-            return false;
-        }
-
-        return Auth::user()->can('submit_day_closing') || Auth::user()->can('process_sales');
+        return $this->userRequiresShiftHandover(Auth::user());
     }
 
     protected function resolveStaffShiftContext(Request $request, int $businessId): array
@@ -1650,7 +1712,7 @@ class DayClosingController extends Controller
         $daySalesQuery = Sale::where('business_id', $businessId);
 
         if ($shiftOnly && $shiftId) {
-            $daySalesQuery->where('shift_id', $shiftId);
+            $daySalesQuery->where('shift_id', $shiftId)->whereDate('sale_date', $date);
         } else {
             $daySalesQuery->whereDate('sale_date', $date);
 
@@ -1680,7 +1742,7 @@ class DayClosingController extends Controller
         $paymentsQuery = SalePayment::whereHas('sale', function ($q) use ($businessId, $shiftId, $includeOrphanSales, $shiftModel, $date, $shiftOnly, $excludeShiftIds) {
             $q->where('business_id', $businessId);
             if ($shiftOnly && $shiftId) {
-                $q->where('shift_id', $shiftId);
+                $q->where('shift_id', $shiftId)->whereDate('sale_date', $date);
             } elseif ($shiftId && $includeOrphanSales && $shiftModel) {
                 $this->applyShiftHandoverSalesScope($q, $shiftModel, $date);
             } elseif ($shiftId) {
@@ -1692,9 +1754,7 @@ class DayClosingController extends Controller
             }
         });
 
-        if (! $shiftOnly) {
-            $paymentsQuery->whereDate('created_at', $date);
-        }
+        $paymentsQuery->whereDate('created_at', $date);
 
         $paymentsReceived = (clone $paymentsQuery)->sum('amount');
         $cashReceived = (clone $paymentsQuery)->where('payment_method', 'cash')->sum('amount');

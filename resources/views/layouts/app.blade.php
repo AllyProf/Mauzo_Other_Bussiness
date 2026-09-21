@@ -222,6 +222,45 @@
         .danger-zone-menu__items .treeview-item:hover {
             color: #dc3545 !important;
         }
+        .app-sidebar .treeview-menu {
+            transition: max-height 0.5s ease-in-out !important;
+        }
+        .app-sidebar .treeview-indicator {
+            transition: transform 0.5s ease-in-out !important;
+        }
+        .app-sidebar .app-menu__item {
+            padding: 9px 12px;
+            font-size: 0.92rem;
+            line-height: 1.3;
+        }
+        .app-sidebar .app-menu__icon {
+            width: 18px;
+            min-width: 18px;
+            margin-right: 10px;
+            font-size: 14px;
+            text-align: center;
+            line-height: 1;
+        }
+        .app-sidebar .app-menu__label {
+            font-size: 0.92rem;
+        }
+        .app-sidebar .treeview-indicator {
+            font-size: 12px;
+            opacity: 0.75;
+        }
+        .app-sidebar .treeview-item {
+            padding: 7px 10px 7px 28px;
+            font-size: 0.86rem;
+            line-height: 1.3;
+        }
+        .app-sidebar .treeview-item .icon {
+            width: 16px;
+            min-width: 16px;
+            margin-right: 8px;
+            font-size: 13px;
+            text-align: center;
+            line-height: 1;
+        }
         .btn-primary, .bg-primary, .badge-primary { background-color: #940000 !important; border-color: #940000 !important; }
         .text-primary { color: #940000 !important; }
         .sweet-overlay {
@@ -375,6 +414,65 @@
     <script src="{{ asset('panel-assets/js/popper.min.js') }}"></script>
     <script src="{{ asset('panel-assets/js/bootstrap.min.js') }}"></script>
     <script src="{{ asset('panel-assets/js/main.js') }}"></script>
+    <script>
+    (function ($) {
+        'use strict';
+
+        function collapseTreeview($treeview) {
+            var $submenu = $treeview.children('.treeview-menu');
+            if (!$submenu.length) {
+                return;
+            }
+
+            var height = $submenu[0].scrollHeight;
+            $submenu.css('max-height', height + 'px');
+            void $submenu[0].offsetHeight;
+            $treeview.removeClass('is-expanded');
+            $submenu.css('max-height', '0');
+        }
+
+        function expandTreeview($treeview) {
+            var $submenu = $treeview.children('.treeview-menu');
+            if (!$submenu.length) {
+                return;
+            }
+
+            $treeview.addClass('is-expanded');
+            $submenu.css('max-height', '0');
+            void $submenu[0].offsetHeight;
+            $submenu.css('max-height', $submenu[0].scrollHeight + 'px');
+            $submenu.one('transitionend', function (event) {
+                if (event.target !== $submenu[0] || !$treeview.hasClass('is-expanded')) {
+                    return;
+                }
+
+                $submenu.css('max-height', '');
+            });
+        }
+
+        $(function () {
+            var $treeviewMenu = $('.app-menu');
+
+            $("[data-toggle='treeview']").off('click').on('click', function (event) {
+                event.preventDefault();
+
+                var $treeview = $(this).parent('.treeview');
+                if (!$treeview.length) {
+                    return;
+                }
+
+                if (!$treeview.hasClass('is-expanded')) {
+                    $treeviewMenu.find('.treeview.is-expanded').not($treeview).each(function () {
+                        collapseTreeview($(this));
+                    });
+                    expandTreeview($treeview);
+                } else {
+                    collapseTreeview($treeview);
+                }
+            });
+        });
+    })(jQuery);
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
       (function () {

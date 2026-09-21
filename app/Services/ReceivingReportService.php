@@ -241,7 +241,7 @@ class ReceivingReportService
             $sheet->setCellValue("B{$row}", $receiving->reference_no);
             $sheet->setCellValue("C{$row}", Carbon::parse($receiving->received_date)->format('d M Y'));
             $sheet->setCellValue("D{$row}", $receiving->branch->name ?? '—');
-            $sheet->setCellValue("E{$row}", $receiving->supplier->name ?? '—');
+            $sheet->setCellValue("E{$row}", $receiving->sourceLabel());
             $sheet->setCellValue("F{$row}", $receiving->user->name ?? '—');
             $sheet->setCellValue("G{$row}", $receiving->items->count());
             $sheet->setCellValue("H{$row}", (float) $receiving->total_amount);
@@ -339,7 +339,7 @@ class ReceivingReportService
     {
         $query = Receiving::query()
             ->where('business_id', $businessId)
-            ->with(['supplier', 'user', 'branch', 'items.item.category']);
+            ->with(['supplier', 'branchTransfer.fromBranch', 'user', 'branch', 'items.item.category', 'items.item.packagings']);
 
         if (! $user->seesBusinessWideData()) {
             if ($user->branch_id) {

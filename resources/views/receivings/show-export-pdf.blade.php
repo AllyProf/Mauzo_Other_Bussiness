@@ -54,7 +54,7 @@
         <td>
             <div class="stats-row"><strong>{{ __('receivings.show.reference') }}:</strong> {{ $receiving->reference_no }}</div>
             <div class="stats-row"><strong>{{ __('receivings.show.date') }}:</strong> {{ \Carbon\Carbon::parse($receiving->received_date)->format('d M Y') }}</div>
-            <div class="stats-row"><strong>{{ __('tables.columns.supplier') }}:</strong> {{ $receiving->supplier->name ?? '—' }}</div>
+            <div class="stats-row"><strong>{{ __('tables.columns.supplier') }}:</strong> {{ $receiving->sourceLabel() }}</div>
         </td>
         <td>
             <div class="stats-row"><strong>{{ __('receivings.show.received_by') }}:</strong> {{ $receiving->user->name }}</div>

@@ -96,13 +96,13 @@ class ReceivingController extends Controller
             (int) $cat->id => (int) $cat->branch_id,
         ])->all();
 
-        // Build items grouped by category for the JS selector
+        // Build items grouped by category for the JS selector (A–Z within each category)
         $itemsByCategory = \App\Models\Category::where('business_id', $business->id)
             ->has('items')
-            ->with(['items.packagings.packagingType', 'items.receivingPackaging'])
+            ->with(['items' => fn ($q) => $q->orderBy('name'), 'items.packagings.packagingType', 'items.receivingPackaging'])
             ->get()
             ->mapWithKeys(function ($cat) {
-                return [$cat->id => $cat->items->map(function ($item) {
+                return [$cat->id => $cat->items->sortBy(fn ($item) => mb_strtolower((string) $item->name), SORT_NATURAL)->values()->map(function ($item) {
                     $packagings = $item->packagings->sortBy('quantity_per_unit')->values();
                     $receivingPkg = $packagings->firstWhere('packaging_id', $item->receiving_packaging_id)
                         ?? $packagings->sortByDesc('quantity_per_unit')->first();
@@ -112,6 +112,7 @@ class ReceivingController extends Controller
                         'id'            => $item->id,
                         'name'          => $item->name,
                         'sku'           => $item->sku ?? '',
+                        'brand'         => $item->brand ?? '',
                         'unit'          => optional($item->receivingPackaging)->name ?? 'Unit',
                         'units_per_receiving_pack' => (int) ($item->units_per_receiving_pack ?? 1),
                         'current_stock' => (float) $item->current_stock,
@@ -126,7 +127,7 @@ class ReceivingController extends Controller
                             'selling_price'     => (float) $p->selling_price,
                         ])->values()->all(),
                     ];
-                })];
+                })->values()];
             });
 
         return view('receivings.create', compact(
@@ -329,6 +330,31 @@ class ReceivingController extends Controller
 
         if ($receiving->status === 'cancelled') {
             return redirect()->back()->with('error', 'This receiving has already been cancelled.');
+        }
+
+        $receiving->loadMissing(['items.item.packagings']);
+        if (! $receiving->canBeCancelled()) {
+            return redirect()->back()->with('error', __('receivings.cancel_blocked_sold'));
+        }
+
+        // Branch-supply receivings are undone via the transfer so stock is reversed once.
+        if ($receiving->branch_transfer_id) {
+            $transfer = \App\Models\BranchTransfer::query()->find($receiving->branch_transfer_id);
+            if ($transfer && ! $transfer->isCancelled()) {
+                try {
+                    app(\App\Services\BranchTransferService::class)->cancel($transfer);
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    return redirect()->back()->with('error', collect($e->errors())->flatten()->first());
+                }
+
+                return redirect()->route('receivings.index')
+                    ->with('success', __('receivings.branch_supply_cancelled', ['ref' => $receiving->reference_no]));
+            }
+
+            $receiving->update(['status' => 'cancelled']);
+
+            return redirect()->route('receivings.index')
+                ->with('success', __('receivings.branch_supply_cancelled', ['ref' => $receiving->reference_no]));
         }
 
         $receiving->load(['items.item.packagings']);

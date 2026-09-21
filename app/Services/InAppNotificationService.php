@@ -436,6 +436,58 @@ class InAppNotificationService
     }
 
     /**
+     * Notify destination-branch staff that a supply is waiting to be received.
+     */
+    public function notifyBranchSupplySent(\App\Models\BranchTransfer $transfer): void
+    {
+        $transfer->loadMissing(['fromBranch', 'toBranch', 'user', 'business']);
+        $toBranchId = (int) $transfer->to_branch_id;
+        if ($toBranchId <= 0) {
+            return;
+        }
+
+        $fromName = $transfer->fromBranch?->name ?? 'Main';
+        $pieces = fmod((float) $transfer->total_pieces, 1.0) === 0.0
+            ? (string) (int) $transfer->total_pieces
+            : number_format((float) $transfer->total_pieces, 2);
+        $title = 'Incoming branch supply';
+        $body = ($transfer->user?->name ?? 'Main branch').' sent '.$transfer->total_items
+            .' item(s) ('.$pieces.' pcs) from '.$fromName
+            .' — '.$transfer->reference_no.'. Click Receive to add to stock.';
+
+        $recipients = User::query()
+            ->where('business_id', $transfer->business_id)
+            ->where('branch_id', $toBranchId)
+            ->where('is_active', true)
+            ->with('role_relation')
+            ->get()
+            ->filter(function (User $user) use ($transfer) {
+                if ((int) $user->id === (int) $transfer->user_id) {
+                    return false;
+                }
+
+                return $user->role === 'owner'
+                    || $user->can('receive_branch_supply')
+                    || $user->can('supply_to_branch');
+            })
+            ->values();
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        $this->notifyUsers(
+            $recipients,
+            (int) $transfer->business_id,
+            'stock.branch_supply',
+            $title,
+            $body,
+            'branch_transfer:'.$transfer->id,
+            $toBranchId
+        );
+    }
+
+    /**
      * After stock deduction — notify owners/managers for low / out of stock items.
      */
     public function notifyStockAfterSale(Sale $sale): void

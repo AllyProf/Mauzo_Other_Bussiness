@@ -140,6 +140,87 @@ if (! function_exists('plan_feature_any')) {
     }
 }
 
+if (! function_exists('business_report_menu_options')) {
+    /**
+     * Report types available on the business Reports hub (plan-gated).
+     *
+     * @return list<array{key: string, label: string, url: string, active: bool}>
+     */
+    function business_report_menu_options(?string $activeKey = null): array
+    {
+        $catalog = [
+            [
+                'key' => 'daily-report',
+                'feature' => 'reports_daily',
+                'route' => 'reports.daily-report',
+                'label' => __('menu.daily_report'),
+            ],
+            [
+                'key' => 'circulation-profit',
+                'feature' => 'reports_circulation',
+                'route' => 'reports.circulation-profit',
+                'label' => __('menu.circulation_vs_profit'),
+            ],
+            [
+                'key' => 'daily-sales',
+                'feature' => 'reports_daily',
+                'route' => 'reports.daily-sales',
+                'label' => __('menu.daily_sales'),
+            ],
+            [
+                'key' => 'expenses',
+                'feature' => 'reports_expenses',
+                'route' => 'reports.expenses',
+                'label' => __('menu.expenses'),
+            ],
+            [
+                'key' => 'profit',
+                'feature' => 'reports_profit',
+                'route' => 'reports.profit',
+                'label' => __('menu.profit'),
+            ],
+            [
+                'key' => 'sales-analytics',
+                'feature' => 'reports_sales',
+                'route' => 'reports.sales-analytics',
+                'label' => __('menu.sales_analytics'),
+            ],
+            [
+                'key' => 'products',
+                'feature' => 'reports_products',
+                'route' => 'reports.products',
+                'label' => __('menu.products'),
+            ],
+            [
+                'key' => 'debts',
+                'feature' => 'reports_debts',
+                'route' => 'reports.debts',
+                'label' => __('menu.debt_report'),
+            ],
+        ];
+
+        if ($activeKey === null && request()->routeIs('reports.*')) {
+            $activeKey = str_replace('reports.', '', (string) request()->route()?->getName());
+        }
+
+        $options = [];
+        foreach ($catalog as $item) {
+            if (! plan_feature($item['feature'])) {
+                continue;
+            }
+
+            $options[] = [
+                'key' => $item['key'],
+                'label' => $item['label'],
+                'url' => route($item['route']),
+                'active' => $activeKey === $item['key'],
+            ];
+        }
+
+        return $options;
+    }
+}
+
 if (! function_exists('business_retail_enabled')) {
     function business_retail_enabled(): bool
     {

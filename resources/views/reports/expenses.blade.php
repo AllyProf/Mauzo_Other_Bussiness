@@ -4,6 +4,7 @@
 @php
   $s = $data['summary'];
   $tableRows = $data['tableRows'];
+  $hasExpenses = ((float) ($s['grand_total'] ?? 0)) > 0;
   $categoryColors = ['#940000', '#28a745', '#ffc107', '#17a2b8', '#6c757d', '#343a40'];
   $categoryLegend = $data['owner_by_category']->values()->map(function ($cat, $index) use ($categoryColors) {
     return [
@@ -12,91 +13,104 @@
       'label' => $cat['label'],
     ];
   })->all();
+  $widgets = array_values(array_filter([
+    ((float) $s['staff_total']) > 0
+      ? ['icon' => 'fa-users', 'color' => 'warning', 'label' => 'Staff Expenses', 'value' => money($s['staff_total'])]
+      : null,
+    ((float) $s['owner_total']) > 0
+      ? ['icon' => 'fa-briefcase', 'color' => 'danger', 'label' => 'Owner / Petty Cash', 'value' => money($s['owner_total'])]
+      : null,
+    $hasExpenses
+      ? ['icon' => 'fa-minus-circle', 'color' => 'primary', 'label' => 'Total Expenses', 'value' => money($s['grand_total'])]
+      : null,
+    ((float) ($data['owner_by_fund']['circulation'] ?? 0)) > 0
+      ? ['icon' => 'fa-exchange', 'color' => 'info', 'label' => 'From Circulation', 'value' => money($data['owner_by_fund']['circulation'])]
+      : null,
+  ]));
 @endphp
 
-@include('reports.partials.stat-widgets', ['widgets' => [
-  ['icon' => 'fa-users', 'color' => 'warning', 'label' => 'Staff Expenses', 'value' => money($s['staff_total'])],
-  ['icon' => 'fa-briefcase', 'color' => 'danger', 'label' => 'Owner / Petty Cash', 'value' => money($s['owner_total'])],
-  ['icon' => 'fa-minus-circle', 'color' => 'primary', 'label' => 'Total Expenses', 'value' => money($s['grand_total'])],
-  ['icon' => 'fa-exchange', 'color' => 'info', 'label' => 'From Circulation', 'value' => money($data['owner_by_fund']['circulation'])],
-]])
+@if($hasExpenses)
+  @if(count($widgets))
+    @include('reports.partials.stat-widgets', ['widgets' => $widgets])
+  @endif
 
-<div class="row report-chart-row">
-  @include('reports.partials.chart-tile', [
-    'title' => 'Daily Expense Trend',
-    'id' => 'expenseChart',
-    'cols' => 6,
-    'fixedHeight' => 280,
-    'legendItems' => [
-      ['color' => '#ffc107', 'type' => 'line', 'label' => 'Staff Expenses'],
-      ['color' => '#dc3545', 'type' => 'line', 'label' => 'Owner Expenses'],
-    ],
-  ])
-  @include('reports.partials.chart-tile', [
-    'title' => 'Owner Expenses by Category',
-    'id' => 'categoryChart',
-    'cols' => 6,
-    'fixedHeight' => 280,
-    'legendItems' => $categoryLegend,
-    'emptyText' => $data['owner_by_category']->isEmpty() ? 'No owner expenses by category in this period.' : null,
-  ])
-</div>
+  <div class="row report-chart-row">
+    @include('reports.partials.chart-tile', [
+      'title' => 'Daily Expense Trend',
+      'id' => 'expenseChart',
+      'cols' => $data['owner_by_category']->isNotEmpty() ? 6 : 12,
+      'fixedHeight' => 280,
+      'legendItems' => [
+        ['color' => '#ffc107', 'type' => 'line', 'label' => 'Staff Expenses'],
+        ['color' => '#dc3545', 'type' => 'line', 'label' => 'Owner Expenses'],
+      ],
+    ])
+    @if($data['owner_by_category']->isNotEmpty())
+      @include('reports.partials.chart-tile', [
+        'title' => 'Owner Expenses by Category',
+        'id' => 'categoryChart',
+        'cols' => 6,
+        'fixedHeight' => 280,
+        'legendItems' => $categoryLegend,
+      ])
+    @endif
+  </div>
 
-<div class="row">
-  <div class="col-md-12">
-    <div class="tile mb-0">
-      <div class="tile-title-w-btn">
-        <h3 class="title">Expense Summary</h3>
-        <p class="mb-0 text-muted small">
-          Owner profit expenses: <strong>{{ money($data['owner_by_fund']['profit']) }}</strong>
-        </p>
-      </div>
-      <div class="tile-body">
-        <div class="d-lg-none mb-3">
-          @include('reports.partials.expense-summary-mobile-list', ['tableRows' => $tableRows])
-        </div>
-        <div class="table-responsive d-none d-lg-block">
-          <table class="table table-hover table-bordered report-table mb-0">
-            <thead>
-              <tr>
-                <th>{{ __('tables.columns.date') }}</th>
-                <th class="money-col">Staff Expenses</th>
-                <th class="money-col">Owner Expenses</th>
-                <th class="money-col">Daily Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              @forelse($tableRows as $row)
-              <tr>
-                <td><strong>{{ $row['date_label'] }}</strong></td>
-                <td class="money-col">{{ money($row['staff']) }}</td>
-                <td class="money-col">{{ money($row['owner']) }}</td>
-                <td class="money-col font-weight-bold">{{ money($row['total']) }}</td>
-              </tr>
-              @empty
-              <tr>
-                <td colspan="4" class="text-center text-muted py-4">No expenses recorded in this period.</td>
-              </tr>
-              @endforelse
-            </tbody>
-          </table>
-        </div>
-
-        @if($tableRows->hasPages())
-        <div class="report-table-footer">
-          <p class="text-muted small mb-0">
-            Showing {{ $tableRows->firstItem() }}&ndash;{{ $tableRows->lastItem() }} of {{ $tableRows->total() }} days
+  <div class="row">
+    <div class="col-md-12">
+      <div class="tile mb-0">
+        <div class="tile-title-w-btn">
+          <h3 class="title">Expense Summary</h3>
+          @if(((float) ($data['owner_by_fund']['profit'] ?? 0)) > 0)
+          <p class="mb-0 text-muted small">
+            Owner profit expenses: <strong>{{ money($data['owner_by_fund']['profit']) }}</strong>
           </p>
-          {{ $tableRows->links('pagination::bootstrap-4') }}
+          @endif
         </div>
-        @endif
+        <div class="tile-body">
+          <div class="d-lg-none mb-3">
+            @include('reports.partials.expense-summary-mobile-list', ['tableRows' => $tableRows])
+          </div>
+          <div class="table-responsive d-none d-lg-block">
+            <table class="table table-hover table-bordered report-table mb-0">
+              <thead>
+                <tr>
+                  <th>{{ __('tables.columns.date') }}</th>
+                  <th class="money-col">Staff Expenses</th>
+                  <th class="money-col">Owner Expenses</th>
+                  <th class="money-col">Daily Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach($tableRows as $row)
+                <tr>
+                  <td><strong>{{ $row['date_label'] }}</strong></td>
+                  <td class="money-col">{{ money($row['staff']) }}</td>
+                  <td class="money-col">{{ money($row['owner']) }}</td>
+                  <td class="money-col font-weight-bold">{{ money($row['total']) }}</td>
+                </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+
+          @if($tableRows->hasPages())
+          <div class="report-table-footer">
+            <p class="text-muted small mb-0">
+              Showing {{ $tableRows->firstItem() }}&ndash;{{ $tableRows->lastItem() }} of {{ $tableRows->total() }} days
+            </p>
+            {{ $tableRows->links('pagination::bootstrap-4') }}
+          </div>
+          @endif
+        </div>
       </div>
     </div>
   </div>
-</div>
+@endif
 @endsection
 
 @section('report-scripts')
+@if($hasExpenses)
 <script>
 (function () {
   var baseScaleOptions = {
@@ -141,9 +155,10 @@
   var catLabels = @json($data['owner_by_category']->pluck('label'));
   var catData = @json($data['owner_by_category']->pluck('amount'));
   var colors = @json($categoryColors);
+  var categoryCanvas = document.getElementById('categoryChart');
 
-  if (catLabels.length) {
-    new Chart(document.getElementById('categoryChart').getContext('2d')).Doughnut(
+  if (categoryCanvas && catLabels.length) {
+    new Chart(categoryCanvas.getContext('2d')).Doughnut(
       catData.map(function (value, index) {
         return {
           value: value,
@@ -163,4 +178,5 @@
   }
 })();
 </script>
+@endif
 @endsection

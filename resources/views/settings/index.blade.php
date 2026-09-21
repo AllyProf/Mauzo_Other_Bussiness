@@ -764,6 +764,7 @@
                 'sms_staff_handover_verified_staff' => ['Handover verified (staff)', 'Notify staff when owner verifies their reconciliation.'],
                 'sms_staff_stock_received_owner' => ['Stock received (owner)', 'Alert owner when stock is posted from Stock Reception.'],
                 'sms_staff_stock_received_manager' => ['Stock received (manager)', 'Alert store managers when stock is posted from Stock Reception.'],
+                'sms_staff_branch_supply_sent' => ['Branch supply sent (destination)', 'SMS destination shop sales officers when main sends a supply awaiting receive.'],
                 'sms_staff_note_reminder' => ['Note reminders', 'SMS when a note reminder time is reached on Notes & Reminders.'],
               ];
             @endphp
@@ -795,6 +796,7 @@
                   <code>{money_short}</code>, <code>{money_short_note}</code>,
                   <code>{receiver}</code>, <code>{reference}</code>, <code>{supplier}</code>,
                   <code>{item_count}</code>, <code>{total_pieces}</code>, <code>{total_cost}</code>, <code>{items_summary}</code>,
+                  <code>{sender}</code>, <code>{from_branch}</code>, <code>{to_branch}</code>,
                   <code>{title}</code>, <code>{when}</code>, <code>{preview}</code>
                 </p>
                 @php

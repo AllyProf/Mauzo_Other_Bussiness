@@ -88,4 +88,8 @@ return [
         'stamp_completed' => 'Completed',
         'stamp_cancelled' => 'Cancelled',
     ],
+
+    'branch_supply_from' => 'Branch supply · :branch',
+    'branch_supply_cancelled' => 'Branch supply receiving (:ref) cancelled and stock reversed.',
+    'cancel_blocked_sold' => 'This receiving cannot be cancelled because some of the stock has already been sold.',
 ];

@@ -10,6 +10,8 @@ use App\Models\Business;
 use App\Models\Category;
 use App\Models\Item;
 use App\Models\ItemPackaging;
+use App\Models\Receiving;
+use App\Models\ReceivingItem;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -256,8 +258,28 @@ class BranchTransferService
                 (int) $business->id
             );
 
-            return $transfer->fresh(['fromBranch', 'toBranch', 'items']);
+            return $transfer->fresh(['fromBranch', 'toBranch', 'items.fromItem', 'user']);
         });
+
+        try {
+            app(InAppNotificationService::class)->notifyBranchSupplySent($transfer);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Branch supply notification failed', [
+                'transfer_id' => $transfer->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            app(BusinessStaffSmsService::class)->notifyBranchSupplySent($transfer);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Branch supply SMS failed', [
+                'transfer_id' => $transfer->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $transfer;
     }
 
     public function receive(BranchTransfer $transfer, User $user): void
@@ -275,7 +297,7 @@ class BranchTransferService
         }
 
         DB::transaction(function () use ($transfer, $user) {
-            $transfer->load(['items.toItem', 'fromBranch', 'toBranch']);
+            $transfer->load(['items.toItem.packagings', 'fromBranch', 'toBranch']);
 
             foreach ($transfer->items as $line) {
                 $toItem = Item::query()->where('id', $line->to_item_id)->lockForUpdate()->first();
@@ -295,6 +317,8 @@ class BranchTransferService
                 'received_by' => $user->id,
                 'received_at' => now(),
             ]);
+
+            $this->createReceivingFromTransfer($transfer->fresh(['items.toItem.packagings', 'fromBranch', 'toBranch']), $user);
 
             AuditLog::log(
                 'RECEIVE_BRANCH_TRANSFER',
@@ -339,12 +363,100 @@ class BranchTransferService
 
             $transfer->update(['status' => 'cancelled']);
 
+            $linkedReceiving = Receiving::query()
+                ->where('branch_transfer_id', $transfer->id)
+                ->where(function ($q) {
+                    $q->whereNull('status')->orWhere('status', '!=', 'cancelled');
+                })
+                ->first();
+
+            if ($linkedReceiving) {
+                // Stock already reversed above — only mark the receiving history as cancelled.
+                $linkedReceiving->update([
+                    'status' => 'cancelled',
+                    'notes' => trim(($linkedReceiving->notes ? $linkedReceiving->notes.' ' : '')
+                        .'[Cancelled with branch supply undo on '.now()->format('Y-m-d H:i').']'),
+                ]);
+            }
+
             AuditLog::log(
                 'CANCEL_BRANCH_TRANSFER',
                 ($wasReceived ? 'Undid received supply' : 'Recalled pending supply')." {$transfer->reference_no} ({$transfer->fromBranch?->name} → {$transfer->toBranch?->name})",
                 (int) $transfer->business_id
             );
         });
+    }
+
+    /**
+     * Mirror a completed branch supply into Stock In (/receivings) history.
+     * Stock is already applied by receive() — this record is for listing only.
+     */
+    private function createReceivingFromTransfer(BranchTransfer $transfer, User $user): Receiving
+    {
+        $existing = Receiving::query()->where('branch_transfer_id', $transfer->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        $ref = 'RCV-'.date('Ymd').'-'.strtoupper(substr(uniqid(), -4));
+        while (Receiving::query()->where('reference_no', $ref)->exists()) {
+            $ref = 'RCV-'.date('Ymd').'-'.strtoupper(substr(uniqid(), -4));
+        }
+
+        $totalAmount = 0.0;
+        $lineRows = [];
+
+        foreach ($transfer->items as $line) {
+            $toItem = $line->toItem;
+            $toItem?->loadMissing('packagings');
+            $piecePackaging = $toItem?->packagings
+                ? $toItem->packagings->sortBy(fn ($p) => (int) $p->quantity_per_unit)->first()
+                : null;
+            $qpu = max(1, (int) ($piecePackaging?->quantity_per_unit ?? 1));
+            $packCost = (float) ($piecePackaging?->cost_price ?? 0);
+            $pieceCost = $qpu > 0 ? ($packCost / $qpu) : 0.0;
+            $pieces = (float) $line->quantity;
+            $totalAmount += $pieceCost * $pieces;
+
+            $lineRows[] = [
+                'item_id' => (int) $line->to_item_id,
+                'quantity' => $pieces,
+                'cost_price' => round($pieceCost, 2),
+                'selling_price' => round((float) ($piecePackaging?->selling_price ?? 0) / $qpu, 2),
+            ];
+        }
+
+        $fromName = $transfer->fromBranch?->name ?? 'main';
+        $receiving = Receiving::create([
+            'business_id' => $transfer->business_id,
+            'branch_id' => $transfer->to_branch_id,
+            'supplier_id' => null,
+            'branch_transfer_id' => $transfer->id,
+            'user_id' => $user->id,
+            'reference_no' => $ref,
+            'received_date' => $transfer->received_at?->toDateString() ?? now()->toDateString(),
+            'total_amount' => round($totalAmount, 2),
+            'notes' => "Branch supply from {$fromName} — {$transfer->reference_no}",
+            'status' => 'completed',
+        ]);
+
+        foreach ($lineRows as $row) {
+            ReceivingItem::create([
+                'receiving_id' => $receiving->id,
+                'item_id' => $row['item_id'],
+                'quantity' => $row['quantity'],
+                'qty_mode' => 'piece',
+                'cost_price' => $row['cost_price'],
+                'cost_mode' => 'unit',
+                'selling_price' => $row['selling_price'],
+                'selling_prices_snapshot' => null,
+                'discount_type' => null,
+                'discount_value' => 0,
+                'discount_amount' => 0,
+            ]);
+        }
+
+        return $receiving;
     }
 
     /**

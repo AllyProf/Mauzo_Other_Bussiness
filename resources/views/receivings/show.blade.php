@@ -27,7 +27,7 @@
         </ul>
         <div class="mt-2">
             <a href="{{ route('receivings.index') }}" class="btn btn-secondary btn-sm"><i class="fa fa-arrow-left"></i> {{ __('receivings.show.back') }}</a>
-            @if(! $isCancelled)
+            @if(! $isCancelled && $receiving->canBeCancelled())
             <form action="{{ route('receivings.cancel', $receiving->id) }}" method="POST" class="d-inline">
                 @csrf
                 <button type="submit" class="btn btn-danger btn-sm" onclick="confirmAction(event, @json(__('receivings.show.cancel_confirm_title')), @json(__('receivings.show.cancel_confirm_text')))">
@@ -53,7 +53,7 @@
             <div>
                 <div class="stats-row"><strong>{{ __('receivings.show.reference') }}:</strong> <span>{{ $receiving->reference_no }}</span></div>
                 <div class="stats-row"><strong>{{ __('receivings.show.date') }}:</strong> <span>{{ \Carbon\Carbon::parse($receiving->received_date)->format('d M Y') }}</span></div>
-                <div class="stats-row"><strong>{{ __('tables.columns.supplier') }}:</strong> <span>{{ $receiving->supplier->name ?? '—' }}</span></div>
+                <div class="stats-row"><strong>{{ __('tables.columns.supplier') }}:</strong> <span>{{ $receiving->sourceLabel() }}</span></div>
             </div>
             <div>
                 <div class="stats-row"><strong>{{ __('receivings.show.received_by') }}:</strong> <span>{{ $receiving->user->name }}</span></div>
