@@ -91,7 +91,7 @@
                 <th>Business Name</th>
                 <th>Current Plan</th>
                 <th>{{ __('tables.columns.status') }}</th>
-                <th class="text-center" style="min-width: 220px;">Actions</th>
+                <th class="text-center" style="width: 80px;">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -130,61 +130,63 @@
                     <span class="badge badge-success">{{ __('tables.status.active') }}</span>
                   @endif
                 </td>
-                <td class="text-center text-nowrap">
-                  <button type="button" class="btn btn-outline-secondary btn-sm btn-view-more mr-1" title="View more details">
-                    <i class="fa fa-chevron-down"></i> View more
-                  </button>
-
-                  @if($business->pending_approval)
-                  <form action="{{ route('admin.businesses.approve', $business->id) }}" method="POST" class="d-inline">
-                    @csrf
-                    <button type="submit" class="btn btn-success btn-sm mr-1" title="Approve Registration" onclick="confirmAction(event, 'Approve registration?', 'This will activate the account and start their free trial.')">
-                      <i class="fa fa-check"></i>
+                <td class="text-center business-actions">
+                  <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Actions">
+                      <i class="fa fa-ellipsis-v"></i>
                     </button>
-                  </form>
-                  <form action="{{ route('admin.businesses.reject', $business->id) }}" method="POST" class="d-inline">
-                    @csrf
-                    <button type="submit" class="btn btn-danger btn-sm mr-1" title="Reject Registration" onclick="confirmAction(event, 'Reject registration?', 'This will permanently remove this registration request.')">
-                      <i class="fa fa-times"></i>
-                    </button>
-                  </form>
-                  @else
-                  <a href="{{ route('admin.businesses.edit', $business->id) }}" class="btn btn-info btn-sm mr-1" title="Edit Business Details">
-                    <i class="fa fa-edit"></i>
-                  </a>
-                  @endif
-
-                  @if(!$business->pending_approval)
-                  <form action="{{ route('admin.businesses.toggle-status', $business->id) }}" method="POST" class="d-inline">
-                    @csrf
-                    @if($business->is_active)
-                      <button type="submit" class="btn btn-danger btn-sm mr-1" title="Suspend Business" onclick="confirmAction(event, 'Suspend Business?', 'This will lock out all staff from this business immediately!')">
-                        <i class="fa fa-ban"></i>
+                    <div class="dropdown-menu dropdown-menu-right">
+                      <button type="button" class="dropdown-item btn-view-more">
+                        <i class="fa fa-chevron-down text-secondary"></i> View more
                       </button>
-                    @else
-                      <button type="submit" class="btn btn-success btn-sm mr-1" title="Activate Business" onclick="confirmAction(event, 'Activate Business?', 'This will restore access for all staff members.')">
-                        <i class="fa fa-check"></i>
-                      </button>
-                    @endif
-                  </form>
-                  @endif
 
-                  @if(!$business->pending_approval)
-                  <form action="{{ route('admin.impersonate', $business->id) }}" method="POST" class="d-inline">
-                    @csrf
-                    <button type="submit" class="btn btn-primary btn-sm mr-1" title="Login As Business" onclick="confirmAction(event, 'Impersonate Business?', 'You will be logged in as the owner of this business.')">
-                      <i class="fa fa-user-secret"></i>
-                    </button>
-                  </form>
-                  <form action="{{ route('admin.businesses.destroy', $business->id) }}" method="POST" class="d-inline business-delete-form" data-business-name="{{ $business->name }}">
-                    @csrf
-                    @method('DELETE')
-                    <input type="hidden" name="confirm_business_name" value="">
-                    <button type="button" class="btn btn-outline-danger btn-sm btn-delete-business" title="Delete business permanently">
-                      <i class="fa fa-trash"></i>
-                    </button>
-                  </form>
-                  @endif
+                      @if($business->pending_approval)
+                      <form action="{{ route('admin.businesses.approve', $business->id) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="dropdown-item" onclick="confirmAction(event, 'Approve registration?', 'This will activate the account and start their free trial.')">
+                          <i class="fa fa-check text-success"></i> Approve registration
+                        </button>
+                      </form>
+                      <form action="{{ route('admin.businesses.reject', $business->id) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="dropdown-item text-danger" onclick="confirmAction(event, 'Reject registration?', 'This will permanently remove this registration request.')">
+                          <i class="fa fa-times"></i> Reject registration
+                        </button>
+                      </form>
+                      @else
+                      <a href="{{ route('admin.businesses.edit', $business->id) }}" class="dropdown-item">
+                        <i class="fa fa-edit text-info"></i> Edit business
+                      </a>
+                      <form action="{{ route('admin.impersonate', $business->id) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="dropdown-item" onclick="confirmAction(event, 'Impersonate Business?', 'You will be logged in as the owner of this business.')">
+                          <i class="fa fa-user-secret text-primary"></i> Login as business
+                        </button>
+                      </form>
+                      <div class="dropdown-divider"></div>
+                      <form action="{{ route('admin.businesses.toggle-status', $business->id) }}" method="POST">
+                        @csrf
+                        @if($business->is_active)
+                          <button type="submit" class="dropdown-item text-danger" onclick="confirmAction(event, 'Suspend Business?', 'This will lock out all staff from this business immediately!')">
+                            <i class="fa fa-ban"></i> Suspend business
+                          </button>
+                        @else
+                          <button type="submit" class="dropdown-item text-success" onclick="confirmAction(event, 'Activate Business?', 'This will restore access for all staff members.')">
+                            <i class="fa fa-check"></i> Activate business
+                          </button>
+                        @endif
+                      </form>
+                      <form action="{{ route('admin.businesses.destroy', $business->id) }}" method="POST" class="business-delete-form" data-business-name="{{ $business->name }}">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="confirm_business_name" value="">
+                        <button type="button" class="dropdown-item text-danger btn-delete-business">
+                          <i class="fa fa-trash"></i> Delete permanently
+                        </button>
+                      </form>
+                      @endif
+                    </div>
+                  </div>
                 </td>
               </tr>
               @endforeach
@@ -291,6 +293,9 @@
   tr.business-row-expanded td {
     border-bottom: none;
   }
+  .business-actions .dropdown-item { font-size: 13px; }
+  .business-actions .dropdown-item i { width: 16px; margin-right: 6px; }
+  .business-actions form { margin: 0; }
 </style>
 @endsection
 
@@ -344,14 +349,16 @@
     var businessId = tr.data('business-id');
     var panel = $('#business-details-' + businessId);
 
+    btn.closest('.dropdown-menu').removeClass('show').closest('.btn-group').removeClass('show');
+
     if (row.child.isShown()) {
       row.child.hide();
       tr.removeClass('business-row-expanded');
-      btn.html('<i class="fa fa-chevron-down"></i> View more');
+      btn.html('<i class="fa fa-chevron-down text-secondary"></i> View more');
     } else {
       row.child('<div class="business-details-child">' + panel.html() + '</div>').show();
       tr.addClass('business-row-expanded');
-      btn.html('<i class="fa fa-chevron-up"></i> View less');
+      btn.html('<i class="fa fa-chevron-up text-secondary"></i> View less');
     }
   });
 })();

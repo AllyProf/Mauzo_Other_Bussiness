@@ -303,47 +303,35 @@
 
         .app-page-loader {
             position: fixed;
-            inset: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
             z-index: 999999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.45);
+            overflow: hidden;
+            background: rgba(148, 0, 0, 0.12);
+            pointer-events: none;
             opacity: 1;
             visibility: visible;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
         }
         .app-page-loader.is-done {
             opacity: 0;
             visibility: hidden;
-            pointer-events: none;
         }
-        .app-page-loader__spinner {
-            position: relative;
-            width: 42px;
-            height: 42px;
-        }
-        .app-page-loader__spinner::before,
-        .app-page-loader__spinner::after {
-            content: '';
+        .app-page-loader__bar {
             position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            border: 3px solid transparent;
+            top: 0;
+            bottom: 0;
+            left: -40%;
+            width: 40%;
+            background: linear-gradient(90deg, transparent, #940000 30%, #c81e1e 70%, transparent);
+            box-shadow: 0 0 8px rgba(148, 0, 0, 0.6);
+            animation: appLoaderSlide 1.1s ease-in-out infinite;
         }
-        .app-page-loader__spinner::before {
-            border-top-color: #940000;
-            border-right-color: #940000;
-            animation: appLoaderSpin 0.85s linear infinite;
-        }
-        .app-page-loader__spinner::after {
-            inset: 7px;
-            border-bottom-color: #fff;
-            border-left-color: #fff;
-            animation: appLoaderSpin 0.6s linear infinite reverse;
-        }
-        @keyframes appLoaderSpin {
-            to { transform: rotate(360deg); }
+        @keyframes appLoaderSlide {
+            0% { left: -40%; }
+            100% { left: 100%; }
         }
     </style>
     @yield('styles')
