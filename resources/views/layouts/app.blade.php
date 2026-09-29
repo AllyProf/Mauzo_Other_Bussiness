@@ -9,9 +9,7 @@
     <script>
       (function () {
         try {
-          var mode = localStorage.getItem('app-theme');
-          if (!mode) mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-          if (mode === 'dark') document.documentElement.classList.add('theme-dark');
+          if (localStorage.getItem('app-theme') === 'dark') document.documentElement.classList.add('theme-dark');
         } catch (e) {}
       })();
     </script>
