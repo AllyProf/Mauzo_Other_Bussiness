@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Admin\Concerns\EnsuresPlatformAdmin;
+use App\Models\AuditLog;
+use App\Models\BlockedIp;
 use App\Models\FailedLoginAttempt;
+use App\Models\User;
+use App\Services\LoginSecurityService;
 use Illuminate\Http\Request;
 
 class FailedLoginController extends Controller
@@ -29,6 +33,36 @@ class FailedLoginController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        return view('admin.security.failed-logins', compact('attempts'));
+        $lockedUsers = User::query()
+            ->with('business:id,name')
+            ->where('locked_until', '>', now())
+            ->orderByDesc('locked_until')
+            ->get();
+
+        $blockedIps = BlockedIp::where('blocked_until', '>', now())
+            ->orderByDesc('blocked_until')
+            ->get();
+
+        return view('admin.security.failed-logins', compact('attempts', 'lockedUsers', 'blockedIps'));
+    }
+
+    public function unlock(User $user)
+    {
+        $this->ensurePlatformAdmin('security');
+
+        $user->clearLoginLock();
+        AuditLog::log('ACCOUNT_UNLOCKED', "Unlocked login for {$user->email}", $user->business_id);
+
+        return back()->with('success', "{$user->name} ({$user->email}) has been unlocked and can sign in again.");
+    }
+
+    public function unblockIp(BlockedIp $blockedIp, LoginSecurityService $security)
+    {
+        $this->ensurePlatformAdmin('security');
+
+        $security->unblockIp($blockedIp);
+        AuditLog::log('IP_UNBLOCKED', "Unblocked IP {$blockedIp->ip_address}");
+
+        return back()->with('success', "IP {$blockedIp->ip_address} has been unblocked.");
     }
 }

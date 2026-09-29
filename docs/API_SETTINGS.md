@@ -286,6 +286,8 @@ Example (partial):
   "default_debt_due_days": 30,
   "sms_report_send_time": "18:00",
   "sms_weekly_report_day": 1,
+  "sms_monthly_report_enabled": false,
+  "sms_monthly_report_day": 1,
   "email_sales_report_enabled": false,
   "email_sales_report_send_time": "18:00",
   "email_sales_report_weekly_day": 1,

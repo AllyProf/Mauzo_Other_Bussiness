@@ -183,6 +183,13 @@
         tooltipClass: 'mauzo-tour-tooltip',
         highlightClass: 'mauzo-tour-highlight',
         helperElementPadding: 6,
+      }).onbeforechange(function (targetElement) {
+        var $treeview = targetElement ? jQuery(targetElement).closest('.treeview') : jQuery();
+        jQuery('.app-menu > .treeview.is-expanded').not($treeview).removeClass('is-expanded')
+          .children('.treeview-menu').css('max-height', '');
+        if ($treeview.length) {
+          $treeview.addClass('is-expanded').children('.treeview-menu').css('max-height', '');
+        }
       }).oncomplete(function () {
         finished = true;
         postTour(completeUrl);

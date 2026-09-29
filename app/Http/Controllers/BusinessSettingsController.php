@@ -48,6 +48,9 @@ class BusinessSettingsController extends Controller
             'vat_rate' => 'nullable|numeric|min:0|max:100',
             'logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
             'remove_logo' => 'nullable|boolean',
+            'invoice_title' => 'nullable|string|max:40',
+            'invoice_footer_message' => 'nullable|string|max:300',
+            'invoice_terms' => 'nullable|string|max:2000',
         ]);
 
         $payload = $request->only([
@@ -63,6 +66,14 @@ class BusinessSettingsController extends Controller
         $payload['invoice_show_vat'] = $request->boolean('invoice_show_vat');
         $payload['invoice_vat_inclusive'] = $request->boolean('invoice_vat_inclusive');
         $payload['vat_rate'] = filled($request->vat_rate) ? $request->vat_rate : null;
+        $payload['invoice_settings'] = [
+            'title' => trim((string) $request->input('invoice_title', '')),
+            'footer_message' => trim((string) $request->input('invoice_footer_message', '')),
+            'terms' => trim((string) $request->input('invoice_terms', '')),
+            'show_payment_details' => $request->boolean('invoice_show_payment_details'),
+            'show_prepared_by' => $request->boolean('invoice_show_prepared_by'),
+            'show_signature' => $request->boolean('invoice_show_signature'),
+        ];
 
         if ($request->boolean('remove_logo') && $business->logo_path) {
             Storage::disk('public')->delete($business->logo_path);
@@ -81,6 +92,126 @@ class BusinessSettingsController extends Controller
 
         return redirect()->route('settings.index', ['tab' => 'profile'])
             ->with('success', 'Business profile updated successfully.');
+    }
+
+    public function updateAppearance(Request $request)
+    {
+        $this->authorizeAny(['manage_business_settings']);
+
+        $business = Auth::user()->business;
+
+        $request->validate([
+            'background' => 'required|in:none,custom,'.implode(',', array_keys(Business::BACKGROUND_PATTERNS)),
+            'strength' => 'required|in:'.implode(',', array_keys(Business::BACKGROUND_STRENGTHS)),
+            'background_file' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:3072',
+        ]);
+
+        $current = $business->appearanceSettings();
+        $customPath = $current['custom_path'];
+
+        if ($request->hasFile('background_file')) {
+            if ($customPath !== '') {
+                Storage::disk('public')->delete($customPath);
+            }
+            $customPath = $request->file('background_file')->store('business-backgrounds', 'public');
+        }
+
+        $background = $request->input('background');
+        if ($background === 'custom' && $customPath === '') {
+            return back()->withInput()->withErrors(['background_file' => 'Please upload an image for the custom background.']);
+        }
+
+        $business->update([
+            'appearance_settings' => [
+                'background' => $background,
+                'custom_path' => $customPath,
+                'strength' => $request->input('strength'),
+            ],
+        ]);
+
+        return redirect()->route('settings.index', ['tab' => 'appearance'])
+            ->with('success', 'Appearance updated.');
+    }
+
+    public function invoicePreview(Request $request, \App\Services\InvoiceDocumentService $documents)
+    {
+        $this->authorizeAny(['manage_business_settings']);
+
+        $business = Auth::user()->business;
+
+        $request->validate([
+            'invoice_title' => 'nullable|string|max:40',
+            'invoice_footer_message' => 'nullable|string|max:300',
+            'invoice_terms' => 'nullable|string|max:2000',
+            'vat_rate' => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        if ($request->has('name')) {
+            $business->fill($request->only(['name', 'email', 'phone', 'address', 'tin_number', 'contact_person', 'vat_number']));
+            $business->vat_rate = filled($request->vat_rate) ? $request->vat_rate : null;
+            $business->invoice_show_vat = $request->boolean('invoice_show_vat');
+            $business->invoice_vat_inclusive = $request->boolean('invoice_vat_inclusive');
+            $business->invoice_settings = [
+                'title' => trim((string) $request->input('invoice_title', '')),
+                'footer_message' => trim((string) $request->input('invoice_footer_message', '')),
+                'terms' => trim((string) $request->input('invoice_terms', '')),
+                'show_payment_details' => $request->boolean('invoice_show_payment_details'),
+                'show_prepared_by' => $request->boolean('invoice_show_prepared_by'),
+                'show_signature' => $request->boolean('invoice_show_signature'),
+            ];
+        }
+
+        $sale = \App\Models\Sale::query()
+            ->where('business_id', $business->id)
+            ->where('sale_source', 'invoice')
+            ->where('payment_status', '!=', 'cancelled')
+            ->latest('id')
+            ->first() ?? $this->sampleInvoiceSale($business);
+
+        return response($documents->renderPdf($sale, $business), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="Invoice-Preview.pdf"',
+        ]);
+    }
+
+    private function sampleInvoiceSale(Business $business): \App\Models\Sale
+    {
+        $lines = collect([
+            ['name' => 'Sample Item A', 'qty' => 2, 'price' => 15000],
+            ['name' => 'Sample Item B', 'qty' => 1, 'price' => 45000],
+        ])->map(function ($row) {
+            $line = new \App\Models\SaleItem([
+                'quantity' => $row['qty'],
+                'unit_price' => $row['price'],
+                'subtotal' => $row['qty'] * $row['price'],
+            ]);
+            $line->setRelation('item', new \App\Models\Item(['name' => $row['name']]));
+            $line->setRelation('itemPackaging', null);
+            $line->setRelation('service', null);
+
+            return $line;
+        });
+
+        $total = (float) $lines->sum('subtotal');
+        $sale = new \App\Models\Sale([
+            'business_id' => $business->id,
+            'reference_no' => 'INV-PREVIEW',
+            'sale_source' => 'invoice',
+            'sale_date' => now()->toDateString(),
+            'total_amount' => $total,
+            'amount_paid' => 0,
+            'payment_status' => 'pending',
+            'customer_name' => 'Sample Customer',
+            'customer_phone' => '+255 700 000 000',
+            'due_date' => now()->addDays(14)->toDateString(),
+        ]);
+        $sale->setRelation('items', $lines);
+        $sale->setRelation('user', Auth::user());
+        $sale->setRelation('customer', null);
+        $sale->setRelation('business', $business);
+        $sale->setRelation('payments', collect());
+
+        return $sale;
     }
 
     public function updateFinance(Request $request)
@@ -122,6 +253,7 @@ class BusinessSettingsController extends Controller
             'low_stock_threshold' => 'required|integer|min:0|max:1000',
             'sms_report_send_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
             'sms_weekly_report_day' => 'required|integer|between:0,6',
+            'sms_monthly_report_day' => 'nullable|integer|between:1,28',
             'email_sales_report_send_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
             'email_sales_report_weekly_day' => 'required|integer|between:0,6',
             'email_sales_report_monthly_day' => 'required|integer|min:1|max:28',
@@ -186,10 +318,12 @@ class BusinessSettingsController extends Controller
                     'sms_debt_overdue_staff' => $request->boolean('sms_debt_overdue_staff'),
                     'sms_daily_report_enabled' => $request->boolean('sms_daily_report_enabled'),
                     'sms_weekly_report_enabled' => $request->boolean('sms_weekly_report_enabled'),
+                    'sms_monthly_report_enabled' => $request->boolean('sms_monthly_report_enabled'),
                     'sms_branch_compare_weekly_enabled' => $request->boolean('sms_branch_compare_weekly_enabled'),
                     'sms_receiving_report_daily_enabled' => $request->boolean('sms_receiving_report_daily_enabled'),
                     'sms_report_send_time' => (string) $request->sms_report_send_time,
                     'sms_weekly_report_day' => (int) $request->sms_weekly_report_day,
+                    'sms_monthly_report_day' => (int) $request->input('sms_monthly_report_day', 1),
                     'email_sales_report_enabled' => $request->boolean('email_sales_report_enabled'),
                     'email_sales_report_on_shift_close' => $request->boolean('email_sales_report_on_shift_close'),
                     'email_sales_report_daily' => $request->boolean('email_sales_report_daily'),

@@ -14,7 +14,7 @@
           @if($multiBusiness ?? false)
             <strong>{{ $ledger['business_type_label'] ?? '—' }}</strong> ·
           @endif
-          {{ $ledger['handover_label'] ?? $ledger['submitted_by'] ?? (($ledger['has_open_shift'] ?? false) ? __('owner_reports.open_day') : __('owner_reports.awaiting_shift')) }}
+          {{ $ledger['handover_label'] ?? $ledger['staff_label'] ?? $ledger['submitted_by'] ?? (($ledger['has_open_shift'] ?? false) ? __('owner_reports.open_day') : __('owner_reports.awaiting_shift')) }}
         </div>
       </div>
       <span class="status-badge" style="border: 1px solid {{ $ledger['status_color'] }}; color: {{ $ledger['status_color'] }};">{{ __report_status($ledger['business_status']) }}</span>

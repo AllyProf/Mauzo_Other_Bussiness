@@ -17,6 +17,10 @@ class PlatformBillingInvoice extends Model
         'business_id',
         'plan_id',
         'billing_month',
+        'is_manual',
+        'description',
+        'quantity',
+        'unit_price',
         'invoice_number',
         'billing_model',
         'profit_basis',
@@ -35,6 +39,9 @@ class PlatformBillingInvoice extends Model
 
     protected $casts = [
         'billing_month' => 'date',
+        'is_manual' => 'boolean',
+        'quantity' => 'integer',
+        'unit_price' => 'decimal:2',
         'profit_amount' => 'decimal:2',
         'share_percent' => 'decimal:2',
         'amount' => 'decimal:2',
@@ -84,6 +91,10 @@ class PlatformBillingInvoice extends Model
 
     public function billingModelLabel(): string
     {
+        if ($this->is_manual) {
+            return 'Manual';
+        }
+
         return $this->billing_model === 'profit_share' ? 'Profit Share' : 'Fixed Fee';
     }
 }

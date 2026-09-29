@@ -214,7 +214,7 @@
         </div>
     </div>
     <div class="col-6 col-md-3 live-kpi-col">
-        <div class="widget-small info coloured-icon" style="background-color: #28a745 !important;">
+        <div class="widget-small info coloured-icon">
             <i class="icon fa fa-line-chart fa-3x"></i>
             <div class="info">
                 <h4>{{ $activeShift ? __('live_sales.stats.shift_profit') : __('live_sales.stats.gross_profit') }}</h4>

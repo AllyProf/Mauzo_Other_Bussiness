@@ -34,6 +34,9 @@
     .small { font-size: 12px; }
     .border-top { border-top: 1px solid #dee2e6; padding-top: 16px; margin-top: 24px; }
     .text-center { text-align: center; }
+    .bill-to-table { margin: 8px 0 20px; }
+    .bill-to-table td { vertical-align: top; padding: 0; line-height: 1.5; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #666; margin-bottom: 6px; }
   </style>
 </head>
 <body>
@@ -49,26 +52,26 @@
   ])
   <div class="clearfix"></div>
 
-  <div class="row mb-4">
-    <div class="col-md-6">
-      <h6 class="text-uppercase text-muted mb-2">Bill To</h6>
-      @if($sale->customer_name)
-        <address class="mb-0">
+  <table class="bill-to-table">
+    <tr>
+      <td style="width: 60%;">
+        <div class="section-label">Bill To</div>
+        @if($sale->customer_name)
           <strong>{{ $sale->customer_name }}</strong><br>
           @if($sale->customer_phone)Phone: {{ $sale->customer_phone }}<br>@endif
           @if($sale->customer && $sale->customer->email)Email: {{ $sale->customer->email }}<br>@endif
-        </address>
-      @else
-        <address class="mb-0 text-muted">Walk-in Customer</address>
-      @endif
-    </div>
-    @if($sale->due_date && $balanceDue > 0)
-    <div class="col-md-6 text-right">
-      <h6 class="text-uppercase text-muted mb-2">Payment Due</h6>
-      <p class="mb-0"><strong>{{ \Carbon\Carbon::parse($sale->due_date)->format('d M Y') }}</strong></p>
-    </div>
-    @endif
-  </div>
+        @else
+          <span class="text-muted">Walk-in Customer</span>
+        @endif
+      </td>
+      <td style="width: 40%;" class="text-right">
+        @if($sale->due_date && $balanceDue > 0)
+          <div class="section-label">Payment Due</div>
+          <strong>{{ \Carbon\Carbon::parse($sale->due_date)->format('d M Y') }}</strong>
+        @endif
+      </td>
+    </tr>
+  </table>
 
   <table class="invoice-lines">
     <thead>
@@ -122,7 +125,15 @@
   </div>
   @endif
 
-  @if(($paymentReceiveDetails ?? collect())->isNotEmpty())
+  @php $invoiceSettings = $business->invoiceSettings(); @endphp
+  @if($invoiceSettings['terms'] !== '')
+  <div class="mb-4">
+    <h6 class="text-uppercase text-muted">Terms &amp; Conditions</h6>
+    <p class="mb-0 small">{!! nl2br(e($invoiceSettings['terms'])) !!}</p>
+  </div>
+  @endif
+
+  @if($invoiceSettings['show_payment_details'] && ($paymentReceiveDetails ?? collect())->isNotEmpty())
   <div class="mb-4">
     <h6 class="text-uppercase text-muted">Payment Details</h6>
     <table class="invoice-lines">
@@ -148,8 +159,26 @@
   </div>
   @endif
 
+  @if($invoiceSettings['show_signature'])
+  <table style="margin-top: 36px;">
+    <tr>
+      <td style="width: 45%; vertical-align: bottom;">
+        <div class="section-label">For {{ $business->name }}</div>
+        <div style="height: 36px;"></div>
+        <div style="border-top: 1px solid #999; padding-top: 4px;" class="small text-muted">Authorized Signature</div>
+      </td>
+      <td style="width: 10%;"></td>
+      <td style="width: 45%; vertical-align: bottom;">
+        <div class="section-label">Received By</div>
+        <div style="height: 36px;"></div>
+        <div style="border-top: 1px solid #999; padding-top: 4px;" class="small text-muted">Customer Signature / Stamp</div>
+      </td>
+    </tr>
+  </table>
+  @endif
+
   <div class="border-top text-center text-muted small">
-    Thank you for your business.<br>
+    @if($invoiceSettings['footer_message'] !== ''){{ $invoiceSettings['footer_message'] }}<br>@endif
     Powered By <strong>EmCa Technologies</strong> — <a href="https://www.emca.tech" style="color:#940000;">www.emca.tech</a>
   </div>
 </body>

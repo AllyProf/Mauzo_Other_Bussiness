@@ -101,6 +101,7 @@ class PlatformBillingService
 
         $existing = PlatformBillingInvoice::query()
             ->where('business_id', $business->id)
+            ->where('is_manual', false)
             ->whereDate('billing_month', $billingMonth->toDateString())
             ->first();
 
@@ -119,12 +120,39 @@ class PlatformBillingService
             'business_id' => $business->id,
             'plan_id' => $plan->id,
             'billing_month' => $billingMonth->toDateString(),
-            'invoice_number' => $this->generateInvoiceNumber($business, $billingMonth),
+            'invoice_number' => $this->uniqueInvoiceNumber($business, $billingMonth),
             'billing_model' => $fee['model'],
             'profit_basis' => $fee['profit_basis'],
             'profit_amount' => $fee['profit_amount'],
             'share_percent' => $fee['share_percent'],
             'amount' => $fee['amount'],
+            'status' => PlatformBillingInvoice::STATUS_PENDING,
+        ]);
+    }
+
+    /**
+     * @param  array{billing_month: Carbon, quantity: int, unit_price: float, description?: string|null}  $data
+     */
+    public function createManualInvoice(Business $business, array $data): PlatformBillingInvoice
+    {
+        $business->loadMissing('plan');
+        $month = $data['billing_month']->copy()->startOfMonth();
+        $quantity = max(1, (int) $data['quantity']);
+        $unitPrice = round((float) $data['unit_price'], 2);
+
+        $number = $this->uniqueInvoiceNumber($business, $month);
+
+        return PlatformBillingInvoice::create([
+            'business_id' => $business->id,
+            'plan_id' => $business->plan_id,
+            'billing_month' => $month->toDateString(),
+            'is_manual' => true,
+            'description' => trim((string) ($data['description'] ?? '')) ?: null,
+            'quantity' => $quantity,
+            'unit_price' => $unitPrice,
+            'invoice_number' => $number,
+            'billing_model' => 'fixed_monthly',
+            'amount' => round($unitPrice * $quantity, 2),
             'status' => PlatformBillingInvoice::STATUS_PENDING,
         ]);
     }
@@ -198,12 +226,18 @@ class PlatformBillingService
                     ? Carbon::parse($business->expiry_date)
                     : now();
 
-                $newExpiry = $base->copy()->addMonths(max(1, (int) $plan->duration_months));
+                if (! empty($data['paid_until'])) {
+                    $newExpiry = Carbon::parse($data['paid_until'])->startOfDay();
+                } else {
+                    $months = (int) ($data['months_paid'] ?? 0) ?: (int) $plan->duration_months;
+                    $newExpiry = $base->copy()->addMonthsNoOverflow(max(1, $months));
+                }
 
                 $business->update([
                     'expiry_date' => $newExpiry->toDateString(),
                     'is_active' => true,
                 ]);
+                $business->forceFill(['expiry_reminder_sent_at' => null])->save();
 
                 $this->platformSms->sendPaymentConfirmed(
                     $business->fresh(),
@@ -269,6 +303,20 @@ class PlatformBillingService
             $month->format('Ym'),
             $business->id
         );
+    }
+
+    private function uniqueInvoiceNumber(Business $business, Carbon $month): string
+    {
+        $base = $this->generateInvoiceNumber($business, $month);
+        $number = $base;
+        $suffix = 1;
+
+        while (PlatformBillingInvoice::where('invoice_number', $number)->exists()) {
+            $suffix++;
+            $number = $base.'-'.$suffix;
+        }
+
+        return $number;
     }
 
     private function fixedFee(Business $business): array

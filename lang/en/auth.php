@@ -17,6 +17,9 @@ return [
     'account_inactive' => 'Your account is inactive. Please contact your administrator.',
     'account_deactivated' => 'Your account has been deactivated. Contact your administrator.',
     'invalid_credentials' => 'The provided credentials do not match our records.',
+    'attempts_remaining' => 'Wrong password. You have :count more attempt before your account is locked for 24 hours.',
+    'ip_blocked' => 'Too many failed sign-in attempts from this network. Sign-in is blocked until :time, or contact the administrator.',
+    'account_locked' => 'Your account is locked after too many wrong password attempts. It will unlock on :time, or contact the administrator to unlock it.',
 
     'register_title' => 'Register Business',
     'register_heading' => 'Register Your Business',
@@ -64,7 +67,7 @@ return [
     'register_please_wait' => 'Please wait',
     'register_processing' => 'Processing...',
     'register_sending_title' => 'Sending verification code',
-    'register_sending_1' => 'Sending verification code...',
+    'register_sending_1' => 'Contacting the SMS service...',
     'register_sending_2' => 'Preparing your account...',
     'register_sending_3' => 'Almost there...',
     'register_submitting_title' => 'Submitting registration',

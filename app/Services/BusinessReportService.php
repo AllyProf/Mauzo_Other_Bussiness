@@ -259,7 +259,7 @@ class BusinessReportService
 
         $ownerQuery = BusinessOwnerExpense::where('business_id', $business->id)
             ->whereBetween('expense_date', [$from, $to]);
-        $this->scopeBranchUsers($ownerQuery, 'recorded_by');
+        $this->scopeOwnerExpensesByBranch($ownerQuery);
         $ownerExpenses = $ownerQuery->get();
 
         $byDate = [];
@@ -640,12 +640,39 @@ class BusinessReportService
             ];
         })->sortByDesc('period_amount')->values()->all();
 
-        $ownerDay = OwnerDailyReport::where('business_id', $business->id)
-            ->whereDate('report_date', $periodTo)
-            ->first();
-        $ownerPeriod = OwnerDailyReport::where('business_id', $business->id)
-            ->whereBetween('report_date', [$periodFrom, $periodTo])
-            ->get();
+        $dayExpenses = $this->snapshotExpenses($business, $periodTo, $periodTo, $businessTypeKey);
+        $periodExpenses = $this->snapshotExpenses($business, $periodFrom, $periodTo, $businessTypeKey);
+
+        $expenseRows = [];
+        if ($dayExpenses['staff'] > 0 || $periodExpenses['staff'] > 0) {
+            $expenseRows[] = [
+                'label' => __('reports.daily.staff_expenses'),
+                'day' => $dayExpenses['staff'],
+                'period' => $periodExpenses['staff'],
+            ];
+        }
+        $categoryKeys = array_unique(array_merge(
+            array_keys($dayExpenses['owner_by_category']),
+            array_keys($periodExpenses['owner_by_category'])
+        ));
+        foreach ($categoryKeys as $key) {
+            $expenseRows[] = [
+                'label' => BusinessOwnerExpense::CATEGORIES[$key] ?? ucfirst((string) $key),
+                'day' => (float) ($dayExpenses['owner_by_category'][$key] ?? 0),
+                'period' => (float) ($periodExpenses['owner_by_category'][$key] ?? 0),
+            ];
+        }
+        usort($expenseRows, fn ($a, $b) => $b['period'] <=> $a['period']);
+
+        $dayTotals = $this->dailyReportService->buildOpenDayTotalsForDate($business, $periodTo, [$periodFrom]);
+        $periodStartTotals = match (true) {
+            $periodFrom === $periodTo => $dayTotals,
+            isset($dayTotals['openings_at'][$periodFrom]) => $dayTotals['openings_at'][$periodFrom],
+            default => $this->dailyReportService->buildOpenDayTotalsForDate($business, $periodFrom),
+        };
+
+        $dayGrossProfit = $this->snapshotGrossProfit($business, $periodTo, $periodTo, $businessTypeKey);
+        $periodGrossProfit = $this->snapshotGrossProfit($business, $periodFrom, $periodTo, $businessTypeKey);
 
         return [
             'report_date' => $periodTo,
@@ -687,8 +714,8 @@ class BusinessReportService
                 ],
                 [
                     'label' => __('reports.daily.gross_profit'),
-                    'day' => (float) ($ownerDay->gross_profit ?? 0),
-                    'period' => (float) $ownerPeriod->sum('gross_profit'),
+                    'day' => $dayGrossProfit,
+                    'period' => $periodGrossProfit,
                     'format' => 'money',
                 ],
             ],
@@ -699,6 +726,78 @@ class BusinessReportService
                 'period_orders' => (int) array_sum(array_column($sources, 'period_orders')),
                 'period_amount' => (float) array_sum(array_column($sources, 'period_amount')),
             ],
+            'expenses' => $expenseRows,
+            'expense_totals' => [
+                'day' => $dayExpenses['total'],
+                'period' => $periodExpenses['total'],
+            ],
+            'net_cash' => [
+                'day' => $dayStats['collected'] - $dayExpenses['total'],
+                'period' => $periodStats['collected'] - $periodExpenses['total'],
+            ],
+            'net_profit' => [
+                'day' => $dayGrossProfit - $dayExpenses['total'],
+                'period' => $periodGrossProfit - $periodExpenses['total'],
+            ],
+            'circulation' => [
+                'day_opening' => (float) ($dayTotals['opening_circulation'] ?? 0),
+                'period_opening' => (float) ($periodStartTotals['opening_circulation'] ?? 0),
+                'closing' => (float) ($dayTotals['closing_circulation'] ?? 0),
+                'closing_profit' => (float) ($dayTotals['closing_profit'] ?? 0),
+            ],
+        ];
+    }
+
+    private function snapshotGrossProfit(Business $business, string $from, string $to, ?string $businessTypeKey = null): float
+    {
+        if ($businessTypeKey) {
+            $lines = $this->saleItemsQuery($business, $from, $to, $businessTypeKey)->get();
+
+            return (float) $lines->sum('subtotal')
+                - (float) $lines->sum(fn ($line) => (float) ($line->cost_price ?? 0) * (float) $line->quantity);
+        }
+
+        $sales = $this->scopedSales($business->id)
+            ->whereBetween('sale_date', [$from, $to])
+            ->where('payment_status', '!=', 'cancelled')
+            ->with('items.item.packagings')
+            ->get();
+
+        $costOfGoods = 0.0;
+        foreach ($sales as $sale) {
+            foreach ($sale->items as $line) {
+                $unitCost = (float) ($line->cost_price ?? optional($line->item?->packagings?->first())->cost_price ?? 0);
+                $costOfGoods += $unitCost * (float) $line->quantity;
+            }
+        }
+
+        return (float) $sales->sum('total_amount') - $costOfGoods;
+    }
+
+    private function snapshotExpenses(Business $business, string $from, string $to, ?string $businessTypeKey = null): array
+    {
+        $staff = (float) DayClosingExpense::query()
+            ->whereHas('dayClosing', function ($q) use ($business, $from, $to) {
+                $q->where('business_id', $business->id)
+                    ->whereBetween('closing_date', [$from, $to]);
+                $this->scopeBranchUsers($q);
+            })
+            ->sum('amount');
+
+        $ownerQuery = BusinessOwnerExpense::where('business_id', $business->id)
+            ->whereBetween('expense_date', [$from, $to])
+            ->when($businessTypeKey, fn ($q) => $q->where('business_type_key', $businessTypeKey));
+        $this->scopeOwnerExpensesByBranch($ownerQuery);
+
+        $byCategory = $ownerQuery->get()
+            ->groupBy('category')
+            ->map(fn ($group) => (float) $group->sum('amount'))
+            ->all();
+
+        return [
+            'staff' => $staff,
+            'owner_by_category' => $byCategory,
+            'total' => $staff + array_sum($byCategory),
         ];
     }
 
@@ -775,6 +874,16 @@ class BusinessReportService
         $this->scopeBranchSales($query);
 
         return $query;
+    }
+
+    private function scopeOwnerExpensesByBranch(Builder $query): Builder
+    {
+        $branchId = active_branch_id();
+        if (! $branchId) {
+            return $query;
+        }
+
+        return $query->where(fn ($scoped) => $scoped->where('branch_id', $branchId)->orWhereNull('branch_id'));
     }
 
     private function scopeBranchSales(Builder $query): Builder

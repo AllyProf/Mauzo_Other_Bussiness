@@ -412,16 +412,20 @@ class BusinessController extends Controller
             'custom_sms_limit' => 'nullable|integer|min:0',
             'custom_storage_limit' => 'nullable|integer|min:0',
             'feature_overrides' => 'nullable|array',
+            'expiry_date' => 'nullable|date',
         ] + $this->billingRules($request) + $this->ownerAssignmentRules(false) + $this->operationModeRules());
 
         $plan = Plan::findOrFail($request->plan_id);
 
-        if ((int) $business->plan_id !== (int) $plan->id) {
+        if ($request->filled('expiry_date')) {
+            $expiryDate = \Carbon\Carbon::parse($request->input('expiry_date'))->startOfDay();
+        } elseif ((int) $business->plan_id !== (int) $plan->id) {
             $expiryDate = now()->addMonths(max(1, (int) $plan->duration_months));
         } else {
             $expiryDate = $business->expiry_date ?? now()->addMonths(max(1, (int) $plan->duration_months));
         }
 
+        $expiryChanged = optional($business->expiry_date)->toDateString() !== \Carbon\Carbon::parse($expiryDate)->toDateString();
         $previousOwnerId = $business->owner_user_id;
 
         // Build feature overrides: checked keys → true, unchecked → false (only store explicit overrides)
@@ -452,6 +456,10 @@ class BusinessController extends Controller
             'custom_storage_limit' => $request->filled('custom_storage_limit') ? (int) $request->custom_storage_limit : null,
             'feature_overrides' => $featureOverrides,
         ], $this->normalizeBillingInput($request)));
+
+        if ($expiryChanged) {
+            $business->forceFill(['expiry_reminder_sent_at' => null])->save();
+        }
 
         if ($request->filled('owner_user_id') && (int) $request->owner_user_id !== (int) $previousOwnerId) {
             $this->syncBranchOwner($business->fresh());

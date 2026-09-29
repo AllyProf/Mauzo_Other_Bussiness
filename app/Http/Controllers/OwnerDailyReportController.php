@@ -99,6 +99,16 @@ class OwnerDailyReportController extends Controller
                 ->values();
         }
 
+        $pendingPerPage = 10;
+        $pendingPage = max(1, (int) request()->query('pending_page', 1));
+        $pendingClosings = (new \Illuminate\Pagination\LengthAwarePaginator(
+            $pendingClosings->forPage($pendingPage, $pendingPerPage)->values(),
+            $pendingClosings->count(),
+            $pendingPerPage,
+            $pendingPage,
+            ['path' => request()->url(), 'pageName' => 'pending_page', 'fragment' => 'pendingClosingsList']
+        ))->withQueryString();
+
         $ledgerHandoverUrl = fn (array $ledger) => $this->reportService->resolveLedgerHandoverUrl($ledger, $serviceMenuContext);
         $ledgerHandoverReviewUrl = fn (array $ledger) => $this->reportService->resolveLedgerHandoverReviewUrl($ledger, $serviceMenuContext);
         $awaitingHandoverUrl = $this->reportService->resolveAwaitingHandoverUrl($serviceMenuContext);

@@ -83,4 +83,10 @@ return [
     'activity_log' => 'Rekodi ya Shughuli',
     'system_guide' => 'Mwongozo wa Mfumo',
     'my_support' => 'Msaada Wangu',
+    'group_inventory' => 'Stoki na Bidhaa',
+    'group_sales' => 'Mauzo',
+    'group_customers' => 'Wateja na Madeni',
+    'group_finance' => 'Fedha na Kufunga Siku',
+    'group_reports' => 'Ripoti na Uchambuzi',
+    'group_my_business' => 'Biashara Yangu',
 ];

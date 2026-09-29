@@ -65,9 +65,16 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="control-label">Subscription Expiry</label>
-                    <input class="form-control" type="text" id="expiryPreview" readonly value="{{ $business->expiry_date?->format('d M, Y') }}">
-                    <small class="text-muted" id="expiryHelp">Current expiry date. Changing the plan recalculates from today.</small>
+                    <label class="control-label" for="expiryPreview">Subscription Expiry (paid until)</label>
+                    <input class="form-control js-date-picker @error('expiry_date') is-invalid @enderror" type="text" name="expiry_date" id="expiryPreview" value="{{ old('expiry_date', $business->expiry_date?->format('Y-m-d')) }}">
+                    @error('expiry_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <div class="mt-2" id="expiryQuickAdd">
+                        <small class="text-muted mr-1">Quick extend:</small>
+                        @foreach([1, 3, 6, 12] as $m)
+                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 mr-1 js-date-add-months" data-target="#expiryPreview" data-months="{{ $m }}">+{{ $m }} {{ $m === 1 ? 'month' : 'months' }}</button>
+                        @endforeach
+                    </div>
+                    <small class="text-muted d-block mt-1" id="expiryHelp">Set the date the business has paid until. Changing the plan recalculates from today.</small>
                 </div>
                 <div class="form-group">
                     <label class="control-label">Account Status</label>
@@ -352,8 +359,9 @@ jQuery(function($) {
 </script>
 @endif
 @include('partials.tanzania-location-select2', ['selectedDistrict' => old('district', $business->district)])
+@include('partials.date-picker')
 <script type="text/javascript">
-    const currentExpiry = @json($business->expiry_date?->format('d M, Y'));
+    const currentExpiry = @json($business->expiry_date?->format('Y-m-d'));
 
     function toggleFeatureOverrideChecklist() {
         const cb = document.getElementById('save_feature_overrides');
@@ -365,12 +373,6 @@ jQuery(function($) {
         }
     }
 
-    function formatExpiryDate(months) {
-        const date = new Date();
-        date.setMonth(date.getMonth() + parseInt(months || 1, 10));
-        return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    }
-
     function updateExpiryPreview() {
         const select = document.getElementById('planSelect');
         const option = select.options[select.selectedIndex];
@@ -378,25 +380,18 @@ jQuery(function($) {
         const help = document.getElementById('expiryHelp');
         const currentPlan = select.getAttribute('data-current-plan');
 
-        if (!option || !option.value) {
-            preview.value = currentExpiry || '';
+        if (!option || !option.value || option.value === currentPlan) {
+            window.appSetDate(preview, currentExpiry || '');
+            help.textContent = 'Set the date the business has paid until. Changing the plan recalculates from today.';
             return;
         }
 
-        if (option.value === currentPlan) {
-            preview.value = currentExpiry || '';
-            help.textContent = 'Current expiry date. Change the plan to recalculate from today.';
-            return;
-        }
-
-        preview.value = formatExpiryDate(option.getAttribute('data-months'));
-        help.textContent = 'New expiry if you save with this plan (calculated from today).';
+        window.appSetDate(preview, window.appAddMonthsIso(window.appTodayIso(), option.getAttribute('data-months')));
+        help.textContent = 'New expiry for this plan (calculated from today). You can still change the date.';
     }
 
     jQuery(function($) {
         $('#planSelect').on('change', updateExpiryPreview);
-
-        updateExpiryPreview();
 
         $('#hardDeleteBusinessForm').on('submit', function (e) {
             const entered = $('#confirmDeleteBusinessName').val().trim();

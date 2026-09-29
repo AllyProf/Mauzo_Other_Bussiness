@@ -18,13 +18,14 @@ class BusinessOwnerReportSmsService
     }
 
     /**
-     * @return array{daily: int, weekly: int, branch_compare: int, receiving: int, skipped: int, failed: int}
+     * @return array{daily: int, weekly: int, monthly: int, branch_compare: int, receiving: int, skipped: int, failed: int}
      */
     public function sendDueReports(): array
     {
         $counts = [
             'daily' => 0,
             'weekly' => 0,
+            'monthly' => 0,
             'branch_compare' => 0,
             'receiving' => 0,
             'skipped' => 0,
@@ -41,10 +42,11 @@ class BusinessOwnerReportSmsService
                     $settings = $business->automationSettings();
                     $dailyEnabled = (bool) ($settings['sms_daily_report_enabled'] ?? false);
                     $weeklyEnabled = (bool) ($settings['sms_weekly_report_enabled'] ?? false);
+                    $monthlyEnabled = (bool) ($settings['sms_monthly_report_enabled'] ?? false);
                     $branchCompareEnabled = (bool) ($settings['sms_branch_compare_weekly_enabled'] ?? false);
                     $receivingEnabled = (bool) ($settings['sms_receiving_report_daily_enabled'] ?? false);
 
-                    if (! $dailyEnabled && ! $weeklyEnabled && ! $branchCompareEnabled && ! $receivingEnabled) {
+                    if (! $dailyEnabled && ! $weeklyEnabled && ! $monthlyEnabled && ! $branchCompareEnabled && ! $receivingEnabled) {
                         $counts['skipped']++;
                         continue;
                     }
@@ -79,6 +81,14 @@ class BusinessOwnerReportSmsService
                     if ($weeklyEnabled && $this->shouldSendWeekly($settings, 'sms_weekly_report_last_sent')) {
                         if ($this->sendWeeklyReport($business)) {
                             $counts['weekly']++;
+                        } else {
+                            $counts['failed']++;
+                        }
+                    }
+
+                    if ($monthlyEnabled && $this->shouldSendMonthly($settings)) {
+                        if ($this->sendMonthlyReport($business)) {
+                            $counts['monthly']++;
                         } else {
                             $counts['failed']++;
                         }
@@ -151,6 +161,35 @@ class BusinessOwnerReportSmsService
 
         if ($overridePhone === null) {
             $this->markSent($business, 'sms_weekly_report_last_sent', now()->toDateString());
+        }
+
+        return true;
+    }
+
+    public function sendMonthlyReport(Business $business, ?string $overridePhone = null): bool
+    {
+        $month = now()->subMonthNoOverflow();
+        $from = $month->copy()->startOfMonth();
+        $to = $month->copy()->endOfMonth();
+        $stats = $this->salesStats($business->id, $from->toDateString(), $to->toDateString());
+
+        $message = sprintf(
+            '%s Monthly Report %s: Sales TZS %s, Collected TZS %s, Profit TZS %s, Orders %s, Outstanding TZS %s. For more information, visit your email.',
+            $business->name,
+            $from->format('M Y'),
+            number_format($stats['sales'], 0),
+            number_format($stats['collected'], 0),
+            number_format($stats['profit'], 0),
+            number_format($stats['orders'], 0),
+            number_format($stats['outstanding'], 0),
+        );
+
+        if (! $this->dispatchToOwner($business, $message, 'owner_monthly_report', $overridePhone)) {
+            return false;
+        }
+
+        if ($overridePhone === null) {
+            $this->markSent($business, 'sms_monthly_report_last_sent', now()->toDateString());
         }
 
         return true;
@@ -295,6 +334,22 @@ class BusinessOwnerReportSmsService
         }
 
         $lastSent = (string) ($settings[$lastSentKey] ?? '');
+
+        return $lastSent !== now()->toDateString();
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function shouldSendMonthly(array $settings): bool
+    {
+        $day = max(1, min(28, (int) ($settings['sms_monthly_report_day'] ?? 1)));
+
+        if ((int) now()->day !== $day) {
+            return false;
+        }
+
+        $lastSent = (string) ($settings['sms_monthly_report_last_sent'] ?? '');
 
         return $lastSent !== now()->toDateString();
     }

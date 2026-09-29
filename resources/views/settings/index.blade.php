@@ -183,6 +183,9 @@
           @endif
         </li>
         <li class="nav-item">
+          <a class="nav-link {{ $activeTab === 'appearance' ? 'active' : '' }}" data-toggle="tab" href="#tab-appearance"><i class="fa fa-picture-o"></i> Appearance</a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link {{ $activeTab === 'shifts' ? 'active' : '' }}" data-toggle="tab" href="#tab-shifts"><i class="fa fa-clock-o"></i> {{ __('settings.tabs.shifts') }}</a>
         </li>
         <li class="nav-item">
@@ -277,10 +280,62 @@
                 <small class="text-muted d-block mt-1">When checked, VAT is calculated from the invoice total. Uncheck if your prices are before VAT.</small>
               </div>
             </div>
+
+            @php $invoiceSettings = $business->invoiceSettings(); @endphp
+            <hr class="my-4">
+            <h6 class="text-muted mb-1"><i class="fa fa-sliders"></i> Invoice Settings</h6>
+            <p class="text-muted small mb-3">Control what appears on the invoices you give to your customers (screen, print and PDF).</p>
+            <div class="row">
+              <div class="col-12 col-md-6">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Invoice Title</label>
+                  <input type="text" name="invoice_title" class="form-control" maxlength="40" value="{{ old('invoice_title', $invoiceSettings['title']) }}" placeholder="TAX INVOICE">
+                  <small class="text-muted">e.g. TAX INVOICE, INVOICE, PROFORMA INVOICE. Leave empty for the default.</small>
+                </div>
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Footer Message</label>
+                  <input type="text" name="invoice_footer_message" class="form-control" maxlength="300" value="{{ old('invoice_footer_message', $invoiceSettings['footer_message']) }}" placeholder="Thank you for your business.">
+                  <small class="text-muted">Shown at the bottom of every invoice.</small>
+                </div>
+                <div class="custom-control custom-switch mb-2">
+                  <input type="checkbox" class="custom-control-input" id="invoice_show_payment_details" name="invoice_show_payment_details" value="1" {{ old('invoice_show_payment_details', $invoiceSettings['show_payment_details']) ? 'checked' : '' }}>
+                  <label class="custom-control-label" for="invoice_show_payment_details">Show payment details (Lipa numbers / bank accounts)</label>
+                </div>
+                <div class="custom-control custom-switch mb-2">
+                  <input type="checkbox" class="custom-control-input" id="invoice_show_prepared_by" name="invoice_show_prepared_by" value="1" {{ old('invoice_show_prepared_by', $invoiceSettings['show_prepared_by']) ? 'checked' : '' }}>
+                  <label class="custom-control-label" for="invoice_show_prepared_by">Show "Prepared by" (staff name)</label>
+                </div>
+                <div class="custom-control custom-switch mb-3">
+                  <input type="checkbox" class="custom-control-input" id="invoice_show_signature" name="invoice_show_signature" value="1" {{ old('invoice_show_signature', $invoiceSettings['show_signature']) ? 'checked' : '' }}>
+                  <label class="custom-control-label" for="invoice_show_signature">Show signature section</label>
+                </div>
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Terms &amp; Conditions</label>
+                  <textarea name="invoice_terms" class="form-control" rows="6" maxlength="2000" placeholder="e.g. Goods once sold are not returnable.&#10;Payment within 14 days.">{{ old('invoice_terms', $invoiceSettings['terms']) }}</textarea>
+                  <small class="text-muted">Printed under the invoice items. One point per line.</small>
+                </div>
+                <small class="text-muted d-block"><i class="fa fa-credit-card"></i> Payment details come from the <a href="{{ route('settings.index', ['tab' => 'payments']) }}">Payment Methods</a> tab.</small>
+              </div>
+            </div>
             <button type="submit" class="btn btn-primary settings-save-btn" style="background-color:#940000;border-color:#940000;">
               <i class="fa fa-save"></i> Save Profile
             </button>
+            <button type="submit" class="btn btn-outline-secondary ml-md-2 mt-2 mt-md-0 js-invoice-preview-btn" formaction="{{ route('settings.invoice-preview') }}" formtarget="_blank" formnovalidate>
+              <i class="fa fa-eye"></i> Preview Invoice
+            </button>
           </form>
+        </div>
+
+        {{-- APPEARANCE --}}
+        <div class="tab-pane fade {{ $activeTab === 'appearance' ? 'show active' : '' }}" id="tab-appearance">
+          <h5 class="mb-1 text-muted"><i class="fa fa-picture-o"></i> Background Wallpaper</h5>
+          <p class="text-muted small mb-3">Like WhatsApp chat wallpaper — shown behind every page for you and your staff. Dark mode dims it automatically.</p>
+          @include('partials.appearance-picker', [
+            'action' => route('settings.appearance.update'),
+            'appearance' => $business->appearanceSettings(),
+          ])
         </div>
 
         {{-- FINANCE --}}
@@ -597,7 +652,16 @@
                 <input type="checkbox" class="custom-control-input" id="sms_weekly_report_enabled" name="sms_weekly_report_enabled" value="1" {{ old('sms_weekly_report_enabled', $automation['sms_weekly_report_enabled'] ?? false) ? 'checked' : '' }}>
                 <label class="custom-control-label" for="sms_weekly_report_enabled">
                   <strong>Weekly sales report SMS</strong>
-                  <br><small class="text-muted">Last 7 days summary, sent on the weekday you choose below.</small>
+                  <br><small class="text-muted">End-of-week summary of the last 7 days, sent on the weekday you choose below.</small>
+                </label>
+              </div>
+            </div>
+            <div class="setting-switch-row">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="sms_monthly_report_enabled" name="sms_monthly_report_enabled" value="1" {{ old('sms_monthly_report_enabled', $automation['sms_monthly_report_enabled'] ?? false) ? 'checked' : '' }}>
+                <label class="custom-control-label" for="sms_monthly_report_enabled">
+                  <strong>Monthly sales report SMS</strong>
+                  <br><small class="text-muted">End-of-month summary of the whole previous month, sent on the day of the month you choose below.</small>
                 </label>
               </div>
             </div>
@@ -636,6 +700,19 @@
                     <option value="{{ $dayValue }}" {{ $weeklyDay === $dayValue ? 'selected' : '' }}>{{ $dayLabel }}</option>
                   @endforeach
                 </select>
+                <small class="text-muted">Covers the 7 days before this day.</small>
+              </div>
+              <div class="form-group col-md-4 mb-0">
+                <label class="small font-weight-bold" for="sms_monthly_report_day">Monthly send day</label>
+                @php
+                  $smsMonthlyDay = (int) old('sms_monthly_report_day', $automation['sms_monthly_report_day'] ?? 1);
+                @endphp
+                <select name="sms_monthly_report_day" id="sms_monthly_report_day" class="form-control form-control-sm">
+                  @for($d = 1; $d <= 28; $d++)
+                    <option value="{{ $d }}" {{ $smsMonthlyDay === $d ? 'selected' : '' }}>{{ $d === 1 ? '1st (recommended)' : $d }}</option>
+                  @endfor
+                </select>
+                <small class="text-muted">Covers the whole previous month.</small>
               </div>
             </div>
 
@@ -974,7 +1051,11 @@
 @section('scripts')
 <script>
 jQuery(function($) {
-  $('.settings-form').on('submit', function() {
+  $('.settings-form').on('submit', function(e) {
+    const submitter = e.originalEvent && e.originalEvent.submitter;
+    if (submitter && submitter.classList.contains('js-invoice-preview-btn')) {
+      return;
+    }
     const $btn = $(this).find('.settings-save-btn');
     $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-1"></i> Saving...');
   });

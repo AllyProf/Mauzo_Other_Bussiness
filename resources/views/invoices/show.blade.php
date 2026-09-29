@@ -109,14 +109,17 @@
         @if($business->tin_number) | TIN: {{ $business->tin_number }}@endif
         @if($business->vat_number) | VAT: {{ $business->vat_number }}@endif
       </div>
+      @php $invoiceSettings = $business->invoiceSettings(); @endphp
       <div class="operations-title">
-        @if($branch){{ strtoupper($branch->name) }} — @endif TAX INVOICE
+        @if($branch){{ strtoupper($branch->name) }} — @endif {{ mb_strtoupper($invoiceSettings['title'] ?: 'TAX INVOICE') }}
       </div>
       <hr class="accent-divider">
     </div>
 
     <div class="report-sub-meta">
+      @if($invoiceSettings['show_prepared_by'])
       <span>Prepared by: {{ $sale->user->name ?? 'Staff' }}</span>
+      @endif
       <span>Ref: {{ $sale->reference_no }}</span>
       <span>Date: {{ \Carbon\Carbon::parse($sale->sale_date)->format('d M Y') }}</span>
     </div>
@@ -205,7 +208,14 @@
     </div>
     @endif
 
-    @if(($paymentReceiveDetails ?? collect())->isNotEmpty())
+    @if($invoiceSettings['terms'] !== '')
+    <div class="mt-3">
+      <div class="stats-card-title mb-2">Terms &amp; Conditions</div>
+      <p class="mb-0 small">{!! nl2br(e($invoiceSettings['terms'])) !!}</p>
+    </div>
+    @endif
+
+    @if($invoiceSettings['show_payment_details'] && ($paymentReceiveDetails ?? collect())->isNotEmpty())
     <div class="mt-4">
       <div class="stats-card-title mb-2">Payment Details</div>
       <p class="small text-muted mb-2">Use the details below when paying this invoice.</p>
@@ -262,6 +272,7 @@
     </div>
     @endif
 
+    @if($invoiceSettings['show_signature'])
     <div class="invoice-signature-block">
       <div class="invoice-sign-col">
         <div class="invoice-sign-label">For {{ $business->name }}</div>
@@ -276,9 +287,10 @@
         <div class="invoice-sign-caption">Customer Signature / Stamp</div>
       </div>
     </div>
+    @endif
 
     <div class="text-center mt-4 small text-muted invoice-footer-note">
-      Generated {{ now()->format('d M Y, H:i') }} · Thank you for your business.<br>
+      Generated {{ now()->format('d M Y, H:i') }}@if($invoiceSettings['footer_message'] !== '') · {{ $invoiceSettings['footer_message'] }}@endif<br>
       Powered By <strong>EmCa Technologies</strong> — <a href="https://www.emca.tech" target="_blank" rel="noopener">www.emca.tech</a>
     </div>
   </div>

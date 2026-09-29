@@ -43,7 +43,21 @@
     color: #555;
     margin-right: auto;
   }
-  .qr-codes-page tr.is-hidden { display: none; }
+  .qr-codes-page tr.is-hidden,
+  .qr-codes-page tr.is-paged-out { display: none; }
+  .qr-codes-page .qr-pager {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+  }
+  .qr-codes-page .qr-pager .pagination { margin-bottom: 0; flex-wrap: wrap; }
+  .qr-codes-page .qr-pager .page-item.active .page-link { background: #940000; border-color: #940000; }
+  .qr-codes-page .qr-pager .page-link { color: #940000; }
+  .qr-codes-page .qr-pager .page-item.disabled .page-link { color: #adb5bd; }
+  .qr-codes-page .qr-pager select { width: auto; display: inline-block; }
   .qr-codes-page .search-wrap { position: relative; }
   .qr-codes-page .search-wrap .fa-search {
     position: absolute;
@@ -186,6 +200,18 @@
     </table>
     <p id="noResults" class="text-center text-muted py-4 d-none">{{ __('qr_codes.no_items') }}</p>
   </div>
+
+  <div class="qr-pager" id="qrPager">
+    <div class="d-flex align-items-center">
+      <select id="qrPageSize" class="form-control form-control-sm mr-2">
+        @foreach([10, 25, 50, 100] as $size)
+          <option value="{{ $size }}" @selected($size === 25)>{{ $size }}</option>
+        @endforeach
+      </select>
+      <small class="text-muted" id="qrPageInfo"></small>
+    </div>
+    <nav aria-label="Pagination"><ul class="pagination pagination-sm" id="qrPagination"></ul></nav>
+  </div>
 </div>
 </div>
 @endsection
@@ -203,10 +229,78 @@
   const btnPrintVisible = document.getElementById('btnPrintVisible');
   const btnPrintCategory = document.getElementById('btnPrintCategory');
   const btnPrintAll = document.getElementById('btnPrintAll');
+  const pager = document.getElementById('qrPager');
+  const pagination = document.getElementById('qrPagination');
+  const pageInfo = document.getElementById('qrPageInfo');
+  const pageSizeSelect = document.getElementById('qrPageSize');
   let activeCategory = 'all';
+  let currentPage = 1;
 
   function visibleRows() {
     return rows.filter(function (row) { return !row.classList.contains('is-hidden'); });
+  }
+
+  function pageRows() {
+    return visibleRows().filter(function (row) { return !row.classList.contains('is-paged-out'); });
+  }
+
+  function pageButton(label, page, opts) {
+    const li = document.createElement('li');
+    li.className = 'page-item' + (opts.active ? ' active' : '') + (opts.disabled ? ' disabled' : '');
+    const a = document.createElement('a');
+    a.className = 'page-link';
+    a.href = '#';
+    a.innerHTML = label;
+    if (!opts.disabled && !opts.active) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        currentPage = page;
+        renderPage();
+        document.getElementById('qrItemsTable').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    } else {
+      a.addEventListener('click', function (e) { e.preventDefault(); });
+    }
+    li.appendChild(a);
+    return li;
+  }
+
+  function renderPage() {
+    const matched = visibleRows();
+    const size = parseInt(pageSizeSelect.value, 10) || 25;
+    const totalPages = Math.max(1, Math.ceil(matched.length / size));
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);
+    const start = (currentPage - 1) * size;
+    const end = start + size;
+
+    rows.forEach(function (row) { row.classList.remove('is-paged-out'); });
+    matched.forEach(function (row, index) {
+      row.classList.toggle('is-paged-out', index < start || index >= end);
+    });
+
+    pager.classList.toggle('d-none', matched.length === 0);
+    pageInfo.textContent = matched.length
+      ? 'Showing ' + (start + 1) + '–' + Math.min(end, matched.length) + ' of ' + matched.length
+      : '';
+
+    pagination.innerHTML = '';
+    pagination.appendChild(pageButton('&laquo;', currentPage - 1, { disabled: currentPage === 1 }));
+
+    const windowSize = 2;
+    let last = 0;
+    for (let page = 1; page <= totalPages; page++) {
+      const inWindow = page === 1 || page === totalPages || Math.abs(page - currentPage) <= windowSize;
+      if (!inWindow) continue;
+      if (page - last > 1) {
+        pagination.appendChild(pageButton('&hellip;', page, { disabled: true }));
+      }
+      pagination.appendChild(pageButton(String(page), page, { active: page === currentPage }));
+      last = page;
+    }
+
+    pagination.appendChild(pageButton('&raquo;', currentPage + 1, { disabled: currentPage === totalPages }));
+
+    updateCounts();
   }
 
   function selectedIds() {
@@ -225,10 +319,10 @@
     noResults.classList.toggle('d-none', visible.length > 0);
     document.getElementById('qrItemsTable').classList.toggle('d-none', visible.length === 0);
 
-    const checks = visible.map(function (row) { return row.querySelector('.item-check'); });
+    const checks = pageRows().map(function (row) { return row.querySelector('.item-check'); });
     const allChecked = checks.length > 0 && checks.every(function (cb) { return cb.checked; });
     selectAllVisible.checked = allChecked;
-    selectAllVisible.indeterminate = !allChecked && selected.length > 0;
+    selectAllVisible.indeterminate = !allChecked && checks.some(function (cb) { return cb.checked; });
   }
 
   function applyFilters() {
@@ -240,7 +334,8 @@
       row.classList.toggle('is-hidden', !(matchesCategory && matchesSearch));
     });
 
-    updateCounts();
+    currentPage = 1;
+    renderPage();
   }
 
   function openBulkPrint(params) {
@@ -269,8 +364,13 @@
     cb.addEventListener('change', updateCounts);
   });
 
+  pageSizeSelect.addEventListener('change', function () {
+    currentPage = 1;
+    renderPage();
+  });
+
   selectAllVisible.addEventListener('change', function () {
-    visibleRows().forEach(function (row) {
+    pageRows().forEach(function (row) {
       const cb = row.querySelector('.item-check');
       if (cb) cb.checked = selectAllVisible.checked;
     });

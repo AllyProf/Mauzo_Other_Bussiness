@@ -80,6 +80,61 @@
             <td class="num">{{ number_format($d['source_totals']['period_orders']) }}</td>
             <td class="num">{{ money($d['source_totals']['period_amount']) }}</td>
           </tr>
+
+          <tr class="section-head">
+            <td>{{ __('reports.daily.section_expenses') }}</td>
+            <td colspan="2" class="text-center">{{ __('reports.daily.daily') }}</td>
+            <td colspan="2" class="text-center">{{ __('reports.daily.period') }}</td>
+          </tr>
+          @forelse($d['expenses'] ?? [] as $expense)
+          <tr>
+            <td class="metric-label">{{ $expense['label'] }}</td>
+            <td colspan="2" class="num">{{ money($expense['day']) }}</td>
+            <td colspan="2" class="num">{{ money($expense['period']) }}</td>
+          </tr>
+          @empty
+          <tr>
+            <td colspan="5" class="text-center text-muted py-3">{{ __('reports.daily.no_expenses') }}</td>
+          </tr>
+          @endforelse
+          <tr class="section-head">
+            <td class="metric-label">{{ __('reports.daily.total_expenses') }}</td>
+            <td colspan="2" class="num">{{ money($d['expense_totals']['day'] ?? 0) }}</td>
+            <td colspan="2" class="num">{{ money($d['expense_totals']['period'] ?? 0) }}</td>
+          </tr>
+          <tr class="section-head">
+            <td class="metric-label">{{ __('reports.daily.net_cash') }}</td>
+            <td colspan="2" class="num">{{ money($d['net_cash']['day'] ?? 0) }}</td>
+            <td colspan="2" class="num">{{ money($d['net_cash']['period'] ?? 0) }}</td>
+          </tr>
+          <tr class="section-head">
+            <td class="metric-label">{{ __('reports.daily.net_profit') }}</td>
+            <td colspan="2" class="num">{{ money($d['net_profit']['day'] ?? 0) }}</td>
+            <td colspan="2" class="num">{{ money($d['net_profit']['period'] ?? 0) }}</td>
+          </tr>
+
+          @if(isset($d['circulation']))
+          <tr class="section-head">
+            <td>{{ __('reports.daily.section_circulation') }}</td>
+            <td colspan="2" class="text-center">{{ __('reports.daily.daily') }}</td>
+            <td colspan="2" class="text-center">{{ __('reports.daily.period') }}</td>
+          </tr>
+          <tr>
+            <td class="metric-label">{{ __('reports.daily.opening_circulation') }}</td>
+            <td colspan="2" class="num">{{ money($d['circulation']['day_opening']) }}</td>
+            <td colspan="2" class="num">{{ money($d['circulation']['period_opening']) }}</td>
+          </tr>
+          <tr class="section-head">
+            <td class="metric-label">{{ __('reports.daily.money_in_circulation') }}</td>
+            <td colspan="2" class="num">{{ money($d['circulation']['closing']) }}</td>
+            <td colspan="2" class="num">{{ money($d['circulation']['closing']) }}</td>
+          </tr>
+          <tr>
+            <td class="metric-label">{{ __('reports.daily.available_profit') }}</td>
+            <td colspan="2" class="num">{{ money($d['circulation']['closing_profit']) }}</td>
+            <td colspan="2" class="num">{{ money($d['circulation']['closing_profit']) }}</td>
+          </tr>
+          @endif
         </tbody>
       </table>
     </div>

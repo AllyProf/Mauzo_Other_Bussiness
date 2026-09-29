@@ -6,11 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\FailedLoginAttempt;
 use App\Models\User;
+use App\Services\LoginSecurityService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller
 {
+    public function __construct(private LoginSecurityService $security)
+    {
+    }
 
     public function showLoginForm()
     {
@@ -27,14 +32,36 @@ class LoginController extends Controller
         ]);
 
         $loginEmail = strtolower(trim($credentials['email']));
+        $account = User::where('email', $loginEmail)->first();
 
-        if (! Auth::attempt(['email' => $loginEmail, 'password' => $credentials['password']])) {
+        if ($ipBlockedUntil = $this->security->ipBlockedUntil($request->ip())) {
             FailedLoginAttempt::record($credentials['email'], $request->ip(), $request->userAgent());
 
-            return $this->failedLoginResponse($request, $credentials['email']);
+            return $this->errorResponse(__('auth.ip_blocked', ['time' => $ipBlockedUntil->format('d M Y, H:i')]));
+        }
+
+        if ($lockedUntil = $this->security->lockedUntil($loginEmail, $account)) {
+            FailedLoginAttempt::record($credentials['email'], $request->ip(), $request->userAgent());
+
+            return $this->lockedResponse($lockedUntil);
+        }
+
+        if (! Auth::attempt(['email' => $loginEmail, 'password' => $credentials['password']])) {
+            $result = $this->security->registerFailure($loginEmail, $account, $request->ip(), $request->userAgent());
+
+            if ($result['ip_blocked_until']) {
+                return $this->errorResponse(__('auth.ip_blocked', ['time' => $result['ip_blocked_until']->format('d M Y, H:i')]));
+            }
+
+            if ($result['locked_until']) {
+                return $this->lockedResponse($result['locked_until']);
+            }
+
+            return $this->failedLoginResponse($request, $credentials['email'], $result['remaining']);
         }
 
         $user = Auth::user();
+        $user->clearLoginLock();
 
         if ($user->business?->isPendingApproval()) {
             Auth::logout();
@@ -85,30 +112,18 @@ class LoginController extends Controller
         return redirect()->route('login');
     }
 
-    private function failedLoginResponse(Request $request, string $login): \Illuminate\Http\RedirectResponse
+    private function lockedResponse(Carbon $until): \Illuminate\Http\RedirectResponse
     {
-        $email = strtolower(trim($login));
+        return $this->errorResponse(__('auth.account_locked', ['time' => $until->format('d M Y, H:i')]));
+    }
 
-        $inactive = User::where('email', $email)->where('is_active', false)->exists();
-        if ($inactive) {
-            return back()->withErrors([
-                'email' => __('auth.account_deactivated'),
-            ])->onlyInput('email');
-        }
+    private function failedLoginResponse(Request $request, string $login, int $remaining): \Illuminate\Http\RedirectResponse
+    {
+        return $this->errorResponse(__('auth.attempts_remaining', ['count' => $remaining]));
+    }
 
-        $pending = User::query()
-            ->where('email', $email)
-            ->whereHas('business', fn ($query) => $query->where('pending_approval', true))
-            ->exists();
-
-        if ($pending) {
-            return back()->withErrors([
-                'email' => __('auth.pending_approval'),
-            ])->onlyInput('email');
-        }
-
-        return back()->withErrors([
-            'email' => __('auth.invalid_credentials'),
-        ])->onlyInput('email');
+    private function errorResponse(string $message): \Illuminate\Http\RedirectResponse
+    {
+        return back()->withErrors(['email' => $message])->onlyInput('email');
     }
 }

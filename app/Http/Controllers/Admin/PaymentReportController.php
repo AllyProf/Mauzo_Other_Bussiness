@@ -48,7 +48,47 @@ class PaymentReportController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('admin.payments.index', compact('invoices', 'summary', 'businesses', 'month'));
+        $invoiceBusinesses = Business::query()
+            ->where('pending_approval', false)
+            ->with('plan')
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.payments.index', compact('invoices', 'summary', 'businesses', 'month', 'invoiceBusinesses'));
+    }
+
+    public function storeManual(Request $request, PlatformBillingService $billing)
+    {
+        $this->ensurePlatformAdmin('payments');
+
+        $data = $request->validate([
+            'business_id' => 'required|exists:businesses,id',
+            'billing_month' => 'required|date_format:Y-m',
+            'quantity' => 'required|integer|min:1|max:36',
+            'unit_price' => 'required|numeric|min:0',
+            'description' => 'nullable|string|max:255',
+            'send_now' => 'nullable|boolean',
+        ]);
+
+        $business = Business::findOrFail($data['business_id']);
+        $invoice = $billing->createManualInvoice($business, [
+            'billing_month' => Carbon::createFromFormat('Y-m', $data['billing_month'])->startOfMonth(),
+            'quantity' => (int) $data['quantity'],
+            'unit_price' => (float) $data['unit_price'],
+            'description' => $data['description'] ?? null,
+        ]);
+
+        AuditLog::log('CREATE_MANUAL_BILLING_INVOICE', "Created manual invoice {$invoice->invoice_number} for {$business->name} (TZS ".number_format((float) $invoice->amount, 0).')');
+
+        if (! $request->boolean('send_now')) {
+            return back()->with('success', "Invoice {$invoice->invoice_number} created for {$business->name}.");
+        }
+
+        if ($billing->sendInvoiceEmail($invoice)) {
+            return back()->with('success', "Invoice {$invoice->invoice_number} created and emailed to {$business->email}.");
+        }
+
+        return back()->with('error', "Invoice {$invoice->invoice_number} was created but the email could not be sent. Check the business email and SMTP settings, then use Resend.");
     }
 
     public function markPaid(Request $request, PlatformBillingInvoice $invoice, PlatformBillingService $billing)
@@ -63,7 +103,10 @@ class PaymentReportController extends Controller
             'payment_reference' => 'nullable|string|max:120',
             'payment_notes' => 'nullable|string|max:1000',
             'extend_subscription' => 'nullable|boolean',
+            'months_paid' => 'nullable|integer|min:1|max:36',
+            'paid_until' => 'nullable|date',
         ]);
+        $validated['extend_subscription'] = $request->boolean('extend_subscription');
 
         $billing->markInvoicePaid($invoice, $validated, Auth::user());
 
@@ -75,6 +118,36 @@ class PaymentReportController extends Controller
         );
 
         return back()->with('success', "Payment recorded for {$invoice->business->name}.");
+    }
+
+    public function updateExpiry(Request $request, PlatformBillingInvoice $invoice)
+    {
+        $this->ensurePlatformAdmin('payments');
+
+        $validated = $request->validate([
+            'paid_until' => 'required|date',
+        ]);
+
+        $business = $invoice->business;
+        if (! $business) {
+            return back()->with('error', 'This invoice has no business attached.');
+        }
+
+        $previous = $business->expiry_date?->format('Y-m-d') ?? 'not set';
+        $newExpiry = \Carbon\Carbon::parse($validated['paid_until'])->startOfDay();
+
+        $business->forceFill([
+            'expiry_date' => $newExpiry->toDateString(),
+            'expiry_reminder_sent_at' => null,
+        ])->save();
+
+        AuditLog::log(
+            'UPDATE_BUSINESS_EXPIRY',
+            "Changed paid-until date for {$business->name} from {$previous} to {$newExpiry->toDateString()} (invoice {$invoice->invoice_number})",
+            $business->id
+        );
+
+        return back()->with('success', "Paid-until date for {$business->name} set to {$newExpiry->format('d M Y')}.");
     }
 
     public function generateInvoices(Request $request, PlatformBillingService $billing)
@@ -112,12 +185,11 @@ class PaymentReportController extends Controller
 
         $invoice->loadMissing(['business.plan', 'plan']);
 
-        $html = view('admin.payments.invoice-pdf', compact('invoice'))->render();
-        $filename = $invoice->invoice_number.'.html';
+        $documents = app(\App\Services\PlatformInvoiceDocumentService::class);
 
-        return response($html, 200, [
-            'Content-Type' => 'text/html; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        return response($documents->renderPdf($invoice), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$documents->filename($invoice).'"',
         ]);
     }
 

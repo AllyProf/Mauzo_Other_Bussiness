@@ -473,12 +473,12 @@
                 @endforeach
             </div>
             <div class="view-toggles catalog-products-only" style="{{ ($defaultCatalog ?? 'products') === 'products' ? '' : 'display:none;' }}">
-                <button class="view-btn active" id="btnGrid" title="Grid View"><i class="fa fa-th"></i></button>
-                <button class="view-btn" id="btnList" title="List View"><i class="fa fa-list"></i></button>
+                <button class="view-btn" id="btnGrid" title="Grid View"><i class="fa fa-th"></i></button>
+                <button class="view-btn active" id="btnList" title="List View"><i class="fa fa-list"></i></button>
             </div>
         </div>
 
-        <div class="items-grid" id="itemsContainer">
+        <div class="items-list" id="itemsContainer">
             <!-- Items / services rendered via JS -->
         </div>
     </div>
@@ -775,7 +775,7 @@
     let cart = [];
     let currentModalItem = null;
     let currentModalService = null;
-    let currentView = 'grid';
+    let currentView = 'list';
 
     function formatTZS(amount) {
         return amount.toLocaleString(undefined, {minimumFractionDigits: 0});

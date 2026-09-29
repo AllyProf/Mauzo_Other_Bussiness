@@ -17,6 +17,9 @@ return [
     'account_inactive' => 'Akaunti yako haifanyi kazi. Tafadhali wasiliana na msimamizi wako.',
     'account_deactivated' => 'Akaunti yako imezimwa. Wasiliana na msimamizi wako.',
     'invalid_credentials' => 'Taarifa za kuingia hazilingani na rekodi zetu.',
+    'attempts_remaining' => 'Nenosiri si sahihi. Umebakiza jaribio :count kabla akaunti yako haijafungwa kwa saa 24.',
+    'ip_blocked' => 'Majaribio mengi ya kuingia yameshindwa kutoka mtandao huu. Kuingia kumezuiwa hadi :time, au wasiliana na msimamizi.',
+    'account_locked' => 'Akaunti yako imefungwa kwa sababu ya kukosea nenosiri mara nyingi. Itafunguliwa :time, au wasiliana na msimamizi aifungue.',
 
     'register_title' => 'Sajili Biashara',
     'register_heading' => 'Sajili Biashara Yako',
@@ -64,7 +67,7 @@ return [
     'register_please_wait' => 'Tafadhali subiri',
     'register_processing' => 'Inachakata...',
     'register_sending_title' => 'Inatuma msimbo wa uthibitisho',
-    'register_sending_1' => 'Inatuma msimbo wa uthibitisho...',
+    'register_sending_1' => 'Inawasiliana na huduma ya SMS...',
     'register_sending_2' => 'Inaandaa akaunti yako...',
     'register_sending_3' => 'Karibu kumaliza...',
     'register_submitting_title' => 'Inawasilisha usajili',

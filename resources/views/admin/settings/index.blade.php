@@ -36,6 +36,7 @@
         <li class="nav-item"><a class="nav-link {{ $activeTab === 'subscription' ? 'active' : '' }}" data-toggle="tab" href="#tab-subscription"><i class="fa fa-credit-card"></i> Subscriptions</a></li>
         <li class="nav-item"><a class="nav-link {{ $activeTab === 'mail' ? 'active' : '' }}" data-toggle="tab" href="#tab-mail"><i class="fa fa-envelope"></i> Mail</a></li>
         <li class="nav-item"><a class="nav-link {{ $activeTab === 'security' ? 'active' : '' }}" data-toggle="tab" href="#tab-security"><i class="fa fa-shield"></i> Security</a></li>
+        <li class="nav-item"><a class="nav-link {{ $activeTab === 'appearance' ? 'active' : '' }}" data-toggle="tab" href="#tab-appearance"><i class="fa fa-picture-o"></i> Appearance</a></li>
       </ul>
 
       <div class="tile-body tab-content p-4">
@@ -100,6 +101,30 @@
                   <textarea name="legal_footer" class="form-control" rows="2" placeholder="Optional footer text for receipts or contracts">{{ old('legal_footer', $settings['legal_footer']) }}</textarea>
                 </div>
               </div>
+              <div class="col-md-12">
+                <h6 class="font-weight-bold mt-2 mb-1"><i class="fa fa-globe"></i> Website Footer</h6>
+                <p class="text-muted small mb-3">Shown on the public website footer. Leave a link empty to hide that icon.</p>
+              </div>
+              <div class="col-md-12">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Office Address</label>
+                  <input type="text" name="public_address" class="form-control" value="{{ old('public_address', $settings['public_address'] ?? '') }}" placeholder="Moshi, Kilimanjaro — Tanzania">
+                </div>
+              </div>
+              @foreach([
+                'social_facebook' => ['Facebook', 'fa-facebook', 'https://facebook.com/...'],
+                'social_instagram' => ['Instagram', 'fa-instagram', 'https://instagram.com/...'],
+                'social_youtube' => ['YouTube', 'fa-youtube-play', 'https://youtube.com/@...'],
+                'social_tiktok' => ['TikTok', 'fa-music', 'https://tiktok.com/@...'],
+                'social_x' => ['X (Twitter)', 'fa-twitter', 'https://x.com/...'],
+              ] as $socialKey => [$socialLabel, $socialIcon, $socialPlaceholder])
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold"><i class="fa {{ $socialIcon }}"></i> {{ $socialLabel }}</label>
+                  <input type="url" name="{{ $socialKey }}" class="form-control" value="{{ old($socialKey, $settings[$socialKey] ?? '') }}" placeholder="{{ $socialPlaceholder }}">
+                </div>
+              </div>
+              @endforeach
             </div>
             <button type="submit" class="btn btn-primary settings-save-btn" style="background-color:#940000;border-color:#940000;"><i class="fa fa-save"></i> Save Platform Profile</button>
           </form>
@@ -163,7 +188,7 @@
         <div class="tab-pane fade {{ $activeTab === 'subscription' ? 'show active' : '' }}" id="tab-subscription">
           <h5 class="mb-3 text-muted"><i class="fa fa-money"></i> Platform Revenue Model</h5>
           <p class="small text-muted">Default billing settings used when you create a new plan. Each plan can override these.</p>
-          <form method="POST" action="{{ route('admin.settings.subscription.update') }}" class="settings-form mb-4">
+          <form method="POST" action="{{ route('admin.settings.subscription.update') }}" class="settings-form mb-4" enctype="multipart/form-data">
             @csrf @method('PUT')
             <div class="row">
               <div class="col-md-4">
@@ -263,8 +288,124 @@
               <label class="control-label font-weight-bold">Payment Instructions</label>
               <textarea name="payment_instructions" class="form-control" rows="5" placeholder="Bank details, M-Pesa pay number, etc. shown to businesses renewing subscription">{{ old('payment_instructions', $settings['payment_instructions']) }}</textarea>
             </div>
+
+            <hr>
+            <h5 class="mb-1 text-muted"><i class="fa fa-file-text-o"></i> Subscription Invoice (PDF) Details</h5>
+            <p class="small text-muted">Shown on the invoice PDF sent to businesses. <a href="{{ route('admin.settings.invoice-preview') }}" target="_blank">Preview sample invoice <i class="fa fa-external-link"></i></a></p>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Company Name</label>
+                  <input type="text" name="invoice_company_name" class="form-control" maxlength="150" value="{{ old('invoice_company_name', $settings['invoice_company_name'] ?? '') }}">
+                </div>
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Address</label>
+                  <textarea name="invoice_company_address" class="form-control" rows="2" maxlength="500">{{ old('invoice_company_address', $settings['invoice_company_address'] ?? '') }}</textarea>
+                </div>
+                <div class="form-row">
+                  <div class="form-group col-sm-6">
+                    <label class="control-label font-weight-bold">Phone</label>
+                    <input type="text" name="invoice_company_phone" class="form-control" maxlength="60" value="{{ old('invoice_company_phone', $settings['invoice_company_phone'] ?? '') }}">
+                  </div>
+                  <div class="form-group col-sm-6">
+                    <label class="control-label font-weight-bold">TIN</label>
+                    <input type="text" name="invoice_company_tin" class="form-control" maxlength="60" value="{{ old('invoice_company_tin', $settings['invoice_company_tin'] ?? '') }}">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Website</label>
+                  <input type="text" name="invoice_company_website" class="form-control" maxlength="120" value="{{ old('invoice_company_website', $settings['invoice_company_website'] ?? '') }}">
+                </div>
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Logo</label>
+                  @if(!empty($settings['invoice_logo']))
+                    <div class="mb-2 d-flex align-items-center">
+                      <img src="{{ asset('storage/'.$settings['invoice_logo']) }}" alt="Invoice logo" style="max-height: 60px; max-width: 200px;" class="mr-3 border p-1 bg-white">
+                      <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="invoice_logo_remove" name="invoice_logo_remove" value="1">
+                        <label class="custom-control-label" for="invoice_logo_remove">Remove logo</label>
+                      </div>
+                    </div>
+                  @endif
+                  <input type="file" name="invoice_logo_file" class="form-control-file" accept="image/png,image/jpeg">
+                  <small class="text-muted">PNG or JPG, up to 2 MB. Shown top-right of the invoice.</small>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Payment Intro Text</label>
+                  <textarea name="invoice_payment_intro" class="form-control" rows="2" maxlength="300">{{ old('invoice_payment_intro', $settings['invoice_payment_intro'] ?? '') }}</textarea>
+                </div>
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Purpose</label>
+                  <input type="text" name="invoice_purpose" class="form-control" maxlength="200" value="{{ old('invoice_purpose', $settings['invoice_purpose'] ?? '') }}">
+                  <small class="text-muted">Use {platform_name} for the platform name.</small>
+                </div>
+                <div class="form-row align-items-end">
+                  <div class="form-group col-sm-6">
+                    <label class="control-label font-weight-bold">VAT %</label>
+                    <input type="number" name="invoice_vat_percent" class="form-control" min="0" max="100" step="0.01" value="{{ old('invoice_vat_percent', $settings['invoice_vat_percent'] ?? 18) }}">
+                  </div>
+                  <div class="form-group col-sm-6">
+                    <div class="custom-control custom-switch">
+                      <input type="checkbox" class="custom-control-input" id="invoice_charge_vat" name="invoice_charge_vat" value="1" {{ old('invoice_charge_vat', $settings['invoice_charge_vat'] ?? false) ? 'checked' : '' }}>
+                      <label class="custom-control-label" for="invoice_charge_vat">Add VAT to the total</label>
+                    </div>
+                    <small class="text-muted">Off = VAT shows as 0.0/=</small>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="control-label font-weight-bold">Footer Note</label>
+                  <textarea name="invoice_footer" class="form-control" rows="2" maxlength="500">{{ old('invoice_footer', $settings['invoice_footer'] ?? '') }}</textarea>
+                </div>
+              </div>
+            </div>
+
+            @php
+              $paymentMethods = old('invoice_payment_methods', $settings['invoice_payment_methods'] ?? []);
+              $paymentMethods = is_array($paymentMethods) && count($paymentMethods) ? array_values($paymentMethods) : [['provider' => '', 'account_name' => '', 'number_label' => 'A/C no.', 'number' => '']];
+            @endphp
+            <div class="form-group">
+              <label class="control-label font-weight-bold mb-1">Payment Methods</label>
+              <small class="d-block text-muted mb-2">Each method is listed on the invoice under "Remarks / Payment Instructions". Add banks, M-Pesa, Tigo Pesa, Airtel Money, Lipa Namba, etc.</small>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-2" id="invoicePaymentMethods">
+                  <thead class="thead-light">
+                    <tr>
+                      <th>Bank / Provider</th>
+                      <th>Account Name</th>
+                      <th style="width: 150px;">Number Label</th>
+                      <th>Account / Number</th>
+                      <th style="width: 50px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @foreach($paymentMethods as $i => $method)
+                      <tr class="js-payment-method-row">
+                        <td><input type="text" name="invoice_payment_methods[{{ $i }}][provider]" class="form-control form-control-sm" maxlength="80" placeholder="e.g. CRDB BANK / M-PESA" value="{{ $method['provider'] ?? '' }}"></td>
+                        <td><input type="text" name="invoice_payment_methods[{{ $i }}][account_name]" class="form-control form-control-sm" maxlength="120" placeholder="e.g. EMCATECHONOLOGIESLTD" value="{{ $method['account_name'] ?? '' }}"></td>
+                        <td><input type="text" name="invoice_payment_methods[{{ $i }}][number_label]" class="form-control form-control-sm" maxlength="40" placeholder="A/C no. / Lipa Namba" value="{{ $method['number_label'] ?? '' }}"></td>
+                        <td><input type="text" name="invoice_payment_methods[{{ $i }}][number]" class="form-control form-control-sm" maxlength="60" placeholder="e.g. 015C0007UXJ00" value="{{ $method['number'] ?? '' }}"></td>
+                        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger js-remove-payment-method" title="Remove"><i class="fa fa-trash"></i></button></td>
+                      </tr>
+                    @endforeach
+                  </tbody>
+                </table>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="addPaymentMethod"><i class="fa fa-plus"></i> Add Payment Method</button>
+            </div>
             <button type="submit" class="btn btn-primary settings-save-btn" style="background-color:#940000;border-color:#940000;"><i class="fa fa-save"></i> Save Subscription Policy</button>
           </form>
+        </div>
+
+        {{-- APPEARANCE --}}
+        <div class="tab-pane fade {{ $activeTab === 'appearance' ? 'show active' : '' }}" id="tab-appearance">
+          <h5 class="mb-1 text-muted"><i class="fa fa-picture-o"></i> Admin Background Wallpaper</h5>
+          <p class="small text-muted mb-3">Like WhatsApp chat wallpaper — shown behind the platform admin pages. Businesses choose their own under their Settings → Appearance.</p>
+          @include('partials.appearance-picker', [
+            'action' => route('admin.settings.appearance.update'),
+            'appearance' => \App\Models\Business::normalizeAppearance((array) ($settings['admin_appearance'] ?? [])),
+          ])
         </div>
 
         {{-- MAIL --}}
@@ -546,6 +687,29 @@ jQuery(function($) {
     const $btn = $(this).find('.settings-save-btn');
     if ($btn.length) {
       $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-1"></i> Saving...');
+    }
+  });
+
+  const $methodsBody = $('#invoicePaymentMethods tbody');
+  let methodIndex = $methodsBody.find('.js-payment-method-row').length;
+
+  $('#addPaymentMethod').on('click', function() {
+    const $row = $methodsBody.find('.js-payment-method-row').first().clone();
+    $row.find('input').each(function() {
+      this.name = this.name.replace(/\[\d+\]/, '[' + methodIndex + ']');
+      this.value = this.name.endsWith('[number_label]') ? 'A/C no.' : '';
+    });
+    methodIndex++;
+    $methodsBody.append($row);
+    $row.find('input').first().trigger('focus');
+  });
+
+  $methodsBody.on('click', '.js-remove-payment-method', function() {
+    const $row = $(this).closest('.js-payment-method-row');
+    if ($methodsBody.find('.js-payment-method-row').length > 1) {
+      $row.remove();
+    } else {
+      $row.find('input').val('');
     }
   });
 

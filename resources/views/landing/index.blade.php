@@ -7,6 +7,7 @@
   @include('landing.partials.hero')
   @include('landing.partials.about')
   @include('landing.partials.features')
+  @include('landing.partials.mobile-app')
   @include('landing.partials.pricing')
   @include('landing.partials.faq')
   @include('landing.partials.stats')

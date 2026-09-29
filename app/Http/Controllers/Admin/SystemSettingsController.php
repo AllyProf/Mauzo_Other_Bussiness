@@ -47,6 +47,44 @@ class SystemSettingsController extends Controller
         ));
     }
 
+    public function updateAppearance(Request $request)
+    {
+        $this->ensurePlatformAdmin('settings');
+
+        $request->validate([
+            'background' => 'required|in:none,custom,'.implode(',', array_keys(\App\Models\Business::BACKGROUND_PATTERNS)),
+            'strength' => 'required|in:'.implode(',', array_keys(\App\Models\Business::BACKGROUND_STRENGTHS)),
+            'background_file' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:3072',
+        ]);
+
+        $current = \App\Models\Business::normalizeAppearance((array) $this->settings->get('admin_appearance', []));
+        $customPath = $current['custom_path'];
+
+        if ($request->hasFile('background_file')) {
+            if ($customPath !== '') {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($customPath);
+            }
+            $customPath = $request->file('background_file')->store('platform', 'public');
+        }
+
+        if ($request->input('background') === 'custom' && $customPath === '') {
+            return redirect()->route('admin.settings.index', ['tab' => 'appearance'])
+                ->withInput()
+                ->withErrors(['background_file' => 'Please upload an image for the custom background.']);
+        }
+
+        $this->settings->update([
+            'admin_appearance' => [
+                'background' => $request->input('background'),
+                'custom_path' => $customPath,
+                'strength' => $request->input('strength'),
+            ],
+        ]);
+
+        return redirect()->route('admin.settings.index', ['tab' => 'appearance'])
+            ->with('success', 'Appearance updated.');
+    }
+
     public function updateProfile(Request $request)
     {
         $this->ensurePlatformAdmin('settings');
@@ -57,6 +95,12 @@ class SystemSettingsController extends Controller
             'support_email' => 'required|email|max:255',
             'support_phone' => 'nullable|string|max:50',
             'support_whatsapp' => 'nullable|string|max:50',
+            'public_address' => 'nullable|string|max:255',
+            'social_facebook' => 'nullable|url|max:255',
+            'social_instagram' => 'nullable|url|max:255',
+            'social_youtube' => 'nullable|url|max:255',
+            'social_tiktok' => 'nullable|url|max:255',
+            'social_x' => 'nullable|url|max:255',
             'timezone' => 'required|string|max:100',
             'currency_code' => 'required|string|max:10',
             'currency_symbol' => 'required|string|max:10',
@@ -111,9 +155,59 @@ class SystemSettingsController extends Controller
             'default_billing_model' => 'required|in:fixed_monthly,profit_share',
             'default_profit_share_percent' => 'required|numeric|min:0|max:100',
             'default_profit_share_basis' => 'required|in:gross_profit,net_profit',
+            'invoice_company_name' => 'nullable|string|max:150',
+            'invoice_company_address' => 'nullable|string|max:500',
+            'invoice_company_phone' => 'nullable|string|max:60',
+            'invoice_company_tin' => 'nullable|string|max:60',
+            'invoice_company_website' => 'nullable|string|max:120',
+            'invoice_payment_intro' => 'nullable|string|max:300',
+            'invoice_payment_methods' => 'nullable|array|max:10',
+            'invoice_payment_methods.*.provider' => 'nullable|string|max:80',
+            'invoice_payment_methods.*.account_name' => 'nullable|string|max:120',
+            'invoice_payment_methods.*.number_label' => 'nullable|string|max:40',
+            'invoice_payment_methods.*.number' => 'nullable|string|max:60',
+            'invoice_purpose' => 'nullable|string|max:200',
+            'invoice_vat_percent' => 'nullable|numeric|min:0|max:100',
+            'invoice_charge_vat' => 'nullable|boolean',
+            'invoice_footer' => 'nullable|string|max:500',
+            'invoice_logo_file' => 'nullable|image|mimes:png,jpg,jpeg|max:2048',
+            'invoice_logo_remove' => 'nullable|boolean',
         ]);
 
+        $invoiceLogo = (string) $this->settings->get('invoice_logo', '');
+        if ($request->boolean('invoice_logo_remove') && $invoiceLogo !== '') {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($invoiceLogo);
+            $invoiceLogo = '';
+        }
+        if ($request->hasFile('invoice_logo_file')) {
+            if ($invoiceLogo !== '') {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($invoiceLogo);
+            }
+            $invoiceLogo = $request->file('invoice_logo_file')->store('platform', 'public');
+        }
+
         $this->settings->update([
+            'invoice_company_name' => $data['invoice_company_name'] ?? '',
+            'invoice_company_address' => $data['invoice_company_address'] ?? '',
+            'invoice_company_phone' => $data['invoice_company_phone'] ?? '',
+            'invoice_company_tin' => $data['invoice_company_tin'] ?? '',
+            'invoice_company_website' => $data['invoice_company_website'] ?? '',
+            'invoice_payment_intro' => $data['invoice_payment_intro'] ?? '',
+            'invoice_payment_methods' => collect($data['invoice_payment_methods'] ?? [])
+                ->map(fn ($method) => [
+                    'provider' => trim((string) ($method['provider'] ?? '')),
+                    'account_name' => trim((string) ($method['account_name'] ?? '')),
+                    'number_label' => trim((string) ($method['number_label'] ?? '')),
+                    'number' => trim((string) ($method['number'] ?? '')),
+                ])
+                ->filter(fn ($method) => $method['provider'] !== '' || $method['account_name'] !== '' || $method['number'] !== '')
+                ->values()
+                ->all(),
+            'invoice_purpose' => $data['invoice_purpose'] ?? '',
+            'invoice_vat_percent' => (float) ($data['invoice_vat_percent'] ?? 0),
+            'invoice_charge_vat' => $request->boolean('invoice_charge_vat'),
+            'invoice_footer' => $data['invoice_footer'] ?? '',
+            'invoice_logo' => $invoiceLogo,
             'grace_period_days' => $data['grace_period_days'],
             'expiry_warning_days' => $data['expiry_warning_days'],
             'expiry_reminder_repeat_days' => $data['expiry_reminder_repeat_days'],
@@ -131,6 +225,35 @@ class SystemSettingsController extends Controller
         AuditLog::log('UPDATE_PLATFORM_SETTINGS', 'Updated subscription policy settings');
 
         return redirect()->route('admin.settings.index', ['tab' => 'subscription'])->with('success', 'Subscription policy saved.');
+    }
+
+    public function invoicePreview(\App\Services\PlatformInvoiceDocumentService $documents)
+    {
+        $this->ensurePlatformAdmin('settings');
+
+        $invoice = \App\Models\PlatformBillingInvoice::query()->with(['business', 'plan'])->latest('id')->first();
+
+        if (! $invoice) {
+            $business = \App\Models\Business::query()->with('plan')->first() ?? new \App\Models\Business([
+                'name' => 'Sample Business Ltd',
+                'contact_person' => 'Business Owner',
+                'address' => 'P.O.BOX 1000,',
+                'region' => 'Arusha',
+            ]);
+            $invoice = new \App\Models\PlatformBillingInvoice([
+                'invoice_number' => 'SAMPLE-0001',
+                'billing_month' => now()->startOfMonth()->toDateString(),
+                'billing_model' => 'fixed_monthly',
+                'amount' => 50000,
+            ]);
+            $invoice->setRelation('business', $business);
+            $invoice->setRelation('plan', $business->plan);
+        }
+
+        return response($documents->renderPdf($invoice), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$documents->filename($invoice).'"',
+        ]);
     }
 
     public function updateMail(Request $request)

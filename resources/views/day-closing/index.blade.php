@@ -178,11 +178,19 @@
 @if(($isBossReview ?? false) && ($pendingFromOtherDays ?? collect())->isNotEmpty())
 <div class="row mb-3">
   <div class="col-md-12">
-    <div class="tile border-warning">
-      <h3 class="tile-title text-warning mb-0">
-        <i class="fa fa-exclamation-triangle"></i>
-        Previous Day{{ ($pendingFromOtherDays->count() > 1) ? 's' : '' }} Awaiting Verification ({{ $pendingFromOtherDays->count() }})
-      </h3>
+    <div class="tile border-warning py-3">
+      <div class="d-flex align-items-center justify-content-between pending-days-toggle collapsed"
+           data-toggle="collapse" data-target="#pendingOtherDays" role="button"
+           aria-expanded="false" aria-controls="pendingOtherDays" style="cursor: pointer;">
+        <h3 class="tile-title text-warning mb-0">
+          <i class="fa fa-exclamation-triangle"></i>
+          Previous Day{{ ($pendingFromOtherDays->count() > 1) ? 's' : '' }} Awaiting Verification ({{ $pendingFromOtherDays->count() }})
+        </h3>
+        <button type="button" class="btn btn-sm btn-outline-warning" title="View all" aria-label="View all">
+          <i class="fa fa-eye pending-days-icon"></i> <span class="pending-days-label">View</span>
+        </button>
+      </div>
+      <div class="collapse" id="pendingOtherDays">
       <div class="tile-body pt-3">
         <p class="text-muted mb-3">
           You are viewing <strong>{{ \Carbon\Carbon::parse($date)->format('M d, Y') }}</strong>, but earlier handovers still need approval before they post to the Master Sheet.
@@ -235,9 +243,22 @@
           </table>
         </div>
       </div>
+      </div>
     </div>
   </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (!window.jQuery) return;
+  var $panel = jQuery('#pendingOtherDays');
+  var $toggle = jQuery('.pending-days-toggle');
+  $panel.on('show.bs.collapse hide.bs.collapse', function (e) {
+    var open = e.type === 'show';
+    $toggle.find('.pending-days-icon').toggleClass('fa-eye', !open).toggleClass('fa-eye-slash', open);
+    $toggle.find('.pending-days-label').text(open ? 'Hide' : 'View');
+  });
+});
+</script>
 @elseif(($isBossReview ?? false) && ($pendingOnSelectedDate ?? collect())->isNotEmpty())
 <div class="row mb-3">
   <div class="col-md-12">

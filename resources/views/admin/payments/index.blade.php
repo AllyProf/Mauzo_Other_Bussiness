@@ -100,6 +100,7 @@
       <div class="tile-title-w-btn">
         <h3 class="tile-title">Business Payments</h3>
         <p>
+          <button type="button" class="btn btn-primary btn-sm mr-1" data-toggle="modal" data-target="#manualInvoiceModal"><i class="fa fa-file-text-o"></i> Create Invoice</button>
           <form method="POST" action="{{ route('admin.payments.generate') }}" class="d-inline" onsubmit="return confirm('Generate invoices for all active businesses for the selected month?');">
             @csrf
             <input type="hidden" name="month" value="{{ request('month', now()->format('Y-m')) }}">
@@ -133,7 +134,12 @@
                   <br><small class="text-muted">Expires {{ $invoice->business->expiry_date->format('M d, Y') }}</small>
                   @endif
                 </td>
-                <td>{{ $invoice->billingMonthLabel() }}</td>
+                <td>
+                  {{ $invoice->billingMonthLabel() }}
+                  @if($invoice->is_manual)
+                  <br><small class="text-muted">{{ $invoice->quantity }} × TZS {{ number_format((float) $invoice->unit_price, 0) }}@if($invoice->description) · {{ \Illuminate\Support\Str::limit($invoice->description, 40) }}@endif</small>
+                  @endif
+                </td>
                 <td>{{ $invoice->plan->name ?? '—' }}</td>
                 <td><small>{{ $invoice->billingModelLabel() }}</small></td>
                 <td class="text-right"><strong>TZS {{ number_format((float) $invoice->amount, 0) }}</strong></td>
@@ -159,7 +165,12 @@
                     <i class="fa fa-check"></i> Mark Paid
                   </button>
                   @else
-                  <span class="text-muted small">By {{ $invoice->markedPaidByUser->name ?? 'Admin' }}</span>
+                  @if($invoice->business)
+                  <button type="button" class="btn btn-outline-primary btn-sm" data-toggle="modal" data-target="#editExpiryModal{{ $invoice->id }}" title="Edit paid-until date">
+                    <i class="fa fa-calendar"></i> Edit Date
+                  </button>
+                  @endif
+                  <br><span class="text-muted small">By {{ $invoice->markedPaidByUser->name ?? 'Admin' }}</span>
                   @endif
                 </td>
               </tr>
@@ -210,9 +221,29 @@
             <label class="control-label">Notes</label>
             <textarea name="payment_notes" class="form-control" rows="3" maxlength="1000" placeholder="Optional notes about this payment"></textarea>
           </div>
-          <div class="custom-control custom-checkbox">
+          <div class="custom-control custom-checkbox mb-2">
             <input type="checkbox" class="custom-control-input" id="extend_subscription_{{ $invoice->id }}" name="extend_subscription" value="1" checked>
             <label class="custom-control-label" for="extend_subscription_{{ $invoice->id }}">Extend business subscription after payment</label>
+          </div>
+          @php
+            $payBusiness = $invoice->business;
+            $payDefaultMonths = max(1, (int) ($invoice->is_manual && $invoice->quantity ? $invoice->quantity : ($payBusiness?->plan?->duration_months ?? 1)));
+            $payBase = $payBusiness?->expiry_date && \Carbon\Carbon::parse($payBusiness->expiry_date)->isFuture()
+              ? \Carbon\Carbon::parse($payBusiness->expiry_date)
+              : now();
+          @endphp
+          <div class="form-group mb-0">
+            <label class="control-label" for="paid_until_{{ $invoice->id }}">Paid until</label>
+            <input type="text" name="paid_until" id="paid_until_{{ $invoice->id }}" class="form-control js-date-picker" value="{{ $payBase->copy()->addMonthsNoOverflow($payDefaultMonths)->toDateString() }}" required>
+            <div class="mt-2">
+              <small class="text-muted mr-1">Months paid:</small>
+              @foreach([1, 2, 3, 6, 12] as $m)
+              <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 mr-1 mb-1 js-date-add-months" data-target="#paid_until_{{ $invoice->id }}" data-from="{{ $payBase->toDateString() }}" data-months="{{ $m }}">{{ $m }} {{ $m === 1 ? 'month' : 'months' }}</button>
+              @endforeach
+            </div>
+            <small class="text-muted d-block">
+              Current expiry: {{ $payBusiness?->expiry_date ? \Carbon\Carbon::parse($payBusiness->expiry_date)->format('d M Y') : 'not set' }}. Pick any date, or use the month buttons.
+            </small>
           </div>
         </div>
         <div class="modal-footer">
@@ -223,6 +254,157 @@
     </div>
   </div>
 </div>
+@elseif($invoice->business)
+<div class="modal fade" id="editExpiryModal{{ $invoice->id }}" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="POST" action="{{ route('admin.payments.update-expiry', $invoice) }}">
+        @csrf
+        @method('PUT')
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Paid-Until Date — {{ $invoice->business->name }}</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-3">
+            Invoice <strong>{{ $invoice->invoice_number }}</strong> · paid {{ $invoice->paid_at?->format('d M Y') }}
+          </p>
+          <div class="form-group mb-0">
+            <label class="control-label" for="edit_paid_until_{{ $invoice->id }}">Paid until</label>
+            <input type="text" name="paid_until" id="edit_paid_until_{{ $invoice->id }}" class="form-control js-date-picker" value="{{ $invoice->business->expiry_date?->toDateString() ?? now()->toDateString() }}" required>
+            <div class="mt-2">
+              <small class="text-muted mr-1">Add:</small>
+              @foreach([1, 3, 6, 12] as $m)
+              <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 mr-1 mb-1 js-date-add-months" data-target="#edit_paid_until_{{ $invoice->id }}" data-months="{{ $m }}">+{{ $m }} {{ $m === 1 ? 'month' : 'months' }}</button>
+              @endforeach
+            </div>
+            <small class="text-muted d-block">Current expiry: {{ $invoice->business->expiry_date?->format('d M Y') ?? 'not set' }}.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fa fa-calendar"></i> Save Date</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 @endif
 @endforeach
+
+<div class="modal fade" id="manualInvoiceModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="POST" action="{{ route('admin.payments.manual') }}" id="manualInvoiceForm">
+        @csrf
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa fa-file-text-o"></i> Create Invoice</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="control-label">Business</label>
+            <select name="business_id" id="manualBusiness" class="form-control" required>
+              <option value="">Select business</option>
+              @foreach($invoiceBusinesses as $b)
+                @php $bMonths = max(1, (int) ($b->plan?->duration_months ?? 1)); @endphp
+                <option value="{{ $b->id }}"
+                        data-monthly="{{ round($b->effectiveBillingPrice() / $bMonths, 2) }}"
+                        data-plan="{{ $b->plan?->name }}"
+                        data-email="{{ $b->email }}">{{ $b->name }}{{ $b->is_active ? '' : ' (inactive)' }}</option>
+              @endforeach
+            </select>
+            <small class="text-muted" id="manualBusinessInfo"></small>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-sm-6">
+              <label class="control-label">Billing Month</label>
+              <input type="month" name="billing_month" class="form-control" value="{{ now()->format('Y-m') }}" required>
+            </div>
+            <div class="form-group col-sm-6">
+              <label class="control-label">Months (Qnty)</label>
+              <input type="number" name="quantity" id="manualQty" class="form-control" min="1" max="36" value="1" required>
+              <div class="mt-1">
+                @foreach([1, 3, 6, 12] as $m)
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 mr-1 js-manual-qty" data-qty="{{ $m }}">{{ $m }}</button>
+                @endforeach
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="control-label">Unit Price (TZS per month)</label>
+            <input type="number" name="unit_price" id="manualUnitPrice" class="form-control" min="0" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label class="control-label">Description <small class="text-muted">(optional)</small></label>
+            <input type="text" name="description" class="form-control" maxlength="255" placeholder="e.g. Enterprise plan subscription — 3 months">
+            <small class="text-muted">Leave empty to use "&lt;Plan&gt; plan subscription — N months".</small>
+          </div>
+          <div class="alert alert-light border mb-3 py-2 d-flex justify-content-between">
+            <span>Total</span><strong id="manualTotal">TZS 0</strong>
+          </div>
+          <div class="custom-control custom-checkbox">
+            <input type="checkbox" class="custom-control-input" id="manualSendNow" name="send_now" value="1" checked>
+            <label class="custom-control-label" for="manualSendNow">Email the invoice PDF to the business now</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fa fa-paper-plane"></i> Create Invoice</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+@include('partials.date-picker')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var business = document.getElementById('manualBusiness');
+  var qty = document.getElementById('manualQty');
+  var price = document.getElementById('manualUnitPrice');
+  var total = document.getElementById('manualTotal');
+  var info = document.getElementById('manualBusinessInfo');
+  if (!business) return;
+
+  function updateTotal() {
+    var value = (parseFloat(price.value) || 0) * (parseInt(qty.value, 10) || 0);
+    total.textContent = 'TZS ' + Math.round(value).toLocaleString('en-US');
+  }
+
+  business.addEventListener('change', function () {
+    var option = business.options[business.selectedIndex];
+    if (option && option.value) {
+      price.value = option.dataset.monthly || '';
+      var parts = [];
+      if (option.dataset.plan) parts.push('Plan: ' + option.dataset.plan);
+      parts.push(option.dataset.email ? 'Email: ' + option.dataset.email : 'No email on file');
+      info.textContent = parts.join(' · ');
+    } else {
+      info.textContent = '';
+    }
+    updateTotal();
+  });
+
+  document.querySelectorAll('.js-manual-qty').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      qty.value = btn.dataset.qty;
+      updateTotal();
+    });
+  });
+
+  qty.addEventListener('input', updateTotal);
+  price.addEventListener('input', updateTotal);
+
+  document.getElementById('manualInvoiceForm').addEventListener('submit', function (e) {
+    var btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating...';
+  });
+});
+</script>
 @endsection

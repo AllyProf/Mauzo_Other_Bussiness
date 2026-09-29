@@ -131,9 +131,17 @@
 </div>
 
 @if($pendingClosings->isNotEmpty())
-<div class="tile d-print-none mb-3 border-warning">
-  <h3 class="tile-title text-warning"><i class="fa fa-hourglass-half"></i> {{ __('owner_reports.awaiting_verification', ['count' => $pendingClosings->count()]) }}</h3>
-  <div class="tile-body p-0">
+<div class="tile d-print-none mb-3 border-warning py-3">
+  <div class="d-flex align-items-center justify-content-between pending-closings-toggle"
+       data-toggle="collapse" data-target="#pendingClosingsList" role="button"
+       aria-expanded="false" aria-controls="pendingClosingsList" style="cursor: pointer;">
+    <h3 class="tile-title text-warning mb-0"><i class="fa fa-hourglass-half"></i> {{ __(Auth::user()->role === 'owner' || Auth::user()->can('view_boss_financial_review') ? 'owner_reports.awaiting_your_verification' : 'owner_reports.awaiting_verification', ['count' => $pendingClosings->total()]) }}</h3>
+    <button type="button" class="btn btn-sm btn-outline-warning" title="View all" aria-label="View all">
+      <i class="fa fa-eye pending-closings-icon"></i> <span class="pending-closings-label">View</span>
+    </button>
+  </div>
+  <div class="collapse {{ request()->has('pending_page') ? 'show' : '' }}" id="pendingClosingsList">
+  <div class="tile-body p-0 pt-3">
     <div class="d-none d-md-block">
       <table class="table table-sm mb-0">
         <thead><tr><th>{{ __('tables.columns.date') }}</th><th>{{ __('owner_reports.submitted_by') }}</th><th>{{ __('tables.columns.collected') }}</th><th>{{ __('tables.columns.action') }}</th></tr></thead>
@@ -169,9 +177,30 @@
       </div>
       @endforeach
     </div>
+    @if($pendingClosings->hasPages())
+    <div class="d-flex flex-wrap align-items-center justify-content-between px-3 pt-3">
+      <small class="text-muted mb-2">Showing {{ $pendingClosings->firstItem() }}–{{ $pendingClosings->lastItem() }} of {{ $pendingClosings->total() }}</small>
+      <div class="mb-2">{{ $pendingClosings->links('pagination::bootstrap-4') }}</div>
+    </div>
+    @endif
     <p class="small text-muted px-3 py-2 mb-0">{{ __('owner_reports.verify_hint') }}</p>
   </div>
+  </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (!window.jQuery) return;
+  var $toggle = jQuery('.pending-closings-toggle');
+  var $panel = jQuery('#pendingClosingsList');
+  function sync(open) {
+    $toggle.attr('aria-expanded', open ? 'true' : 'false');
+    $toggle.find('.pending-closings-icon').toggleClass('fa-eye', !open).toggleClass('fa-eye-slash', open);
+    $toggle.find('.pending-closings-label').text(open ? 'Hide' : 'View');
+  }
+  $panel.on('show.bs.collapse hide.bs.collapse', function (e) { sync(e.type === 'show'); });
+  sync($panel.hasClass('show'));
+});
+</script>
 @endif
 
 @if($multiBusiness ?? false)
@@ -262,7 +291,7 @@
                 @if($multiBusiness ?? false)
                 <td class="text-muted">—</td>
                 @endif
-                <td class="text-muted small">{{ ($ledger['has_open_shift'] ?? false) ? __('owner_reports.open_day') : __('owner_reports.awaiting_shift') }}</td>
+                <td class="small {{ ($ledger['is_missed_day'] ?? false) ? 'text-danger' : 'text-muted' }}">{{ $ledger['staff_label'] ?? (($ledger['has_open_shift'] ?? false) ? __('owner_reports.open_day') : __('owner_reports.awaiting_shift')) }}</td>
                 <td class="text-center">
                   <span class="status-badge" style="border: 1px solid {{ $ledger['status_color'] }}; color: {{ $ledger['status_color'] }};">
                     {{ __report_status($ledger['business_status']) }}

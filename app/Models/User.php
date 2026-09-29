@@ -34,6 +34,8 @@ class User extends Authenticatable
         'platform_admin_role',
         'platform_admin_role_id',
         'is_active',
+        'failed_login_count',
+        'locked_until',
         'locale',
         'first_login_at',
         'tour_completed_at',
@@ -61,11 +63,57 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'failed_login_count' => 'integer',
+            'locked_until' => 'datetime',
             'business_type_keys' => 'array',
             'first_login_at' => 'datetime',
             'tour_completed_at' => 'datetime',
             'tour_skipped_at' => 'datetime',
         ];
+    }
+
+    public const MAX_FAILED_LOGINS = 2;
+
+    public const LOGIN_LOCK_HOURS = 24;
+
+    public function isLoginLocked(): bool
+    {
+        return $this->locked_until !== null && $this->locked_until->isFuture();
+    }
+
+    /**
+     * Returns true when this failure locks the account.
+     */
+    public function registerFailedLogin(): bool
+    {
+        if ($this->locked_until !== null && $this->locked_until->isPast()) {
+            $this->failed_login_count = 0;
+            $this->locked_until = null;
+        }
+
+        $this->failed_login_count++;
+
+        if ($this->failed_login_count >= self::MAX_FAILED_LOGINS) {
+            $this->locked_until = now()->addHours(self::LOGIN_LOCK_HOURS);
+        }
+
+        $this->saveQuietly();
+
+        return $this->isLoginLocked();
+    }
+
+    public function remainingLoginAttempts(): int
+    {
+        return max(0, self::MAX_FAILED_LOGINS - (int) $this->failed_login_count);
+    }
+
+    public function clearLoginLock(): void
+    {
+        if ((int) $this->failed_login_count === 0 && $this->locked_until === null) {
+            return;
+        }
+
+        $this->forceFill(['failed_login_count' => 0, 'locked_until' => null])->saveQuietly();
     }
 
     public static function generateRandomPassword(int $length = 12): string

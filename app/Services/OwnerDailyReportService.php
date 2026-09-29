@@ -236,9 +236,13 @@ class OwnerDailyReportService
         return $profit;
     }
 
-    public function buildReportData(Business $business, string $date, ?DayClosing $dayClosing = null, bool $includeOwnerExpenses = true): array
+    /**
+     * $resolveClosing = false keeps open days on their own payments; an unverified handover can
+     * span several days of sales that are already counted on the days they were paid.
+     */
+    public function buildReportData(Business $business, string $date, ?DayClosing $dayClosing = null, bool $includeOwnerExpenses = true, bool $resolveClosing = true): array
     {
-        if (! $dayClosing) {
+        if (! $dayClosing && $resolveClosing) {
             $dayClosingQuery = DayClosing::where('business_id', $business->id)
                 ->whereDate('closing_date', $date);
             $this->scopeBranchDayClosings($dayClosingQuery);
@@ -1086,11 +1090,13 @@ class OwnerDailyReportService
             $closing->status === 'disputed' => 'DISPUTED',
             $isFinalized => 'CLOSED',
             $closing->status === 'verified' => 'VERIFIED',
+            $closing->status === 'submitted' => 'PENDING_VERIFICATION',
             default => 'OPEN',
         };
         $statusColor = match ($businessStatus) {
             'CLOSED', 'VERIFIED' => '#28a745',
             'DISPUTED' => '#dc3545',
+            'PENDING_VERIFICATION' => '#fd7e14',
             default => '#ffc107',
         };
 
@@ -1612,12 +1618,20 @@ class OwnerDailyReportService
         $rows = [];
         $cursor = Carbon::parse($latestVerifiedDate)->addDay();
         $endDate = $this->resolveOpenDayRowsEndDate($business, Carbon::parse($latestVerifiedDate));
-        $maxOpenDays = 45;
+        $activeDates = $this->openDayActivityDates($business, $cursor->toDateString(), $endDate->toDateString());
+        $maxOpenDays = 180;
         $scanned = 0;
 
         while ($cursor->lte($endDate) && $scanned < $maxOpenDays) {
-            $scanned++;
             $dateString = $cursor->toDateString();
+
+            if (! isset($activeDates[$dateString])) {
+                $cursor->addDay();
+
+                continue;
+            }
+
+            $scanned++;
 
             $hasVerifiedQuery = DayClosing::where('business_id', $business->id)
                 ->whereDate('closing_date', $dateString)
@@ -1632,7 +1646,7 @@ class OwnerDailyReportService
                 ];
             } else {
                 $data = $this->applyCarryForwardToReportData(
-                    $this->buildReportData($business, $dateString, null),
+                    $this->buildReportData($business, $dateString, null, true, false),
                     $carryForward
                 );
 
@@ -1643,7 +1657,7 @@ class OwnerDailyReportService
 
                 $row = $this->formatOpenDayPlaceholderRow($business, $dateString, $data, null);
 
-                if ($row['has_open_day_activity'] ?? false) {
+                if (($row['has_open_day_activity'] ?? false) && ! ($row['is_missed_day'] ?? false)) {
                     if (! $this->isBranchScoped()) {
                         $row['report'] = $this->syncOpenDayReport($business, $dateString, $data);
                         $row['report_id'] = $row['report']?->id;
@@ -1708,8 +1722,15 @@ class OwnerDailyReportService
         );
     }
 
-    public function buildOpenDayTotalsForDate(Business $business, string $date): array
+    /**
+     * @param  array<int, string>  $captureOpeningsAt  earlier dates whose opening balances are returned under
+     *                                                 'openings_at' when the walk passes them
+     */
+    public function buildOpenDayTotalsForDate(Business $business, string $date, array $captureOpeningsAt = []): array
     {
+        $captureOpeningsAt = array_flip($captureOpeningsAt);
+        $openingsAt = [];
+
         $targetDate = Carbon::parse($date)->toDateString();
 
         $previousVerifiedQuery = DayClosing::where('business_id', $business->id)
@@ -1722,7 +1743,7 @@ class OwnerDailyReportService
             return $this->applyMoneyShortRecoveries(
                 $business,
                 $targetDate,
-                $this->buildReportData($business, $targetDate, null)
+                $this->buildReportData($business, $targetDate, null, true, false)
             );
         }
 
@@ -1735,10 +1756,25 @@ class OwnerDailyReportService
 
         $cursor = Carbon::parse($previousVerifiedDate)->addDay();
         $target = Carbon::parse($targetDate);
-        $data = $this->buildReportData($business, $targetDate, null);
+        $data = $this->buildReportData($business, $targetDate, null, true, false);
+        $activeDates = $this->openDayActivityDates($business, $cursor->toDateString(), $targetDate);
+        $activeDates[$targetDate] = true;
 
         while ($cursor->lte($target)) {
             $dateString = $cursor->toDateString();
+
+            if (isset($captureOpeningsAt[$dateString])) {
+                $openingsAt[$dateString] = [
+                    'opening_circulation' => $carryForward['closing_circulation'],
+                    'opening_profit' => $carryForward['closing_profit'],
+                ];
+            }
+
+            if (! isset($activeDates[$dateString])) {
+                $cursor->addDay();
+
+                continue;
+            }
 
             $verifiedOnDayQuery = DayClosing::where('business_id', $business->id)
                 ->whereDate('closing_date', $dateString)
@@ -1757,7 +1793,7 @@ class OwnerDailyReportService
                 }
             } else {
                 $data = $this->applyCarryForwardToReportData(
-                    $this->buildReportData($business, $dateString, null),
+                    $this->buildReportData($business, $dateString, null, true, false),
                     $carryForward
                 );
                 $carryForward = [
@@ -1770,8 +1806,48 @@ class OwnerDailyReportService
         }
 
         $data['verified_handover_count'] = 0;
+        $data['openings_at'] = $openingsAt;
 
         return $this->applyMoneyShortRecoveries($business, $targetDate, $data);
+    }
+
+    /**
+     * Days without any of these records leave the carry-forward balances unchanged.
+     *
+     * @return array<string, true>
+     */
+    private function openDayActivityDates(Business $business, string $from, string $to): array
+    {
+        $sources = [
+            [Sale::query(), 'sale_date'],
+            [BusinessOwnerExpense::query(), 'expense_date'],
+            [DayClosing::query(), 'closing_date'],
+            [Shift::query(), 'opened_at'],
+        ];
+
+        $dates = collect();
+        foreach ($sources as [$query, $column]) {
+            $dates = $dates->merge(
+                $query->where('business_id', $business->id)
+                    ->whereRaw("DATE({$column}) BETWEEN ? AND ?", [$from, $to])
+                    ->selectRaw("DISTINCT DATE({$column}) as d")
+                    ->pluck('d')
+            );
+        }
+
+        $dates = $dates->merge(
+            SalePayment::whereHas('sale', fn ($q) => $q->where('business_id', $business->id))
+                ->whereRaw('DATE(created_at) BETWEEN ? AND ?', [$from, $to])
+                ->selectRaw('DISTINCT DATE(created_at) as d')
+                ->pluck('d')
+        );
+
+        $dates->push(Carbon::today()->toDateString());
+
+        return $dates->map(fn ($d) => Carbon::parse($d)->toDateString())
+            ->unique()
+            ->mapWithKeys(fn ($d) => [$d => true])
+            ->all();
     }
 
     private function resolveOpenDayRowsEndDate(Business $business, Carbon $latestVerifiedDate): Carbon
@@ -1840,9 +1916,20 @@ class OwnerDailyReportService
             ->when($this->isBranchScoped(), fn ($query) => $this->scopeBranchSales($query))
             ->exists();
 
-        [$businessStatus, $statusColor] = $hasActivity
-            ? ['OPEN', '#ffc107']
-            : ['NOT STARTED', '#6c757d'];
+        $isPastDay = Carbon::parse($dateString)->lt(Carbon::today());
+        $isMissedDay = $isPastDay && ! $hasOpenShift && $hasSalesOrExpenses;
+
+        [$businessStatus, $statusColor] = match (true) {
+            $isMissedDay => ['NO_SHIFT', '#dc3545'],
+            $hasActivity => ['OPEN', '#ffc107'],
+            default => ['NOT STARTED', '#6c757d'],
+        };
+
+        $staffLabel = match (true) {
+            $hasOpenShift => __('owner_reports.open_day'),
+            $isMissedDay => __('owner_reports.no_shift_opened'),
+            default => __('owner_reports.awaiting_shift'),
+        };
 
         return [
             'id' => 'open-'.$dateString,
@@ -1875,6 +1962,8 @@ class OwnerDailyReportService
             'has_open_day_activity' => $hasActivity,
             'has_service_activity' => $hasServiceActivity,
             'has_open_shift' => $hasOpenShift,
+            'is_missed_day' => $isMissedDay,
+            'staff_label' => $staffLabel,
             'expense_deduct_from' => $data['expense_deduct_from'],
             'submitted_by' => '—',
             'staff_short_recoveries' => 0,

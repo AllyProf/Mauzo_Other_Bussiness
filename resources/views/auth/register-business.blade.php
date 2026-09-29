@@ -100,7 +100,7 @@
       z-index: 0;
     }
     .wizard-progress-item.done:not(:last-child)::after {
-      background: #28a745;
+      background: #940000;
     }
     .wizard-progress-item.active:not(:last-child)::after {
       background: linear-gradient(90deg, #940000 0%, #dee2e6 100%);
@@ -127,7 +127,7 @@
       box-shadow: 0 0 0 4px rgba(148,0,0,.15);
     }
     .wizard-progress-item.done .wizard-progress-dot {
-      background: #28a745;
+      background: #6b0000;
       color: #fff;
     }
     .wizard-progress-label {
@@ -139,7 +139,17 @@
       padding: 0 2px;
     }
     .wizard-progress-item.active .wizard-progress-label { color: #940000; }
-    .wizard-progress-item.done .wizard-progress-label { color: #28a745; }
+    .wizard-progress-item.done .wizard-progress-label { color: #6b0000; }
+    .required-mark { color: #dc3545; margin-left: 2px; font-weight: 700; }
+    .email-suggest { position: relative; }
+    .email-suggest__list {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 20; margin: 2px 0 0; padding: 4px 0;
+      list-style: none; background: #fff; border: 1px solid #ced4da; border-radius: 4px;
+      box-shadow: 0 6px 16px rgba(0,0,0,.12); max-height: 220px; overflow-y: auto;
+    }
+    .email-suggest__list li { padding: 7px 12px; font-size: 13px; cursor: pointer; }
+    .email-suggest__list li strong { color: #940000; }
+    .email-suggest__list li.is-active, .email-suggest__list li:hover { background: #f5eaea; }
 
     .register-form {
       position: static !important;
@@ -262,19 +272,24 @@
     }
     .register-progress-card h4 { color: #940000; margin: 14px 0 8px; font-weight: 700; }
     .register-progress-card p { color: #6c757d; min-height: 40px; font-size: 14px; }
-    .register-progress-spinner {
-      width: 44px; height: 44px; margin: 0 auto;
-      border: 4px solid rgba(148,0,0,.15);
-      border-top-color: #940000;
-      border-radius: 50%;
-      animation: register-spin .9s linear infinite;
+    .register-progress-runner {
+      width: 100%; height: 170px; margin: 0 auto; border-radius: 8px; overflow: hidden;
+      background: #3b3b3b;
+    }
+    .register-progress-runner img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transform: scaleX(-1);
+    }
+    .register-progress-percent {
+      font-size: 26px; font-weight: 700; color: #940000; line-height: 1; margin: 4px 0 10px;
+      font-variant-numeric: tabular-nums;
     }
     .register-progress-bar {
       height: 6px; background: #eee; border-radius: 999px; overflow: hidden;
     }
     .register-progress-bar span {
       display: block; height: 100%; width: 0; background: #940000;
-      transition: width .6s ease;
+      transition: width .25s linear;
     }
     @keyframes register-spin { to { transform: rotate(360deg); } }
     .select2-container { width: 100% !important; }
@@ -396,14 +411,14 @@
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label class="control-label">{{ strtoupper(__('auth.register_full_name')) }}</label>
+              <label class="control-label">{{ strtoupper(__('auth.register_full_name')) }}<span class="required-mark">*</span></label>
               <input class="form-control" type="text" name="name" id="name" value="{{ old('name') }}" placeholder="{{ __('auth.register_full_name_placeholder') }}" required autofocus>
               <div class="field-error" data-for="name">{{ __('auth.register_error_name') }}</div>
             </div>
           </div>
           <div class="col-md-6">
             <div class="form-group">
-              <label class="control-label">{{ strtoupper(__('auth.register_phone')) }}</label>
+              <label class="control-label">{{ strtoupper(__('auth.register_phone')) }}<span class="required-mark">*</span></label>
               <div class="phone-input-group">
                 <span class="phone-prefix">+255</span>
                 <input class="form-control" type="tel" name="phone" id="phone" value="{{ $oldPhone }}" placeholder="712345678" inputmode="numeric" maxlength="12" required>
@@ -418,13 +433,16 @@
           <div class="col-md-6">
             <div class="form-group">
               <label class="control-label">{{ strtoupper(__('auth.register_email_optional')) }}</label>
-              <input class="form-control" type="email" name="email" id="email" value="{{ old('email') }}" placeholder="{{ __('auth.register_email_placeholder') }}">
+              <div class="email-suggest">
+                <input class="form-control" type="email" name="email" id="email" value="{{ old('email') }}" placeholder="{{ __('auth.register_email_placeholder') }}" autocomplete="off" aria-autocomplete="list">
+                <ul class="email-suggest__list d-none" id="emailSuggestList" role="listbox"></ul>
+              </div>
               <small class="field-help">{{ __('auth.register_email_help') }}</small>
             </div>
           </div>
           <div class="col-md-6">
             <div class="form-group mb-0">
-              <label class="control-label">{{ strtoupper(__('auth.register_business_type')) }}</label>
+              <label class="control-label">{{ strtoupper(__('auth.register_business_type')) }}<span class="required-mark">*</span></label>
               <select class="form-control" name="business_type" id="business_type" required>
                 <option value="">{{ __('auth.register_select_business_type') }}</option>
                 @foreach($businessTypes as $key => $type)
@@ -435,7 +453,7 @@
               <div class="field-error" data-for="business_type">{{ __('auth.register_error_business_type') }}</div>
             </div>
             <div class="form-group mt-3 {{ old('business_type') === 'other' ? '' : 'd-none' }}" id="custom_business_type_group">
-              <label class="control-label">BUSINESS NAME</label>
+              <label class="control-label">BUSINESS NAME<span class="required-mark">*</span></label>
               <input class="form-control" type="text" name="custom_business_type" id="custom_business_type" value="{{ old('custom_business_type') }}" placeholder="Enter your business name">
               <div class="field-error" data-for="custom_business_type">Please enter your business name</div>
             </div>
@@ -454,7 +472,7 @@
         <div class="row">
           <div class="col-md-6">
             <div class="form-group">
-              <label class="control-label">{{ strtoupper(__('auth.register_region')) }}</label>
+              <label class="control-label">{{ strtoupper(__('auth.register_region')) }}<span class="required-mark">*</span></label>
               <select class="form-control" name="region" id="businessRegion" required>
                 <option value="">{{ __('auth.register_select_region') }}</option>
                 @foreach(tanzania_regions() as $region)
@@ -466,7 +484,7 @@
           </div>
           <div class="col-md-6">
             <div class="form-group">
-              <label class="control-label">{{ strtoupper(__('auth.register_district')) }}</label>
+              <label class="control-label">{{ strtoupper(__('auth.register_district')) }}<span class="required-mark">*</span></label>
               <select class="form-control" name="district" id="businessDistrict" required>
                 <option value="">{{ old('region') ? __('auth.register_select_district') : __('auth.register_select_region_first') }}</option>
                 @foreach(old('region') ? tanzania_districts(old('region')) : [] as $district)
@@ -479,7 +497,7 @@
         </div>
 
         <div class="form-group mb-0">
-          <label class="control-label">{{ strtoupper(__('auth.register_physical_address')) }}</label>
+          <label class="control-label">{{ strtoupper(__('auth.register_physical_address')) }}<span class="required-mark">*</span></label>
           <textarea class="form-control" name="address" id="address" rows="2" placeholder="{{ __('auth.register_address_placeholder') }}" required>{{ old('address') }}</textarea>
           <div class="field-error" data-for="address">{{ __('auth.register_error_address') }}</div>
         </div>
@@ -527,9 +545,12 @@
 
 <div id="register-progress-overlay" class="register-progress-overlay d-none" aria-hidden="true">
   <div class="register-progress-card">
-    <div class="register-progress-spinner"></div>
+    <div class="register-progress-runner">
+      <img src="{{ asset('gp-assets/img/boy_running.gif') }}" alt="" aria-hidden="true">
+    </div>
     <h4 id="register-progress-title">{{ __('auth.register_please_wait') }}</h4>
     <p id="register-progress-message">{{ __('auth.register_processing') }}</p>
+    <div class="register-progress-percent" id="register-progress-percent">0%</div>
     <div class="register-progress-bar"><span id="register-progress-fill"></span></div>
   </div>
 </div>
@@ -615,24 +636,47 @@
     alertBox.textContent = '';
   }
 
+  var progressPercent = document.getElementById('register-progress-percent');
+  var progressRunner = document.querySelector('.register-progress-runner');
+  var percentTimer = null;
+  var percentValue = 0;
+
+  function setPercent(value) {
+    percentValue = Math.max(0, Math.min(100, value));
+    var rounded = Math.floor(percentValue);
+    progressFill.style.width = rounded + '%';
+    progressPercent.textContent = rounded + '%';
+  }
+
   function showOverlay(title, messages) {
     overlay.classList.remove('d-none');
+    progressRunner.style.display = '';
+    progressPercent.style.display = '';
     progressTitle.textContent = title;
-    progressFill.style.width = '12%';
+    setPercent(0);
     var i = 0;
     progressMessage.textContent = messages[0];
     clearInterval(messageTimer);
+    clearInterval(percentTimer);
     messageTimer = setInterval(function () {
       i = (i + 1) % messages.length;
       progressMessage.textContent = messages[i];
-      progressFill.style.width = Math.min(92, 12 + (i + 1) * (80 / messages.length)) + '%';
     }, 1600);
+    percentTimer = setInterval(function () {
+      setPercent(Math.min(95, percentValue + Math.max(0.3, (95 - percentValue) * 0.06)));
+    }, 120);
+  }
+
+  function finishProgress() {
+    clearInterval(percentTimer);
+    setPercent(100);
   }
 
   function hideOverlay() {
     overlay.classList.add('d-none');
     clearInterval(messageTimer);
-    progressFill.style.width = '0%';
+    clearInterval(percentTimer);
+    setPercent(0);
   }
 
   function parseErrors(payload) {
@@ -729,16 +773,22 @@
     })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (result) {
-      hideOverlay();
       if (!result.ok) {
+        hideOverlay();
         showAlert(parseErrors(result.data));
         return false;
       }
+      finishProgress();
       codeSent = true;
       sentPhoneDisplay.textContent = result.data.phone_display || '+255';
-      goToStep(3);
-      verificationInput.focus();
-      return true;
+      return new Promise(function (resolve) {
+        setTimeout(function () {
+          hideOverlay();
+          goToStep(3);
+          verificationInput.focus();
+          resolve(true);
+        }, 450);
+      });
     })
     .catch(function () {
       hideOverlay();
@@ -771,8 +821,9 @@
         showAlert(parseErrors(result.data));
         return;
       }
-      progressFill.style.width = '100%';
-      document.querySelector('.register-progress-spinner').style.display = 'none';
+      finishProgress();
+      progressRunner.style.display = 'none';
+      progressPercent.style.display = 'none';
       progressTitle.innerHTML = '<div style="animation: wizardFade 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);"><i class="fa fa-check-circle" style="font-size: 4rem; color: #28a745; margin-bottom: 12px; display: block; text-shadow: 0 4px 12px rgba(40,167,69,0.3);"></i></div>' + i18n.received;
       progressMessage.textContent = result.data.message || i18n.pendingDefault;
       clearInterval(messageTimer);
@@ -864,6 +915,75 @@
   });
 
   goToStep(1);
+})();
+
+(function () {
+  var input = document.getElementById('email');
+  var list = document.getElementById('emailSuggestList');
+  if (!input || !list) return;
+
+  var DOMAINS = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'live.com', 'ymail.com', 'protonmail.com'];
+  var active = -1;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function hide() { list.classList.add('d-none'); list.innerHTML = ''; active = -1; }
+
+  function pick(value) {
+    input.value = value;
+    hide();
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function show() {
+    var value = input.value.trim();
+    var at = value.indexOf('@');
+    if (!value || /\s/.test(value) || (at === -1 && value.length < 2) || value.indexOf('@') !== value.lastIndexOf('@')) { hide(); return; }
+
+    var user = at === -1 ? value : value.slice(0, at);
+    var typed = at === -1 ? '' : value.slice(at + 1).toLowerCase();
+    if (!user) { hide(); return; }
+
+    var matches = DOMAINS.filter(function (d) { return d.indexOf(typed) === 0 && d !== typed; }).slice(0, 6);
+    if (!matches.length) { hide(); return; }
+
+    list.innerHTML = matches.map(function (d) {
+      var full = user + '@' + d;
+      return '<li role="option" data-value="' + esc(full) + '">' + esc(user) + '@<strong>' + esc(d) + '</strong></li>';
+    }).join('');
+    list.classList.remove('d-none');
+    active = -1;
+  }
+
+  input.addEventListener('input', show);
+  input.addEventListener('focus', show);
+  input.addEventListener('blur', function () { setTimeout(hide, 150); });
+
+  input.addEventListener('keydown', function (e) {
+    var items = list.querySelectorAll('li');
+    if (list.classList.contains('d-none') || !items.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      active = e.key === 'ArrowDown' ? (active + 1) % items.length : (active - 1 + items.length) % items.length;
+      items.forEach(function (li, i) { li.classList.toggle('is-active', i === active); });
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      if (active >= 0 || (e.key === 'Tab' && input.value.indexOf('@') !== -1)) {
+        e.preventDefault();
+        pick(items[active >= 0 ? active : 0].getAttribute('data-value'));
+      }
+    } else if (e.key === 'Escape') {
+      hide();
+    }
+  });
+
+  list.addEventListener('mousedown', function (e) {
+    var li = e.target.closest('li');
+    if (li) { e.preventDefault(); pick(li.getAttribute('data-value')); }
+  });
 })();
 </script>
 </body>

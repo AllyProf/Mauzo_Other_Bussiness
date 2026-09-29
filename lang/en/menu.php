@@ -83,4 +83,10 @@ return [
     'activity_log' => 'Activity Log',
     'system_guide' => 'System Guide',
     'my_support' => 'My Support',
+    'group_inventory' => 'Inventory',
+    'group_sales' => 'Sales',
+    'group_customers' => 'Customers & Debts',
+    'group_finance' => 'Cash & Closing',
+    'group_reports' => 'Reports & Analytics',
+    'group_my_business' => 'My Business',
 ];

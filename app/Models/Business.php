@@ -38,6 +38,8 @@ class Business extends Model
         'vat_rate',
         'invoice_show_vat',
         'invoice_vat_inclusive',
+        'invoice_settings',
+        'appearance_settings',
         'is_active',
         'pending_approval',
         'registration_source',
@@ -64,6 +66,8 @@ class Business extends Model
         'vat_rate' => 'decimal:2',
         'invoice_show_vat' => 'boolean',
         'invoice_vat_inclusive' => 'boolean',
+        'invoice_settings' => 'array',
+        'appearance_settings' => 'array',
         'automation_settings' => 'array',
         'payment_methods' => 'array',
         'category_business_types' => 'array',
@@ -355,10 +359,12 @@ class Business extends Model
             'sms_debt_overdue_staff' => true,
             'sms_daily_report_enabled' => false,
             'sms_weekly_report_enabled' => false,
+            'sms_monthly_report_enabled' => false,
             'sms_branch_compare_weekly_enabled' => false,
             'sms_receiving_report_daily_enabled' => false,
             'sms_report_send_time' => '18:00',
             'sms_weekly_report_day' => 1,
+            'sms_monthly_report_day' => 1,
             'email_sales_report_enabled' => false,
             'email_sales_report_on_shift_close' => true,
             'email_sales_report_daily' => false,
@@ -479,6 +485,84 @@ class Business extends Model
             'sms_debt_template_due_soon_2_staff' => 'Due soon — staff (2nd reminder)',
             'sms_debt_template_due_today_staff' => 'Due today — staff',
             'sms_debt_template_overdue_staff' => 'Overdue — staff',
+        ];
+    }
+
+    public const BACKGROUND_PATTERNS = [
+        'doodle' => ['label' => 'Doodle (WhatsApp style)', 'path' => 'gp-assets/img/back_image.jpg'],
+    ];
+
+    public const BACKGROUND_STRENGTHS = [
+        'light' => 0.6,
+        'medium' => 0.3,
+        'strong' => 0.0,
+    ];
+
+    /**
+     * @return array{background: string, custom_path: string, strength: string}
+     */
+    public function appearanceSettings(): array
+    {
+        return self::normalizeAppearance(is_array($this->appearance_settings) ? $this->appearance_settings : []);
+    }
+
+    /**
+     * @return array{background: string, custom_path: string, strength: string}
+     */
+    public static function normalizeAppearance(array $saved): array
+    {
+        $background = (string) ($saved['background'] ?? 'none');
+        $strength = (string) ($saved['strength'] ?? 'medium');
+
+        return [
+            'background' => $background === 'custom' || isset(self::BACKGROUND_PATTERNS[$background]) ? $background : 'none',
+            'custom_path' => (string) ($saved['custom_path'] ?? ''),
+            'strength' => isset(self::BACKGROUND_STRENGTHS[$strength]) ? $strength : 'medium',
+        ];
+    }
+
+    /**
+     * @return array{url: string, overlay: float, tile: bool}|null
+     */
+    public function appBackground(): ?array
+    {
+        return self::resolveBackground($this->appearanceSettings());
+    }
+
+    /**
+     * @return array{url: string, overlay: float, tile: bool}|null
+     */
+    public static function resolveBackground(array $saved): ?array
+    {
+        $settings = self::normalizeAppearance($saved);
+
+        $url = match (true) {
+            $settings['background'] === 'custom' && $settings['custom_path'] !== '' => asset('storage/'.$settings['custom_path']),
+            isset(self::BACKGROUND_PATTERNS[$settings['background']]) => asset(self::BACKGROUND_PATTERNS[$settings['background']]['path']),
+            default => null,
+        };
+
+        return $url ? [
+            'url' => $url,
+            'overlay' => self::BACKGROUND_STRENGTHS[$settings['strength']],
+            'tile' => $settings['background'] !== 'custom',
+        ] : null;
+    }
+
+    /**
+     * @return array{title: string, footer_message: string, terms: string, show_payment_details: bool, show_prepared_by: bool, show_signature: bool}
+     */
+    public function invoiceSettings(): array
+    {
+        $saved = is_array($this->invoice_settings) ? $this->invoice_settings : [];
+
+        return [
+            'title' => trim((string) ($saved['title'] ?? '')),
+            'footer_message' => (string) ($saved['footer_message'] ?? 'Thank you for your business.'),
+            'terms' => (string) ($saved['terms'] ?? ''),
+            'show_payment_details' => (bool) ($saved['show_payment_details'] ?? true),
+            'show_prepared_by' => (bool) ($saved['show_prepared_by'] ?? true),
+            'show_signature' => (bool) ($saved['show_signature'] ?? true),
         ];
     }
 

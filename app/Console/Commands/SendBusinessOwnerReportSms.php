@@ -10,7 +10,7 @@ class SendBusinessOwnerReportSms extends Command
 {
     protected $signature = 'reports:send-sms';
 
-    protected $description = 'Send scheduled daily/weekly owner sales report SMS and email PDF reports';
+    protected $description = 'Send scheduled daily/weekly/monthly owner sales report SMS and email PDF reports';
 
     public function handle(
         BusinessOwnerReportSmsService $smsReports,
@@ -20,9 +20,10 @@ class SendBusinessOwnerReportSms extends Command
         $emailCounts = $emailReports->sendDueScheduledReports();
 
         $this->info(sprintf(
-            'Owner report SMS — daily: %d, weekly: %d, branch_compare: %d, receiving: %d, skipped: %d, failed: %d.',
+            'Owner report SMS — daily: %d, weekly: %d, monthly: %d, branch_compare: %d, receiving: %d, skipped: %d, failed: %d.',
             $smsCounts['daily'],
             $smsCounts['weekly'],
+            $smsCounts['monthly'] ?? 0,
             $smsCounts['branch_compare'] ?? 0,
             $smsCounts['receiving'] ?? 0,
             $smsCounts['skipped'],

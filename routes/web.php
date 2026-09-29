@@ -7,8 +7,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::match(['get', 'post'], '/locale/{locale}', [App\Http\Controllers\LocaleController::class, 'switch'])->name('locale.switch');
 
-Route::get('/', [LandingController::class, 'index'])->name('landing.index');
-Route::post('/request-demo', [App\Http\Controllers\LandingLeadController::class, 'store'])->name('landing.lead.store');
+Route::get('/', [LandingController::class, 'index'])->name('landing.index');Route::post('/request-demo', [App\Http\Controllers\LandingLeadController::class, 'store'])->name('landing.lead.store');
 
 // Authentication Routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -26,6 +25,7 @@ Route::get('/home/stats', [App\Http\Controllers\HomeController::class, 'stats'])
 
 Route::middleware(['auth', 'check.user.active'])->group(function () {
     Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
+    Route::get('/global-search', App\Http\Controllers\GlobalSearchController::class)->name('global-search');
     Route::post('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.update-password');
 
@@ -58,6 +58,8 @@ Route::middleware(['auth', 'check.user.active', 'check.platform.admin'])->prefix
 
     Route::get('/broadcasts', [App\Http\Controllers\Admin\BroadcastController::class, 'index'])->name('broadcasts.index');
     Route::post('/broadcasts', [App\Http\Controllers\Admin\BroadcastController::class, 'store'])->name('broadcasts.store');
+    Route::put('/broadcasts/{broadcast}', [App\Http\Controllers\Admin\BroadcastController::class, 'update'])->name('broadcasts.update');
+    Route::post('/broadcasts/{broadcast}/activate', [App\Http\Controllers\Admin\BroadcastController::class, 'activate'])->name('broadcasts.activate');
     Route::delete('/broadcasts/{broadcast}', [App\Http\Controllers\Admin\BroadcastController::class, 'destroy'])->name('broadcasts.destroy');
 
     Route::get('/tickets', [App\Http\Controllers\Admin\AdminTicketController::class, 'index'])->name('tickets.index');
@@ -71,7 +73,9 @@ Route::middleware(['auth', 'check.user.active', 'check.platform.admin'])->prefix
 
     Route::get('/payments', [App\Http\Controllers\Admin\PaymentReportController::class, 'index'])->name('payments.index');
     Route::post('/payments/generate', [App\Http\Controllers\Admin\PaymentReportController::class, 'generateInvoices'])->name('payments.generate');
+    Route::post('/payments/manual', [App\Http\Controllers\Admin\PaymentReportController::class, 'storeManual'])->name('payments.manual');
     Route::post('/payments/{invoice}/mark-paid', [App\Http\Controllers\Admin\PaymentReportController::class, 'markPaid'])->name('payments.mark-paid');
+    Route::put('/payments/{invoice}/expiry', [App\Http\Controllers\Admin\PaymentReportController::class, 'updateExpiry'])->name('payments.update-expiry');
     Route::get('/payments/{invoice}/pdf', [App\Http\Controllers\Admin\PaymentReportController::class, 'downloadPdf'])->name('payments.pdf');
     Route::post('/payments/{invoice}/resend', [App\Http\Controllers\Admin\PaymentReportController::class, 'resendInvoice'])->name('payments.resend');
 
@@ -84,6 +88,8 @@ Route::middleware(['auth', 'check.user.active', 'check.platform.admin'])->prefix
     Route::get('/businesses/{business}/onboarding', [App\Http\Controllers\Admin\BusinessOnboardingController::class, 'show'])->name('onboarding.show');
 
     Route::get('/security/failed-logins', [App\Http\Controllers\Admin\FailedLoginController::class, 'index'])->name('security.failed-logins');
+    Route::post('/security/locked-accounts/{user}/unlock', [App\Http\Controllers\Admin\FailedLoginController::class, 'unlock'])->name('security.unlock');
+    Route::post('/security/blocked-ips/{blockedIp}/unblock', [App\Http\Controllers\Admin\FailedLoginController::class, 'unblockIp'])->name('security.unblock-ip');
     Route::get('/staff', [App\Http\Controllers\Admin\PlatformStaffController::class, 'index'])->name('staff.index');
     Route::post('/staff', [App\Http\Controllers\Admin\PlatformStaffController::class, 'store'])->name('staff.store');
     Route::put('/staff/{user}', [App\Http\Controllers\Admin\PlatformStaffController::class, 'update'])->name('staff.update');
@@ -125,8 +131,10 @@ Route::middleware(['auth', 'check.user.active', 'check.platform.admin'])->prefix
     Route::put('/settings/profile', [App\Http\Controllers\Admin\SystemSettingsController::class, 'updateProfile'])->name('settings.profile.update');
     Route::put('/settings/registration', [App\Http\Controllers\Admin\SystemSettingsController::class, 'updateRegistration'])->name('settings.registration.update');
     Route::put('/settings/subscription', [App\Http\Controllers\Admin\SystemSettingsController::class, 'updateSubscription'])->name('settings.subscription.update');
+    Route::get('/settings/invoice-preview', [App\Http\Controllers\Admin\SystemSettingsController::class, 'invoicePreview'])->name('settings.invoice-preview');
     Route::put('/settings/mail', [App\Http\Controllers\Admin\SystemSettingsController::class, 'updateMail'])->name('settings.mail.update');
     Route::put('/settings/security', [App\Http\Controllers\Admin\SystemSettingsController::class, 'updateSecurity'])->name('settings.security.update');
+    Route::put('/settings/appearance', [App\Http\Controllers\Admin\SystemSettingsController::class, 'updateAppearance'])->name('settings.appearance.update');
     Route::put('/settings/password', [App\Http\Controllers\Admin\SystemSettingsController::class, 'updatePassword'])->name('settings.password.update');
 });
 
@@ -279,7 +287,9 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     // Business Settings (Owner)
     Route::get('/settings', [App\Http\Controllers\BusinessSettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings/profile', [App\Http\Controllers\BusinessSettingsController::class, 'updateProfile'])->name('settings.profile.update');
+    Route::match(['get', 'post', 'put'], '/settings/invoice-preview', [App\Http\Controllers\BusinessSettingsController::class, 'invoicePreview'])->name('settings.invoice-preview');
     Route::put('/settings/finance', [App\Http\Controllers\BusinessSettingsController::class, 'updateFinance'])->name('settings.finance.update');
+    Route::put('/settings/appearance', [App\Http\Controllers\BusinessSettingsController::class, 'updateAppearance'])->name('settings.appearance.update');
     Route::put('/settings/automation', [App\Http\Controllers\BusinessSettingsController::class, 'updateAutomation'])->name('settings.automation.update');
     Route::put('/settings/shift-rules', [App\Http\Controllers\BusinessSettingsController::class, 'updateShiftRules'])->name('settings.shift-rules.update');
     Route::put('/settings/payment-methods', [App\Http\Controllers\BusinessSettingsController::class, 'updatePaymentMethods'])->name('settings.payment-methods.update');

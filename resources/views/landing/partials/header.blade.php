@@ -9,6 +9,7 @@
       <ul>
         <li><a href="{{ route('landing.index') }}#hero" @if(request()->routeIs('landing.index')) class="active" @endif>Home</a></li>
         <li><a href="{{ route('landing.index') }}#about">About</a></li>
+        <li><a href="{{ route('landing.index') }}#mobile-app">Mobile App</a></li>
         <li><a href="{{ route('landing.index') }}#pricing">Pricing</a></li>
         <li><a href="{{ route('landing.index') }}#contact">Contact</a></li>
         <li class="d-xl-none"><a href="{{ route('login') }}">Login</a></li>
