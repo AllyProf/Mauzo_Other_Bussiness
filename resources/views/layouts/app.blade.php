@@ -486,7 +486,7 @@
             height: 3px;
             z-index: 999999;
             overflow: hidden;
-            background: rgba(148, 0, 0, 0.12);
+            background: rgba(255, 255, 255, 0.15);
             pointer-events: none;
             opacity: 1;
             visibility: visible;
@@ -502,8 +502,8 @@
             bottom: 0;
             left: -40%;
             width: 40%;
-            background: linear-gradient(90deg, transparent, #940000 30%, #c81e1e 70%, transparent);
-            box-shadow: 0 0 8px rgba(148, 0, 0, 0.6);
+            background: linear-gradient(90deg, transparent, #ffd24d 30%, #ffffff 70%, transparent);
+            box-shadow: 0 0 10px rgba(255, 210, 77, 0.9);
             animation: appLoaderSlide 1.1s ease-in-out infinite;
         }
         @keyframes appLoaderSlide {
