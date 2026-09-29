@@ -12,6 +12,8 @@ return [
         'total_stock_value' => 'Total Stock Value',
         'expected_revenue' => 'Expected Revenue',
         'expected_profit' => 'Expected Profit',
+        'stock_value' => 'Stock Value',
+        'at_cost' => '(at cost)',
     ],
 
     'all' => 'All',

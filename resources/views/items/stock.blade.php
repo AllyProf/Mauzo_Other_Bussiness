@@ -102,8 +102,11 @@
 </div>
 
 <!-- Statistics -->
+@php
+  $statCol = $canViewValue ? 'col-xl col-lg-4 col-sm-6' : 'col-md-3 col-sm-6';
+@endphp
 <div class="row">
-  <div class="col-md-3 col-sm-6">
+  <div class="{{ $statCol }}">
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-cubes fa-3x"></i>
       <div class="info">
@@ -112,7 +115,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3 col-sm-6">
+  <div class="{{ $statCol }}">
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-exclamation-triangle fa-3x"></i>
       <div class="info">
@@ -122,7 +125,16 @@
     </div>
   </div>
   @if($canViewValue)
-  <div class="col-md-3 col-sm-6">
+  <div class="{{ $statCol }}">
+    <div class="widget-small danger coloured-icon">
+      <i class="icon fa fa-archive fa-3x"></i>
+      <div class="info">
+        <h4>{{ __('stock.stats.stock_value') }}</h4>
+        <p><b id="stockValueDisplay">{{ money($totalCostValue ?? 0) }}</b> <small>{{ __('stock.stats.at_cost') }}</small></p>
+      </div>
+    </div>
+  </div>
+  <div class="{{ $statCol }}">
     <div class="widget-small info coloured-icon">
       <i class="icon fa fa-line-chart fa-3x"></i>
       <div class="info">
@@ -131,7 +143,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3 col-sm-6">
+  <div class="{{ $statCol }}">
     <div class="widget-small success coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
@@ -242,7 +254,8 @@
                  data-is-low-stock="{{ $item['is_low_stock'] ? 'true' : 'false' }}"
                  data-holding-value="{{ $item['holding_value'] }}"
                  data-expected-revenue="{{ $item['expected_revenue'] }}"
-                 data-expected-profit="{{ $item['expected_profit'] }}">
+                 data-expected-profit="{{ $item['expected_profit'] }}"
+                 data-stock-value="{{ $item['cost_holding_value'] }}">
 
               <div class="tile p-3 h-100 mb-0 shadow-sm border-0 inventory-item-card transition-all"
                    style="border-radius: 15px; {{ $item['status_color'] === 'warning' ? 'background-color: #fffde7 !important;' : '' }}">
@@ -390,7 +403,8 @@
                     data-is-low-stock="{{ $item['is_low_stock'] ? 'true' : 'false' }}"
                     data-holding-value="{{ $item['holding_value'] }}"
                  data-expected-revenue="{{ $item['expected_revenue'] }}"
-                 data-expected-profit="{{ $item['expected_profit'] }}">
+                 data-expected-profit="{{ $item['expected_profit'] }}"
+                 data-stock-value="{{ $item['cost_holding_value'] }}">
                   <td>
                     <strong class="text-primary">{{ $item['name'] }}</strong>
                   </td>
@@ -470,15 +484,19 @@
                id="totalValueBar"
                style="background: linear-gradient(135deg, #940000, #7a0000); color:white; border-radius: 15px;">
             <div class="row align-items-center w-100">
-              <div class="col-md-4 mb-3 mb-md-0">
+              <div class="col-md-3 mb-3 mb-md-0">
                 <h5 class="mb-0 font-weight-bold"><i class="fa fa-calculator mr-2"></i> {{ __('stock.summary.totals_title') }}</h5>
                 <small class="opacity-75">{{ __('stock.summary.total_value_hint') }}</small>
               </div>
-              <div class="col-md-4 text-md-center mb-3 mb-md-0">
+              <div class="col-md-3 text-md-center mb-3 mb-md-0">
+                <div class="smallest opacity-75 text-uppercase">{{ __('stock.stats.stock_value') }}</div>
+                <h3 class="mb-0 font-weight-bold" id="totalStockValueDisplay">{{ money($totalCostValue ?? 0) }}</h3>
+              </div>
+              <div class="col-md-3 text-md-center mb-3 mb-md-0">
                 <div class="smallest opacity-75 text-uppercase">{{ __('stock.stats.expected_revenue') }}</div>
                 <h3 class="mb-0 font-weight-bold" id="totalRevenueDisplay">{{ money($totalExpectedRevenue ?? $totalValue) }}</h3>
               </div>
-              <div class="col-md-4 text-md-right">
+              <div class="col-md-3 text-md-right">
                 <div class="smallest opacity-75 text-uppercase">{{ __('stock.stats.expected_profit') }}</div>
                 <h3 class="mb-0 font-weight-bold" id="totalProfitDisplay">{{ money($totalExpectedProfit ?? $totalMargin ?? 0) }}</h3>
               </div>
@@ -559,8 +577,10 @@ $(document).ready(function () {
         let lowStock = 0;
         let revenue = 0;
         let profit = 0;
+        let stockValue = 0;
 
         $('.product-card-wrapper:visible').each(function () {
+            stockValue += parseFloat($(this).data('stock-value')) || 0;
             total++;
             if (String($(this).data('is-low-stock')) === 'true') {
                 lowStock++;
@@ -586,6 +606,7 @@ $(document).ready(function () {
         if ($('#totalProfitDisplay').length) {
             $('#totalProfitDisplay').text(formatMoney(profit));
         }
+        $('#stockValueDisplay, #totalStockValueDisplay').text(formatMoney(stockValue));
     }
 
     function applyFilters() {

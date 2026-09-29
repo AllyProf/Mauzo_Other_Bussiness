@@ -12,6 +12,8 @@ return [
         'total_stock_value' => 'Thamani ya Jumla ya Stock',
         'expected_revenue' => 'Mapato Yanayotarajiwa',
         'expected_profit' => 'Faida Inayotarajiwa',
+        'stock_value' => 'Thamani ya Mzigo',
+        'at_cost' => '(kwa bei ya kununua)',
     ],
 
     'all' => 'Yote',
