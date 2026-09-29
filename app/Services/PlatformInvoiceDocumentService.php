@@ -143,7 +143,7 @@ class PlatformInvoiceDocumentService
     /**
      * Dompdf barely renders CSS opacity on transparent PNGs, so the faded logo is baked into the image.
      */
-    private function watermarkDataUri(string $path, float $strength = 0.12): ?string
+    private function watermarkDataUri(string $path, float $strength = 0.10): ?string
     {
         if ($path === '' || ! function_exists('imagecreatefromstring') || ! Storage::disk('public')->exists($path)) {
             return null;
@@ -154,6 +154,7 @@ class PlatformInvoiceDocumentService
             return null;
         }
 
+        $source = $this->cropFrame($source);
         $width = imagesx($source);
         $height = imagesy($source);
         $targetWidth = min(600, $width);
@@ -190,6 +191,81 @@ class PlatformInvoiceDocumentService
         imagedestroy($image);
 
         return 'data:image/png;base64,'.base64_encode($png);
+    }
+
+    /**
+     * Crops a thin border drawn around the logo so only the artwork remains in the watermark.
+     */
+    private function cropFrame(\GdImage $image): \GdImage
+    {
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $isInk = function (int $x, int $y) use ($image): bool {
+            $rgba = imagecolorat($image, $x, $y);
+            if ((($rgba >> 24) & 0x7F) > 100) {
+                return false;
+            }
+
+            return ((($rgba >> 16) & 0xFF) + (($rgba >> 8) & 0xFF) + ($rgba & 0xFF)) < 600;
+        };
+        $columnIsLine = function (int $x) use ($height, $isInk): bool {
+            $ink = 0;
+            for ($y = 0; $y < $height; $y++) {
+                $ink += $isInk($x, $y) ? 1 : 0;
+            }
+
+            return $ink >= $height * 0.7;
+        };
+        $rowIsLine = function (int $y) use ($width, $isInk): bool {
+            $ink = 0;
+            for ($x = 0; $x < $width; $x++) {
+                $ink += $isInk($x, $y) ? 1 : 0;
+            }
+
+            return $ink >= $width * 0.7;
+        };
+
+        $scanX = (int) max(1, $width * 0.15);
+        $scanY = (int) max(1, $height * 0.15);
+        $left = 0;
+        $right = $width - 1;
+        $top = 0;
+        $bottom = $height - 1;
+
+        for ($x = 0; $x < $scanX; $x++) {
+            if ($columnIsLine($x)) {
+                $left = $x + 1;
+            }
+        }
+        for ($x = $width - 1; $x >= $width - $scanX; $x--) {
+            if ($columnIsLine($x)) {
+                $right = $x - 1;
+            }
+        }
+        for ($y = 0; $y < $scanY; $y++) {
+            if ($rowIsLine($y)) {
+                $top = $y + 1;
+            }
+        }
+        for ($y = $height - 1; $y >= $height - $scanY; $y--) {
+            if ($rowIsLine($y)) {
+                $bottom = $y - 1;
+            }
+        }
+
+        if ($left === 0 && $top === 0 && $right === $width - 1 && $bottom === $height - 1) {
+            return $image;
+        }
+
+        $pad = 2;
+        $cropped = imagecrop($image, [
+            'x' => min($width - 1, $left + $pad),
+            'y' => min($height - 1, $top + $pad),
+            'width' => max(1, $right - $left - $pad * 2),
+            'height' => max(1, $bottom - $top - $pad * 2),
+        ]);
+
+        return $cropped ?: $image;
     }
 
     private function logoDataUri(string $path): ?string

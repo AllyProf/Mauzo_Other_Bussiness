@@ -35,15 +35,19 @@
   .totals .vat .value { background: #c5dff5; border: 1px solid #3a9ad9; font-weight: normal; }
   .totals .grand td { border-top: 1px solid #3a9ad9; border-bottom: 1px solid #3a9ad9; }
   .footer { margin-top: 26px; font-size: 11px; }
-  .watermark-logo { position: fixed; top: 300px; left: 0; right: 0; text-align: center; }
-  .watermark-logo img { width: 380px; }
-  .watermark-status {
-    position: fixed; top: 640px; left: 70px; width: 560px; text-align: center;
-    font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 96px; font-weight: bold; letter-spacing: 12px;
-    opacity: 0.16; transform: rotate(-30deg);
+  .watermark-logo { position: fixed; top: 330px; left: 0; right: 0; text-align: center; }
+  .watermark-logo img { width: 440px; }
+  .stamp {
+    position: fixed; top: 665px; right: 40px; width: 230px;
+    padding: 8px 0 7px; text-align: center;
+    border: 4px solid; border-radius: 10px;
+    transform: rotate(-14deg); opacity: 0.55;
+    font-family: 'DejaVu Sans', Arial, sans-serif;
   }
-  .watermark-status.paid { color: #1e8e3e; }
-  .watermark-status.unpaid { color: #c62828; }
+  .stamp .stamp-word { font-size: 44px; font-weight: bold; letter-spacing: 6px; line-height: 1; }
+  .stamp .stamp-note { font-size: 10px; font-weight: bold; letter-spacing: 1.5px; margin-top: 5px; text-transform: uppercase; }
+  .stamp.paid { color: #1e8e3e; border-color: #1e8e3e; }
+  .stamp.unpaid { color: #c62828; border-color: #c62828; }
   .status-badge { display: inline-block; padding: 3px 10px; border-radius: 3px; color: #fff; font-weight: bold; font-size: 10px; letter-spacing: 1px; }
   .status-badge.paid { background: #1e8e3e; }
   .status-badge.unpaid { background: #c62828; }
@@ -57,7 +61,16 @@
 @if($company['watermark'] ?? null)
 <div class="watermark-logo"><img src="{{ $company['watermark'] }}" alt=""></div>
 @endif
-<div class="watermark-status {{ $isPaid ? 'paid' : 'unpaid' }}">{{ $isPaid ? 'PAID' : 'UNPAID' }}</div>
+<div class="stamp {{ $isPaid ? 'paid' : 'unpaid' }}">
+  <div class="stamp-word">{{ $isPaid ? 'PAID' : 'UNPAID' }}</div>
+  <div class="stamp-note">
+    @if($isPaid)
+      {{ $invoice->paid_at ? 'Received '.$invoice->paid_at->format('d M Y') : 'Payment received' }}
+    @else
+      Payment due &middot; {{ $platform }}
+    @endif
+  </div>
+</div>
 
 <table>
   <tr>
