@@ -369,3 +369,61 @@ body {
   z-index: 99999;
   min-width: min(520px, 92vw);
 }
+
+/* =============================================
+   Responsive tuning
+   ============================================= */
+html, body { overflow-x: hidden; }
+img { max-width: 100%; height: auto; }
+
+@media (max-width: 1199.98px) {
+  .header .logo { margin-right: auto !important; }
+  .header .header-actions { order: 2; margin: 0 14px 0 0 !important; }
+  .header .header-actions .btn-getstarted { margin: 0; }
+  .header .navmenu { order: 3; }
+  .hero h2 { font-size: 44px; }
+  .section-title p { font-size: 30px; }
+}
+
+@media (max-width: 991.98px) {
+  .section { padding: 50px 0; }
+  .section-title { padding-bottom: 36px; }
+  .section-title p { font-size: 26px; line-height: 1.3; }
+  .hero { padding: 110px 0 60px; }
+  .hero h2 { font-size: 36px; line-height: 1.2; }
+  .hero .icon-box { padding: 22px 14px; }
+  .hero .icon-box h3 { font-size: 17px; line-height: 22px; }
+}
+
+@media (max-width: 767.98px) {
+  .section { padding: 40px 0; }
+  .section-title { padding-bottom: 26px; }
+  .section-title h2 { font-size: 12px; }
+  .section-title h2::after { width: 60px; }
+  .section-title p { font-size: 21px; letter-spacing: .2px; }
+
+  .hero { min-height: auto; padding: 96px 0 44px; }
+  .hero h2 { font-size: 27px; line-height: 1.25; }
+  .hero .d-flex.gap-3 { gap: 10px !important; margin-top: 18px !important; }
+  .hero .btn-getstarted, .hero .cta-btn { flex: 1 1 140px; text-align: center; padding: 10px 14px !important; }
+  .hero .row.mt-5 { margin-top: 26px !important; --bs-gutter-x: .75rem; --bs-gutter-y: .75rem; }
+  .hero .icon-box { padding: 14px 8px; border-radius: 8px; background: rgba(0, 0, 0, .25); }
+  .hero .icon-box i { font-size: 22px; }
+  .hero .icon-box h3 { font-size: 14px; line-height: 18px; margin-top: 6px; }
+
+  .about h3, .stats h3 { font-size: 22px; }
+  .stats .stats-item { flex-direction: column; gap: 4px; }
+  .stats .stats-item i { font-size: 28px; line-height: 1; margin: 0 0 4px; }
+  .stats .stats-item span.purecounter { font-size: 30px; }
+  .stats .stats-item p { font-size: 13px; margin: 0; }
+  .testimonials .testimonial-item p { font-size: 15px; }
+  .call-to-action h3 { font-size: 22px; }
+  .call-to-action .cta-btn { display: block; width: 100%; max-width: 320px; margin: 10px auto 0; }
+  .scroll-top { right: 12px; bottom: 12px; }
+}
+
+@media (max-width: 400px) {
+  .hero h2 { font-size: 24px; }
+  .section-title p { font-size: 19px; }
+  .hero .icon-box h3 { font-size: 13px; }
+}

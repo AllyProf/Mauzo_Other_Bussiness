@@ -20,7 +20,7 @@
   <link href="{{ asset('gp-assets/vendor/swiper/swiper-bundle.min.css') }}" rel="stylesheet">
   <link href="{{ asset('gp-assets/vendor/glightbox/css/glightbox.min.css') }}" rel="stylesheet">
   <link href="{{ asset('gp-assets/css/main.css') }}" rel="stylesheet">
-  <link href="{{ asset('gp-assets/css/mauzo-brand.css') }}" rel="stylesheet">
+  <link href="{{ asset('gp-assets/css/mauzo-brand.css') }}?v={{ @filemtime(public_path('gp-assets/css/mauzo-brand.css')) }}" rel="stylesheet">
   @stack('styles')
 </head>
 

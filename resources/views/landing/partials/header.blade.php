@@ -22,7 +22,7 @@
       <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
     </nav>
 
-    <div class="d-flex align-items-center gap-2 ms-2">
+    <div class="header-actions d-flex align-items-center gap-2 ms-2">
       <a class="d-none d-md-inline text-white small fw-semibold" href="{{ route('login') }}">Sign In</a>
       @if(request()->routeIs('register.business'))
         <span class="btn-getstarted opacity-75 pe-none d-none d-md-inline-block">Register</span>

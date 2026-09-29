@@ -8,7 +8,8 @@
           "loop": true,
           "speed": 600,
           "autoplay": { "delay": 5000 },
-          "slidesPerView": "auto",
+          "slidesPerView": 1,
+          "spaceBetween": 30,
           "pagination": {
             "el": ".swiper-pagination",
             "type": "bullets",

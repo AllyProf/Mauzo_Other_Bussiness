@@ -16,7 +16,7 @@
             ['bi-headset', '24', 'Hours Support Window', 'local business hours'],
             ['bi-geo-alt', '26', 'Regions Covered', 'across Tanzania'],
           ] as $stat)
-          <div class="col-lg-6">
+          <div class="col-6">
             <div class="stats-item d-flex">
               <i class="bi {{ $stat[0] }} flex-shrink-0"></i>
               <div>
