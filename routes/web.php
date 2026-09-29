@@ -360,3 +360,6 @@ Route::post('/stop-impersonating', [App\Http\Controllers\Admin\ImpersonationCont
 Route::get('/subscription-expired', [App\Http\Controllers\SubscriptionController::class, 'expired'])
     ->name('subscription.expired')
     ->middleware('auth');
+Route::get('/subscription-expired/invoices/{invoice}', [App\Http\Controllers\SubscriptionController::class, 'invoice'])
+    ->name('subscription.invoice')
+    ->middleware('auth');

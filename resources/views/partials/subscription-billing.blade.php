@@ -50,6 +50,9 @@
         {{ $latestInvoice->invoice_number }} · {{ $latestInvoice->billingMonthLabel() }} ·
         TZS {{ number_format((float) $latestInvoice->amount, 0) }} ·
         <span class="badge badge-light border">{{ $latestInvoice->statusLabel() }}</span>
+        <a href="{{ route('subscription.invoice', $latestInvoice) }}" target="_blank" class="btn btn-sm btn-primary ml-1">
+          <i class="fa fa-eye"></i> View Invoice
+        </a>
       </td>
     </tr>
     @endif
@@ -75,6 +78,7 @@
         <th>Invoice</th>
         <th class="text-right">Amount</th>
         <th>{{ __('tables.columns.status') }}</th>
+        <th class="text-center">Invoice</th>
       </tr>
     </thead>
     <tbody>
@@ -83,7 +87,17 @@
         <td data-label="Month">{{ $invoice->billingMonthLabel() }}</td>
         <td data-label="Invoice">{{ $invoice->invoice_number }}</td>
         <td class="text-right" data-label="Amount">TZS {{ number_format((float) $invoice->amount, 0) }}</td>
-        <td data-label="{{ __('tables.columns.status') }}">{{ $invoice->statusLabel() }}</td>
+        <td data-label="{{ __('tables.columns.status') }}">
+          <span class="badge badge-{{ $invoice->statusBadgeClass() }}">{{ $invoice->statusLabel() }}</span>
+        </td>
+        <td class="text-center text-nowrap" data-label="Invoice">
+          <a href="{{ route('subscription.invoice', $invoice) }}" target="_blank" class="btn btn-sm btn-primary" title="View invoice">
+            <i class="fa fa-eye"></i> View
+          </a>
+          <a href="{{ route('subscription.invoice', ['invoice' => $invoice, 'download' => 1]) }}" class="btn btn-sm btn-outline-secondary" title="Download PDF">
+            <i class="fa fa-download"></i>
+          </a>
+        </td>
       </tr>
       @endforeach
     </tbody>

@@ -17,8 +17,8 @@ class PlatformSettingsService
         return [
             'platform_name' => 'Mauzo Link',
             'brand_color' => '#940000',
-            'support_email' => 'admin@sp-pos.com',
-            'support_phone' => '',
+            'support_email' => 'emca@emca.tech',
+            'support_phone' => '+255 749 719 998',
             'support_whatsapp' => '',
             'public_address' => 'Moshi, Kilimanjaro — Tanzania',
             'social_facebook' => '',

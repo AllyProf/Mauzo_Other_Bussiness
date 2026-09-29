@@ -29,7 +29,7 @@ class CheckSubscription
 
         if ($user && $user->business) {
             if ($this->platformSettings->businessIsLocked($user->business)) {
-                if (! $request->is('subscription-expired')) {
+                if (! $request->is('subscription-expired', 'subscription-expired/*')) {
                     return redirect()->route('subscription.expired');
                 }
             }

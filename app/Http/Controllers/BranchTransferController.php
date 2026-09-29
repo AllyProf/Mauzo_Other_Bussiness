@@ -22,6 +22,12 @@ class BranchTransferController extends Controller
         $businessId = (int) $user->business_id;
         $seesAllHistory = $this->seesAllTransferHistory();
 
+        if (! $this->transfers->businessHasBranches($businessId)
+            && ! BranchTransfer::where('business_id', $businessId)->exists()) {
+            return redirect($user->defaultLandingUrl())
+                ->with('error', __('branch_transfers.need_other_branch'));
+        }
+
         $query = BranchTransfer::query()
             ->where('business_id', $businessId)
             ->with(['fromBranch', 'toBranch', 'user'])

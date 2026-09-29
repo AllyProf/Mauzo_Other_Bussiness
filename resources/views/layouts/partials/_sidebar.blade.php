@@ -111,7 +111,9 @@
             <li><a class="treeview-item {{ Request::is('receivings*') ? 'active' : '' }}" href="{{ route('receivings.index') }}" data-tour="menu-receiving"><i class="icon fa fa-download"></i> {{ __('menu.stock_in') }}</a></li>
             @endcan
             @canany(['supply_to_branch', 'receive_branch_supply'])
+            @if(app(\App\Services\BranchTransferService::class)->businessHasBranches((int) auth()->user()->business_id))
             <li><a class="treeview-item {{ Request::is('branch-transfers*') ? 'active' : '' }}" href="{{ route('branch-transfers.index') }}"><i class="icon fa fa-exchange"></i> {{ __('menu.supply_to_branch') }}</a></li>
+            @endif
             @endcanany
             @canany(['record_stock_loss', 'view_stock_history', 'open_shift', 'process_sales'])
             <li><a class="treeview-item {{ Request::is('stock-losses*') ? 'active' : '' }}" href="{{ route('stock-losses.index') }}" data-tour="menu-stock-losses"><i class="icon fa fa-minus-circle"></i> {{ __('menu.stock_losses') }}</a></li>

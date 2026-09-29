@@ -36,6 +36,14 @@ class BranchTransferService
             ->first();
     }
 
+    public function businessHasBranches(int $businessId): bool
+    {
+        return once(fn () => Branch::query()
+            ->where('business_id', $businessId)
+            ->where('is_active', true)
+            ->count() >= 2);
+    }
+
     /**
      * @return Collection<int, Branch>
      */
