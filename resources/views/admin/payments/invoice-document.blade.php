@@ -35,9 +35,29 @@
   .totals .vat .value { background: #c5dff5; border: 1px solid #3a9ad9; font-weight: normal; }
   .totals .grand td { border-top: 1px solid #3a9ad9; border-bottom: 1px solid #3a9ad9; }
   .footer { margin-top: 26px; font-size: 11px; }
+  .watermark-logo { position: fixed; top: 300px; left: 0; right: 0; text-align: center; opacity: 0.07; }
+  .watermark-logo img { width: 380px; }
+  .watermark-status {
+    position: fixed; top: 640px; left: 70px; width: 560px; text-align: center;
+    font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 96px; font-weight: bold; letter-spacing: 12px;
+    opacity: 0.16; transform: rotate(-30deg);
+  }
+  .watermark-status.paid { color: #1e8e3e; }
+  .watermark-status.unpaid { color: #c62828; }
+  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 3px; color: #fff; font-weight: bold; font-size: 10px; letter-spacing: 1px; }
+  .status-badge.paid { background: #1e8e3e; }
+  .status-badge.unpaid { background: #c62828; }
 </style>
 </head>
 <body>
+@php
+  $isPaid = $invoice->status === \App\Models\PlatformBillingInvoice::STATUS_PAID;
+@endphp
+
+@if($company['logo'])
+<div class="watermark-logo"><img src="{{ $company['logo'] }}" alt=""></div>
+@endif
+<div class="watermark-status {{ $isPaid ? 'paid' : 'unpaid' }}">{{ $isPaid ? 'PAID' : 'UNPAID' }}</div>
 
 <table>
   <tr>
@@ -68,6 +88,13 @@
       <table class="meta" style="width: auto; margin-left: auto; margin-top: 18px;">
         <tr><td class="label">Invoice#:</td><td>{{ $invoice->invoice_number }}</td></tr>
         <tr><td class="label">Date:</td><td>{{ $invoiceDate }}</td></tr>
+        <tr>
+          <td class="label">Status:</td>
+          <td><span class="status-badge {{ $isPaid ? 'paid' : 'unpaid' }}">{{ $isPaid ? 'PAID' : 'UNPAID' }}</span></td>
+        </tr>
+        @if($isPaid && $invoice->paid_at)
+        <tr><td class="label">Paid on:</td><td>{{ $invoice->paid_at->format('d-m-Y') }}</td></tr>
+        @endif
       </table>
     </td>
   </tr>
