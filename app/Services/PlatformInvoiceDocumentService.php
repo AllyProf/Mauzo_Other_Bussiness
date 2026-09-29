@@ -83,6 +83,7 @@ class PlatformInvoiceDocumentService
                 'tin' => (string) ($s['invoice_company_tin'] ?? ''),
                 'website' => (string) ($s['invoice_company_website'] ?? ''),
                 'logo' => $this->logoDataUri((string) ($s['invoice_logo'] ?? '')),
+                'watermark' => $this->watermarkDataUri((string) ($s['invoice_logo'] ?? '')),
             ],
             'payment' => [
                 'intro' => (string) ($s['invoice_payment_intro'] ?? ''),
@@ -137,6 +138,58 @@ class PlatformInvoiceDocumentService
             'number_label' => trim((string) ($method['number_label'] ?? '')),
             'number' => trim((string) ($method['number'] ?? '')),
         ], $methods));
+    }
+
+    /**
+     * Dompdf barely renders CSS opacity on transparent PNGs, so the faded logo is baked into the image.
+     */
+    private function watermarkDataUri(string $path, float $strength = 0.12): ?string
+    {
+        if ($path === '' || ! function_exists('imagecreatefromstring') || ! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        $source = @imagecreatefromstring(Storage::disk('public')->get($path));
+        if (! $source) {
+            return null;
+        }
+
+        $width = imagesx($source);
+        $height = imagesy($source);
+        $targetWidth = min(600, $width);
+        $targetHeight = max(1, (int) round($height * $targetWidth / $width));
+
+        $image = imagecreatetruecolor($targetWidth, $targetHeight);
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+        imagefill($image, 0, 0, imagecolorallocatealpha($image, 255, 255, 255, 127));
+        imagecopyresampled($image, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $width, $height);
+        imagedestroy($source);
+
+        for ($x = 0; $x < $targetWidth; $x++) {
+            for ($y = 0; $y < $targetHeight; $y++) {
+                $rgba = imagecolorat($image, $x, $y);
+                $alpha = ($rgba >> 24) & 0x7F;
+                $r = ($rgba >> 16) & 0xFF;
+                $g = ($rgba >> 8) & 0xFF;
+                $b = $rgba & 0xFF;
+
+                if ($alpha >= 127 || ($r > 245 && $g > 245 && $b > 245)) {
+                    imagesetpixel($image, $x, $y, imagecolorallocatealpha($image, 255, 255, 255, 127));
+                    continue;
+                }
+
+                $newAlpha = (int) round(127 - (127 - $alpha) * $strength);
+                imagesetpixel($image, $x, $y, imagecolorallocatealpha($image, $r, $g, $b, $newAlpha));
+            }
+        }
+
+        ob_start();
+        imagepng($image);
+        $png = ob_get_clean();
+        imagedestroy($image);
+
+        return 'data:image/png;base64,'.base64_encode($png);
     }
 
     private function logoDataUri(string $path): ?string

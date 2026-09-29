@@ -35,7 +35,7 @@
   .totals .vat .value { background: #c5dff5; border: 1px solid #3a9ad9; font-weight: normal; }
   .totals .grand td { border-top: 1px solid #3a9ad9; border-bottom: 1px solid #3a9ad9; }
   .footer { margin-top: 26px; font-size: 11px; }
-  .watermark-logo { position: fixed; top: 300px; left: 0; right: 0; text-align: center; opacity: 0.07; }
+  .watermark-logo { position: fixed; top: 300px; left: 0; right: 0; text-align: center; }
   .watermark-logo img { width: 380px; }
   .watermark-status {
     position: fixed; top: 640px; left: 70px; width: 560px; text-align: center;
@@ -54,8 +54,8 @@
   $isPaid = $invoice->status === \App\Models\PlatformBillingInvoice::STATUS_PAID;
 @endphp
 
-@if($company['logo'])
-<div class="watermark-logo"><img src="{{ $company['logo'] }}" alt=""></div>
+@if($company['watermark'] ?? null)
+<div class="watermark-logo"><img src="{{ $company['watermark'] }}" alt=""></div>
 @endif
 <div class="watermark-status {{ $isPaid ? 'paid' : 'unpaid' }}">{{ $isPaid ? 'PAID' : 'UNPAID' }}</div>
 
