@@ -72,6 +72,7 @@ GET /api/v1/reports
   "success": true,
   "data": {
     "reports": [
+      { "key": "daily-report", "label": "Daily Report", "path": "/reports/daily-report" },
       { "key": "circulation-profit", "label": "Circulation vs Profit", "path": "/reports/circulation-profit" },
       { "key": "daily-sales", "label": "Daily Sales", "path": "/reports/daily-sales" },
       { "key": "expenses", "label": "Expense Report", "path": "/reports/expenses" },
@@ -91,6 +92,78 @@ GET /api/v1/reports
   }
 }
 ```
+
+---
+
+## Daily Report (day vs month-to-date)
+
+```
+GET /api/v1/reports/daily-report?report_date=2026-09-20
+```
+
+Web: `/reports/daily-report`
+
+Single-day snapshot compared with the month so far (1st of the month → `report_date`). Uses **`report_date`** instead of `start_date`/`end_date`, and it has **no 5-day minimum**.
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `report_date` | `YYYY-MM-DD` | today | Day to report on (future dates fall back to today). `date` / `end_date` are also accepted. |
+| `business_type` | string | all | Department key from `filters.business_types` |
+| `branch_id` | int | tenant branch | Owner only |
+
+```json
+{
+  "success": true,
+  "message": "OK",
+  "data": {
+    "report": "daily-report",
+    "title": "Daily Report",
+    "report_date": "2026-09-20",
+    "date_range": {
+      "start_date": "2026-09-01",
+      "end_date": "2026-09-20",
+      "day_label": "20-Sep",
+      "period_label": "01-Sep to 20-Sep"
+    },
+    "filters": { "branch_id": 10, "business_types": [], "multi_business": false, "active_business_type": null, "active_business_label": null },
+    "data": {
+      "report_date": "2026-09-20",
+      "report_date_label": "20-Sep",
+      "period_label": "01-Sep to 20-Sep",
+      "period_from": "2026-09-01",
+      "period_to": "2026-09-20",
+      "currency": "TZS",
+      "metrics": [
+        { "key": "orders", "label": "Orders", "day": 3, "period": 88, "format": "number" },
+        { "key": "gross_sales", "label": "Gross Sales", "day": 6057600, "period": 153048300, "format": "money" },
+        { "key": "collected", "label": "Collected", "day": 0, "period": 108468000, "format": "money" },
+        { "key": "outstanding", "label": "Outstanding", "day": 6057600, "period": 44580300, "format": "money" },
+        { "key": "avg_order", "label": "Avg Order Value", "day": 2019200, "period": 1739185.23, "format": "money" },
+        { "key": "gross_profit", "label": "Gross Profit", "day": 399500.04, "period": 9649242.71, "format": "money" }
+      ],
+      "sources": [
+        { "method": "cash", "label": "Cash", "day_orders": 0, "day_amount": 0, "period_orders": 40, "period_amount": 60000000 }
+      ],
+      "source_totals": { "day_orders": 0, "day_amount": 0, "period_orders": 40, "period_amount": 60000000 },
+      "expenses": [
+        { "key": "restock", "label": "Restock / Supply", "day": 0, "period": 906877 }
+      ],
+      "expense_totals": { "day": 0, "period": 906877 },
+      "net_cash": { "day": 0, "period": 108468000 },
+      "net_profit": { "day": 399500.04, "period": 8742365.71 },
+      "circulation": { "day_opening": 0, "period_opening": 0, "closing": 0, "closing_profit": 0 }
+    }
+  }
+}
+```
+
+**Mobile layout (matches web):** a two-column table per section, with a **Day** column and a **Period** column:
+
+1. **Summary**: `metrics` (use `format` to show a count or money; match on `key`, not `label`, because labels are translated).
+2. **Collections by payment method**: `sources` plus the `source_totals` footer row.
+3. **Expenses**: `expenses` plus the `expense_totals` footer row.
+4. **Net Cash** (`net_cash`) and **Net Profit** (`net_profit`) as highlighted totals.
+5. **Circulation**: `circulation` opening and closing balances.
 
 ---
 

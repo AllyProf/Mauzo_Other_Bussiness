@@ -24,6 +24,7 @@ class BusinessReportApiService
     public function availableReports(): array
     {
         return [
+            ['key' => 'daily-report', 'label' => 'Daily Report', 'path' => '/reports/daily-report'],
             ['key' => 'circulation-profit', 'label' => 'Circulation vs Profit', 'path' => '/reports/circulation-profit'],
             ['key' => 'daily-sales', 'label' => 'Daily Sales', 'path' => '/reports/daily-sales'],
             ['key' => 'expenses', 'label' => 'Expense Report', 'path' => '/reports/expenses'],
@@ -88,6 +89,47 @@ class BusinessReportApiService
                         : null,
                 ],
                 'data' => $raw,
+            ];
+        });
+    }
+
+    /**
+     * Day vs month-to-date snapshot, same data as the web /reports/daily-report page.
+     *
+     * @return array<string, mixed>
+     */
+    public function dailyReport(User $user, Business $business, ?int $branchFilterId, Request $request): array
+    {
+        return $this->withWebContext($user, (int) $business->id, $branchFilterId, function () use ($user, $business, $branchFilterId, $request) {
+            $input = $request->input('report_date') ?: $request->input('date') ?: $request->input('end_date');
+            $reportDate = $input ? \Carbon\Carbon::parse($input) : now();
+            if ($reportDate->isFuture()) {
+                $reportDate = now();
+            }
+            $reportDate = $reportDate->toDateString();
+
+            $filter = $this->filterMeta($user, $business, $branchFilterId, $request);
+            $businessTypeKey = $this->reports->resolveBusinessTypeFilter($request, $business, $filter['business_types']);
+            $data = $this->reports->dailySnapshotReport($business, $reportDate, $businessTypeKey);
+
+            return [
+                'report' => 'daily-report',
+                'title' => __('reports.daily.title'),
+                'report_date' => $data['report_date'],
+                'date_range' => [
+                    'start_date' => $data['period_from'],
+                    'end_date' => $data['period_to'],
+                    'day_label' => $data['report_date_label'],
+                    'period_label' => $data['period_label'],
+                ],
+                'filters' => $filter + [
+                    'active_business_type' => $businessTypeKey,
+                    'active_business_label' => $businessTypeKey
+                        ? (collect($filter['business_types'])->firstWhere('key', $businessTypeKey)['label']
+                            ?? $business->businessTypeLabel($businessTypeKey))
+                        : null,
+                ],
+                'data' => $data,
             ];
         });
     }

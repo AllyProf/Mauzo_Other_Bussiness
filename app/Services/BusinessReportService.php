@@ -646,6 +646,7 @@ class BusinessReportService
         $expenseRows = [];
         if ($dayExpenses['staff'] > 0 || $periodExpenses['staff'] > 0) {
             $expenseRows[] = [
+                'key' => 'staff',
                 'label' => __('reports.daily.staff_expenses'),
                 'day' => $dayExpenses['staff'],
                 'period' => $periodExpenses['staff'],
@@ -657,6 +658,7 @@ class BusinessReportService
         ));
         foreach ($categoryKeys as $key) {
             $expenseRows[] = [
+                'key' => (string) $key,
                 'label' => BusinessOwnerExpense::CATEGORIES[$key] ?? ucfirst((string) $key),
                 'day' => (float) ($dayExpenses['owner_by_category'][$key] ?? 0),
                 'period' => (float) ($periodExpenses['owner_by_category'][$key] ?? 0),
@@ -683,36 +685,42 @@ class BusinessReportService
             'currency' => config('app.currency_code', 'TZS'),
             'metrics' => [
                 [
+                    'key' => 'orders',
                     'label' => __('reports.daily.orders'),
                     'day' => $dayStats['orders'],
                     'period' => $periodStats['orders'],
                     'format' => 'number',
                 ],
                 [
+                    'key' => 'gross_sales',
                     'label' => __('reports.daily.gross_sales'),
                     'day' => $dayStats['gross'],
                     'period' => $periodStats['gross'],
                     'format' => 'money',
                 ],
                 [
+                    'key' => 'collected',
                     'label' => __('reports.daily.collected'),
                     'day' => $dayStats['collected'],
                     'period' => $periodStats['collected'],
                     'format' => 'money',
                 ],
                 [
+                    'key' => 'outstanding',
                     'label' => __('reports.daily.outstanding'),
                     'day' => $dayStats['outstanding'],
                     'period' => $periodStats['outstanding'],
                     'format' => 'money',
                 ],
                 [
+                    'key' => 'avg_order',
                     'label' => __('reports.daily.avg_order'),
                     'day' => $dayStats['avg_order'],
                     'period' => $periodStats['avg_order'],
                     'format' => 'money',
                 ],
                 [
+                    'key' => 'gross_profit',
                     'label' => __('reports.daily.gross_profit'),
                     'day' => $dayGrossProfit,
                     'period' => $periodGrossProfit,

@@ -1,6 +1,6 @@
 @if(Auth::check() && Auth::user()->role !== 'super_admin' && Auth::user()->business_id)
 <button type="button" class="support-fab" id="supportFabBtn" title="{{ __('common.contact_support') }}" aria-label="{{ __('common.contact_support') }}">
-  <i class="fa fa-life-ring support-fab-icon" aria-hidden="true"></i>
+  <img src="{{ asset('gp-assets/img/support-fab.png') }}" alt="" class="support-fab-img" aria-hidden="true">
 </button>
 
 <div class="modal fade" id="supportQuickModal" tabindex="-1" role="dialog" aria-labelledby="supportQuickModalLabel" aria-hidden="true">
@@ -40,41 +40,62 @@
     bottom: 24px;
     right: 24px;
     z-index: 1040;
-    width: 46px;
-    height: 46px;
+    width: 56px;
+    height: 56px;
     padding: 0;
-    border: none;
+    border: 2px solid #fff;
     border-radius: 50%;
     background: #940000;
     color: #fff;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    overflow: hidden;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
     outline: none;
+    animation: supportFabPulse 2.4s ease-out infinite;
   }
-  .support-fab-icon {
-    font-size: 20px;
-    line-height: 1;
+  .support-fab-img {
+    display: block;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
+    user-select: none;
+    animation: supportFabRing 6s ease-in-out 1.5s infinite;
   }
   .support-fab:hover,
   .support-fab:focus {
     background: #7a0000;
-    transform: translateY(-2px);
+    transform: translateY(-3px) scale(1.06);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    animation-play-state: paused;
+  }
+  .support-fab:hover .support-fab-img,
+  .support-fab:focus .support-fab-img {
+    animation-play-state: paused;
+  }
+  @keyframes supportFabPulse {
+    0%   { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22), 0 0 0 0 rgba(148, 0, 0, 0.55); }
+    70%  { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22), 0 0 0 16px rgba(148, 0, 0, 0); }
+    100% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22), 0 0 0 0 rgba(148, 0, 0, 0); }
+  }
+  @keyframes supportFabRing {
+    0%, 82%, 100% { transform: rotate(0); }
+    84% { transform: rotate(-14deg); }
+    86% { transform: rotate(12deg); }
+    88% { transform: rotate(-10deg); }
+    90% { transform: rotate(8deg); }
+    92% { transform: rotate(-4deg); }
+    94% { transform: rotate(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .support-fab, .support-fab-img { animation: none; }
   }
   @media (max-width: 576px) {
     .support-fab {
       bottom: 18px;
       right: 16px;
-      width: 42px;
-      height: 42px;
-    }
-    .support-fab-icon {
-      font-size: 18px;
+      width: 50px;
+      height: 50px;
     }
   }
   @media print {
