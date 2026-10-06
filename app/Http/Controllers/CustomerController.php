@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\Sale;
+use App\Support\PhoneCountries;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -72,11 +73,11 @@ class CustomerController extends Controller
         Gate::authorize('manage_customers');
 
         $businessId = Auth::user()->business_id;
-        $phone = Customer::normalizePhone($request->phone);
+        $phone = PhoneCountries::fromRequest($request);
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
+            'phone' => PhoneCountries::rules(true, tzMobileOnly: false),
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
             'region' => 'nullable|string|max:100',
@@ -149,11 +150,11 @@ class CustomerController extends Controller
         Gate::authorize('manage_customers');
         $this->ensureAccess($customer);
 
-        $phone = Customer::normalizePhone($request->phone);
+        $phone = PhoneCountries::fromRequest($request);
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
+            'phone' => PhoneCountries::rules(true, tzMobileOnly: false),
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
             'region' => 'nullable|string|max:100',

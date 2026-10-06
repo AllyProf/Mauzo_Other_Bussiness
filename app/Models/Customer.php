@@ -43,6 +43,11 @@ class Customer extends Model
         }
 
         $digits = preg_replace('/\D/', '', $phone);
+
+        if (str_starts_with(trim($phone), '+') && ! str_starts_with($digits, '255')) {
+            return $digits !== '' ? '+'.$digits : null;
+        }
+
         $digits = ltrim($digits, '0');
 
         if (str_starts_with($digits, '255')) {

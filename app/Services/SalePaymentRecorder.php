@@ -181,6 +181,10 @@ class SalePaymentRecorder
 
     private function createPayment(Request $request, float $amount, string $methodKey): void
     {
+        CashierPaymentGuard::assertReferencesUnique((int) $this->sale->business_id, [
+            ['reference' => $request->transaction_reference, 'method' => $methodKey],
+        ]);
+
         SalePayment::create([
             'sale_id' => $this->sale->id,
             'user_id' => Auth::id(),

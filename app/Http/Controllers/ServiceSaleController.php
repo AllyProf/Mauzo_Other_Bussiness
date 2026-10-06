@@ -254,6 +254,11 @@ class ServiceSaleController extends Controller
             DB::commit();
             $openShift?->refreshTotals();
 
+            if (! Auth::user()->canCollectCustomerPayments()) {
+                return redirect()->route('services.sales.index')
+                    ->with('success', "Service order {$ref} placed. Send the customer to the cashier to pay.");
+            }
+
             return redirect()->route('services.sales.index', ['pay' => $sale->id])
                 ->with('success', "Service order {$ref} placed. Complete payment below.");
         } catch (\Throwable $e) {

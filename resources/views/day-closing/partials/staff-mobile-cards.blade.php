@@ -55,6 +55,9 @@
     <div class="dc-mobile-stat">
       <span>Collected</span>
       <strong class="text-info">{{ money($data['collected_on_orders']) }}</strong>
+      @if(($data['collected_by_others'] ?? 0) > 0)
+        <small class="text-muted d-block">incl. {{ money($data['collected_by_others']) }} by cashier</small>
+      @endif
     </div>
     <div class="dc-mobile-stat">
       <span>Credit</span>

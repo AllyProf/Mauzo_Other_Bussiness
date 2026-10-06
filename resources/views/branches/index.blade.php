@@ -7,19 +7,6 @@
   $maxBranches = $business->maxBranchesAllowed();
   $currentCount = $branches->count();
   $canAddBranch = $maxBranches === null || $currentCount < $maxBranches;
-
-  $formatPhoneLocal = function (?string $phone) {
-      if (! $phone) {
-          return '';
-      }
-      $value = preg_replace('/\s+/', '', $phone);
-      if (str_starts_with($value, '+255')) {
-          $value = substr($value, 4);
-      } elseif (str_starts_with($value, '255')) {
-          $value = substr($value, 3);
-      }
-      return ltrim($value, '0');
-  };
 @endphp
 
 <div class="app-title">
@@ -65,11 +52,7 @@
         </div>
         <div class="form-group">
           <label class="control-label">Leader Phone</label>
-          <div class="input-group">
-            <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
-            <input type="tel" class="form-control branch-phone-local" placeholder="712345678" maxlength="10" inputmode="numeric" value="{{ $formatPhoneLocal(old('leader_phone')) }}">
-          </div>
-          <input type="hidden" name="leader_phone" class="branch-phone-hidden" value="{{ old('leader_phone') }}">
+          @include('partials.phone-country-input', ['id' => 'branchLeaderPhone', 'name' => 'leader_phone', 'combined' => true, 'value' => old('leader_phone'), 'placeholder' => '712345678'])
         </div>
         <div class="form-group">
           <label class="control-label">Leader Email</label>
@@ -217,11 +200,7 @@
                           <div class="col-md-6">
                             <div class="form-group">
                               <label>Leader Phone</label>
-                              <div class="input-group">
-                                <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
-                                <input type="tel" class="form-control branch-phone-local" value="{{ $formatPhoneLocal($branch->leader_phone) }}" placeholder="712345678" maxlength="10" inputmode="numeric">
-                              </div>
-                              <input type="hidden" name="leader_phone" class="branch-phone-hidden" value="{{ $branch->leader_phone }}">
+                              @include('partials.phone-country-input', ['id' => 'branchLeaderPhone'.$branch->id, 'name' => 'leader_phone', 'combined' => true, 'value' => $branch->leader_phone, 'placeholder' => '712345678'])
                             </div>
                           </div>
                         </div>
@@ -271,42 +250,4 @@
 @endsection
 
 @section('scripts')
-<script>
-jQuery(function($) {
-  function formatPhoneForSave(local) {
-    const digits = String(local || '').replace(/\D/g, '').replace(/^0+/, '');
-    return digits ? '+255' + digits : '';
-  }
-
-  function syncPhonePair($local, $hidden) {
-    $hidden.val(formatPhoneForSave($local.val()));
-  }
-
-  function syncFormPhones($form) {
-    $form.find('.branch-phone-local').each(function() {
-      const $local = $(this);
-      const $hidden = $local.closest('.form-group').find('.branch-phone-hidden').first();
-      if ($hidden.length) {
-        syncPhonePair($local, $hidden);
-      }
-    });
-  }
-
-  $('.branch-phone-local').on('input', function() {
-    const $local = $(this);
-    const $hidden = $local.closest('.form-group').find('.branch-phone-hidden').first();
-    syncPhonePair($local, $hidden);
-  });
-
-  $('#branchCreateForm, .branch-edit-form').on('submit', function() {
-    syncFormPhones($(this));
-  });
-
-  $('#branchCreateForm .branch-phone-local').each(function() {
-    const $local = $(this);
-    const $hidden = $local.closest('.form-group').find('.branch-phone-hidden').first();
-    syncPhonePair($local, $hidden);
-  });
-});
-</script>
 @endsection

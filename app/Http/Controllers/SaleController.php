@@ -13,6 +13,7 @@ use App\Models\Item;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Customer;
+use App\Services\CashierPaymentGuard;
 use App\Services\ItemPackagingNormalizer;
 use App\Services\SaleStockService;
 use App\Models\User;
@@ -20,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class SaleController extends Controller
 {
@@ -310,8 +312,6 @@ class SaleController extends Controller
                 $businessTypes = $business->posBusinessTypesMeta();
             }
 
-            $multiBusiness = count($businessTypes) > 1;
-
             $categoryRecords = Category::where('business_id', $business->id)
                 ->has('items')
                 ->when($branchFilterId, fn ($query) => $query->where('branch_id', $branchFilterId))
@@ -374,6 +374,16 @@ class SaleController extends Controller
             $categories = $categoryRecords
                 ->filter(fn ($cat) => $itemsByCategory->has($cat->id))
                 ->values();
+
+            $sellableTypeKeys = $categories
+                ->map(fn ($cat) => (string) ($cat->source_business_type_key ?: 'other'))
+                ->unique()
+                ->all();
+            $businessTypes = collect($businessTypes)
+                ->filter(fn ($type) => in_array((string) ($type['key'] ?? ''), $sellableTypeKeys, true))
+                ->values()
+                ->all();
+            $multiBusiness = count($businessTypes) > 1;
         }
 
         $serviceCategories = collect();
@@ -636,6 +646,11 @@ class SaleController extends Controller
             $paySale = $createdSales[0];
             $redirectParams = ['pay' => $paySale->id];
 
+            if (! Auth::user()->canCollectCustomerPayments()) {
+                return redirect()->route('sales.index')
+                    ->with('success', "Order placed ({$refs}). Send the customer to the cashier to pay.");
+            }
+
             if (count($createdSales) === 2) {
                 $redirectParams['also_pay'] = $createdSales[1]->id;
                 $message = "2 orders saved ({$refs}). Pay once below — one payment covers both.";
@@ -654,11 +669,11 @@ class SaleController extends Controller
 
     public function show(Sale $sale)
     {
-        $this->authorizeAny(['view_sales_history', 'process_sales']);
+        $this->authorizeAny(['view_sales_history', 'process_sales', 'collect_payments']);
         if ($sale->business_id != $this->currentBusinessId()) {
             abort(403);
         }
-        $this->ensureCanAccessStaffRecord((int) $sale->user_id);
+        $this->ensureCanCollectOnSale($sale);
         $sale->load(['items.item', 'items.itemPackaging.packagingType', 'items.service', 'user', 'payments.user']);
         return view('sales.show', compact('sale'));
     }
@@ -666,13 +681,54 @@ class SaleController extends Controller
     public function pay(Request $request, Sale $sale)
     {
         $this->authorizeAny(['collect_invoice_payments', 'collect_payments', 'process_sales']);
+
+        if ($reason = Auth::user()->paymentCollectionBlockedReason()) {
+            return redirect()->back()->with('error', $reason);
+        }
+
+        if ($message = CashierPaymentGuard::lockedByOtherMessage($sale, Auth::user())) {
+            return redirect()->back()->with('error', $message);
+        }
+
+        $response = $this->processPay($request, $sale);
+
+        if (in_array('success', (array) session('_flash.new', []), true)) {
+            CashierPaymentGuard::release($sale, Auth::user());
+            session()->flash('receipt_sale_id', $sale->id);
+        }
+
+        return $response;
+    }
+
+    private function rejectDuplicateReferences(int $businessId, array $lines): ?\Illuminate\Http\RedirectResponse
+    {
+        try {
+            CashierPaymentGuard::assertReferencesUnique($businessId, $lines);
+        } catch (ValidationException $e) {
+            return redirect()->back()->withInput()->with('error', collect($e->errors())->flatten()->first());
+        }
+
+        return null;
+    }
+
+    private function processPay(Request $request, Sale $sale)
+    {
         $business = $this->currentBusiness();
         $businessId = $this->currentBusinessId();
 
         if ($sale->business_id != $businessId) {
             abort(403);
         }
-        $this->ensureCanAccessStaffRecord((int) $sale->user_id);
+        $this->ensureCanCollectOnSale($sale);
+
+        $isPaymentCashier = Auth::user()->isPaymentCashier();
+        if ($isPaymentCashier && ! Shift::openForUser(Auth::id(), $businessId)) {
+            return redirect()->route('shifts.create')
+                ->with('warning', 'Open your cashier shift before collecting payments.');
+        }
+        if ($isPaymentCashier) {
+            $request->request->remove('line_items');
+        }
 
         if (in_array($sale->payment_status, ['paid', 'cancelled'])) {
             return redirect()->back()->with('error', 'This sale is already fully paid or cancelled.');
@@ -692,7 +748,7 @@ class SaleController extends Controller
                 ->get();
 
             foreach ($linkedSales as $linkedSale) {
-                $this->ensureCanAccessStaffRecord((int) $linkedSale->user_id);
+                $this->ensureCanCollectOnSale($linkedSale);
             }
 
             if ($linkedSales->isNotEmpty()) {
@@ -824,6 +880,12 @@ class SaleController extends Controller
                 'payment_provider' => 'required|string|max:255',
                 'transaction_reference' => 'required|string|max:255',
             ]);
+        }
+
+        if ($duplicate = $this->rejectDuplicateReferences($businessId, [
+            ['reference' => $request->transaction_reference, 'method' => $request->payment_method],
+        ])) {
+            return $duplicate;
         }
 
         DB::beginTransaction();
@@ -1112,6 +1174,13 @@ class SaleController extends Controller
             ]);
         }
 
+        if ($duplicate = $this->rejectDuplicateReferences($businessId, array_map(fn ($line) => [
+            'reference' => $line['transaction_reference'] ?? null,
+            'method' => $line['method']['key'] ?? null,
+        ], $lines))) {
+            return $duplicate;
+        }
+
         DB::beginTransaction();
         try {
             $amountApplied = 0.0;
@@ -1288,6 +1357,12 @@ class SaleController extends Controller
                 'payment_provider' => 'required|string|max:255',
                 'transaction_reference' => 'required|string|max:255',
             ]);
+        }
+
+        if ($duplicate = $this->rejectDuplicateReferences($businessId, [
+            ['reference' => $request->transaction_reference, 'method' => $request->payment_method],
+        ])) {
+            return $duplicate;
         }
 
         $amountRemaining = min((float) $request->amount_paid, $combinedBalance);

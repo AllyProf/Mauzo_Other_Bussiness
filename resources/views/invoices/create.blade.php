@@ -140,10 +140,7 @@
                 <input type="text" name="customer_name" id="customerName" class="form-control" placeholder="Customer name (optional)" value="{{ old('customer_name') }}">
               </div>
               <div class="col-12 col-md-4 mb-2 mb-md-0">
-                <div class="input-group">
-                  <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
-                  <input type="text" name="customer_phone" id="customerPhone" class="form-control" placeholder="Phone for SMS" value="{{ old('customer_phone') }}">
-                </div>
+                @include('partials.phone-country-input', ['id' => 'customerPhone', 'name' => 'customer_phone', 'combined' => true, 'value' => old('customer_phone'), 'placeholder' => 'Phone for SMS'])
               </div>
               <div class="col-12 col-md-4">
                 <input type="email" name="customer_email" id="customerEmail" class="form-control" placeholder="Email for invoice attachment" value="{{ old('customer_email') }}">
@@ -394,7 +391,7 @@
     const $opt = $(this).find(':selected');
     if ($opt.val()) {
       $('#customerName').val($opt.data('name') || '');
-      $('#customerPhone').val(($opt.data('phone') || '').replace(/^\+255/, ''));
+      window.phoneCountryInput.set('#customerPhone', String($opt.data('phone') || ''));
       $('#customerEmail').val($opt.data('email') || '');
     }
   });

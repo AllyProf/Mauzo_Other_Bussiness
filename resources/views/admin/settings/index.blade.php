@@ -67,13 +67,13 @@
               <div class="col-md-4">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Support Phone</label>
-                  <input type="text" name="support_phone" class="form-control" value="{{ old('support_phone', $settings['support_phone']) }}">
+                  @include('partials.phone-country-input', ['id' => 'supportPhone', 'name' => 'support_phone', 'combined' => true, 'value' => old('support_phone', $settings['support_phone'])])
                 </div>
               </div>
               <div class="col-md-4">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">WhatsApp</label>
-                  <input type="text" name="support_whatsapp" class="form-control" value="{{ old('support_whatsapp', $settings['support_whatsapp']) }}" placeholder="+255...">
+                  @include('partials.phone-country-input', ['id' => 'supportWhatsapp', 'name' => 'support_whatsapp', 'combined' => true, 'value' => old('support_whatsapp', $settings['support_whatsapp'])])
                 </div>
               </div>
               <div class="col-md-4">
@@ -305,7 +305,7 @@
                 <div class="form-row">
                   <div class="form-group col-sm-6">
                     <label class="control-label font-weight-bold">Phone</label>
-                    <input type="text" name="invoice_company_phone" class="form-control" maxlength="60" value="{{ old('invoice_company_phone', $settings['invoice_company_phone'] ?? '') }}">
+                    @include('partials.phone-country-input', ['id' => 'invoiceCompanyPhone', 'name' => 'invoice_company_phone', 'combined' => true, 'value' => old('invoice_company_phone', $settings['invoice_company_phone'] ?? '')])
                   </div>
                   <div class="form-group col-sm-6">
                     <label class="control-label font-weight-bold">TIN</label>
@@ -501,7 +501,7 @@
               <div class="col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Admin Notification Phone</label>
-                  <input type="text" name="admin_notification_phone" class="form-control" value="{{ old('admin_notification_phone', $settings['admin_notification_phone'] ?? '') }}" placeholder="+255... or 07...">
+                  @include('partials.phone-country-input', ['id' => 'adminNotificationPhone', 'name' => 'admin_notification_phone', 'combined' => true, 'value' => old('admin_notification_phone', $settings['admin_notification_phone'] ?? '')])
                   <small class="text-muted">Fallback SMS for tickets and demo leads. New registrations use the staff list below.</small>
                 </div>
               </div>

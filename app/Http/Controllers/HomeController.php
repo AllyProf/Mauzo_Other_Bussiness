@@ -33,6 +33,10 @@ class HomeController extends Controller
             return redirect()->route('shifts.create');
         }
 
+        if ($user->isPaymentCashier()) {
+            return redirect()->route('cashier.queue');
+        }
+
         if ($user->role === 'super_admin') {
             return view('home', [
                 'totalBusinesses' => Business::count(),

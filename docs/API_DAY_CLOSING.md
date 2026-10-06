@@ -54,6 +54,7 @@ Content-Type: application/json
 | `GET` | `/day-closing/preview` | Staff | Form data before submit |
 | `POST` | `/day-closing` | Staff | Submit handover |
 | `GET` | `/day-closing` | Staff/Owner | History (`?date=`, `?status=`, `?per_page=`) |
+| `GET` | `/day-closing/history` | Owner/Managers | **Closing History** page — same as web `/day-closing/history` (totals, business type, branch filter) |
 | `GET` | `/day-closing/review` | Owner | Boss day review (`?date=` + optional `handover_id`) |
 | `GET` | `/day-closing/pending` | Owner | Pending / disputed queue |
 | `GET` | `/day-closing/{id}` | Staff/Owner | Full handover detail |
@@ -75,7 +76,9 @@ Content-Type: application/json
 
 ## 1. Preview (handover form)
 
-`GET /day-closing/preview?shift_id=123&closing_date=2026-07-28`
+> **Full staff handover guide** (web `/day-closing?shift=103`, with the full response, screen mapping and error codes): [`API_HANDOVER.md`](API_HANDOVER.md)
+
+`GET /day-closing/preview?shift_id=123&closing_date=2026-07-28` (`?shift=123` also works)
 
 | Query | Required | Notes |
 |-------|----------|-------|
@@ -115,8 +118,8 @@ Content-Type: application/json
 }
 ```
 
-Use `platform_breakdown[].key` as keys in `platform_amounts` when submitting.  
-If `can_submit` is `false`, handover was already submitted for this shift/date.
+Platform amounts are locked (system totals). Use `expense_sources[].key` as the expense `payment_method`.  
+If `can_submit` is `false`, show `cannot_submit_reason`. `existing_handover.id` points to the submitted handover.
 
 ---
 
@@ -131,8 +134,7 @@ If `can_submit` is `false`, handover was already submitted for this shift/date.
 | `closing_date` | **Yes** | `YYYY-MM-DD` |
 | `shift_id` | Yes for cashiers | Must belong to the logged-in user |
 | `report_notes` | No | Free text |
-| `platform_amounts` | No | Override declared amounts per platform key |
-| `expenses` | No | Array of `{ description, amount, payment_method }` |
+| `expenses` | No | Array of `{ description, amount, payment_method }`. `payment_method` must be one of the preview's `expense_sources[].key`. |
 
 ### Example
 
@@ -141,10 +143,6 @@ If `can_submit` is `false`, handover was already submitted for this shift/date.
   "closing_date": "2026-07-28",
   "shift_id": 123,
   "report_notes": "All cash counted",
-  "platform_amounts": {
-    "cash": 150000,
-    "mobile_money:mpesa": 80000
-  },
   "expenses": [
     {
       "description": "Transport",
@@ -155,7 +153,7 @@ If `can_submit` is `false`, handover was already submitted for this shift/date.
 }
 ```
 
-- Omit `platform_amounts` to use system totals from preview  
+- `platform_amounts` is ignored; declared totals always come from the system (same as web)  
 - Expenses reduce the matching payment method (`cash`, mobile, bank)  
 - **Response 201** — full `handover` detail card  
 
@@ -225,6 +223,54 @@ means: **owner** opens the boss review for **2026-06-18**, scrolled to handover 
 | `per_page` | 1–50 (default 20) |
 
 Staff see **their own** handovers. Owners / verifiers see the business.
+
+### 4b. Closing History (same as web `/day-closing/history`)
+
+> Separate full guide: [`API_CLOSING_HISTORY.md`](API_CLOSING_HISTORY.md)
+
+`GET /day-closing/history?status=verified&date_from=2026-09-01&date_to=2026-09-30&business_type=liquor&per_page=20`
+
+**Permission:** `view_closing_history`, `view_reports` or `verify_day_closing`.
+
+| Query | Values |
+|-------|--------|
+| `status` | `submitted`, `verified`, `disputed` (optional) |
+| `date_from` / `date_to` | `YYYY-MM-DD` (optional) |
+| `business_type` | key from `filters.business_types` (optional) |
+| `branch_id` | owner only; `0` = all branches (default = branch from `/auth/switch-branch`) |
+| `per_page` | 1–50 (default 20) |
+
+```json
+{
+  "success": true,
+  "data": {
+    "closings": [
+      {
+        "id": 143,
+        "closing_date": "2026-09-20",
+        "closing_date_label": "Sep 20, 2026",
+        "staff": { "id": 37, "name": "SINDATO STORE" },
+        "shift_id": 101,
+        "business_types": ["Liquor Store / Bar"],
+        "sales_count": 2,
+        "gross_sales": 956100,
+        "payments_received": 956100,
+        "total_expenses": 0,
+        "net_amount": 956100,
+        "money_short": 0,
+        "status": "submitted",
+        "verifier": null,
+        "submitted_at": "2026-09-21T05:44:56+03:00",
+        "verified_at": null
+      }
+    ],
+    "filters": { "branch_id": null, "branch_name": null, "viewing_all_branches": true, "business_types": [], "multi_business": false, "active_business_type": null },
+    "meta": { "current_page": 1, "last_page": 3, "per_page": 20, "total": 52 }
+  }
+}
+```
+
+Table columns (web): Date · Staff · Business · Sales · Gross Sales · Collected (`payments_received`) · Expenses · Net · Status · Submitted. Tap a row → `GET /day-closing/{id}`.
 
 ---
 

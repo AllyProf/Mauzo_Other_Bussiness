@@ -37,14 +37,17 @@
           @endif
           <div class="form-group">
             <label class="control-label">Phone Number</label>
-            <div class="input-group">
-              <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
-              <input class="form-control" type="text" name="phone" value="{{ old('phone', str_replace('+255', '', $supplier->phone)) }}" maxlength="9" required>
-            </div>
+            @include('partials.phone-country-input', [
+                'id' => 'editSupplierPhone',
+                'required' => true,
+                'value' => $supplier->phone,
+                'countryValue' => old('phone_country'),
+                'localValue' => old('phone'),
+            ])
           </div>
           <div class="form-group">
             <label class="control-label">Email Address</label>
-            <input class="form-control" type="email" name="email" value="{{ $supplier->email }}">
+            @include('partials.email-suggest-input', ['id' => 'editSupplierEmail', 'value' => old('email', $supplier->email)])
           </div>
           <div class="form-group">
             <label class="control-label">Region</label>

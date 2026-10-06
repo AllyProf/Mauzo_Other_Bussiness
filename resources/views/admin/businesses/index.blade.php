@@ -56,7 +56,7 @@
               </td>
               <td>{{ $business->created_at->format('M d, Y h:i A') }}</td>
               <td class="text-center text-nowrap">
-                <a href="{{ route('admin.businesses.edit', $business->id) }}" class="btn btn-info btn-sm mr-1" title="View details"><i class="fa fa-eye"></i></a>
+                <button type="button" class="btn btn-info btn-sm mr-1" title="View details" data-toggle="modal" data-target="#pendingBusinessModal-{{ $business->id }}"><i class="fa fa-eye"></i></button>
                 <form action="{{ route('admin.businesses.approve', $business->id) }}" method="POST" class="d-inline">
                   @csrf
                   <button type="submit" class="btn btn-success btn-sm mr-1" title="Approve & activate" onclick="confirmAction(event, 'Approve registration?', 'This will activate the account and start their free trial.')">
@@ -76,6 +76,10 @@
         </table>
       </div>
     </div>
+
+    @foreach($pendingRegistrations as $business)
+      @include('admin.businesses.partials.pending-registration-modal', ['business' => $business])
+    @endforeach
     @endif
 
     <div class="tile">

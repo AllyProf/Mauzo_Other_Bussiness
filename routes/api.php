@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BranchController;
+use App\Http\Controllers\Api\V1\BusinessNoteController;
+use App\Http\Controllers\Api\V1\CashierController;
 use App\Http\Controllers\Api\V1\BusinessRegistrationController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CustomerController;
@@ -21,6 +23,9 @@ use App\Http\Controllers\Api\V1\ReceivingController;
 use App\Http\Controllers\Api\V1\ReferenceController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\PettyCashController;
+use App\Http\Controllers\Api\V1\PriceListController;
+use App\Http\Controllers\Api\V1\StockAdjustmentController;
+use App\Http\Controllers\Api\V1\StockLossController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SettingsController;
@@ -36,6 +41,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/register-business', [BusinessRegistrationController::class, 'options']);
     Route::post('/register-business/send-code', [BusinessRegistrationController::class, 'sendCode']);
     Route::post('/register-business', [BusinessRegistrationController::class, 'register']);
+    Route::get('/register-business/status', [BusinessRegistrationController::class, 'status'])
+        ->middleware('throttle:30,1');
 
     Route::middleware([
         'auth:sanctum',
@@ -112,6 +119,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/items', [ItemController::class, 'index']);
         Route::get('/items/stock', [ItemController::class, 'stock']);
+        Route::get('/items/forecast', [ItemController::class, 'forecast']);
         Route::get('/items/create-form', [ItemController::class, 'createForm']);
         Route::get('/items/check-name', [ItemController::class, 'checkName']);
         Route::get('/items/search', [ItemController::class, 'search']);
@@ -136,7 +144,15 @@ Route::prefix('v1')->group(function () {
         Route::post('/sales', [SaleController::class, 'store']);
         Route::get('/sales/{sale}', [SaleController::class, 'show']);
         Route::post('/sales/{sale}/pay', [SaleController::class, 'pay']);
+        Route::get('/cashier/queue', [CashierController::class, 'queue']);
+        Route::get('/cashier/collections', [CashierController::class, 'collections']);
+        Route::get('/cashier/on-duty', [CashierController::class, 'onDuty']);
+        Route::get('/cashier/performance', [CashierController::class, 'performance']);
+        Route::post('/cashier/orders/{sale}/lock', [CashierController::class, 'lock']);
+        Route::delete('/cashier/orders/{sale}/lock', [CashierController::class, 'unlock']);
+        Route::get('/cashier/orders/{sale}/receipt', [CashierController::class, 'receipt']);
         Route::post('/sales/{sale}/cancel', [SaleController::class, 'cancel']);
+        Route::post('/sales/{sale}/remind', [SaleController::class, 'remind'])->middleware('throttle:20,1');
 
         // Live Sales Pulse (same as web /live-sales)
         Route::get('/live-sales', [LiveSalesController::class, 'index']);
@@ -147,9 +163,40 @@ Route::prefix('v1')->group(function () {
         Route::post('/invoices', [InvoiceController::class, 'store']);
         Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
 
+        // Debt management (same as web /debts and /debts/history)
         Route::get('/debts', [DebtController::class, 'index']);
+        Route::get('/debts/history', [DebtController::class, 'history']);
+        Route::get('/debts/{sale}', [DebtController::class, 'show'])->whereNumber('sale');
         Route::post('/debts/{sale}/collect', [DebtController::class, 'collect']);
 
+        // Stock adjustments (same as web /stock-adjustments)
+        Route::get('/stock-adjustments', [StockAdjustmentController::class, 'index']);
+        Route::get('/stock-adjustments/create-form', [StockAdjustmentController::class, 'createForm']);
+        Route::post('/stock-adjustments', [StockAdjustmentController::class, 'store']);
+        Route::get('/stock-adjustments/{stockAdjustment}', [StockAdjustmentController::class, 'show'])->whereNumber('stockAdjustment');
+        Route::post('/stock-adjustments/{stockAdjustment}/cancel', [StockAdjustmentController::class, 'cancel']);
+
+        // Stock losses (same as web /stock-losses)
+        Route::get('/stock-losses', [StockLossController::class, 'index']);
+        Route::get('/stock-losses/create-form', [StockLossController::class, 'createForm']);
+        Route::post('/stock-losses', [StockLossController::class, 'store']);
+        Route::get('/stock-losses/{stockLoss}', [StockLossController::class, 'show'])->whereNumber('stockLoss');
+        Route::post('/stock-losses/{stockLoss}/cancel', [StockLossController::class, 'cancel']);
+
+        // Notes & reminders (same as web /notes)
+        Route::get('/notes', [BusinessNoteController::class, 'index']);
+        Route::post('/notes', [BusinessNoteController::class, 'store']);
+        Route::get('/notes/{note}', [BusinessNoteController::class, 'show']);
+        Route::put('/notes/{note}', [BusinessNoteController::class, 'update']);
+        Route::delete('/notes/{note}', [BusinessNoteController::class, 'destroy']);
+        Route::post('/notes/{note}/complete', [BusinessNoteController::class, 'complete']);
+        Route::post('/notes/{note}/reopen', [BusinessNoteController::class, 'reopen']);
+        Route::post('/notes/{note}/send-reminder', [BusinessNoteController::class, 'sendReminder']);
+
+        // Price list (same as web /price-list)
+        Route::get('/price-list', [PriceListController::class, 'index']);
+
+        Route::get('/day-closing/history', [DayClosingController::class, 'history']);
         Route::get('/day-closing/preview', [DayClosingController::class, 'preview']);
         Route::get('/day-closing/pending', [DayClosingController::class, 'pending']);
         Route::get('/day-closing/review', [DayClosingController::class, 'review']);

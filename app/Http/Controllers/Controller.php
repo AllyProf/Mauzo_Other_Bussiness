@@ -110,6 +110,42 @@ abstract class Controller
         }
     }
 
+    /**
+     * Sales a counter cashier may collect on: everything in his branch (or the whole business if unassigned).
+     */
+    protected function scopeSalesForCashierBranch($query, ?\App\Models\User $user = null)
+    {
+        $user = $user ?? auth()->user();
+
+        return $user ? \App\Services\CashierQueueService::scopeBranch($query, $user) : $query;
+    }
+
+    protected function canCollectOnSale(\App\Models\Sale $sale): bool
+    {
+        $user = auth()->user();
+
+        if (! $user || (int) $sale->business_id !== (int) $this->currentBusinessId()) {
+            return false;
+        }
+
+        if ($this->actsAsBusinessWideViewer() || (int) $sale->user_id === (int) $user->id) {
+            return true;
+        }
+
+        if (! $user->isPaymentCashier()) {
+            return false;
+        }
+
+        return $this->scopeSalesForCashierBranch(\App\Models\Sale::whereKey($sale->id), $user)->exists();
+    }
+
+    protected function ensureCanCollectOnSale(\App\Models\Sale $sale): void
+    {
+        if (! $this->canCollectOnSale($sale)) {
+            abort(403, 'You can only collect payments on orders in your branch.');
+        }
+    }
+
     protected function redirectIfShiftOverdue(?\App\Models\Shift $openShift): ?\Illuminate\Http\RedirectResponse
     {
         if (! $openShift || ! auth()->user()?->requiresOpenShift()) {

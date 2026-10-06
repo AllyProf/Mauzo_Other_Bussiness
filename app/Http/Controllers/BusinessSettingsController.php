@@ -346,6 +346,41 @@ class BusinessSettingsController extends Controller
             ->with('success', 'Automation and notification settings saved.');
     }
 
+    public function updatePaymentCollection(Request $request)
+    {
+        $this->authorizeAny(['manage_business_settings']);
+
+        $request->validate([
+            'payment_collection_mode' => ['required', 'in:'.implode(',', \App\Models\Business::PAYMENT_COLLECTION_MODES)],
+        ]);
+
+        $business = Auth::user()->business;
+
+        if ($request->payment_collection_mode === 'cashier') {
+            $hasCashier = $business->users()->where('is_active', true)->get()->contains(fn ($u) => $u->isPaymentCashier());
+            if (! $hasCashier) {
+                return redirect()->route('settings.index', ['tab' => 'payments'])
+                    ->with('error', 'Create at least one active staff with the "Cashier (Payments Only)" role before switching to cashier-only collection.');
+            }
+        }
+
+        $business->update([
+            'automation_settings' => array_merge(
+                $business->automation_settings ?? [],
+                ['payment_collection_mode' => $request->payment_collection_mode]
+            ),
+        ]);
+
+        $labels = [
+            'both' => 'Sales officers and cashiers can both collect payments.',
+            'cashier' => 'Only cashiers collect payments now. Sales officers send customers to the cashier.',
+            'officer' => 'Only sales officers collect payments now.',
+        ];
+
+        return redirect()->route('settings.index', ['tab' => 'payments'])
+            ->with('success', $labels[$request->payment_collection_mode]);
+    }
+
     public function updateShiftRules(Request $request)
     {
         $this->authorizeAny(['manage_business_settings']);

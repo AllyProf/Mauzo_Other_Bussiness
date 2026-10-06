@@ -292,29 +292,16 @@ Cashiers with `open_shift` / `process_sales` must open a shift before selling.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/shifts/current` | Open shift for user + can_open flag |
-| GET | `/shifts/open-form` | Items list for physical stock count |
+| GET | `/shifts/current` | Open shift for user + `requires_open_shift`, `can_open`, `can_open_message` |
+| GET | `/shifts/open-form` | Items for physical stock count + scope + my shortages |
 | POST | `/shifts/open` | Open shift with counts |
 | GET | `/shifts` | Shift history (paginated) |
 | GET | `/shifts/{id}` | Shift detail |
 | POST | `/shifts/{id}/close` | Close shift only (no handover — use day-closing submit for full handover) |
 
-### Open shift
-`POST /shifts/open`
-```json
-{
-  "opening_notes": "Morning count",
-  "counts": {
-    "12": 50,
-    "15": 100
-  },
-  "notes": {
-    "12": "2 pieces damaged"
-  }
-}
-```
-- `counts` keys = **item IDs**
-- If physical count < system stock, `notes[item_id]` is **required**
+**Full docs:** [`API_SHIFTS.md`](API_SHIFTS.md) — open-shift physical stock check after login / after day closing (same as web `/shifts/open`).
+
+Quick flow: `GET /shifts/current` → if `requires_open_shift` and no `shift` → `GET /shifts/open-form` → user counts items (pcs; reason required when lower) → `POST /shifts/open` → POS.
 
 ---
 
@@ -710,10 +697,28 @@ Filter matches web: sales whose **products/services belong to that branch** (ite
 
 ## Debts
 
+**Full docs:** [`API_DEBTS.md`](API_DEBTS.md)
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/debts` | Outstanding accounts (`?search=`, `?filter=overdue`) |
+| GET | `/debts` | Outstanding accounts (`?search=`, `?status=`, `?filter=overdue`, `?business_type=`) + stats + top customers |
+| GET | `/debts/{sale_id}` | Account detail (items + payments) |
 | POST | `/debts/{sale_id}/collect` | Record collection (same body as `/sales/{id}/pay`) |
+| GET | `/debts/history` | Collections (`?tab=payments`) / settled accounts (`?tab=settled`) |
+
+---
+
+## Stock adjustments · Stock losses · Notes · Price list · Closing history
+
+| Feature | Full docs | Main endpoints |
+|---------|-----------|----------------|
+| Stock adjustments | [`API_STOCK_ADJUSTMENTS.md`](API_STOCK_ADJUSTMENTS.md) | `GET/POST /stock-adjustments`, `GET /stock-adjustments/create-form`, `GET /stock-adjustments/{id}`, `POST /stock-adjustments/{id}/cancel` |
+| Stock losses | [`API_STOCK_LOSSES.md`](API_STOCK_LOSSES.md) | `GET/POST /stock-losses`, `GET /stock-losses/create-form`, `GET /stock-losses/{id}`, `POST /stock-losses/{id}/cancel` |
+| Notes & reminders | [`API_NOTES.md`](API_NOTES.md) | `GET/POST /notes`, `GET/PUT/DELETE /notes/{id}`, `POST /notes/{id}/complete`, `POST /notes/{id}/reopen` |
+| Price list | [`API_PRICE_LIST.md`](API_PRICE_LIST.md) | `GET /price-list` |
+| Closing history | [`API_CLOSING_HISTORY.md`](API_CLOSING_HISTORY.md) | `GET /day-closing/history` |
+| Staff shift handover | [`API_HANDOVER.md`](API_HANDOVER.md) | `GET /day-closing/preview?shift=` → `POST /day-closing` |
+| Cashier (payments only) | [`API_CASHIER.md`](API_CASHIER.md) | `GET /cashier/queue` → `POST /sales/{id}/pay` → `GET /cashier/collections` |
 
 ---
 
@@ -834,7 +839,7 @@ Staff submit a **handover** (declared cash / mobile / bank + expenses). Owner ve
 
 | Method | Endpoint | Who | Description |
 |--------|----------|-----|-------------|
-| GET | `/day-closing/preview` | Staff | Form data (`?shift_id=`, `?closing_date=`) |
+| GET | `/day-closing/preview` | Staff | Handover screen (`?shift=` / `?shift_id=`, `?closing_date=`). Full guide: [`API_HANDOVER.md`](API_HANDOVER.md) |
 | POST | `/day-closing` | Staff | Submit handover |
 | GET | `/day-closing` | All | History (`?date=`, `?status=`, `?per_page=`) |
 | GET | `/day-closing/review` | Owner | Boss day review (`?date=` + optional `handover_id`) — same as web `/day-closing?date=…#handover-…` |

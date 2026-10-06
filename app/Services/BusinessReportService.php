@@ -326,6 +326,19 @@ class BusinessReportService
             ],
             'recent_staff' => $staffExpenses->sortByDesc('id')->take(10)->values(),
             'recent_owner' => $ownerExpenses->sortByDesc('expense_date')->take(10)->values(),
+            'items' => $ownerExpenses->map(fn ($e) => [
+                'description' => $e->description,
+                'amount' => (float) $e->amount,
+                'date' => optional($e->expense_date)->toDateString(),
+                'source' => 'owner',
+                'category' => BusinessOwnerExpense::CATEGORIES[$e->category] ?? ucfirst((string) $e->category),
+            ])->concat($staffExpenses->map(fn ($e) => [
+                'description' => $e->description,
+                'amount' => (float) $e->amount,
+                'date' => optional($e->dayClosing?->closing_date)->toDateString(),
+                'source' => 'staff',
+                'category' => 'Staff',
+            ]))->sortByDesc('date')->take(200)->values(),
             'business_type_filtered' => (bool) $businessTypeKey,
             'business_type_note' => $businessTypeKey
                 ? 'Expenses are recorded business-wide and are not split by department.'
@@ -560,20 +573,48 @@ class BusinessReportService
             $aging[$bucket]['count']++;
         }
 
-        $collectedInPeriod = SalePayment::whereHas('sale', function ($q) use ($business, $from, $to) {
+        $collectionRows = SalePayment::whereHas('sale', function ($q) use ($business) {
             $q->where('business_id', $business->id);
             $this->scopeBranchUsers($q);
         })
             ->whereBetween(DB::raw('DATE(created_at)'), [$from, $to])
             ->whereHas('sale', fn ($q) => $q->whereIn('payment_status', ['partial', 'debt', 'paid']))
-            ->sum('amount');
+            ->with('sale.customer')
+            ->orderByDesc('created_at')
+            ->get();
+        $collectedInPeriod = $collectionRows->sum('amount');
 
-        $newDebtInPeriod = $this->scopedSales($business->id)
+        $newDebtSales = $this->scopedSales($business->id)
             ->whereBetween('sale_date', [$from, $to])
             ->whereIn('payment_status', ['debt', 'partial', 'pending'])
             ->whereColumn('total_amount', '>', 'amount_paid')
-            ->get()
-            ->sum(fn ($s) => (float) $s->total_amount - (float) $s->amount_paid);
+            ->with('customer')
+            ->orderByDesc('sale_date')
+            ->get();
+        $newDebtInPeriod = $newDebtSales->sum(fn ($s) => (float) $s->total_amount - (float) $s->amount_paid);
+
+        $newDebts = $newDebtSales->take(100)->map(fn ($s) => [
+            'sale_id' => $s->id,
+            'reference_no' => $s->reference_no,
+            'customer' => $s->customer_name ?: ($s->customer?->name ?? 'Walk-in'),
+            'customer_phone' => $s->customer_phone ?: $s->customer?->phone,
+            'due_date' => $s->due_date?->toDateString(),
+            'date' => $s->sale_date ? Carbon::parse($s->sale_date)->toDateString() : null,
+            'total' => (float) $s->total_amount,
+            'paid' => (float) $s->amount_paid,
+            'balance' => (float) $s->total_amount - (float) $s->amount_paid,
+        ])->values();
+
+        $collections = $collectionRows->take(100)->map(fn ($p) => [
+            'sale_id' => $p->sale_id,
+            'reference_no' => $p->sale?->reference_no,
+            'customer' => $p->sale?->customer_name ?: ($p->sale?->customer?->name ?? 'Walk-in'),
+            'customer_phone' => $p->sale?->customer_phone ?: $p->sale?->customer?->phone,
+            'date' => optional($p->created_at)->toDateTimeString(),
+            'amount' => (float) $p->amount,
+            'method' => $p->payment_method,
+            'balance' => $p->sale ? (float) $p->sale->total_amount - (float) $p->sale->amount_paid : 0,
+        ])->values();
 
         $customerSummaries = $outstanding
             ->groupBy(fn ($s) => $s->customer_name ?: ($s->customer?->name ?? 'Walk-in'))
@@ -597,6 +638,8 @@ class BusinessReportService
             'top_debtors' => $customerSummaries->take(10)->values(),
             'customer_summaries' => $customerSummaries,
             'recent_debts' => $outstanding->sortByDesc('sale_date')->take(15)->values(),
+            'new_debts' => $newDebts,
+            'collections' => $collections,
             'summary' => [
                 'total_outstanding' => (float) $outstanding->sum(fn ($s) => (float) $s->total_amount - (float) $s->amount_paid),
                 'open_accounts' => $outstanding->count(),

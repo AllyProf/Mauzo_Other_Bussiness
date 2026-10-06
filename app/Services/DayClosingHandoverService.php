@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Http\Controllers\DayClosingController;
 use App\Models\DayClosing;
 use App\Models\DayClosingExpense;
+use App\Models\OwnerDailyReport;
 use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -32,10 +33,22 @@ class DayClosingHandoverService extends DayClosingController
     /**
      * @return array<string, mixed>
      */
+    public function useHandoverContext(?string $context): self
+    {
+        $this->serviceHandoverContext = $context === 'services';
+
+        return $this;
+    }
+
+    /**
+     * Mirrors the staff view of /day-closing?shift={id} (Handover to Boss form).
+     *
+     * @return array<string, mixed>
+     */
     public function buildPreview(User $user, int $businessId, ?int $shiftId = null, ?string $date = null): array
     {
         $this->forBusiness($businessId);
-        $date = $date ?: now()->toDateString();
+        $requiresShift = $this->userRequiresShiftHandover($user);
 
         $shift = null;
         if ($shiftId) {
@@ -44,42 +57,91 @@ class DayClosingHandoverService extends DayClosingController
                 ->where('business_id', $businessId)
                 ->where('user_id', $user->id)
                 ->first();
-        } elseif ($this->userRequiresShiftHandover($user)) {
-            $shift = Shift::openForUser($user->id, $businessId)
-                ?? Shift::latestClosedAwaitingHandover($user->id, $businessId);
+
+            if (! $shift) {
+                $this->failWithCode('SHIFT_NOT_FOUND', 'shift_id', 'Shift not found or it does not belong to you.');
+            }
+        } elseif ($requiresShift) {
+            $shift = $this->resolvePendingShiftForUser($user, $businessId);
         }
 
-        if ($this->userRequiresShiftHandover($user) && ! $shift) {
-            throw ValidationException::withMessages([
-                'shift_id' => 'No shift available for handover. Open or close a shift first.',
-            ]);
+        if ($requiresShift && ! $shift) {
+            $this->failWithCode('NO_SHIFT', 'shift_id', 'No shift available for handover. Open a shift from Sales Shifts first.');
         }
 
-        if ($shift) {
+        $date = $shift
+            ? ($shift->opened_at?->toDateString() ?? $shift->closed_at?->toDateString() ?? now()->toDateString())
+            : ($date ?: now()->toDateString());
+
+        $existingClosing = $this->existingClosingFor($businessId, $date, $shift);
+
+        if ($shift?->isOpen() && ! $existingClosing) {
             $this->attachOrphanSalesToShift($shift, $date);
             $shift->refreshTotals();
         }
 
-        $summary = $this->buildDaySummary($businessId, $date, $shift, shiftOnly: (bool) $shift);
+        $summary = $this->buildDaySummary($businessId, $date, $shift);
         $shiftPaymentWindow = $this->resolveShiftPaymentWindow($shift);
         $collectorUserId = $shift?->user_id;
+        $currentShiftId = $shift?->id;
         $platformBreakdown = $this->buildPlatformBreakdown(
             $businessId,
             $date,
-            $shift?->id,
+            $currentShiftId,
             $collectorUserId,
             $summary['sales'],
             $shiftPaymentWindow
         );
-        $debtCollections = $shift
-            ? $this->buildDebtCollections($businessId, $date, $summary['sales'], $shift->user_id, $shift->id, $shiftPaymentWindow)
-            : ['total' => 0, 'count' => 0, 'items' => []];
+        $debtCollections = $this->buildDebtCollections($businessId, $date, $summary['sales'], $collectorUserId, $currentShiftId, $shiftPaymentWindow);
+        $staffRows = $this->buildStaffReconciliation($businessId, $date, $summary['sales'], $collectorUserId, $currentShiftId, $shiftPaymentWindow);
+        $allDaySales = $this->resolveAllHandoverSalesViewData(
+            $summary['sales'],
+            $debtCollections,
+            $businessId,
+            $date,
+            $currentShiftId,
+            $shiftPaymentWindow,
+            $collectorUserId
+        );
 
-        $expectedHandover = (float) collect($platformBreakdown)->sum('amount');
+        $platforms = collect($platformBreakdown);
+        $expectedHandover = (float) $platforms->sum('amount');
+        $totalCash = (float) ($platformBreakdown['cash']['amount'] ?? 0);
+        $totalMobile = (float) $platforms->filter(fn ($p) => ($p['method'] ?? '') === 'mobile_money')->sum('amount');
+        $totalBank = (float) $platforms->filter(fn ($p) => ($p['method'] ?? '') === 'bank')->sum('amount');
+
+        $canSubmit = ! $existingClosing && $user->role !== 'owner';
+        $cannotSubmitReason = null;
+        if ($existingClosing) {
+            $cannotSubmitReason = $shift
+                ? 'Handover for this shift was already submitted.'
+                : 'This day has already been closed.';
+        } elseif ($user->role === 'owner') {
+            $cannotSubmitReason = 'Business owners verify staff handovers — they do not submit their own handover.';
+        }
+
+        $expenseSources = $platforms->map(fn ($p, $key) => ['key' => $key, 'label' => $p['label']])->values()->all();
+        if ($expenseSources === []) {
+            $expenseSources = [['key' => 'cash', 'label' => 'Physical Cash']];
+        }
 
         return [
+            'context' => $this->serviceHandoverContext ? 'services' : 'retail',
+            'handover_mode' => ($shift && $this->isCashierCollector($shift->user_id)) ? 'cashier' : 'sales',
             'closing_date' => $date,
-            'shift' => $shift ? $this->shiftPayload($shift) : null,
+            'display_date' => \Carbon\Carbon::parse($date)->format('l, F d, Y'),
+            'shift' => $shift ? $this->shiftPayload($shift) + [
+                'is_open' => $shift->isOpen(),
+                'banner' => $shift->isOpen()
+                    ? 'Shift #'.$shift->id.' open since '.$shift->opened_at?->format('M d, Y h:i A')
+                    : 'Shift #'.$shift->id.' closed at '.$shift->closed_at?->format('M d, Y h:i A'),
+            ] : null,
+            'stats' => [
+                'active_staff' => count($staffRows),
+                'gross_sales' => (float) $summary['gross_sales'],
+                'total_cash' => $totalCash,
+                'digital_and_bank' => $totalMobile + $totalBank,
+            ],
             'summary' => [
                 'sales_count' => (int) $summary['sales_count'],
                 'gross_sales' => (float) $summary['gross_sales'],
@@ -87,21 +149,104 @@ class DayClosingHandoverService extends DayClosingController
                 'outstanding_sales' => (float) $summary['outstanding_sales'],
                 'cancelled_sales' => (int) $summary['cancelled_sales'],
             ],
-            'platform_breakdown' => collect($platformBreakdown)->map(fn ($row, $key) => [
+            'staff_reconciliation' => collect($staffRows)->map(fn (array $row) => [
+                'staff' => [
+                    'id' => $row['staff']?->id,
+                    'name' => $row['staff']->name ?? 'Unknown',
+                    'email' => $row['staff']->email ?? '',
+                ],
+                'orders' => (int) $row['total_orders'],
+                'gross_sales' => (float) $row['gross_sales'],
+                'cash' => (float) $row['cash_collected'],
+                'mobile' => (float) $row['mobile_collected'],
+                'bank' => (float) $row['bank_collected'],
+                'debt_paid' => (float) ($row['debt_collected'] ?? 0),
+                'expected' => (float) $row['expected_amount'],
+                'collected' => (float) $row['collected_on_orders'],
+                'collected_by_others' => (float) ($row['collected_by_others'] ?? 0),
+                'is_cashier' => (bool) ($row['is_cashier'] ?? false),
+                'credit' => (float) $row['credit'],
+                'difference' => round((float) $row['difference'], 2),
+                'status' => $row['status'],
+            ])->values()->all(),
+            'debt_collections' => [
+                'total' => (float) ($debtCollections['total'] ?? 0),
+                'count' => (int) ($debtCollections['count'] ?? 0),
+                'items' => array_values($debtCollections['items'] ?? []),
+            ],
+            'sales' => $allDaySales,
+            'sales_count_all' => count($allDaySales),
+            'platform_breakdown' => $platforms->map(fn ($row, $key) => [
                 'key' => $key,
                 'label' => $row['label'],
                 'method' => $row['method'],
                 'amount' => (float) $row['amount'],
             ])->values()->all(),
-            'expected_handover' => $expectedHandover,
-            'debt_collections' => [
-                'total' => (float) ($debtCollections['total'] ?? 0),
-                'count' => (int) ($debtCollections['count'] ?? 0),
+            'handover_summary' => [
+                'total_cash' => $totalCash,
+                'mobile_money' => $totalMobile,
+                'bank' => $totalBank,
+                'gross_collections' => $expectedHandover,
             ],
-            'can_submit' => $shift
-                ? ! DayClosing::where('shift_id', $shift->id)->exists()
-                : ! DayClosing::where('business_id', $businessId)->whereDate('closing_date', $date)->whereNull('shift_id')->exists(),
+            'expected_handover' => $expectedHandover,
+            'expense_sources' => $expenseSources,
+            'platform_amounts_locked' => true,
+            'can_submit' => $canSubmit,
+            'cannot_submit_reason' => $cannotSubmitReason,
+            'existing_handover' => $existingClosing ? [
+                'id' => $existingClosing->id,
+                'status' => $existingClosing->status,
+                'submitted_at' => $existingClosing->submitted_at?->toIso8601String(),
+                'api_detail' => '/api/v1/day-closing/'.$existingClosing->id,
+            ] : null,
+            'submit' => [
+                'label' => ($shift && $shift->isOpen()) ? 'Submit Handover & Close Shift' : 'Submit Handover to Boss',
+                'closes_shift' => (bool) ($shift?->isOpen()),
+                'payload' => array_filter([
+                    'closing_date' => $date,
+                    'shift_id' => $shift?->id,
+                    'handover_context' => $this->serviceHandoverContext ? 'services' : null,
+                ], fn ($v) => $v !== null),
+            ],
         ];
+    }
+
+    protected function resolvePendingShiftForUser(User $user, int $businessId): ?Shift
+    {
+        $openShift = Shift::openForUser($user->id, $businessId);
+        if ($openShift) {
+            $closed = DayClosing::where('shift_id', $openShift->id);
+            $this->applyOwnerDirectClosingScope($closed);
+            if (! $closed->exists()) {
+                return $openShift;
+            }
+        }
+
+        return Shift::where('business_id', $businessId)
+            ->where('user_id', $user->id)
+            ->where('status', 'closed')
+            ->whereDoesntHave('dayClosing', fn ($q) => $this->applyOwnerDirectClosingScope($q))
+            ->latest('closed_at')
+            ->first();
+    }
+
+    protected function existingClosingFor(int $businessId, string $date, ?Shift $shift): ?DayClosing
+    {
+        $query = $shift
+            ? DayClosing::where('shift_id', $shift->id)
+            : DayClosing::where('business_id', $businessId)->whereDate('closing_date', $date)->whereNull('shift_id');
+
+        $this->applyOwnerDirectClosingScope($query);
+
+        return $query->first();
+    }
+
+    /**
+     * @return never
+     */
+    protected function failWithCode(string $code, string $field, string $message): void
+    {
+        throw ValidationException::withMessages([$field => $message, 'code' => $code]);
     }
 
     public function submitHandover(User $user, int $businessId, array $data): DayClosing
@@ -109,9 +254,7 @@ class DayClosingHandoverService extends DayClosingController
         $this->forBusiness($businessId);
 
         if ($user->role === 'owner') {
-            throw ValidationException::withMessages([
-                'handover' => 'Business owners verify staff handovers on mobile — they do not submit their own shift handover here.',
-            ]);
+            $this->failWithCode('OWNER_CANNOT_SUBMIT', 'handover', 'Business owners verify staff handovers on mobile — they do not submit their own shift handover here.');
         }
 
         $validated = validator($data, [
@@ -131,25 +274,26 @@ class DayClosingHandoverService extends DayClosingController
 
         if ($this->userRequiresShiftHandover($user)) {
             if (empty($validated['shift_id'])) {
-                throw ValidationException::withMessages(['shift_id' => 'Shift is required for handover.']);
+                $this->failWithCode('SHIFT_REQUIRED', 'shift_id', 'Shift is required for handover.');
             }
 
             $shift = Shift::where('id', $validated['shift_id'])
                 ->where('business_id', $businessId)
                 ->where('user_id', $user->id)
-                ->whereDoesntHave('dayClosing')
                 ->whereIn('status', ['open', 'closed'])
                 ->first();
 
             if (! $shift) {
-                throw ValidationException::withMessages(['shift_id' => 'Invalid or already submitted shift handover.']);
+                $this->failWithCode('SHIFT_NOT_FOUND', 'shift_id', 'Shift not found or it does not belong to you.');
             }
-        } elseif (DayClosing::where('business_id', $businessId)->whereDate('closing_date', $date)->whereNull('shift_id')->exists()) {
-            throw ValidationException::withMessages(['closing_date' => 'This day has already been closed.']);
-        }
 
-        if ($shift && DayClosing::where('shift_id', $shift->id)->exists()) {
-            throw ValidationException::withMessages(['shift_id' => 'Handover for this shift was already submitted.']);
+            if ($this->existingClosingFor($businessId, $date, $shift)) {
+                $this->failWithCode('ALREADY_SUBMITTED', 'shift_id', 'Handover for this shift was already submitted.');
+            }
+
+            $date = $shift->opened_at?->toDateString() ?? $shift->closed_at?->toDateString() ?? $date;
+        } elseif ($this->existingClosingFor($businessId, $date, null)) {
+            $this->failWithCode('DAY_ALREADY_CLOSED', 'closing_date', 'This day has already been closed.');
         }
 
         if ($shift) {
@@ -184,11 +328,14 @@ class DayClosingHandoverService extends DayClosingController
             $shiftPaymentWindow
         );
 
-        if (! empty($validated['platform_amounts']) && is_array($validated['platform_amounts'])) {
-            foreach ($validated['platform_amounts'] as $key => $amount) {
-                if (isset($platformBreakdown[$key])) {
-                    $platformBreakdown[$key]['amount'] = (float) $amount;
-                }
+        $allowedSources = $platformBreakdown !== [] ? array_keys($platformBreakdown) : ['cash'];
+        foreach ($expenses->values() as $index => $expense) {
+            $source = $expense['payment_method'] ?? 'cash';
+            if (! in_array($source, $allowedSources, true)) {
+                throw ValidationException::withMessages([
+                    "expenses.{$index}.payment_method" => 'Paid-from must be one of: '.implode(', ', $allowedSources).'.',
+                    'code' => 'INVALID_EXPENSE_SOURCE',
+                ]);
             }
         }
 
@@ -282,6 +429,27 @@ class DayClosingHandoverService extends DayClosingController
             DB::rollBack();
             throw $e;
         }
+    }
+
+    /**
+     * Submitted staff handover ids in the order the owner must verify them.
+     *
+     * @return array<int, int>
+     */
+    public function verifyQueueIds(int $businessId): array
+    {
+        $query = DayClosing::where('business_id', $businessId)
+            ->where('status', 'submitted')
+            ->with(['shift', 'user']);
+
+        $this->scopeDayClosingsForActiveBranch($query);
+
+        return $this->sortHandoversForBossReview($query->get())
+            ->filter(fn (DayClosing $closing) => ! $this->isOwnerDirectClosing($closing))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
     }
 
     public function verifyHandover(User $owner, DayClosing $dayClosing, array $data): DayClosing
@@ -779,6 +947,10 @@ class DayClosingHandoverService extends DayClosingController
             'closing_date' => $closing->closing_date->toDateString(),
             'submitted_at' => $closing->submitted_at?->toIso8601String(),
             'verified_at' => $closing->verified_at?->toIso8601String(),
+            'day_finalized' => OwnerDailyReport::where('business_id', $closing->business_id)
+                ->whereDate('report_date', $closing->closing_date)
+                ->where('status', 'finalized')
+                ->exists(),
             'staff' => [
                 'id' => $closing->user?->id,
                 'name' => $closing->user?->name,

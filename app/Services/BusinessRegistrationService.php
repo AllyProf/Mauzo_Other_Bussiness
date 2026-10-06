@@ -8,6 +8,7 @@ use App\Models\Business;
 use App\Models\Customer;
 use App\Models\Plan;
 use App\Models\User;
+use App\Support\PhoneCountries;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -71,7 +72,7 @@ class BusinessRegistrationService
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => ['required', 'string', 'regex:/^[678]\d{8}$/'],
+            'phone' => PhoneCountries::rules(true),
             'email' => 'nullable|string|email|max:255|unique:users,email|unique:businesses,email',
             'region' => ['required', 'string', Rule::in(tanzania_regions())],
             'district' => ['required', 'string', Rule::in($districtOptions)],
@@ -80,8 +81,9 @@ class BusinessRegistrationService
             'custom_business_type' => ['required_if:business_type,other', 'nullable', 'string', 'max:255'],
         ]);
 
-        $phone255 = $this->platformSms->formatPhoneNumber($validated['phone']);
-        $normalizedPhone = Customer::normalizePhone($phone255);
+        $fullPhone = PhoneCountries::fromRequest($request);
+        $phone255 = $this->platformSms->formatPhoneNumber($fullPhone);
+        $normalizedPhone = Customer::normalizePhone($fullPhone);
 
         if (Business::query()->where('phone', $normalizedPhone)->exists()) {
             throw ValidationException::withMessages([
@@ -99,7 +101,7 @@ class BusinessRegistrationService
 
         return [
             'name' => $validated['name'],
-            'phone' => $validated['phone'],
+            'phone' => $fullPhone,
             'email' => $validated['email'] ?? null,
             'region' => $validated['region'],
             'district' => $validated['district'],
@@ -167,7 +169,7 @@ class BusinessRegistrationService
 
         $defaultPlanId = $this->platformSettings->get('default_plan_id');
         $planId = $defaultPlanId ?: Plan::query()->orderBy('price')->value('id');
-        $normalizedPhone = Customer::normalizePhone($phone255);
+        $normalizedPhone = Customer::normalizePhone('+'.$phone255);
         $loginEmail = $this->resolveRegistrationEmail($payload['email'] ?? null, $phone255);
         $businessType = config('category_templates.'.$payload['business_type'], []);
         $businessTypeLabel = $payload['business_type'] === 'other'

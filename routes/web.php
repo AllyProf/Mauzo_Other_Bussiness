@@ -259,7 +259,9 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     // Unified POS — retail products and/or services (no separate /service-pos screen)
     Route::resource('/sales', App\Http\Controllers\SaleController::class);
     Route::post('/sales/{sale}/pay', [App\Http\Controllers\SaleController::class, 'pay'])->name('sales.pay');
-    Route::post('/sales/{sale}/cancel', [App\Http\Controllers\SaleController::class, 'cancel'])->name('sales.cancel');
+    Route::get('/cashier/queue', [App\Http\Controllers\CashierController::class, 'queue'])->name('cashier.queue');
+    Route::post('/cashier/orders/{sale}/lock', [App\Http\Controllers\CashierController::class, 'lock'])->name('cashier.lock');
+    Route::delete('/cashier/orders/{sale}/lock', [App\Http\Controllers\CashierController::class, 'unlock'])->name('cashier.unlock');    Route::post('/sales/{sale}/cancel', [App\Http\Controllers\SaleController::class, 'cancel'])->name('sales.cancel');
 
     // Sales Shifts
     Route::get('/shifts', [App\Http\Controllers\ShiftController::class, 'index'])->name('shifts.index');
@@ -293,6 +295,7 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::put('/settings/automation', [App\Http\Controllers\BusinessSettingsController::class, 'updateAutomation'])->name('settings.automation.update');
     Route::put('/settings/shift-rules', [App\Http\Controllers\BusinessSettingsController::class, 'updateShiftRules'])->name('settings.shift-rules.update');
     Route::put('/settings/payment-methods', [App\Http\Controllers\BusinessSettingsController::class, 'updatePaymentMethods'])->name('settings.payment-methods.update');
+    Route::put('/settings/payment-collection', [App\Http\Controllers\BusinessSettingsController::class, 'updatePaymentCollection'])->name('settings.payment-collection.update');
 
     // Sales Targets (Owner)
     Route::get('/sales-targets', [App\Http\Controllers\SalesTargetController::class, 'index'])->name('sales-targets.index');
@@ -322,6 +325,7 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
         Route::get('/sales-analytics', [App\Http\Controllers\ReportController::class, 'salesAnalytics'])->name('sales-analytics');
         Route::get('/products', [App\Http\Controllers\ReportController::class, 'products'])->name('products');
         Route::get('/debts', [App\Http\Controllers\ReportController::class, 'debts'])->name('debts');
+        Route::get('/cashiers', [App\Http\Controllers\ReportController::class, 'cashiers'])->name('cashiers');
     });
 
     Route::get('/owner-reports/{date}', [App\Http\Controllers\OwnerDailyReportController::class, 'show'])->name('owner-reports.show')->where('date', '[0-9]{4}-[0-9]{2}-[0-9]{2}');

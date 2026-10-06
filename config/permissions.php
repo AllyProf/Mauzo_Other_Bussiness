@@ -32,7 +32,7 @@ return [
             'process_sales' => 'Process POS sales (place orders)',
             'view_sales_history' => 'View POS sales history & receipts',
             'cancel_sales' => 'Cancel sales',
-            'collect_payments' => 'Collect payments on POS sales',
+            'collect_payments' => 'Collect payments on POS sales (without "Process POS sales" = counter cashier for all staff in the branch)',
             'view_live_sales' => 'View live sales pulse dashboard',
         ],
         'Invoices & Billing' => [
@@ -77,7 +77,17 @@ return [
     ],
 
     'presets' => [
-        'Cashier' => [
+        'Cashier (Payments Only)' => [
+            'open_shift',
+            'collect_payments',
+            'collect_invoice_payments',
+            'view_invoices',
+            'view_price_list',
+            'submit_day_closing',
+            'manage_support',
+            'manage_notes',
+        ],
+        'Sales Officer' => [
             'open_shift',
             'process_sales',
             'view_sales_history',

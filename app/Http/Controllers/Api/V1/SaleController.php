@@ -9,6 +9,8 @@ use App\Models\SaleItem;
 use App\Models\SalePayment;
 use App\Models\Shift;
 use App\Models\User;
+use App\Services\BusinessSmsService;
+use App\Services\CashierPaymentGuard;
 use App\Services\SalePaymentRecorder;
 use App\Services\SaleStockService;
 use Illuminate\Http\JsonResponse;
@@ -79,7 +81,7 @@ class SaleController extends ApiController
       return $this->forbidden();
     }
 
-    if ($deny = $this->ensureCanAccessSale($request->user(), $sale)) {
+    if ($deny = $this->ensureCanAccessSale($request->user(), $sale, true)) {
       return $deny;
     }
 
@@ -191,7 +193,13 @@ class SaleController extends ApiController
 
       $sale->load(['items.item', 'items.itemPackaging.packagingType', 'user:id,name']);
 
-      return $this->success(['sale' => $this->saleDetail($sale)], 'Order created. Complete payment.', 201);
+      $canCollect = $request->user()->canCollectCustomerPayments();
+
+      return $this->success([
+        'sale' => $this->saleDetail($sale),
+        'can_collect_payment' => $canCollect,
+        'next' => $canCollect ? 'sales.pay' : 'cashier',
+      ], $canCollect ? 'Order created. Complete payment.' : 'Order created. Send the customer to the cashier to pay.', 201);
     } catch (\Throwable $e) {
       DB::rollBack();
 
@@ -212,12 +220,24 @@ class SaleController extends ApiController
       return $this->forbidden();
     }
 
-    if ($deny = $this->ensureCanAccessSale($request->user(), $sale)) {
+    if ($deny = $this->ensureCanAccessSale($request->user(), $sale, true)) {
       return $deny;
+    }
+
+    if ($request->user()->isPaymentCashier() && ! Shift::openForUser($request->user()->id, $businessId)) {
+      return $this->error('Open your cashier shift before collecting payments.', 422, ['code' => 'SHIFT_REQUIRED']);
     }
 
     if (in_array($sale->payment_status, ['paid', 'cancelled'], true)) {
       return $this->error('Sale is already paid or cancelled.', 422);
+    }
+
+    if ($reason = $request->user()->paymentCollectionBlockedReason()) {
+      return $this->error($reason, 403, ['code' => 'PAYMENT_COLLECTION_DISABLED']);
+    }
+
+    if ($lockMessage = CashierPaymentGuard::lockedByOtherMessage($sale, $request->user())) {
+      return $this->error($lockMessage, 409, ['code' => 'SALE_LOCKED', 'locked_by' => CashierPaymentGuard::lockHolder($sale->id)['name'] ?? null]);
     }
 
     $balanceDue = max(0, (float) $sale->total_amount - (float) $sale->amount_paid);
@@ -234,6 +254,7 @@ class SaleController extends ApiController
       $message = SalePaymentRecorder::for($sale)->applyFromRequest($request, $balanceDue);
       SalePaymentRecorder::for($sale->fresh())->refreshShiftTotals();
       DB::commit();
+      CashierPaymentGuard::release($sale, $request->user());
 
       $sale->refresh()->load(['items.item', 'payments.user:id,name', 'customer']);
 
@@ -250,6 +271,49 @@ class SaleController extends ApiController
 
       return $this->error($e->getMessage(), 422);
     }
+  }
+
+  public function remind(Request $request, Sale $sale, BusinessSmsService $sms): JsonResponse
+  {
+    if ($deny = $this->authorizeApiAny(['collect_payments', 'collect_invoice_payments', 'process_sales', 'view_sales_history'])) {
+      return $deny;
+    }
+
+    $business = $this->apiBusiness();
+    if (! $business || $sale->business_id != $business->id) {
+      return $this->forbidden();
+    }
+
+    if ($deny = $this->ensureCanAccessSale($request->user(), $sale)) {
+      return $deny;
+    }
+
+    $balance = max(0, (float) $sale->total_amount - (float) $sale->amount_paid);
+    if (in_array($sale->payment_status, ['paid', 'cancelled'], true) || $balance <= 0) {
+      return $this->error('This sale has no balance to remind about.', 422);
+    }
+
+    $data = $request->validate(['message' => 'nullable|string|max:480']);
+    $message = filled($data['message'] ?? null)
+      ? trim($data['message'])
+      : self::defaultReminderMessage($business->name, $sale, $balance);
+
+    $result = $sms->sendDebtorReminderSms($business, $request->user(), $sale, $message, 'debt_reminder_manual');
+
+    if (! ($result['success'] ?? false)) {
+      return $this->error($result['error'] ?? 'Could not send the reminder.', 422);
+    }
+
+    return $this->success(['message' => $message], 'Reminder sent');
+  }
+
+  public static function defaultReminderMessage(string $businessName, Sale $sale, float $balance): string
+  {
+    $customer = trim((string) ($sale->customer_name ?: $sale->customer?->name)) ?: 'mteja';
+    $amount = number_format($balance, 0);
+    $due = $sale->due_date ? ' iliyopaswa kulipwa '.$sale->due_date->format('d/m/Y') : '';
+
+    return "{$businessName}: Habari {$customer}, una salio la TZS {$amount} kwa oda {$sale->reference_no}{$due}. Tafadhali lipa mapema. Asante!";
   }
 
   public function cancel(Request $request, Sale $sale): JsonResponse
@@ -314,6 +378,7 @@ class SaleController extends ApiController
       'items' => $sale->items->map(fn (SaleItem $line) => [
         'id' => $line->id,
         'item_id' => $line->item_id,
+        'item_packaging_id' => $line->item_packaging_id,
         'name' => $line->item?->name ?? $line->line_description,
         'quantity' => (float) $line->quantity,
         'unit_price' => (float) $line->unit_price,
@@ -332,10 +397,16 @@ class SaleController extends ApiController
     ]);
   }
 
-  private function ensureCanAccessSale(User $user, Sale $sale): ?JsonResponse
+  private function ensureCanAccessSale(User $user, Sale $sale, bool $forCollection = false): ?JsonResponse
   {
     if ($user->seesBusinessWideData()) {
       return null;
+    }
+
+    if ($forCollection && $user->isPaymentCashier() && (int) $sale->user_id !== (int) $user->id) {
+      $inBranch = $this->scopeSalesForCashierBranch(Sale::whereKey($sale->id), $user)->exists();
+
+      return $inBranch ? null : $this->forbidden('You can only collect payments on orders in your branch.');
     }
 
     if ((int) $sale->user_id !== (int) $user->id) {

@@ -71,18 +71,14 @@
 
                     <div class="form-group text-left">
                         <label class="font-weight-bold">{{ __('profile.update_phone') }}</label>
-                        <div class="input-group">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text bg-light font-weight-bold">255</span>
-                            </div>
-                            <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror"
-                                   value="{{ old('phone', $phoneLocal) }}"
-                                   placeholder="e.g. 712345678">
-                            @error('phone')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <small class="text-muted">{{ __('profile.phone_hint') }} (0712… or 712…)</small>
+                        @include('partials.phone-country-input', [
+                            'id' => 'profilePhone',
+                            'value' => Auth::user()->phone,
+                            'countryValue' => old('phone_country'),
+                            'localValue' => old('phone'),
+                            'placeholder' => 'e.g. 712345678',
+                        ])
+                        <small class="text-muted">{{ __('profile.phone_hint') }}</small>
                     </div>
 
                     <div class="form-group text-left">

@@ -33,7 +33,12 @@
       <div class="tile-body table-responsive">
         <table class="table table-sm table-hover mb-0">
           @forelse($m['pending_businesses'] as $b)
-          <tr><td>{{ $b->name }}</td><td><a href="{{ route('admin.businesses.edit', $b) }}" class="btn btn-xs btn-primary">Review</a></td></tr>
+          <tr>
+            <td>{{ $b->name }}</td>
+            <td class="text-nowrap">
+              <button type="button" class="btn btn-xs btn-primary" data-toggle="modal" data-target="#pendingBusinessModal-{{ $b->id }}">Review</button>
+            </td>
+          </tr>
           @empty
           <tr><td class="text-muted">No pending registrations.</td></tr>
           @endforelse
@@ -84,4 +89,8 @@
   <div class="col-md-4"><a href="{{ route('admin.monitor.index') }}" class="btn btn-block btn-outline-primary"><i class="fa fa-heartbeat"></i> Usage Monitor</a></div>
   <div class="col-md-4"><a href="{{ route('admin.leads.index') }}" class="btn btn-block btn-outline-primary"><i class="fa fa-envelope"></i> Demo Leads ({{ $m['new_leads'] }})</a></div>
 </div>
+
+@foreach($m['pending_businesses'] as $business)
+  @include('admin.businesses.partials.pending-registration-modal', ['business' => $business])
+@endforeach
 @endsection

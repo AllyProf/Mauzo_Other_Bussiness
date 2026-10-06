@@ -29,7 +29,7 @@
         </select>
         <div class="row mt-2">
           <div class="col-md-4"><input class="form-control" name="customer_name" id="customerName" placeholder="Name"></div>
-          <div class="col-md-4"><input class="form-control" name="customer_phone" id="customerPhone" placeholder="Phone for SMS"></div>
+          <div class="col-md-4">@include('partials.phone-country-input', ['id' => 'customerPhone', 'name' => 'customer_phone', 'combined' => true, 'value' => old('customer_phone'), 'placeholder' => 'Phone for SMS'])</div>
           <div class="col-md-4"><input type="email" class="form-control" name="customer_email" id="customerEmail" placeholder="Email for PDF"></div>
         </div>
       </div>
@@ -134,7 +134,7 @@
     const $o = $(this).find(':selected');
     if ($o.val()) {
       $('#customerName').val($o.data('name') || '');
-      $('#customerPhone').val(($o.data('phone') || '').replace(/^\+255/, ''));
+      window.phoneCountryInput.set('#customerPhone', String($o.data('phone') || ''));
       $('#customerEmail').val($o.data('email') || '');
     }
   });

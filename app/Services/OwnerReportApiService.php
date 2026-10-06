@@ -68,7 +68,15 @@ class OwnerReportApiService
             }
 
             if ($closings->currentPage() === 1 && ! $request->filled('start_date') && ! $request->filled('end_date')) {
-                foreach ($this->reportService->buildOpenDayRows($business) as $openingDayRow) {
+                foreach (array_reverse($this->reportService->buildOpenDayRows($business)) as $openingDayRow) {
+                    if ($activeBusinessType && $multiBusiness) {
+                        $openingDayRow = $this->reportService->scopeOpenDayRowToBusinessType(
+                            $business,
+                            $openingDayRow,
+                            $activeBusinessType,
+                            $businessTypes
+                        );
+                    }
                     $ledgers = $ledgers->prepend($openingDayRow);
                 }
             }
@@ -90,6 +98,9 @@ class OwnerReportApiService
                     'handover_scope' => $closing->handover_scope,
                     'review_api_path' => '/day-closing/review?date='.$closing->closing_date->toDateString().'&handover_id='.$closing->id,
                 ])->values()->all(),
+                'verify_queue' => app(DayClosingHandoverService::class)
+                    ->forBusiness($businessId)
+                    ->verifyQueueIds($businessId),
                 'business_types' => $businessTypes,
                 'multi_business' => $multiBusiness,
                 'filters' => [

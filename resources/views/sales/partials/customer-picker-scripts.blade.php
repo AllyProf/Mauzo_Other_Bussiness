@@ -16,8 +16,22 @@
         const $phoneHidden = config.phoneHidden ? $(config.phoneHidden) : null;
         const $manualWrap = config.manualWrap ? $(config.manualWrap) : null;
 
+        const hasCountryPicker = $phone.closest('[data-phone-country]').length > 0 && window.phoneCountryInput;
+
+        function setPhone(value) {
+            if (hasCountryPicker) {
+                window.phoneCountryInput.set($phone, value || '');
+            } else {
+                $phone.val(formatPhoneForDisplay(value));
+            }
+        }
+
         function syncPhoneHidden() {
             if (!$phoneHidden || !$phoneHidden.length) return;
+            if (hasCountryPicker) {
+                $phoneHidden.val(window.phoneCountryInput.get($phone));
+                return;
+            }
             const digits = String($phone.val() || '').replace(/\D/g, '').replace(/^0+/, '');
             $phoneHidden.val(digits ? '+255' + digits : '');
         }
@@ -33,7 +47,8 @@
             if (!id) {
                 $name.val('').prop('readonly', false);
                 if ($phone.length) {
-                    $phone.val('').prop('readonly', false);
+                    setPhone('');
+                    $phone.prop('readonly', false);
                 }
                 syncPhoneHidden();
                 setManualMode(true);
@@ -48,7 +63,7 @@
 
             $name.val(customer.name);
             if ($phone.length) {
-                $phone.val(formatPhoneForDisplay(customer.phone));
+                setPhone(customer.phone);
             }
             syncPhoneHidden();
             setManualMode(false);

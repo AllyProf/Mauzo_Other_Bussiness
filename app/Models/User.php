@@ -270,13 +270,53 @@ class User extends Authenticatable
         return ! in_array($this->role, ['owner', 'super_admin'], true);
     }
 
+    /**
+     * Counter cashier: collects payments on orders placed by sales officers but never sells.
+     */
+    public function isPaymentCashier(): bool
+    {
+        if (in_array($this->role, ['owner', 'super_admin', 'platform_staff'], true)) {
+            return false;
+        }
+
+        return $this->can('collect_payments') && ! $this->can('process_sales');
+    }
+
+    /**
+     * Why this user may not take customer payments under the business "who collects payments" setting.
+     * Owners and managers can always collect.
+     */
+    public function paymentCollectionBlockedReason(): ?string
+    {
+        if ($this->seesBusinessWideData() || in_array($this->role, ['platform_staff'], true)) {
+            return null;
+        }
+
+        $mode = $this->business?->paymentCollectionMode() ?? 'both';
+
+        if ($mode === 'cashier' && ! $this->isPaymentCashier()) {
+            return 'Payments are collected by the cashier. Send the customer to the cashier counter.';
+        }
+
+        if ($mode === 'officer' && $this->isPaymentCashier()) {
+            return 'Cashier payment collection is turned off. Sales officers collect payments.';
+        }
+
+        return null;
+    }
+
+    public function canCollectCustomerPayments(): bool
+    {
+        return $this->paymentCollectionBlockedReason() === null;
+    }
+
     public function needsShiftOpened(): bool
     {
         if (! $this->requiresOpenShift()) {
             return false;
         }
 
-        if (! $this->can('open_shift') && ! $this->can('process_sales')) {
+        if (! $this->can('open_shift') && ! $this->can('process_sales') && ! $this->isPaymentCashier()) {
             return false;
         }
 
@@ -289,9 +329,11 @@ class User extends Authenticatable
             return route('admin.dashboard');
         }
 
-        return $this->needsShiftOpened()
-            ? route('shifts.create')
-            : url('/home');
+        if ($this->needsShiftOpened()) {
+            return route('shifts.create');
+        }
+
+        return $this->isPaymentCashier() ? route('cashier.queue') : url('/home');
     }
 
     public function isPlatformAdmin(): bool

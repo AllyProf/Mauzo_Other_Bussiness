@@ -1422,6 +1422,50 @@ class OwnerDailyReportService
         return $this->businessTypeBreakdown->buildFromSales($sales, $businessTypes, $business, $debtByType, $debtProfitByType);
     }
 
+    /**
+     * Narrows open-day placeholder rows to one business type's sales.
+     * Opening/rollover balances stay business-wide (shared money pool).
+     */
+    public function scopeOpenDayRowToBusinessType(Business $business, array $row, string $typeKey, array $businessTypes): array
+    {
+        $date = (string) ($row['ledger_date'] ?? '');
+        if ($date === '') {
+            return $row;
+        }
+
+        $query = Sale::where('business_id', $business->id)
+            ->whereDate('sale_date', $date)
+            ->where('payment_status', '!=', 'cancelled');
+        $this->scopeBranchSales($query);
+        $sales = $query->with(['items.item.category', 'items.item.packagings', 'payments'])->get();
+
+        $breakdown = $this->businessTypeBreakdown->buildFromSales($sales, $businessTypes, $business, [], []);
+        $typeRow = collect($breakdown)->firstWhere('key', $typeKey);
+
+        $dayTotal = (float) ($row['sub_total'] ?? 0);
+        $allTypesCollected = (float) collect($breakdown)->sum('collected');
+        $collected = $allTypesCollected > 0
+            ? round($dayTotal * ((float) ($typeRow['collected'] ?? 0) / $allTypesCollected), 2)
+            : 0.0;
+        $cashRatio = $dayTotal > 0 ? ((float) ($row['total_cash_received'] ?? 0) / $dayTotal) : 1.0;
+        $typeCash = round($collected * $cashRatio, 2);
+
+        return array_merge($row, [
+            'business_type_key' => $typeKey,
+            'business_type_label' => $typeRow['label'] ?? null,
+            'gross_sales' => (float) ($typeRow['gross_sales'] ?? 0),
+            'cost_of_goods' => (float) ($typeRow['cost_of_goods'] ?? 0),
+            'sub_total' => $collected,
+            'total_cash_received' => $typeCash,
+            'total_digital_received' => round($collected - $typeCash, 2),
+            'outstanding_debt' => (float) ($typeRow['credit'] ?? 0),
+            'profit_generated' => (float) ($typeRow['gross_profit'] ?? 0),
+            'daily_net_profit' => (float) ($typeRow['profit_generated'] ?? 0),
+            'net_available_profit' => (float) ($typeRow['profit_generated'] ?? 0),
+            'circulation_refill' => (float) ($typeRow['circulation_generated'] ?? 0),
+        ]);
+    }
+
     public function expandMasterSheetLedgersByBusinessType($ledgers, array $businessTypes)
     {
         if (count($businessTypes) <= 1) {
@@ -1448,6 +1492,7 @@ class OwnerDailyReportService
             if (count($breakdown) <= 1) {
                 if (count($breakdown) === 1) {
                     $ledger['business_type_label'] = $breakdown[0]['label'];
+                    $ledger['business_type_key'] = $breakdown[0]['key'];
                 }
                 $expanded->push($ledger);
 

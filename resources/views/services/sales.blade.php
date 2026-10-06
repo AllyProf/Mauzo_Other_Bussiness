@@ -150,7 +150,7 @@
 @section('scripts')
 <script>
 $(function () {
-    const autoPaySaleId = @json(request()->query('pay'));
+    const autoPaySaleId = @json(auth()->user()->canCollectCustomerPayments() ? request()->query('pay') : null);
     if (autoPaySaleId) {
         const $payBtn = $('.open-payment-modal-btn[data-sale-id="' + autoPaySaleId + '"]').first();
         if ($payBtn.length) {

@@ -197,6 +197,12 @@ if (! function_exists('business_report_menu_options')) {
                 'route' => 'reports.debts',
                 'label' => __('menu.debt_report'),
             ],
+            [
+                'key' => 'cashiers',
+                'feature' => 'reports_sales',
+                'route' => 'reports.cashiers',
+                'label' => 'Cashier Performance',
+            ],
         ];
 
         if ($activeKey === null && request()->routeIs('reports.*')) {

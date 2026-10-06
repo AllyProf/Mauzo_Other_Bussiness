@@ -64,6 +64,24 @@
         min-width: 0;
     }
 
+    .stock-filter-toggle[aria-expanded="true"],
+    .stock-filter-toggle.has-filter { background: #940000; border-color: #940000; color: #fff; }
+    .stock-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+    @media (max-width: 991.98px) { .stock-toolbar { justify-content: flex-start; } }
+    .stock-filter-panel .business-type-tabs { flex-wrap: wrap; overflow: visible; }
+    .stock-filter-panel {
+        border: 1px solid #e9ecef; border-radius: 10px; padding: 12px; background: #fafafa;
+    }
+    .stock-filter-chip {
+        display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
+        padding: 4px 6px 4px 12px; border-radius: 20px; background: #940000; color: #fff;
+        font-size: 12px; font-weight: 600;
+    }
+    .stock-filter-chip-clear {
+        border: 0; background: rgba(255,255,255,0.25); color: #fff; border-radius: 50%;
+        width: 20px; height: 20px; line-height: 18px; padding: 0; font-size: 14px; cursor: pointer;
+    }
+
     .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; flex: 1; min-width: 0; }
     .business-type-tab {
         cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
@@ -158,62 +176,75 @@
 <div class="row">
   <div class="col-md-12">
     <div class="tile shadow-sm border-0" style="border-radius: 15px;">
-      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
-        @if($multiBusiness)
-        <div class="business-type-tabs mr-3 mb-2" id="businessTypeTabs">
-          <button type="button" class="business-type-tab active" data-business-type="all">
-            <i class="fa fa-th-large"></i> {{ __('stock.all') }}
-          </button>
-          @foreach($businessTypes as $type)
-          <button type="button" class="business-type-tab" data-business-type="{{ $type['key'] }}">
-            <i class="fa {{ $type['icon'] }}"></i> {{ $type['label'] }}
-          </button>
-          @endforeach
-        </div>
-        @endif
-        <div class="d-flex align-items-center flex-wrap {{ $multiBusiness ? 'ml-auto' : 'w-100 justify-content-end' }}">
-          @if($stockItems->count() > 0)
-          <a href="{{ route('items.stock.export.pdf') }}" class="btn btn-sm btn-outline-danger mr-2 mb-2" style="border-color:#940000;color:#940000;">
-            <i class="fa fa-file-pdf-o"></i> {{ __('stock.export.pdf') }}
-          </a>
-          <a href="{{ route('items.stock.export.excel') }}" class="btn btn-sm btn-outline-success mr-2 mb-2">
-            <i class="fa fa-file-excel-o"></i> {{ __('stock.export.excel') }}
-          </a>
-          @endif
-          <div class="btn-group mr-2 mb-2" role="group">
-            <button type="button" class="btn btn-sm btn-outline-secondary view-btn" data-view="grid">
-              <i class="fa fa-th"></i>
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary active view-btn" data-view="list">
-              <i class="fa fa-list"></i>
-            </button>
-          </div>
-          @can('receive_stock')
-          <a href="{{ route('receivings.create') }}" class="btn btn-primary btn-sm shadow-sm mr-2 mb-2">
-            <i class="fa fa-truck"></i> {{ __('stock.new_stock_in') }}
-          </a>
-          @endcan
-          <a href="{{ route('items.index') }}" class="btn btn-secondary btn-sm shadow-sm mb-2">
-            <i class="fa fa-arrow-left"></i> {{ __('stock.back') }}
-          </a>
-        </div>
-      </div>
-
-      <!-- Search & Filters -->
-      <div class="row mb-4 stock-filters-row">
-        <div class="col-md-3">
+      <!-- Search, Filters & Actions -->
+      <div class="row mb-4 stock-filters-row align-items-center">
+        <div class="col-lg-5 mb-2 mb-lg-0">
           <div class="form-group mb-0">
-            <label class="control-label font-weight-bold">{{ __('stock.search.label') }}</label>
             <div class="input-group">
               <div class="input-group-prepend">
                 <span class="input-group-text"><i class="fa fa-search"></i></span>
               </div>
               <input type="text" id="inventorySearch" class="form-control" placeholder="{{ __('stock.search.placeholder') }}">
+              <div class="input-group-append">
+                <button type="button" class="btn btn-outline-secondary stock-filter-toggle" id="stockFilterToggle"
+                        data-toggle="collapse" data-target="#stockFilterPanel" aria-expanded="false" aria-controls="stockFilterPanel"
+                        title="{{ __('stock.filters.quick_categories') }}">
+                  <i class="fa fa-filter"></i>
+                </button>
+              </div>
             </div>
           </div>
         </div>
-        <div class="col-md-9">
-          <label class="control-label font-weight-bold">{{ __('stock.filters.quick_categories') }}</label>
+        <div class="col-lg-7">
+          <div class="stock-toolbar">
+            @if($stockItems->count() > 0)
+            <a href="{{ route('items.stock.export.pdf') }}" class="btn btn-sm btn-outline-danger" style="border-color:#940000;color:#940000;">
+              <i class="fa fa-file-pdf-o"></i> {{ __('stock.export.pdf') }}
+            </a>
+            <a href="{{ route('items.stock.export.excel') }}" class="btn btn-sm btn-outline-success">
+              <i class="fa fa-file-excel-o"></i> {{ __('stock.export.excel') }}
+            </a>
+            @endif
+            <div class="btn-group" role="group">
+              <button type="button" class="btn btn-sm btn-outline-secondary view-btn" data-view="grid">
+                <i class="fa fa-th"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary active view-btn" data-view="list">
+                <i class="fa fa-list"></i>
+              </button>
+            </div>
+            @can('receive_stock')
+            <a href="{{ route('receivings.create') }}" class="btn btn-primary btn-sm shadow-sm">
+              <i class="fa fa-truck"></i> {{ __('stock.new_stock_in') }}
+            </a>
+            @endcan
+            <a href="{{ route('items.index') }}" class="btn btn-secondary btn-sm shadow-sm">
+              <i class="fa fa-arrow-left"></i> {{ __('stock.back') }}
+            </a>
+          </div>
+        </div>
+        <div class="col-12">
+          <span class="stock-filter-chip d-none" id="stockFilterChip">
+            <i class="fa fa-filter"></i> <span id="stockFilterChipLabel"></span>
+            <button type="button" class="stock-filter-chip-clear" id="stockFilterClear" title="Clear filter">&times;</button>
+          </span>
+        </div>
+        <div class="col-12 collapse" id="stockFilterPanel">
+          <div class="stock-filter-panel mt-3">
+          @if($multiBusiness)
+          <label class="control-label font-weight-bold small text-muted mb-2">Business Type</label>
+          <div class="business-type-tabs mb-3" id="businessTypeTabs">
+            <button type="button" class="business-type-tab active" data-business-type="all">
+              <i class="fa fa-th-large"></i> {{ __('stock.all') }}
+            </button>
+            @foreach($businessTypes as $type)
+            <button type="button" class="business-type-tab" data-business-type="{{ $type['key'] }}">
+              <i class="fa {{ $type['icon'] }}"></i> {{ $type['label'] }}
+            </button>
+            @endforeach
+          </div>
+          @endif
+          <label class="control-label font-weight-bold small text-muted mb-2">{{ __('stock.filters.quick_categories') }}</label>
           <div class="category-tabs-wrapper">
             <div id="categoryContainer">
               <button class="btn btn-sm btn-outline-primary active filter-pill" data-filter="all" data-filter-type="category">
@@ -231,6 +262,7 @@
                 </button>
               @endforeach
             </div>
+          </div>
           </div>
         </div>
       </div>
@@ -636,6 +668,21 @@ $(document).ready(function () {
         });
 
         updateSummaryStats();
+        syncFilterIndicator();
+    }
+
+    function syncFilterIndicator() {
+        const parts = [];
+        if (hasMultipleBusinessTypes && activeBusinessType && activeBusinessType !== 'all') {
+            parts.push($.trim($('#businessTypeTabs .business-type-tab[data-business-type="' + activeBusinessType + '"]').first().text()));
+        }
+        if (activeCategory && activeCategory !== 'all') {
+            parts.push($.trim($('#categoryContainer .filter-pill[data-filter="' + activeCategory + '"]').first().text()));
+        }
+        const filtered = parts.length > 0;
+        $('#stockFilterToggle').toggleClass('has-filter', filtered);
+        $('#stockFilterChipLabel').text(parts.join(' · '));
+        $('#stockFilterChip').toggleClass('d-none', !filtered);
     }
 
     $('#inventorySearch').on('input', applyFilters);
@@ -644,6 +691,18 @@ $(document).ready(function () {
         activeCategory = $(this).data('filter');
         $('#categoryContainer .filter-pill[data-filter-type="category"]').removeClass('active');
         $(this).addClass('active');
+        applyFilters();
+        $('#stockFilterPanel').collapse('hide');
+    });
+
+    $('#stockFilterClear').on('click', function () {
+        activeCategory = 'all';
+        activeBusinessType = 'all';
+        $('#businessTypeTabs .business-type-tab').removeClass('active');
+        $('#businessTypeTabs .business-type-tab[data-business-type="all"]').addClass('active');
+        $('#categoryContainer .filter-pill').removeClass('active');
+        $('#categoryContainer .filter-pill[data-filter="all"]').addClass('active');
+        syncCategoryPills();
         applyFilters();
     });
 

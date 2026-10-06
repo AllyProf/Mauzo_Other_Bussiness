@@ -512,6 +512,9 @@
         }
     </style>
     @yield('styles')
+    @if(auth()->check() && auth()->user()->business && ! auth()->user()->canCollectCustomerPayments())
+      <style>.open-payment-modal-btn { display: none !important; }</style>
+    @endif
     @stack('styles')
     <style>
         /* Unified statistic cards: white card, maroon top line, label / value / note, no icon. */
@@ -1096,7 +1099,108 @@
         });
       }
     </script>
-    
+
+    <style>
+      .search-typewriter {
+        position: absolute; display: flex; align-items: center; pointer-events: none;
+        white-space: nowrap; overflow: hidden; color: #6c757d; z-index: 4;
+      }
+      .search-typewriter b { color: #28a745; font-weight: 700; }
+      .search-typewriter i { font-style: normal; color: #28a745; animation: searchTwCaret 1s steps(1) infinite; }
+      @keyframes searchTwCaret { 50% { opacity: 0; } }
+    </style>
+    <script>
+      /*
+       * Typewriter hint for search fields: grey "Search" + green keyword.
+       * Keywords come from data-typewriter='["a","b"]' or from the placeholder ("Search customer, phone, ref...").
+       * Opt out with data-typewriter="off".
+       */
+      (function () {
+        function esc(s) {
+          return String(s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+          });
+        }
+
+        function keywordsFor(input) {
+          var custom = input.getAttribute('data-typewriter');
+          if (custom) {
+            try { var list = JSON.parse(custom); if (Array.isArray(list) && list.length) return list; } catch (e) {}
+          }
+          var text = (input.getAttribute('placeholder') || '').replace(/[.…]+\s*$/, '');
+          text = text.replace(/^\s*(search|tafuta)(\s+(by|for|kwa))?\s*/i, '');
+          var terms = text.split(/,|\/|\s+or\s+|\s+and\s+|\s+au\s+|\s+na\s+/i)
+            .map(function (t) { return t.trim(); })
+            .filter(function (t) { return t && !/search|tafuta/i.test(t); });
+          return terms.length ? terms : ['here'];
+        }
+
+        function attach(input) {
+          if (input.dataset.typewriterReady || input.getAttribute('data-typewriter') === 'off') return;
+          input.dataset.typewriterReady = '1';
+
+          var parent = input.parentElement;
+          if (window.getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+
+          var basePlaceholder = input.getAttribute('placeholder') || '';
+          var prefix = /^\s*tafuta/i.test(basePlaceholder) ? 'Tafuta' : 'Search';
+          var words = keywordsFor(input);
+          var overlay = document.createElement('span');
+          overlay.className = 'search-typewriter';
+          input.insertAdjacentElement('afterend', overlay);
+
+          var word = 0, chars = 0, deleting = false;
+
+          function place() {
+            var style = window.getComputedStyle(input);
+            overlay.style.left = (input.offsetLeft + parseFloat(style.paddingLeft || 8) + parseFloat(style.borderLeftWidth || 0)) + 'px';
+            overlay.style.top = input.offsetTop + 'px';
+            overlay.style.height = input.offsetHeight + 'px';
+            overlay.style.maxWidth = Math.max(0, input.offsetWidth - 24) + 'px';
+            overlay.style.fontSize = style.fontSize;
+            overlay.style.fontFamily = style.fontFamily;
+          }
+
+          function tick() {
+            var hidden = input.offsetParent === null;
+            if (hidden || document.activeElement === input || input.value) {
+              overlay.style.display = 'none';
+              input.setAttribute('placeholder', basePlaceholder);
+              return setTimeout(tick, 500);
+            }
+            place();
+            overlay.style.display = '';
+            input.setAttribute('placeholder', '');
+
+            var current = words[word];
+            chars += deleting ? -1 : 1;
+            overlay.innerHTML = esc(prefix) + '&nbsp;<b>' + esc(current.slice(0, Math.max(0, chars))) + '</b><i>|</i>';
+
+            var delay = deleting ? 40 : 90;
+            if (!deleting && chars >= current.length) { deleting = true; delay = 1600; }
+            else if (deleting && chars <= 0) { deleting = false; word = (word + 1) % words.length; delay = 350; }
+            setTimeout(tick, delay);
+          }
+          tick();
+        }
+
+        function scan() {
+          document.querySelectorAll(
+            '.app-content input[type="search"], .app-content input[name="search"], .app-content input[name="q"], ' +
+            '.app-content input[id*="Search"], .app-content input[id*="search"], .app-content input[data-typewriter]'
+          ).forEach(function (input) {
+            if (input.type === 'hidden' || input.closest('.modal')) return;
+            var hint = (input.getAttribute('placeholder') || '') + ' ' + (input.getAttribute('data-typewriter') || '');
+            if (input.hasAttribute('data-typewriter') || /search|tafuta/i.test(hint)) attach(input);
+          });
+        }
+
+        document.addEventListener('DOMContentLoaded', scan);
+        window.addEventListener('load', scan);
+        window.appSearchTypewriter = scan;
+      })();
+    </script>
+
     @stack('scripts')
     @yield('scripts')
   </body>

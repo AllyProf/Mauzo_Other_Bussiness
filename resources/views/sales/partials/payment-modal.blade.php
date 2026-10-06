@@ -154,14 +154,9 @@
                     </div>
                     <div class="form-group">
                         <label class="control-label">Customer Phone</label>
-                        <div class="input-group">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text">+255</span>
-                            </div>
-                            <input type="tel" id="payCustomerPhoneLocal" class="form-control" placeholder="712345678" maxlength="10" inputmode="numeric">
-                        </div>
+                        @include('partials.phone-country-input', ['id' => 'payCustomerPhoneLocal', 'nameless' => true, 'placeholder' => '712345678'])
                         <input type="hidden" name="customer_phone" id="payCustomerPhone">
-                        <small class="text-muted">Enter number without country code (e.g. 712345678).</small>
+                        <small class="text-muted">Pick the country, then type the number without the leading 0.</small>
                     </div>
                     <div class="form-group" id="repayDateSection" style="display: none;">
                         <label class="control-label required">Repayment Due Date</label>

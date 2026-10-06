@@ -35,7 +35,7 @@
         <i class="fa fa-exchange"></i> Migrate from branch
       </button>
     @endif
-    <a href="{{ route('suppliers.create') }}" class="btn btn-primary"><i class="fa fa-plus"></i> Register Supplier</a>
+    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#registerSupplierModal"><i class="fa fa-plus"></i> Register Supplier</button>
   </div>
 </div>
 
@@ -80,7 +80,8 @@
                         <a href="{{ route('suppliers.edit', $supplier->id) }}" class="btn btn-sm btn-info"><i class="fa fa-edit"></i></a>
                         <form action="{{ route('suppliers.destroy', $supplier->id) }}" method="POST" style="display:inline">
                             @csrf @method('DELETE')
-                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this supplier?')"><i class="fa fa-trash"></i></button>
+                            <button type="submit" class="btn btn-sm btn-danger" title="Remove supplier"
+                                onclick="confirmAction(event, 'Remove Supplier?', '{{ addslashes($supplier->name) }} will be removed from your suppliers list.')"><i class="fa fa-trash"></i></button>
                         </form>
                     </td>
                 </tr>
@@ -94,6 +95,73 @@
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+@php $reopenRegister = old('_form') === 'register_supplier'; @endphp
+<div class="modal fade" id="registerSupplierModal" tabindex="-1" role="dialog" aria-labelledby="registerSupplierModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form action="{{ route('suppliers.store') }}" method="POST">
+        @csrf
+        <input type="hidden" name="_form" value="register_supplier">
+        <div class="modal-header migrate-modal-header">
+          <h5 class="modal-title mb-0" id="registerSupplierModalLabel"><i class="fa fa-plus"></i> Register Supplier</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          @if($reopenRegister && $errors->any())
+            <div class="alert alert-danger py-2 small mb-3">
+              @foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach
+            </div>
+          @endif
+          <div class="form-group">
+            <label class="control-label">Supplier Name</label>
+            <input class="form-control" type="text" name="name" value="{{ $reopenRegister ? old('name') : '' }}" placeholder="e.g. Arusha Auto Parts" required>
+          </div>
+          @if(($formBranches ?? collect())->count() > 1 && Auth::user()->seesBusinessWideData())
+          <div class="form-group">
+            <label class="control-label">Branch</label>
+            <select class="form-control" name="branch_id" required>
+              <option value="">-- Select Branch --</option>
+              @foreach($formBranches as $branch)
+                <option value="{{ $branch->id }}" {{ (int) ($reopenRegister ? old('branch_id', $defaultBranchId) : $defaultBranchId) === (int) $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+              @endforeach
+            </select>
+          </div>
+          @elseif($defaultBranchId ?? null)
+            <input type="hidden" name="branch_id" value="{{ $defaultBranchId }}">
+          @endif
+          <div class="form-group">
+            <label class="control-label">Phone Number</label>
+            @include('partials.phone-country-input', [
+                'id' => 'registerSupplierPhone',
+                'required' => true,
+                'countryValue' => $reopenRegister ? old('phone_country') : null,
+                'localValue' => $reopenRegister ? old('phone') : '',
+            ])
+            <small class="text-muted">Pick the country, then type the number without the leading 0.</small>
+          </div>
+          <div class="form-group">
+            <label class="control-label">Email Address</label>
+            @include('partials.email-suggest-input', ['id' => 'registerSupplierEmail', 'value' => $reopenRegister ? old('email') : ''])
+          </div>
+          <div class="form-group mb-0">
+            <label class="control-label">Region</label>
+            <select class="form-control" name="region">
+              <option value="">-- Select Region --</option>
+              @foreach(['Arusha', 'Dar es Salaam', 'Dodoma', 'Mbeya', 'Mwanza', 'Morogoro', 'Tanga', 'Kilimanjaro', 'Zanzibar'] as $region)
+                <option value="{{ $region }}" {{ $reopenRegister && old('region') === $region ? 'selected' : '' }}>{{ $region }}</option>
+              @endforeach
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="background:#940000;border-color:#940000;"><i class="fa fa-check-circle"></i> Register Supplier</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -177,6 +245,9 @@
 @endsection
 
 @section('scripts')
+@if($reopenRegister)
+<script>jQuery(function ($) { $('#registerSupplierModal').modal('show'); });</script>
+@endif
 @if($canMigrateFromBranch ?? false)
 <script>
 (function () {

@@ -102,7 +102,7 @@ class DebtController extends Controller
             ->take(10)
             ->values();
 
-        $scopedToSelf = ! $this->actsAsBusinessWideViewer();
+        $scopedToSelf = ! $this->actsAsBusinessWideViewer() && ! Auth::user()->isPaymentCashier();
 
         $customers = \App\Models\Customer::where('business_id', $businessId)
             ->where('is_active', true)
@@ -134,7 +134,7 @@ class DebtController extends Controller
 
         $business = Auth::user()->business;
         $businessId = $business->id;
-        $scopedToSelf = ! $this->actsAsBusinessWideViewer();
+        $scopedToSelf = ! $this->actsAsBusinessWideViewer() && ! Auth::user()->isPaymentCashier();
         $businessTypes = $business->posBusinessTypesMeta();
         $multiBusiness = count($businessTypes) > 1;
 
@@ -203,6 +203,10 @@ class DebtController extends Controller
             }
 
             return $query;
+        }
+
+        if (Auth::user()->isPaymentCashier()) {
+            return $this->scopeSalesForCashierBranch($query);
         }
 
         return $query->where('user_id', Auth::id());

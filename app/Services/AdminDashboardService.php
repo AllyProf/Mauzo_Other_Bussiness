@@ -38,7 +38,7 @@ class AdminDashboardService
             'total_businesses' => Business::count(),
             'active_businesses' => Business::where('is_active', true)->count(),
             'pending_registrations' => Business::where('pending_approval', true)->count(),
-            'pending_businesses' => Business::with('plan')->where('pending_approval', true)->latest()->limit(8)->get(),
+            'pending_businesses' => Business::with(['plan', 'ownerUser'])->where('pending_approval', true)->latest()->limit(8)->get(),
             'expiring_this_week' => $expiringSoon,
             'open_tickets' => Ticket::where('status', 'open')->count(),
             'unread_tickets' => $this->platformAdmin->unreadTicketsCount(),

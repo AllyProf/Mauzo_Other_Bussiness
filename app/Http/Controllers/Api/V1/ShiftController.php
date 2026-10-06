@@ -9,6 +9,7 @@ use App\Models\ShiftStockCheck;
 use App\Models\User;
 use App\Services\ItemStockDisplayService;
 use App\Services\ShiftPolicyService;
+use App\Services\StockShortageImpactService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,13 +18,14 @@ class ShiftController extends ApiController
 {
   public function current(Request $request): JsonResponse
   {
-    if ($deny = $this->authorizeApiAny(['open_shift', 'process_sales', 'view_all_shifts'])) {
+    if ($deny = $this->authorizeApiAny(['open_shift', 'process_sales', 'collect_payments', 'view_all_shifts'])) {
       return $deny;
     }
 
     $user = $request->user();
     $businessId = $this->apiBusinessId();
     $shift = Shift::openForUser($user->id, $businessId);
+    $shiftMode = $user->isPaymentCashier() ? 'cashier' : 'sales';
 
     if (! $shift && $user->can('view_all_shifts')) {
       $shift = Shift::query()
@@ -33,24 +35,63 @@ class ShiftController extends ApiController
         ->first();
     }
 
+    $openCheck = app(ShiftPolicyService::class)->canOpenShift($this->apiBusiness());
+
     return $this->success([
       'shift' => $shift ? $this->shiftPayload($shift) : null,
       'needs_shift_opened' => $user->needsShiftOpened(),
-      'can_open' => app(ShiftPolicyService::class)->canOpenShift($this->apiBusiness())['allowed'] ?? false,
+      'requires_open_shift' => $user->requiresOpenShift(),
+      'can_open' => (bool) ($openCheck['allowed'] ?? false),
+      'can_open_message' => $openCheck['message'] ?? '',
+      'shift_mode' => $shiftMode,
+      'stock_check_required' => $shiftMode === 'sales',
+      'landing' => $shiftMode === 'cashier' ? 'cashier.queue' : 'pos',
     ]);
   }
 
-  public function openForm(Request $request): JsonResponse
+  /**
+   * Same as web /shifts/open: physical stock check items (counted in pieces) before selling.
+   */
+  public function openForm(Request $request, ShiftPolicyService $shiftPolicy): JsonResponse
   {
-    if ($deny = $this->authorizeApiAny(['open_shift', 'process_sales'])) {
+    if ($deny = $this->authorizeApiAny(['open_shift', 'process_sales', 'collect_payments'])) {
       return $deny;
     }
 
     $user = $request->user();
     $businessId = $this->apiBusinessId();
 
-    if (Shift::openForUser($user->id, $businessId)) {
-      return $this->error('You already have an open shift.', 422);
+    if ($openShift = Shift::openForUser($user->id, $businessId)) {
+      return $this->error('You already have an open shift.', 422, [
+        'code' => 'SHIFT_ALREADY_OPEN',
+        'shift' => $this->shiftPayload($openShift),
+      ]);
+    }
+
+    $openCheck = $shiftPolicy->canOpenShift($this->apiBusiness());
+    if (! $openCheck['allowed']) {
+      return $this->error($openCheck['message'] ?: 'Cannot open shift now.', 422, ['code' => 'SHIFT_OPEN_NOT_ALLOWED']);
+    }
+
+    if ($user->isPaymentCashier()) {
+      return $this->success([
+        'shift_mode' => 'cashier',
+        'stock_check_required' => false,
+        'items' => [],
+        'items_count' => 0,
+        'has_bulk_items' => false,
+        'scope' => [
+          'branch_name' => $user->branch?->name,
+          'business_label' => $user->displayBusinessTypeLabels(),
+        ],
+        'my_stock_shortages' => [],
+        'my_shortage_stats' => null,
+        'rules' => [
+          'count_unit' => null,
+          'reason_required_when_below_system' => false,
+          'fields' => ['opening_notes'],
+        ],
+      ]);
     }
 
     $itemsQuery = Item::query()
@@ -62,24 +103,63 @@ class ShiftController extends ApiController
     $stockDisplay = app(ItemStockDisplayService::class);
     $items = $itemsQuery->orderBy('name')->get()->map(function (Item $item) use ($stockDisplay) {
       $info = $stockDisplay->format($item);
+      $pieces = (float) ($info['pieces'] ?? $item->current_stock);
+      $hasBulk = (bool) ($info['has_bulk_stock'] ?? false);
 
       return [
         'id' => $item->id,
         'name' => $item->name,
         'sku' => $item->sku,
+        'brand' => $item->brand,
+        'category_id' => $item->category_id,
         'category' => $item->category?->name,
-        'system_stock' => (float) $item->current_stock,
-        'stock_display' => $info['stock_display'] ?? (string) $item->current_stock,
+        'system_stock' => $pieces,
+        'stock_display' => $info['stock_display'] ?? (string) $pieces,
         'unit' => $info['unit_name'] ?? 'Unit',
+        'has_bulk_stock' => $hasBulk,
+        'pack_size' => $hasBulk ? (int) ($info['pack_size'] ?? 0) : null,
+        'bulk_name' => $hasBulk ? ($info['bulk_name'] ?? null) : null,
+        'count_step' => $hasBulk ? 1 : 0.01,
+        'default_count' => $pieces,
       ];
     })->values();
 
-    return $this->success(['items' => $items]);
+    $shortageService = app(StockShortageImpactService::class);
+    $myShortages = $shortageService->staffShortagesForUser($user);
+
+    return $this->success([
+      'shift_mode' => 'sales',
+      'stock_check_required' => true,
+      'items' => $items,
+      'items_count' => $items->count(),
+      'has_bulk_items' => $items->contains('has_bulk_stock', true),
+      'scope' => [
+        'branch_name' => $user->branch?->name,
+        'business_label' => $user->displayBusinessTypeLabels(),
+      ],
+      'my_stock_shortages' => $myShortages->map(fn (ShiftStockCheck $check) => [
+        'id' => $check->id,
+        'item' => $check->item?->name,
+        'category' => $check->item?->category?->name,
+        'shift_id' => $check->shift_id,
+        'shortage_qty' => abs((float) $check->variance),
+        'cost_value' => (float) ($check->financial_impact['cost_value'] ?? 0),
+        'notes' => $check->notes,
+        'owner_decision' => $check->owner_decision,
+        'is_verified' => $check->isVerified(),
+        'recorded_at' => $check->recorded_at?->toIso8601String(),
+      ])->values(),
+      'my_shortage_stats' => $shortageService->staffShortageStats($myShortages),
+      'rules' => [
+        'count_unit' => 'pcs',
+        'reason_required_when_below_system' => true,
+      ],
+    ]);
   }
 
   public function open(Request $request, ShiftPolicyService $shiftPolicy): JsonResponse
   {
-    if ($deny = $this->authorizeApiAny(['open_shift', 'process_sales'])) {
+    if ($deny = $this->authorizeApiAny(['open_shift', 'process_sales', 'collect_payments'])) {
       return $deny;
     }
 
@@ -87,13 +167,35 @@ class ShiftController extends ApiController
     $businessId = $this->apiBusinessId();
     $business = $this->apiBusiness();
 
-    if (Shift::openForUser($user->id, $businessId)) {
-      return $this->error('You already have an open shift.', 422);
+    if ($openShift = Shift::openForUser($user->id, $businessId)) {
+      return $this->error('You already have an open shift.', 422, [
+        'code' => 'SHIFT_ALREADY_OPEN',
+        'shift' => $this->shiftPayload($openShift),
+      ]);
     }
 
     $openCheck = $shiftPolicy->canOpenShift($business);
     if (! $openCheck['allowed']) {
-      return $this->error($openCheck['message'] ?? 'Cannot open shift now.', 422);
+      return $this->error($openCheck['message'] ?: 'Cannot open shift now.', 422, ['code' => 'SHIFT_OPEN_NOT_ALLOWED']);
+    }
+
+    if ($user->isPaymentCashier()) {
+      $request->validate(['opening_notes' => 'nullable|string|max:2000']);
+
+      $shift = Shift::create([
+        'business_id' => $businessId,
+        'user_id' => $user->id,
+        'opened_at' => now(),
+        'status' => 'open',
+        'opening_notes' => $request->opening_notes,
+        'opening_variance_count' => 0,
+      ]);
+
+      return $this->success([
+        'shift' => $this->shiftPayload($shift->fresh()),
+        'variance_count' => 0,
+        'next' => 'cashier.queue',
+      ], 'Cashier shift opened. You can now collect payments.', 201);
     }
 
     $request->validate([
@@ -117,13 +219,16 @@ class ShiftController extends ApiController
     }
 
     if ($items->isEmpty()) {
-      return $this->error('No items with stock to count.', 422);
+      return $this->error('No items with stock to count. Receive stock or add items first.', 422, ['code' => 'NO_ITEMS']);
     }
 
     foreach ($items as $item) {
       $counted = $request->counts[$item->id] ?? null;
       if ($counted === null || $counted === '') {
-        return $this->error("Physical count is required for {$item->name}.", 422);
+        return $this->error("Physical count is required for {$item->name}.", 422, [
+          'code' => 'COUNT_REQUIRED',
+          'item_id' => $item->id,
+        ]);
       }
 
       $system = (float) $item->current_stock;
@@ -131,7 +236,10 @@ class ShiftController extends ApiController
       if ($countedStock < $system - 0.0001) {
         $note = trim((string) ($request->notes[$item->id] ?? ''));
         if ($note === '') {
-          return $this->error("Reason is required for {$item->name} — count is lower than system stock.", 422);
+          return $this->error("Reason is required for {$item->name} — physical count is lower than system stock.", 422, [
+            'code' => 'REASON_REQUIRED',
+            'item_id' => $item->id,
+          ]);
         }
       }
     }
@@ -177,7 +285,11 @@ class ShiftController extends ApiController
       $shift->update(['opening_variance_count' => $varianceCount]);
       DB::commit();
 
-      return $this->success(['shift' => $this->shiftPayload($shift->fresh())], 'Shift opened', 201);
+      return $this->success([
+        'shift' => $this->shiftPayload($shift->fresh()),
+        'variance_count' => $varianceCount,
+        'next' => 'pos',
+      ], 'Shift opened. Physical stock check saved — you can now sell on POS.', 201);
     } catch (\Throwable $e) {
       DB::rollBack();
 
@@ -199,7 +311,7 @@ class ShiftController extends ApiController
       return $this->error('Shift is already closed.', 422);
     }
 
-    if ($shift->user_id !== $request->user()->id && ! $request->user()->seesBusinessWideData()) {
+    if ((int) $shift->user_id !== (int) $request->user()->id && ! $request->user()->seesBusinessWideData()) {
       return $this->forbidden('Only the shift owner can close this shift.');
     }
 
@@ -259,7 +371,7 @@ class ShiftController extends ApiController
     }
 
     $user = $request->user();
-    if (! $user->seesBusinessWideData() && ! $user->can('view_all_shifts') && $shift->user_id !== $user->id) {
+    if (! $user->seesBusinessWideData() && ! $user->can('view_all_shifts') && (int) $shift->user_id !== (int) $user->id) {
       return $this->forbidden();
     }
 

@@ -566,6 +566,18 @@ class Business extends Model
         ];
     }
 
+    public const PAYMENT_COLLECTION_MODES = ['both', 'cashier', 'officer'];
+
+    /**
+     * Who takes customer money: both (default), cashier (counter cashier only) or officer (sales officers only).
+     */
+    public function paymentCollectionMode(): string
+    {
+        $mode = $this->automationSettings()['payment_collection_mode'] ?? 'both';
+
+        return in_array($mode, self::PAYMENT_COLLECTION_MODES, true) ? $mode : 'both';
+    }
+
     public function automationSettings(): array
     {
         return array_merge(

@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Services\ActiveBusinessService;
 use App\Services\BusinessStaffMailService;
 use App\Services\BusinessStaffSmsService;
+use App\Support\PhoneCountries;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -94,7 +95,7 @@ class StaffController extends Controller
             'business_type_keys.*' => ['required', 'string', Rule::in($allowedTypeKeys)],
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'phone' => ['nullable', 'string', 'max:9', 'regex:/^[678]\d{8}$/'],
+            'phone' => PhoneCountries::rules(),
             'password' => 'required|string|min:6|confirmed',
         ]);
 
@@ -128,7 +129,7 @@ class StaffController extends Controller
         ]);
 
         $businessTypeKeys = $this->normalizeBusinessTypeKeys($request->input('business_type_keys', []), $allowedTypeKeys);
-        $phone = filled($request->phone) ? '+255'.$request->phone : null;
+        $phone = PhoneCountries::fromRequest($request);
         $plainPassword = $request->password;
 
         $employee = User::create([
@@ -216,7 +217,7 @@ class StaffController extends Controller
         $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $employee->id,
-            'phone' => ['nullable', 'string', 'max:9', 'regex:/^[678]\d{8}$/'],
+            'phone' => PhoneCountries::rules(),
         ];
 
         if ($employee->role === 'staff') {
@@ -245,7 +246,7 @@ class StaffController extends Controller
         $data = [
             'name' => $request->name,
             'email' => $request->email,
-            'phone' => filled($request->phone) ? '+255'.$request->phone : null,
+            'phone' => PhoneCountries::fromRequest($request),
             'role_id' => $request->role_id,
         ];
 

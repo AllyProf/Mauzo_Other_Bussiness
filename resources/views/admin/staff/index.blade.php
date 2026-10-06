@@ -75,12 +75,7 @@
           </div>
           <div class="form-group">
             <label>Phone <span class="text-muted">(optional)</span></label>
-            <div class="input-group @error('phone') is-invalid @enderror">
-              <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
-              <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror" value="{{ old('phone') ? preg_replace('/^(\+255|255)/', '', old('phone')) : '' }}" placeholder="712345678" maxlength="9" inputmode="numeric">
-            </div>
-            <small class="text-muted">9 digits starting with 6, 7, or 8 after +255.</small>
-            @error('phone')<small class="text-danger d-block">{{ $message }}</small>@enderror
+            @include('partials.phone-country-input', ['id' => 'createStaffPhone', 'countryValue' => old('phone_country'), 'localValue' => old('phone', ''), 'placeholder' => '712345678'])
           </div>
           @include('partials.password-field-tools', [
             'inputId' => 'staffPassword',
@@ -155,7 +150,7 @@
                     data-id="{{ $member->id }}"
                     data-name="{{ $member->name }}"
                     data-email="{{ $member->email }}"
-                    data-phone="{{ preg_replace('/^(\+255|255)/', '', (string) $member->phone) }}"
+                    data-phone="{{ (string) $member->phone }}"
                     data-role-id="{{ $member->platform_admin_role_id }}"
                     data-active="{{ $member->is_active ? '1' : '0' }}"
                     data-update-url="{{ route('admin.staff.update', $member) }}"
@@ -210,10 +205,7 @@
           </div>
           <div class="form-group">
             <label>Phone <span class="text-muted">(optional)</span></label>
-            <div class="input-group">
-              <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
-              <input type="text" name="phone" id="editStaffPhone" class="form-control" placeholder="712345678" maxlength="9" inputmode="numeric">
-            </div>
+            @include('partials.phone-country-input', ['id' => 'editStaffPhone', 'localValue' => '', 'countryValue' => null, 'value' => null, 'placeholder' => '712345678'])
           </div>
           <div class="form-group">
             <label>Role</label>
@@ -320,7 +312,7 @@ jQuery(function($) {
     $('#staffEditForm').attr('action', $btn.data('update-url'));
     $('#editStaffName').val($btn.data('name'));
     $('#editStaffEmail').val($btn.data('email'));
-    $('#editStaffPhone').val($btn.data('phone') || '');
+    window.phoneCountryInput.set('#editStaffPhone', String($btn.data('phone') || ''));
     $('#editStaffRole').val(String($btn.data('role-id')));
     $('#editStaffActive').prop('checked', String($btn.data('active')) === '1');
     $('#editStaffPassword').val('');

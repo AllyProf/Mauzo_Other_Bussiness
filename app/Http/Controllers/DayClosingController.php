@@ -21,7 +21,7 @@ use Illuminate\Validation\Rule;
 
 class DayClosingController extends Controller
 {
-    private bool $serviceHandoverContext = false;
+    protected bool $serviceHandoverContext = false;
 
     public function __construct(
         protected OwnerDailyReportService $reportService,
@@ -984,6 +984,13 @@ class DayClosingController extends Controller
                     return false;
                 }
 
+                if (! $this->serviceHandoverContext && $shift->user->isPaymentCashier()) {
+                    return SalePayment::where('user_id', $shift->user_id)
+                        ->where('created_at', '>=', $shift->opened_at)
+                        ->when($shift->closed_at, fn ($q) => $q->where('created_at', '<=', $shift->closed_at))
+                        ->exists();
+                }
+
                 return in_array((int) $shift->id, $shiftIdsWithScopedSales, true);
             })
             ->values();
@@ -1713,12 +1720,13 @@ class DayClosingController extends Controller
 
         if ($shiftOnly && $shiftId) {
             $daySalesQuery->where('shift_id', $shiftId)->whereDate('sale_date', $date);
+        } elseif ($shiftId && $includeOrphanSales && $shiftModel) {
+            // A shift can run past midnight: keep all of its sales, orphans only for the day.
+            $this->applyShiftHandoverSalesScope($daySalesQuery, $shiftModel, $date);
         } else {
             $daySalesQuery->whereDate('sale_date', $date);
 
-            if ($shiftId && $includeOrphanSales && $shiftModel) {
-                $this->applyShiftHandoverSalesScope($daySalesQuery, $shiftModel, $date);
-            } elseif ($shiftId) {
+            if ($shiftId) {
                 $daySalesQuery->where('shift_id', $shiftId);
             }
         }
@@ -1777,6 +1785,12 @@ class DayClosingController extends Controller
 
     protected function buildStaffReconciliation(int $businessId, string $date, $daySales, ?int $collectorUserId = null, ?int $currentShiftId = null, ?array $shiftPaymentWindow = null): array
     {
+        if ($currentShiftId && $this->isCashierCollector($collectorUserId)) {
+            $payments = $this->cashierCollectionPayments($businessId, $collectorUserId, $date, $shiftPaymentWindow);
+
+            return [$this->buildCashierStaffRow($collectorUserId, $date, $payments)];
+        }
+
         $activeSales = $daySales->where('payment_status', '!=', 'cancelled');
         $shiftSaleIds = $activeSales->pluck('id')->all();
 
@@ -1833,6 +1847,9 @@ class DayClosingController extends Controller
             $bankCollected = $shiftPayments->where('payment_method', 'bank')->sum('amount');
             $shiftPaymentsTotal = $shiftPayments->sum('amount');
             $debtCollected = $debtPayments->sum('amount');
+            $collectedByOthers = $staffSaleIds === []
+                ? 0.0
+                : (float) SalePayment::whereIn('sale_id', $staffSaleIds)->where('user_id', '!=', $staffId)->sum('amount');
 
             $paidCount = $staffSales->where('payment_status', 'paid')->count();
             $partialCount = $staffSales->where('payment_status', 'partial')->count();
@@ -1863,9 +1880,10 @@ class DayClosingController extends Controller
                 'shift_payments_total' => $shiftPaymentsTotal,
                 'debt_collected' => $debtCollected,
                 'debt_payments' => $this->mapDebtPaymentRows($debtPayments),
+                'collected_by_others' => $collectedByOthers,
                 'payments_recorded' => $shiftPaymentsTotal + $debtCollected,
                 'credit' => $credit,
-                'difference' => $shiftPaymentsTotal - $collectedOnOrders,
+                'difference' => $shiftPaymentsTotal + $collectedByOthers - $collectedOnOrders,
                 'status' => $status,
                 'sales' => $staffSales,
             ];
@@ -1907,6 +1925,7 @@ class DayClosingController extends Controller
                     'shift_payments_total' => 0,
                     'debt_collected' => $debtPayments->sum('amount'),
                     'debt_payments' => $this->mapDebtPaymentRows($debtPayments),
+                    'collected_by_others' => 0,
                     'payments_recorded' => $debtPayments->sum('amount'),
                     'credit' => 0,
                     'difference' => 0,
@@ -1921,6 +1940,10 @@ class DayClosingController extends Controller
 
     protected function buildDebtCollections(int $businessId, string $date, $daySales, ?int $collectorUserId = null, ?int $currentShiftId = null, ?array $shiftPaymentWindow = null): array
     {
+        if ($currentShiftId && $this->isCashierCollector($collectorUserId)) {
+            return ['total' => 0, 'count' => 0, 'items' => []];
+        }
+
         $payments = $this->queryDebtCollectionPayments($businessId, $date, $collectorUserId, $currentShiftId, $shiftPaymentWindow);
 
         return [
@@ -2034,8 +2057,74 @@ class DayClosingController extends Controller
         })->values()->all();
     }
 
+    /** @var array<int, bool> */
+    private array $cashierCollectorCache = [];
+
+    protected function isCashierCollector(?int $collectorUserId): bool
+    {
+        if (! $collectorUserId) {
+            return false;
+        }
+
+        return $this->cashierCollectorCache[$collectorUserId]
+            ??= (bool) User::find($collectorUserId)?->isPaymentCashier();
+    }
+
+    /**
+     * Every payment a counter cashier recorded in his shift window, on any staff member's order.
+     */
+    protected function cashierCollectionPayments(int $businessId, int $collectorUserId, string $date, ?array $shiftPaymentWindow)
+    {
+        $query = SalePayment::query()
+            ->where('user_id', $collectorUserId)
+            ->whereHas('sale', fn ($q) => $q->where('business_id', $businessId)->where('payment_status', '!=', 'cancelled'))
+            ->with(['sale.user', 'sale.payments', 'user']);
+
+        if ($shiftPaymentWindow) {
+            $this->scopePaymentsToShiftWindow($query, $shiftPaymentWindow);
+        } else {
+            $query->whereDate('created_at', $date);
+        }
+
+        return $query->orderBy('created_at')->get();
+    }
+
+    protected function buildCashierStaffRow(int $collectorUserId, string $date, $payments): array
+    {
+        $staff = User::find($collectorUserId);
+        $total = (float) $payments->sum('amount');
+
+        return [
+            'staff' => $staff,
+            'date' => $date,
+            'total_orders' => $payments->pluck('sale_id')->unique()->count(),
+            'gross_sales' => 0,
+            'expected_amount' => $total,
+            'collected_on_orders' => $total,
+            'cash_collected' => (float) $payments->where('payment_method', 'cash')->sum('amount'),
+            'mobile_collected' => (float) $payments->where('payment_method', 'mobile_money')->sum('amount'),
+            'bank_collected' => (float) $payments->where('payment_method', 'bank')->sum('amount'),
+            'shift_payments_total' => $total,
+            'debt_collected' => 0,
+            'debt_payments' => [],
+            'collected_by_others' => 0,
+            'payments_recorded' => $total,
+            'credit' => 0,
+            'difference' => 0,
+            'status' => 'paid',
+            'sales' => collect(),
+            'is_cashier' => true,
+        ];
+    }
+
     protected function buildPlatformBreakdown(int $businessId, string $date, ?int $shiftId = null, ?int $collectorUserId = null, $daySales = null, ?array $shiftPaymentWindow = null): array
     {
+        if ($shiftId && $this->isCashierCollector($collectorUserId)) {
+            return $this->sortPlatformBreakdown($this->groupPaymentsByPlatform(
+                $this->cashierCollectionPayments($businessId, $collectorUserId, $date, $shiftPaymentWindow)
+            ));
+        }
+
         $shiftSaleIds = $daySales
             ? $daySales->where('payment_status', '!=', 'cancelled')->pluck('id')->all()
             : [];
@@ -2104,6 +2193,30 @@ class DayClosingController extends Controller
             }
         }
 
+        return $this->sortPlatformBreakdown($breakdown);
+    }
+
+    protected function groupPaymentsByPlatform($payments): array
+    {
+        $breakdown = [];
+
+        foreach ($payments as $payment) {
+            $key = $this->resolvePlatformKey($payment);
+            if (! isset($breakdown[$key])) {
+                $breakdown[$key] = [
+                    'label' => $this->resolvePlatformLabel($payment),
+                    'method' => $payment->payment_method,
+                    'amount' => 0,
+                ];
+            }
+            $breakdown[$key]['amount'] += (float) $payment->amount;
+        }
+
+        return $breakdown;
+    }
+
+    protected function sortPlatformBreakdown(array $breakdown): array
+    {
         uasort($breakdown, function ($a, $b) {
             $order = ['cash' => 0, 'mobile_money' => 1, 'bank' => 2];
             $aOrder = $order[$a['method']] ?? 3;
@@ -2127,6 +2240,12 @@ class DayClosingController extends Controller
         ?array $shiftPaymentWindow,
         ?int $collectorUserId
     ): array {
+        if ($currentShiftId && $this->isCashierCollector($collectorUserId)) {
+            return $this->buildCashierSalesViewData(
+                $this->cashierCollectionPayments($businessId, $collectorUserId, $date, $shiftPaymentWindow)
+            );
+        }
+
         $sales = collect($shiftSales)->where('payment_status', '!=', 'cancelled')->values();
 
         if ($currentShiftId && $shiftPaymentWindow && ($debtCollections['count'] ?? 0) > 0) {
@@ -2154,6 +2273,43 @@ class DayClosingController extends Controller
             $currentShiftId,
             $shiftPaymentWindow
         );
+    }
+
+    /**
+     * "All Sales" rows for a cashier handover: orders he collected on, showing only his payments.
+     */
+    protected function buildCashierSalesViewData($payments): array
+    {
+        return collect($payments)
+            ->groupBy('sale_id')
+            ->map(function ($rows) {
+                $sale = $rows->first()->sale;
+                $paymentRows = $rows->map(fn ($p) => [
+                    'method' => $p->payment_method,
+                    'provider' => $p->payment_provider,
+                    'amount' => (float) $p->amount,
+                    'reference' => $p->transaction_reference,
+                    'time' => $p->created_at?->format('h:i A'),
+                ])->values()->all();
+
+                return [
+                    'ref' => $sale->reference_no,
+                    'sale_txn_ref' => $sale->transaction_reference,
+                    'cashier' => $sale->user->name ?? 'Unknown',
+                    'total' => (float) $sale->total_amount,
+                    'paid' => (float) $sale->amount_paid,
+                    'balance' => max(0, (float) $sale->total_amount - (float) $sale->amount_paid),
+                    'status' => $sale->payment_status,
+                    'time' => $sale->created_at->format('h:i A'),
+                    'customer' => $sale->customer_name,
+                    'payments' => $paymentRows,
+                    'carried_over' => (bool) $sale->shift_id,
+                    'origin_shift_id' => $sale->shift_id ? (int) $sale->shift_id : null,
+                    'shift_collected' => (float) collect($paymentRows)->sum('amount'),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     protected function buildDaySalesViewData($daySales, ?int $currentShiftId = null, ?array $shiftPaymentWindow = null): array
@@ -2188,6 +2344,7 @@ class DayClosingController extends Controller
                 $shiftCollected = $isCarriedOver ? (float) collect($paymentRows)->sum('amount') : null;
 
                 return [
+                    'id' => $sale->id,
                     'ref' => $sale->reference_no,
                     'sale_txn_ref' => $sale->transaction_reference,
                     'cashier' => $sale->user->name ?? 'Unknown',

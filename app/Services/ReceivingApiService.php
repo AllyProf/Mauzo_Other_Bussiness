@@ -537,6 +537,7 @@ class ReceivingApiService
             'id' => $item->id,
             'name' => $item->name,
             'sku' => $item->sku ?? '',
+            'brand' => $item->brand ?? '',
             'unit' => optional($item->receivingPackaging)->name ?? 'Unit',
             'units_per_receiving_pack' => (int) ($item->units_per_receiving_pack ?? 1),
             'current_stock' => (float) $item->current_stock,

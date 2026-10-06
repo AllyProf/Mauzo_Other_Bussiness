@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use App\Models\Supplier;
+use App\Support\PhoneCountries;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -34,6 +35,8 @@ class SupplierController extends Controller
             : null;
         $branches = $this->allBusinessBranches();
         $canMigrateFromBranch = $branches->count() > 1;
+        $formBranches = $this->writableBranches();
+        $defaultBranchId = $this->defaultBranchIdForForm();
 
         return view('registration.suppliers.index', compact(
             'suppliers',
@@ -42,6 +45,8 @@ class SupplierController extends Controller
             'branchFilterId',
             'branches',
             'canMigrateFromBranch',
+            'formBranches',
+            'defaultBranchId',
         ));
     }
 
@@ -59,13 +64,7 @@ class SupplierController extends Controller
     {
         Gate::authorize('manage_suppliers');
 
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'required|string|max:20',
-            'region' => 'nullable|string|max:100',
-            'branch_id' => $this->branchValidationRule(),
-        ]);
+        $request->validate($this->supplierRules());
 
         $branchId = $this->resolveBranchIdFromRequest($request);
         if (! $branchId) {
@@ -77,11 +76,22 @@ class SupplierController extends Controller
             'branch_id' => $branchId,
             'name' => $request->name,
             'email' => $request->email,
-            'phone' => '+255'.$request->phone,
+            'phone' => PhoneCountries::fromRequest($request),
             'region' => $request->region,
         ]);
 
         return redirect()->route('suppliers.index')->with('success', 'Supplier registered successfully.');
+    }
+
+    private function supplierRules(): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'phone' => PhoneCountries::rules(true, tzMobileOnly: false),
+            'region' => 'nullable|string|max:100',
+            'branch_id' => $this->branchValidationRule(),
+        ];
     }
 
     public function edit(Supplier $supplier)
@@ -101,13 +111,7 @@ class SupplierController extends Controller
         Gate::authorize('manage_suppliers');
         $this->ensureAccess($supplier);
 
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'required|string|max:20',
-            'region' => 'nullable|string|max:100',
-            'branch_id' => $this->branchValidationRule(),
-        ]);
+        $request->validate($this->supplierRules());
 
         $branchId = $this->resolveBranchIdFromRequest($request) ?: (int) $supplier->branch_id;
         if (! $branchId) {
@@ -117,7 +121,7 @@ class SupplierController extends Controller
         $supplier->update([
             'name' => $request->name,
             'email' => $request->email,
-            'phone' => '+255'.$request->phone,
+            'phone' => PhoneCountries::fromRequest($request),
             'region' => $request->region,
             'branch_id' => $branchId,
         ]);

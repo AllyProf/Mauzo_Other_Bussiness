@@ -562,6 +562,15 @@ class BusinessController extends Controller
             }
 
             $platformMail->sendRegistrationApproved($business, $loginPassword, $owner->email);
+
+            app(\App\Services\InAppNotificationService::class)->createNotification(
+                (int) $owner->id,
+                (int) $business->id,
+                'system.registration_approved',
+                'Business approved',
+                "Welcome to MauzoLink! {$business->name} has been approved. Your trial runs for {$trialDays} days.",
+                '/home'
+            );
         }
 
         return redirect()->back()->with('success', "{$business->name} has been approved and can now sign in.");

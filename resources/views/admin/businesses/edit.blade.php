@@ -34,7 +34,7 @@
                 </div>
                 <div class="form-group">
                     <label class="control-label">Phone Number</label>
-                    <input class="form-control" type="text" name="phone" value="{{ old('phone', $business->phone) }}" required>
+                    @include('partials.phone-country-input', ['id' => 'adminBusinessPhone', 'combined' => true, 'required' => true, 'value' => old('phone', $business->phone), 'placeholder' => '754XXXXXX'])
                 </div>
             </div>
             <div class="col-md-6">

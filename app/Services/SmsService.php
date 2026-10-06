@@ -63,6 +63,10 @@ class SmsService
     {
         $phone = preg_replace('/[^0-9]/', '', $phoneNumber) ?? '';
 
+        if (str_starts_with(trim($phoneNumber), '+') && strlen($phone) >= 7) {
+            return $phone;
+        }
+
         if (str_starts_with($phone, '0')) {
             $phone = '255'.substr($phone, 1);
         }

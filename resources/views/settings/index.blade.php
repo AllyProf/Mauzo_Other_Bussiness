@@ -217,7 +217,7 @@
               <div class="col-12 col-md-6">
                 <div class="form-group">
                   <label class="control-label font-weight-bold">Phone</label>
-                  <input type="text" name="phone" class="form-control" value="{{ old('phone', $business->phone) }}" placeholder="+255...">
+                  @include('partials.phone-country-input', ['id' => 'businessSettingsPhone', 'combined' => true, 'value' => old('phone', $business->phone), 'placeholder' => '712345678'])
                 </div>
               </div>
               <div class="col-12 col-md-6">
@@ -383,6 +383,41 @@
 
         {{-- PAYMENT METHODS --}}
         <div class="tab-pane fade {{ $activeTab === 'payments' ? 'show active' : '' }}" id="tab-payments">
+          @php $collectionMode = old('payment_collection_mode', $business->paymentCollectionMode()); @endphp
+          <h5 class="mb-1 text-muted"><i class="fa fa-user-circle"></i> Who Collects Payments?</h5>
+          <p class="small text-muted mb-3">Choose who takes money from customers. Owners and managers can always collect.</p>
+
+          <form method="POST" action="{{ route('settings.payment-collection.update') }}" class="settings-form mb-4">
+            @csrf @method('PUT')
+            <div class="setting-switch-row">
+              <div class="custom-control custom-radio mb-2">
+                <input type="radio" id="collect_both" name="payment_collection_mode" value="both" class="custom-control-input" {{ $collectionMode === 'both' ? 'checked' : '' }}>
+                <label class="custom-control-label" for="collect_both">
+                  <strong>Sales officers and cashiers</strong>
+                  <br><small class="text-muted">The sales officer can take payment right after the order, or send the customer to the cashier.</small>
+                </label>
+              </div>
+              <div class="custom-control custom-radio mb-2">
+                <input type="radio" id="collect_cashier" name="payment_collection_mode" value="cashier" class="custom-control-input" {{ $collectionMode === 'cashier' ? 'checked' : '' }}>
+                <label class="custom-control-label" for="collect_cashier">
+                  <strong>Cashier only</strong>
+                  <br><small class="text-muted">Sales officers only create orders. Orders go to the cashier's Payment Queue and only the cashier takes money (including debts).</small>
+                </label>
+              </div>
+              <div class="custom-control custom-radio">
+                <input type="radio" id="collect_officer" name="payment_collection_mode" value="officer" class="custom-control-input" {{ $collectionMode === 'officer' ? 'checked' : '' }}>
+                <label class="custom-control-label" for="collect_officer">
+                  <strong>Sales officers only</strong>
+                  <br><small class="text-muted">Each sales officer takes payment for his own orders. Cashier accounts cannot collect.</small>
+                </label>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary settings-save-btn" style="background-color:#940000;border-color:#940000;">
+              <i class="fa fa-save"></i> Save Collection Setting
+            </button>
+          </form>
+          <hr>
+
           <h5 class="mb-1 text-muted"><i class="fa fa-credit-card"></i> Payment Methods</h5>
           <p class="small text-muted mb-4">Configure payment options for invoices and POS. Add each platform with its own Lipa number or bank account.</p>
 

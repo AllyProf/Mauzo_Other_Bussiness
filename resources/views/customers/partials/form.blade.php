@@ -1,6 +1,5 @@
 @php
   $regions = ['Arusha', 'Dar es Salaam', 'Dodoma', 'Mbeya', 'Mwanza', 'Morogoro', 'Tanga', 'Kilimanjaro', 'Zanzibar'];
-  $phoneDigits = old('phone', isset($customer) ? preg_replace('/^\+255/', '', $customer->phone) : '');
 @endphp
 
 <div class="form-group">
@@ -11,12 +10,15 @@
 
 <div class="form-group">
   <label class="control-label">Phone Number</label>
-  <div class="input-group">
-    <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
-    <input class="form-control @error('phone') is-invalid @enderror" type="text" name="phone" value="{{ $phoneDigits }}" placeholder="700 000 000" maxlength="12" required>
-  </div>
-  <small class="text-muted">Enter the phone number without the country code.</small>
-  @error('phone')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+  @include('partials.phone-country-input', [
+      'id' => isset($customer) ? 'customerPhone'.$customer->id : 'customerPhone',
+      'required' => true,
+      'value' => $customer->phone ?? null,
+      'countryValue' => old('phone_country'),
+      'localValue' => old('phone'),
+      'placeholder' => '700 000 000',
+  ])
+  <small class="text-muted">Pick the country, then type the number without the leading 0.</small>
 </div>
 
 <div class="form-group">

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\PhoneCountries;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -26,16 +27,10 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $user = Auth::user();
-        $localPhone = $this->normalizeLocalPhone($request->input('phone'));
-
-        $request->merge([
-            'phone' => $localPhone,
-        ]);
-
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$user->id],
-            'phone' => ['nullable', 'string', 'max:9', 'regex:/^[678]\d{8}$/'],
+            'phone' => PhoneCountries::rules(),
             'profile_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:2048'],
             'locale' => ['nullable', 'string', 'in:en,sw'],
         ]);
@@ -47,7 +42,7 @@ class ProfileController extends Controller
             $user->email = $newEmail;
             $user->email_verified_at = null;
         }
-        $user->phone = filled($localPhone) ? '+255'.$localPhone : null;
+        $user->phone = PhoneCountries::fromRequest($request);
 
         if ($request->hasFile('profile_image')) {
             if ($user->profile_image) {
@@ -107,24 +102,5 @@ class ProfileController extends Controller
         }
 
         return $digits;
-    }
-
-    private function normalizeLocalPhone(?string $input): ?string
-    {
-        if (! filled($input)) {
-            return null;
-        }
-
-        $digits = preg_replace('/\D/', '', (string) $input);
-
-        if (str_starts_with($digits, '255')) {
-            $digits = substr($digits, 3);
-        }
-
-        if (str_starts_with($digits, '0')) {
-            $digits = substr($digits, 1);
-        }
-
-        return $digits !== '' ? $digits : null;
     }
 }

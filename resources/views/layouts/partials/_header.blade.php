@@ -206,6 +206,13 @@
   #globalSearch .app-notification__message mark { background: #ffe8a3; padding: 0; }
   #globalSearch .global-search__group { padding: 6px 20px; background: #f5f5f5; border-bottom: 1px solid #ddd; font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #6c757d; }
   #globalSearch .global-search__empty { padding: 14px 20px; color: #6c757d; }
+  #globalSearch .global-search__typewriter {
+    position: absolute; top: 0; bottom: 0; display: flex; align-items: center;
+    pointer-events: none; white-space: nowrap; overflow: hidden; color: #6c757d;
+  }
+  #globalSearch .global-search__typewriter b { color: #28a745; font-weight: 700; }
+  #globalSearch .global-search__typewriter i { font-style: normal; color: #28a745; animation: gsCaret 1s steps(1) infinite; }
+  @keyframes gsCaret { 50% { opacity: 0; } }
 </style>
 <script>
 (function () {
@@ -240,6 +247,51 @@
   var panel = document.getElementById('globalSearchPanel');
   var url = root.dataset.url;
   var timer = null, controller = null, activeIndex = -1, lastTerm = '', remoteGroups = [];
+
+  document.addEventListener('DOMContentLoaded', function typewriterPlaceholder() {
+    var basePlaceholder = input.getAttribute('placeholder') || 'Search';
+    var pages = [];
+    document.querySelectorAll('.app-sidebar .app-menu__label, .app-sidebar .treeview-item').forEach(function (el) {
+      var name = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (name && name.length <= 28 && pages.indexOf(name) === -1) pages.push(name);
+    });
+    if (!pages.length) return;
+
+    var style = window.getComputedStyle(input);
+    var overlay = document.createElement('span');
+    overlay.className = 'global-search__typewriter';
+    overlay.style.left = (input.offsetLeft + parseFloat(style.paddingLeft || 10)) + 'px';
+    overlay.style.right = '34px';
+    overlay.style.fontSize = style.fontSize;
+    overlay.style.fontFamily = style.fontFamily;
+    input.insertAdjacentElement('afterend', overlay);
+
+    var page = 0, chars = 0, deleting = false;
+
+    function render(name) {
+      overlay.innerHTML = 'Search&nbsp;<b>' + esc(name) + '</b><i>|</i>';
+    }
+
+    function tick() {
+      if (document.activeElement === input || input.value) {
+        overlay.style.display = 'none';
+        input.setAttribute('placeholder', basePlaceholder);
+        return setTimeout(tick, 500);
+      }
+      overlay.style.display = '';
+      input.setAttribute('placeholder', '');
+
+      var name = pages[page];
+      chars += deleting ? -1 : 1;
+      render(name.slice(0, Math.max(0, chars)));
+
+      var delay = deleting ? 40 : 90;
+      if (!deleting && chars >= name.length) { deleting = true; delay = 1600; }
+      else if (deleting && chars <= 0) { deleting = false; page = (page + 1) % pages.length; delay = 350; }
+      setTimeout(tick, delay);
+    }
+    tick();
+  });
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {

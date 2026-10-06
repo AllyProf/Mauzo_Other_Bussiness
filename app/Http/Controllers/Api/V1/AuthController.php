@@ -165,6 +165,10 @@ class AuthController extends ApiController
       'requires_open_shift' => $user->requiresOpenShift(),
       'needs_shift_opened' => $user->needsShiftOpened(),
       'open_shift_id' => $openShift?->id,
+      'is_payment_cashier' => $user->isPaymentCashier(),
+      'payment_collection_mode' => $user->business?->paymentCollectionMode() ?? 'both',
+      'can_collect_payments' => $user->canCollectCustomerPayments(),
+      'home_screen' => $user->isPaymentCashier() ? 'cashier.queue' : 'home',
       'business' => $this->businessPayload($ctx),
       'branch' => $this->branchPayload($ctx),
       'available_businesses' => $user->role === 'owner'
@@ -196,6 +200,7 @@ class AuthController extends ApiController
       'operation_mode' => $business->operation_mode ?? 'retail',
       'currency' => 'TZS',
       'plan' => $business->plan?->name,
+      'logo_url' => $business->logoUrl(),
     ];
   }
 

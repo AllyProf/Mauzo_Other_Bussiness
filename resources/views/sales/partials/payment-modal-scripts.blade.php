@@ -34,8 +34,19 @@
         return digits ? '+255' + digits : '';
     }
 
+    function setPayCustomerPhone(phone) {
+        if (window.phoneCountryInput && $('#payCustomerPhoneLocal').closest('[data-phone-country]').length) {
+            window.phoneCountryInput.set('#payCustomerPhoneLocal', phone || '');
+        } else {
+            $('#payCustomerPhoneLocal').val(formatPhoneForDisplay(phone));
+        }
+    }
+
     function syncCustomerPhoneField() {
-        $('#payCustomerPhone').val(formatPhoneForSave($('#payCustomerPhoneLocal').val()));
+        const value = window.phoneCountryInput && $('#payCustomerPhoneLocal').closest('[data-phone-country]').length
+            ? window.phoneCountryInput.get('#payCustomerPhoneLocal')
+            : formatPhoneForSave($('#payCustomerPhoneLocal').val());
+        $('#payCustomerPhone').val(value);
     }
 
     function setProviderFieldRequirements(requiresRef) {
@@ -96,7 +107,7 @@
         } else {
             $('#payCustomerSelect').val('').trigger('change');
             $('#payCustomerName').val(invoiceCustomer.name || '');
-            $('#payCustomerPhoneLocal').val(formatPhoneForDisplay(invoiceCustomer.phone));
+            setPayCustomerPhone(invoiceCustomer.phone);
             syncCustomerPhoneField();
         }
     }
@@ -495,7 +506,7 @@
         $('#payDueDate').val(dueDate || '');
         $('#payCustomerSelect').val('').trigger('change');
         $('#payCustomerName').val('');
-        $('#payCustomerPhoneLocal').val('');
+        setPayCustomerPhone('');
         syncCustomerPhoneField();
 
         renderInvoiceCustomerSummary();

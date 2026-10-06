@@ -85,8 +85,7 @@
                 </div>
                 <div class="form-group">
                     <label class="control-label">Phone Number</label>
-                    <input class="form-control @error('phone') is-invalid @enderror" type="text" name="phone" placeholder="e.g. 754XXXXXX" value="{{ old('phone', '+255') }}" required>
-                    @error('phone')<small class="text-danger d-block">{{ $message }}</small>@enderror
+                    @include('partials.phone-country-input', ['id' => 'adminBusinessPhone', 'combined' => true, 'required' => true, 'value' => old('phone'), 'placeholder' => '754XXXXXX'])
                 </div>
             </div>
             <div class="col-md-6">

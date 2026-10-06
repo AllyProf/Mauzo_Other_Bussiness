@@ -279,8 +279,13 @@ document.addEventListener('DOMContentLoaded', function () {
   @else
     closed at {{ $shift->closed_at->format('M d, Y h:i A') }}
   @endif
+  @if($shift->user?->isPaymentCashier())
+    — cashier handover: {{ count($allDaySales) }} order(s) paid at your counter, {{ money(collect($platformBreakdown)->sum('amount')) }} collected.
+    Submit handover below to close your shift and hand the money to your boss.
+  @else
   — {{ $summary['sales_count'] ?? $shift->sales_count }} sale(s), {{ money($summary['gross_sales'] ?? $shift->gross_sales) }} gross.
   Submit handover below to close your shift and send collections to your boss.
+  @endif
 </div>
 @endif
 
@@ -421,7 +426,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     @endif
                   </td>
                   <td class="audit-col-bg"><strong>TZS {{ number_format($data['expected_amount'], 0) }}</strong></td>
-                  <td class="audit-col-bg"><strong class="text-info">TZS {{ number_format($data['collected_on_orders'], 0) }}</strong></td>
+                  <td class="audit-col-bg">
+                    <strong class="text-info">TZS {{ number_format($data['collected_on_orders'], 0) }}</strong>
+                    @if(($data['collected_by_others'] ?? 0) > 0)
+                      <br><small class="text-muted">incl. TZS {{ number_format($data['collected_by_others'], 0) }} by cashier</small>
+                    @endif
+                  </td>
                   <td class="audit-col-bg">
                     @if($data['credit'] > 0)
                       <span class="text-danger">TZS {{ number_format($data['credit'], 0) }}</span>
@@ -709,7 +719,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     @endif
                   </td>
                   <td class="audit-col-bg"><strong>TZS {{ number_format($data['expected_amount'], 0) }}</strong></td>
-                  <td class="audit-col-bg"><strong class="text-info">TZS {{ number_format($data['collected_on_orders'], 0) }}</strong></td>
+                  <td class="audit-col-bg">
+                    <strong class="text-info">TZS {{ number_format($data['collected_on_orders'], 0) }}</strong>
+                    @if(($data['collected_by_others'] ?? 0) > 0)
+                      <br><small class="text-muted">incl. TZS {{ number_format($data['collected_by_others'], 0) }} by cashier</small>
+                    @endif
+                  </td>
                   <td class="audit-col-bg">
                     @if($data['credit'] > 0)
                       <span class="text-danger">TZS {{ number_format($data['credit'], 0) }}</span>

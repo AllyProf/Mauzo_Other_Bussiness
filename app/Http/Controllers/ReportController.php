@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\BusinessReportService;
+use App\Services\CashierPerformanceService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -135,6 +136,19 @@ class ReportController extends Controller
             $data['debtorRows'] = $this->paginateReportRows($request, collect($data['customer_summaries']), 15);
 
             return $data;
+        });
+    }
+
+    public function cashiers(Request $request)
+    {
+        return $this->renderReport($request, 'cashiers', 'Cashier Performance', function ($business, $from, $to) use ($request) {
+            return app(CashierPerformanceService::class)->report(
+                $business,
+                $from,
+                $to,
+                $this->resolveBranchFilterId(),
+                $request->boolean('cashiers_only')
+            );
         });
     }
 

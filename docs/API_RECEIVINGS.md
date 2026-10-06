@@ -88,6 +88,8 @@ Returns suppliers, categories, items grouped by category (with packagings and cu
       "10": [{
         "id": 55,
         "name": "Afya Maji Medium",
+        "sku": "AFY-500",
+        "brand": "Afya",
         "unit": "Carton",
         "units_per_receiving_pack": 12,
         "current_stock": 48,
@@ -115,6 +117,23 @@ Returns suppliers, categories, items grouped by category (with packagings and cu
 ```
 
 Use `items_by_category` to build the line-item picker (same data as web JS).
+
+### Searching items (same as web "Quick Search Item")
+
+There is **no search endpoint** for receiving — search runs **locally** on the `items_by_category` data already loaded from create-form (instant, works offline once loaded). Unlike POS search, this list includes items with **0 stock** (you are restocking them).
+
+1. **Flatten** `items_by_category` into one list, remembering each item's `category_id` (the object key) and the category's `branch_id` / `source_business_type_key` from `categories`. Sort by `name` (A→Z, case-insensitive).
+2. **Require a supplier first.** If none is selected, show "Please select a supplier first." and don't add.
+3. **Match** as the user types (from the 1st character): case-insensitive "contains" on `name` + `sku` + `brand`.
+4. **Filter** results to the selected receiving **branch** (category `branch_id`) and, for multi-business branches, the selected **business type** (category `source_business_type_key`; types per branch come from `imported_types_by_branch`).
+5. Show up to **20** results by name; "No items found." when empty.
+6. **On tap:**
+   - Already on the receipt → don't duplicate; scroll to / highlight that line ("Found: {name}").
+   - Otherwise add a line with **qty 0**, buying cost prefilled from `cost_price` (shown as "Last {cost_price}"), `qty_mode` / `cost_mode` = `pkg`, discount 0. Show `remains_display` as "Remains: …".
+   - Clear the search box.
+7. The same text also **filters lines already on the receipt** (hide non-matching lines; clearing the box shows all).
+
+**Load by category** (alternative to search): picking a category adds **all** its items at once (qty 0), skipping ones already on the receipt. Only lines with **qty > 0** are submitted.
 
 ---
 

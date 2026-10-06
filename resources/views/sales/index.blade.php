@@ -373,7 +373,7 @@
 
             $('#filterPeriod').on('change', toggleCustomDates);
 
-            const autoPaySaleId = @json(request()->query('pay'));
+            const autoPaySaleId = @json(auth()->user()->canCollectCustomerPayments() ? request()->query('pay') : null);
             const alsoPayRaw = @json(request()->query('also_pay'));
             if (autoPaySaleId) {
                 const $payBtn = $('.open-payment-modal-btn[data-sale-id="' + autoPaySaleId + '"]').first();

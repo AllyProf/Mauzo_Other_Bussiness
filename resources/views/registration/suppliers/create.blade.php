@@ -37,15 +37,17 @@
           @endif
           <div class="form-group">
             <label class="control-label">Phone Number</label>
-            <div class="input-group">
-              <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
-              <input class="form-control" type="text" name="phone" placeholder="700 000 000" maxlength="9" required>
-            </div>
-            <small class="text-muted">Enter the last 9 digits of the phone number.</small>
+            @include('partials.phone-country-input', [
+                'id' => 'createSupplierPhone',
+                'required' => true,
+                'countryValue' => old('phone_country'),
+                'localValue' => old('phone', ''),
+            ])
+            <small class="text-muted">Pick the country, then type the number without the leading 0.</small>
           </div>
           <div class="form-group">
             <label class="control-label">Email Address</label>
-            <input class="form-control" type="email" name="email" placeholder="e.g. info@supplier.com">
+            @include('partials.email-suggest-input', ['id' => 'createSupplierEmail', 'value' => old('email')])
           </div>
           <div class="form-group">
             <label class="control-label">Region</label>

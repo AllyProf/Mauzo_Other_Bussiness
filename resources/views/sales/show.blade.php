@@ -286,6 +286,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
 
+@if(request()->boolean('print'))
+<script>window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 300); });</script>
+@endif
+
 <style>
   .official-report .invoice-bill-bar {
     display: flex;

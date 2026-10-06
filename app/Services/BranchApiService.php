@@ -279,17 +279,6 @@ class BranchApiService
 
     private function normalizePhone(?string $phone): ?string
     {
-        if (! $phone) {
-            return null;
-        }
-
-        $digits = preg_replace('/\D/', '', $phone);
-        $digits = ltrim($digits, '0');
-
-        if (str_starts_with($digits, '255')) {
-            $digits = substr($digits, 3);
-        }
-
-        return $digits ? '+255'.$digits : null;
+        return \App\Models\Customer::normalizePhone($phone);
     }
 }

@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\PlatformAdminRole;
 use App\Models\User;
 use App\Services\PlatformAdminService;
+use App\Support\PhoneCountries;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -44,13 +45,13 @@ class PlatformStaffController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
-            'phone' => ['nullable', 'string', 'max:9', 'regex:/^[678]\d{8}$/'],
+            'phone' => PhoneCountries::rules(),
             'password' => "required|string|min:{$minPassword}|confirmed",
             'platform_admin_role_id' => ['required', Rule::in($assignableRoleIds)],
         ]);
 
         $role = PlatformAdminRole::findOrFail($validated['platform_admin_role_id']);
-        $phone = filled($validated['phone'] ?? null) ? '+255'.$validated['phone'] : null;
+        $phone = PhoneCountries::fromRequest($request);
 
         $staffUser = User::create([
             'name' => $validated['name'],
@@ -95,14 +96,14 @@ class PlatformStaffController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone' => ['nullable', 'string', 'max:9', 'regex:/^[678]\d{8}$/'],
+            'phone' => PhoneCountries::rules(),
             'password' => "nullable|string|min:{$minPassword}|confirmed",
             'platform_admin_role_id' => ['required', Rule::in($assignableRoleIds)],
             'is_active' => 'nullable|boolean',
         ]);
 
         $role = PlatformAdminRole::findOrFail($validated['platform_admin_role_id']);
-        $phone = filled($validated['phone'] ?? null) ? '+255'.$validated['phone'] : null;
+        $phone = PhoneCountries::fromRequest($request);
 
         $payload = [
             'name' => $validated['name'],

@@ -12,6 +12,7 @@ use App\Models\Packaging;
 use App\Services\ItemPackagingNormalizer;
 use App\Services\ItemStockApiService;
 use App\Services\ItemStockDisplayService;
+use App\Services\StockForecastService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -37,6 +38,18 @@ class ItemController extends ApiController
         );
 
         return $this->success($data);
+    }
+
+    public function forecast(Request $request, StockForecastService $forecast): JsonResponse
+    {
+        if ($deny = $this->authorizeApiAny(['view_stock_history', 'view_inventory', 'receive_stock'])) {
+            return $deny;
+        }
+
+        return $this->success($forecast->forecast(
+            $this->apiBusinessId(),
+            $this->itemFormBranchFilterId($request->user())
+        ));
     }
 
     public function history(Request $request, Item $item): JsonResponse
@@ -340,7 +353,8 @@ class ItemController extends ApiController
 
         $request->validate([
             'q' => 'nullable|string|max:120',
-            'limit' => 'nullable|integer|min:1|max:50',
+            'limit' => 'nullable|integer|min:1|max:500',
+            'business_type_key' => 'nullable|string|max:120',
         ]);
 
         $businessId = $this->apiBusinessId();
@@ -364,6 +378,11 @@ class ItemController extends ApiController
             });
         }
 
+        if ($request->filled('business_type_key')) {
+            $key = (string) $request->business_type_key;
+            $query->whereHas('category', fn ($c) => $c->where('source_business_type_key', $key));
+        }
+
         $stockDisplay = app(ItemStockDisplayService::class);
         $normalizer = app(ItemPackagingNormalizer::class);
 
@@ -378,6 +397,7 @@ class ItemController extends ApiController
                 'sku' => $item->sku,
                 'brand' => $item->brand,
                 'category' => $item->category?->name,
+                'business_type_key' => $item->category?->source_business_type_key ?: 'other',
                 'current_stock' => (float) $item->current_stock,
                 'stock_display' => $info['stock_display'] ?? (string) $item->current_stock,
                 'unit' => $info['unit_name'] ?? 'Unit',
@@ -396,7 +416,36 @@ class ItemController extends ApiController
             ];
         })->values();
 
-        return $this->success(['items' => $items]);
+        $businessTypes = $this->posBusinessTypesFor($request->user());
+
+        return $this->success([
+            'items' => $items,
+            'business_types' => $businessTypes,
+            'multi_business' => count($businessTypes) > 1,
+        ]);
+    }
+
+    /**
+     * Business-type tabs for the POS, limited to the branch and the user's assigned types.
+     *
+     * @return list<array{key: string, label: string, icon: string}>
+     */
+    private function posBusinessTypesFor($user): array
+    {
+        $business = $this->requireBusiness();
+        $branchId = (! $user->seesBusinessWideData() && $user->branch_id)
+            ? (int) $user->branch_id
+            : $this->tenantContext()->branchId();
+
+        $types = $branchId
+            ? $business->branchPosBusinessTypesMeta((int) $branchId)
+            : $business->posBusinessTypesMeta();
+
+        if (! $user->seesBusinessWideData() && ($keys = $user->assignedBusinessTypeKeys()) !== []) {
+            $types = array_filter($types, fn ($t) => in_array($t['key'], $keys, true));
+        }
+
+        return array_values($types);
     }
 
     /**

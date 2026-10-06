@@ -527,10 +527,7 @@
                     </div>
                     <div class="col-6 pl-1">
                         <label style="font-size: 11px; color: #6c757d; margin-bottom: 2px;">Phone</label>
-                        <div class="input-group input-group-sm">
-                            <div class="input-group-prepend"><span class="input-group-text">+255</span></div>
-                            <input type="text" id="posCustomerPhone" class="form-control" placeholder="712345678" maxlength="10">
-                        </div>
+                        @include('partials.phone-country-input', ['id' => 'posCustomerPhone', 'nameless' => true, 'size' => 'sm', 'placeholder' => '712345678'])
                         <input type="hidden" name="customer_phone" id="posCustomerPhoneHidden">
                     </div>
                 </div>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Exceptions\RegistrationClosedException;
 use App\Http\Controllers\Api\ApiController;
+use App\Models\Business;
 use App\Services\BusinessRegistrationService;
 use App\Services\RegistrationFunnelService;
 use Illuminate\Http\JsonResponse;
@@ -88,5 +89,32 @@ class BusinessRegistrationController extends ApiController
         } catch (ValidationException $e) {
             return $this->error('Validation failed.', 422, $e->errors());
         }
+    }
+
+    /**
+     * Public approval status for a just-registered business. The phone must
+     * match so ids cannot be probed. Rejected registrations are deleted.
+     */
+    public function status(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'business_id' => 'required|integer|min:1',
+            'phone' => 'required|string|max:32',
+        ]);
+
+        $business = Business::query()->find($data['business_id']);
+        if (! $business) {
+            return $this->success(['status' => 'rejected']);
+        }
+
+        $tail = fn (?string $p) => substr(preg_replace('/\D/', '', (string) $p), -9);
+        if ($tail($business->phone) === '' || $tail($business->phone) !== $tail($data['phone'])) {
+            return $this->error('Not found.', 404);
+        }
+
+        return $this->success([
+            'status' => $business->isPendingApproval() ? 'pending' : 'approved',
+            'business_name' => $business->name,
+        ]);
     }
 }

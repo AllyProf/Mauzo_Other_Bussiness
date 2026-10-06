@@ -16,7 +16,7 @@ class ShiftController extends Controller
 {
     public function index(Request $request, ShiftPolicyService $shiftPolicy)
     {
-        $this->authorizeAny(['open_shift', 'process_sales', 'view_all_shifts']);
+        $this->authorizeAny(['open_shift', 'process_sales', 'collect_payments', 'view_all_shifts']);
 
         $businessId = Auth::user()->business_id;
         $business = Auth::user()->business;
@@ -283,7 +283,7 @@ class ShiftController extends Controller
 
     public function create(ShiftPolicyService $shiftPolicy)
     {
-        $this->authorizeAny(['open_shift', 'process_sales']);
+        $this->authorizeAny(['open_shift', 'process_sales', 'collect_payments']);
 
         $businessId = Auth::user()->business_id;
         $business = Auth::user()->business;
@@ -297,6 +297,10 @@ class ShiftController extends Controller
         if (! $openCheck['allowed']) {
             return redirect()->route('shifts.index')
                 ->with('error', $openCheck['message']);
+        }
+
+        if (Auth::user()->isPaymentCashier()) {
+            return view('shifts.open-cashier', $this->staffShiftScopeLabels(Auth::user()));
         }
 
         $stockDisplay = app(ItemStockDisplayService::class);
@@ -322,7 +326,7 @@ class ShiftController extends Controller
 
     public function store(Request $request, ShiftPolicyService $shiftPolicy)
     {
-        $this->authorizeAny(['open_shift', 'process_sales']);
+        $this->authorizeAny(['open_shift', 'process_sales', 'collect_payments']);
 
         $businessId = Auth::user()->business_id;
         $business = Auth::user()->business;
@@ -335,6 +339,22 @@ class ShiftController extends Controller
         $openCheck = $shiftPolicy->canOpenShift($business);
         if (! $openCheck['allowed']) {
             return redirect()->back()->with('error', $openCheck['message'])->withInput();
+        }
+
+        if (Auth::user()->isPaymentCashier()) {
+            $request->validate(['opening_notes' => 'nullable|string|max:2000']);
+
+            Shift::create([
+                'business_id' => $businessId,
+                'user_id' => Auth::id(),
+                'opened_at' => now(),
+                'status' => 'open',
+                'opening_notes' => $request->opening_notes,
+                'opening_variance_count' => 0,
+            ]);
+
+            return redirect()->route('cashier.queue')
+                ->with('success', 'Cashier shift opened. You can now collect payments.');
         }
 
         $itemsQuery = Item::where('business_id', $businessId)
@@ -499,7 +519,7 @@ class ShiftController extends Controller
 
     private function authorizeShiftAccess(Shift $shift): void
     {
-        $this->authorizeAny(['open_shift', 'process_sales', 'view_all_shifts']);
+        $this->authorizeAny(['open_shift', 'process_sales', 'collect_payments', 'view_all_shifts']);
 
         if ($shift->business_id != Auth::user()->business_id) {
             abort(403);

@@ -1,7 +1,4 @@
 @foreach($staff as $member)
-  @php
-    $isStaffAccount = !in_array($member->role, ['owner', 'super_admin'], true);
-  @endphp
   <div class="emp-mobile-card {{ ! $member->isActiveAccount() ? 'is-inactive' : '' }}">
     <div class="emp-mobile-head">
       <div>
@@ -46,53 +43,8 @@
       </div>
     </div>
     @can('manage_staff')
-    <div class="emp-mobile-actions employee-actions">
-      <a href="{{ route('employees.edit', $member->id) }}" class="btn btn-sm btn-info" title="{{ __('tables.actions.edit') }}"><i class="fa fa-edit"></i> {{ __('tables.actions.edit') }}</a>
-
-      @if($isStaffAccount)
-        @if(Auth::user()->role === 'owner' && $member->isActiveAccount() && $member->id != Auth::id())
-        <form action="{{ route('employees.impersonate', $member->id) }}" method="POST">
-          @csrf
-          <button type="submit" class="btn btn-sm btn-primary" title="View as this staff member"
-            onclick="confirmAction(event, 'View as {{ $member->name }}?', 'You will see the system exactly as this employee sees it. Use Switch Back to Owner when done.')">
-            <i class="fa fa-user-secret"></i> View as
-          </button>
-        </form>
-        @endif
-
-        <form action="{{ route('employees.reset-password', $member->id) }}" method="POST">
-          @csrf
-          <button type="submit" class="btn btn-sm btn-warning" title="Reset / Generate Password"
-            onclick="confirmAction(event, 'Reset Password?', 'A new random password will be generated for {{ $member->name }}. Copy it when shown — it cannot be viewed again.')">
-            <i class="fa fa-key"></i> Reset
-          </button>
-        </form>
-
-        @if($member->id != Auth::id())
-          <form action="{{ route('employees.toggle-status', $member->id) }}" method="POST">
-            @csrf
-            @if($member->isActiveAccount())
-              <button type="submit" class="btn btn-sm btn-secondary" title="Deactivate Account"
-                onclick="confirmAction(event, 'Deactivate Account?', '{{ $member->name }} will not be able to log in until reactivated.')">
-                <i class="fa fa-ban"></i>
-              </button>
-            @else
-              <button type="submit" class="btn btn-sm btn-success" title="Activate Account"
-                onclick="confirmAction(event, 'Activate Account?', '{{ $member->name }} will be able to log in again.')">
-                <i class="fa fa-check"></i>
-              </button>
-            @endif
-          </form>
-
-          <form action="{{ route('employees.destroy', $member->id) }}" method="POST">
-            @csrf @method('DELETE')
-            <button type="submit" class="btn btn-sm btn-danger" title="Remove Employee"
-              onclick="confirmAction(event, 'Remove Employee?', 'This will permanently delete {{ $member->name }}.')">
-              <i class="fa fa-trash"></i>
-            </button>
-          </form>
-        @endif
-      @endif
+    <div class="emp-mobile-actions d-flex justify-content-end">
+      @include('staff.employees.partials.actions-menu', ['member' => $member])
     </div>
     @endcan
   </div>

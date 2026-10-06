@@ -419,10 +419,7 @@
           <div class="col-md-6">
             <div class="form-group">
               <label class="control-label">{{ strtoupper(__('auth.register_phone')) }}<span class="required-mark">*</span></label>
-              <div class="phone-input-group">
-                <span class="phone-prefix">+255</span>
-                <input class="form-control" type="tel" name="phone" id="phone" value="{{ $oldPhone }}" placeholder="712345678" inputmode="numeric" maxlength="12" required>
-              </div>
+              @include('partials.phone-country-input', ['id' => 'phone', 'required' => true, 'countryValue' => old('phone_country'), 'localValue' => $oldPhone ?? '', 'placeholder' => '712345678'])
               <small class="field-help">{{ __('auth.register_phone_help') }}</small>
               <div class="field-error" data-for="phone">{{ __('auth.register_error_phone') }}</div>
             </div>
@@ -708,8 +705,11 @@
       var phone = document.getElementById('phone');
       var btype = document.getElementById('business_type');
       if (!name.value.trim()) { fieldError('name', true); ok = false; }
-      var ph = phone.value.replace(/\D/g, '');
-      if (!/^[678]\d{8}$/.test(ph)) { fieldError('phone', true); ok = false; }
+      var ph = phone.value.replace(/\D/g, '').replace(/^0+/, '');
+      var phoneWrap = phone.closest('[data-phone-country]');
+      var phoneIso = phoneWrap ? phoneWrap.querySelector('.phone-country-value').value : 'tz';
+      var phoneOk = phoneIso === 'tz' ? /^[678]\d{8}$/.test(ph) : (ph.length >= 4 && ph.length <= 14);
+      if (!phoneOk) { fieldError('phone', true); ok = false; }
       if (!btype.value) { fieldError('business_type', true); ok = false; }
       if (btype.value === 'other') {
         var customBType = document.getElementById('custom_business_type');
@@ -911,7 +911,7 @@
   });
 
   document.getElementById('phone').addEventListener('input', function (e) {
-    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 9);
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 14);
   });
 
   goToStep(1);

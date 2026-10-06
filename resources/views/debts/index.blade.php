@@ -246,7 +246,8 @@
                   @endif
                 </td>
                 <td>{{ $sale->user->name }}</td>
-                <td>
+                <td class="text-nowrap">
+                  <div class="d-inline-flex align-items-center" style="gap: 4px;">
                   @php
                     $payItems = $sale->items->map(function ($si) {
                         return [
@@ -266,10 +267,13 @@
                     data-customer-name="{{ e($sale->customer_name ?? '') }}"
                     data-customer-phone="{{ e($sale->customer_phone ?? '') }}"
                     data-due-date="{{ $sale->due_date ? \Carbon\Carbon::parse($sale->due_date)->format('Y-m-d') : '' }}"
-                    data-items='@json($payItems)'>
-                    <i class="fa fa-money"></i> {{ __('tables.actions.collect') }}
+                    data-items='@json($payItems)'
+                    title="{{ __('tables.actions.collect') }}"
+                    aria-label="{{ __('tables.actions.collect') }}">
+                    <i class="fa fa-money"></i>
                   </button>
                   <a href="{{ route('sales.show', $sale->id) }}" class="btn btn-sm btn-primary" title="View Receipt"><i class="fa fa-eye"></i></a>
+                  </div>
                 </td>
               </tr>
             @endforeach
@@ -281,7 +285,12 @@
           </tbody>
         </table>
         </div>
-        {{ $debts->links() }}
+        @if($debts->hasPages())
+        <div class="d-flex flex-wrap justify-content-between align-items-center mt-3">
+          <small class="text-muted mb-2">Showing {{ $debts->firstItem() }}–{{ $debts->lastItem() }} of {{ $debts->total() }}</small>
+          {{ $debts->links('pagination::bootstrap-4') }}
+        </div>
+        @endif
       </div>
     </div>
   </div>

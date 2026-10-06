@@ -136,12 +136,17 @@
 
         {{-- Sales --}}
         @php ob_start(); @endphp
+        @can('collect_payments')
+        @if(Auth::user()->isPaymentCashier() || Auth::user()->seesBusinessWideData())
+        <li><a class="treeview-item {{ Request::is('cashier*') ? 'active' : '' }}" href="{{ route('cashier.queue') }}"><i class="icon fa fa-money"></i> Payment Queue</a></li>
+        @endif
+        @endcan
         @canany(['process_sales', 'view_sales_history'])
         @if(business_retail_enabled() || business_services_menu_visible())
         <li><a class="treeview-item {{ Request::is('sales') || Request::is('sales/*') ? 'active' : '' }}" href="{{ route('sales.index') }}" data-tour="menu-pos"><i class="icon fa fa-shopping-cart"></i> {{ __('menu.store_pos') }}</a></li>
         @endif
         @endcanany
-        @canany(['open_shift', 'process_sales', 'view_all_shifts'])
+        @canany(['open_shift', 'process_sales', 'collect_payments', 'view_all_shifts'])
         <li><a class="treeview-item {{ Request::is('shifts') || (Request::is('shifts/*') && !Request::is('shifts/stock-shortages*')) ? 'active' : '' }}" href="{{ route('shifts.index') }}" data-tour="menu-shifts"><i class="icon fa fa-clock-o"></i> {{ __('menu.sales_shifts') }}</a></li>
         @endcanany
         @canany(['view_live_sales', 'view_reports', 'view_sales_history', 'process_sales'])
