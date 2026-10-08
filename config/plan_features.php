@@ -47,7 +47,7 @@ return [
         'petty_cash' => ['petty-cash.*'],
         'sales_targets' => ['sales-targets.*'],
         'branches' => ['branches.*'],
-        'reports_daily' => ['reports.daily-sales', 'reports.daily-report', 'owner-reports.show', 'owner-reports.expenses.*'],
+        'reports_daily' => ['reports.daily-sales', 'reports.daily-report', 'reports.payment-channels', 'owner-reports.show', 'owner-reports.expenses.*'],
         'reports_expenses' => ['reports.expenses'],
         'reports_sales' => ['reports.sales-analytics'],
         'reports_products' => ['reports.products'],

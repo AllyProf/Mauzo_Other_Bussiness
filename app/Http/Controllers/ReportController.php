@@ -35,6 +35,45 @@ class ReportController extends Controller
         return redirect()->to($target);
     }
 
+    public function paymentChannels(Request $request)
+    {
+        $this->authorizeAny(['view_reports']);
+        $reportDate = $request->filled('report_date')
+            ? \Carbon\Carbon::parse($request->report_date)->toDateString()
+            : ($request->filled('end_date')
+                ? \Carbon\Carbon::parse($request->end_date)->toDateString()
+                : now()->toDateString());
+
+        $filter = $this->branchBusinessFilterContext($request);
+        $business = $filter['business'];
+        $activeBusinessType = $this->reports->resolveBusinessTypeFilter($request, $business, $filter['businessTypes']);
+        $snapshot = $this->reports->dailySnapshotReport($business, $reportDate, $activeBusinessType);
+        $sources = collect($snapshot['sources'] ?? [])
+            ->map(fn (array $row) => [
+                'method' => $row['method'],
+                'label' => $row['label'],
+                'day_amount' => (float) ($row['day_amount'] ?? 0),
+                'count' => (int) ($row['day_orders'] ?? 0),
+            ])
+            ->sortByDesc('day_amount')
+            ->values()
+            ->all();
+
+        return view('reports.payment-channels', [
+            'title' => 'Payment channels',
+            'sources' => $sources,
+            'reportDate' => $reportDate,
+            'business' => $business,
+            'businessTypes' => $filter['businessTypes'],
+            'multiBusiness' => $filter['multiBusiness'],
+            'activeBusinessType' => $activeBusinessType,
+            'dateRange' => [
+                'from' => $reportDate,
+                'to' => $reportDate,
+            ],
+        ] + $filter);
+    }
+
     public function dailyReport(Request $request)
     {
         $this->authorizeAny(['view_reports']);

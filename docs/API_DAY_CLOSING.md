@@ -405,6 +405,7 @@ Creates a `verified` closing and syncs Master Sheet as draft. Does **not** auto-
 
 ## Related
 
+- Settle verified money shorts (repay / salary deduction): [`API_MONEY_SHORTS.md`](API_MONEY_SHORTS.md)  
 - Shifts: open/close before handover — `API_MOBILE.md` Shifts  
 - Sales / debts feed the preview totals  
 - Overview: [`API_MOBILE.md`](API_MOBILE.md)

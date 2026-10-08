@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\EmployeeController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\ItemController;
 use App\Http\Controllers\Api\V1\LiveSalesController;
+use App\Http\Controllers\Api\V1\MoneyShortController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OwnerReportController;
 use App\Http\Controllers\Api\V1\PackagingController;
@@ -216,6 +217,7 @@ Route::prefix('v1')->group(function () {
         // Business reports (same as web /reports/*)
         Route::get('/reports', [ReportController::class, 'index']);
         Route::get('/reports/daily-report', [ReportController::class, 'dailyReport']);
+        Route::get('/reports/payment-channels', [ReportController::class, 'paymentChannels']);
         Route::get('/reports/circulation-profit', [ReportController::class, 'circulationProfit']);
         Route::get('/reports/daily-sales', [ReportController::class, 'dailySales']);
         Route::get('/reports/expenses', [ReportController::class, 'expenses']);
@@ -253,6 +255,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/employees/{employee}/reset-password', [EmployeeController::class, 'resetPassword']);
         Route::post('/employees/{employee}/toggle-status', [EmployeeController::class, 'toggleStatus']);
         Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy']);
+
+        // Money Shorts (web /money-shorts)
+        Route::get('/money-shorts', [MoneyShortController::class, 'index']);
+        Route::post('/money-shorts/{dayClosing}/pay', [MoneyShortController::class, 'recordPayment']);
+        Route::post('/money-shorts/{dayClosing}/salary-deduction', [MoneyShortController::class, 'recordSalaryDeduction']);
+        Route::delete('/money-shorts/settlements/{settlement}', [MoneyShortController::class, 'undoSettlement']);
 
         // Petty Cash
         Route::get('/petty-cash', [PettyCashController::class, 'index']);

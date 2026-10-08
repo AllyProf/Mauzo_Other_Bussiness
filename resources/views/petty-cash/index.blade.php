@@ -82,7 +82,7 @@
 <div class="app-title">
   <div>
     <h1><i class="fa fa-money"></i> Petty Cash</h1>
-    <p>Issue cash for restock, payments, or salaries — choose profit or circulation, and see available balances before you issue.</p>
+    <p>Issue cash from circulation or profit and review history.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
@@ -116,11 +116,6 @@
       @endforeach
     </div>
   </div>
-  @if($activeBusinessType ?? false)
-    <p class="small text-muted mb-0">Balances and history show <strong>{{ $balances['business_type_label'] ?? $activeBusinessType }}</strong> only — from today&apos;s sales for this department.</p>
-  @else
-    <p class="small text-muted mb-0">Select a department tab to see today&apos;s available balances for that store or service. Amounts come from sales on the selected date.</p>
-  @endif
 </div>
 @endif
 
@@ -171,28 +166,15 @@
           <div class="form-group">
             <label class="control-label font-weight-bold">Issue Date</label>
             <input type="date" name="expense_date" id="expense_date" class="form-control" value="{{ old('expense_date', $selectedDate) }}" required>
-            <small class="form-text text-muted">Balances below update automatically when you change the date.</small>
           </div>
 
-          <div class="balance-preview mb-3 {{ $balances['is_finalized'] ? 'is-finalized' : '' }}" id="balancePreview">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-              <strong><i class="fa fa-info-circle"></i> Balances on <span id="preview-date-label">{{ \Carbon\Carbon::parse($selectedDate)->format('d M, Y') }}</span></strong>
-              <span class="badge badge-{{ $balances['is_finalized'] ? 'warning' : 'success' }}" id="preview-status-badge">
-                {{ $balances['is_finalized'] ? 'Finalized' : 'Open' }}
-              </span>
-            </div>
-            <div class="row small">
-              <div class="col-6">
-                <span class="text-muted d-block">Circulation</span>
-                <span class="font-weight-bold text-primary" id="preview-circulation">TZS {{ number_format($balances['available_circulation'], 0) }}</span>
-              </div>
-              <div class="col-6">
-                <span class="text-muted d-block">Profit</span>
-                <span class="font-weight-bold text-success" id="preview-profit">TZS {{ number_format($balances['available_profit'], 0) }}</span>
-              </div>
-            </div>
-            <div class="alert alert-warning py-2 px-2 mt-2 mb-0 small {{ $balances['is_finalized'] ? '' : 'd-none' }}" id="finalizedNotice">
-              <i class="fa fa-lock"></i> This date is finalized on the Master Sheet — petty cash cannot be added to a closed day.
+          <div class="balance-preview mb-3 {{ $balances['is_finalized'] ? 'is-finalized' : 'd-none' }}" id="balancePreview">
+            <span id="preview-date-label" class="d-none">{{ \Carbon\Carbon::parse($selectedDate)->format('d M, Y') }}</span>
+            <span id="preview-status-badge" class="d-none">{{ $balances['is_finalized'] ? 'Finalized' : 'Open' }}</span>
+            <span id="preview-circulation" class="d-none">TZS {{ number_format($balances['available_circulation'], 0) }}</span>
+            <span id="preview-profit" class="d-none">TZS {{ number_format($balances['available_profit'], 0) }}</span>
+            <div class="alert alert-warning py-2 px-2 mb-0 small {{ $balances['is_finalized'] ? '' : 'd-none' }}" id="finalizedNotice">
+              <i class="fa fa-lock"></i> This day is finalized — you cannot issue petty cash until you pick an open date.
               @if($nextOpenDate ?? false)
                 <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="useNextOpenDayBtn" data-next-date="{{ $nextOpenDate }}">
                   Use {{ \Carbon\Carbon::parse($nextOpenDate)->format('d M, Y') }}
@@ -215,17 +197,13 @@
                   </option>
                 @endforeach
               </select>
-              <small class="form-text text-muted">Issue is deducted from this store or service department&apos;s circulation or profit.</small>
-              @if(empty($activeBusinessType))
-                <small class="form-text text-warning">Choose the department tab above or pick one here — e.g. Print &amp; Copy Centre for service petty cash.</small>
-              @endif
             </div>
             @endif
 
             <div class="form-group">
               <label class="control-label font-weight-bold">Amount (TZS)</label>
               <input type="number" name="amount" id="issue_amount" class="form-control" min="0.01" step="0.01" max="{{ $initialFundSource === 'profit' ? $balances['available_profit'] : $balances['available_circulation'] }}" value="{{ old('amount') }}" required>
-              <small class="form-text text-muted">Maximum for selected source: <strong id="amount-max-label">TZS {{ number_format($initialFundSource === 'profit' ? $balances['available_profit'] : $balances['available_circulation'], 0) }}</strong></small>
+              <small class="form-text text-muted">Max: <strong id="amount-max-label">TZS {{ number_format($initialFundSource === 'profit' ? $balances['available_profit'] : $balances['available_circulation'], 0) }}</strong></small>
               <div class="invalid-feedback d-block d-none" id="amount-error">Amount exceeds available balance for the selected source.</div>
               <small class="form-text text-info d-none" id="fund-source-hint"></small>
             </div>
@@ -249,12 +227,11 @@
                   </option>
                 @endforeach
               </select>
-              <small class="form-text text-muted">Useful when issuing salary, float, or staff-specific payments.</small>
             </div>
 
             <div class="form-group">
               <label class="control-label font-weight-bold">Description</label>
-              <textarea name="description" class="form-control" rows="4" maxlength="1000" placeholder="Describe what this petty cash is for — supplier, items, reason for payment, etc." required>{{ old('description') }}</textarea>
+              <textarea name="description" class="form-control" rows="3" maxlength="1000" placeholder="Reason for this payment" required>{{ old('description') }}</textarea>
             </div>
 
             <div class="form-group mb-3">
@@ -265,9 +242,8 @@
                 <div class="custom-control custom-radio">
                   <input type="radio" id="fund_circulation" class="custom-control-input fund-source-radio" value="circulation" {{ $initialFundSource === 'circulation' ? 'checked' : '' }}>
                   <label class="custom-control-label w-100" for="fund_circulation">
-                    <strong>Money in Circulation</strong>
-                    <div class="d-flex justify-content-between align-items-center mt-1">
-                      <small class="text-muted">Working capital for restock &amp; operations</small>
+                    <div class="d-flex justify-content-between align-items-center">
+                      <strong>Money in Circulation</strong>
                       <span class="available-amount text-primary" id="fund-circulation-amount">TZS {{ number_format($balances['available_circulation'], 0) }}</span>
                     </div>
                   </label>
@@ -278,9 +254,8 @@
                 <div class="custom-control custom-radio">
                   <input type="radio" id="fund_profit" class="custom-control-input fund-source-radio" value="profit" {{ $initialFundSource === 'profit' ? 'checked' : '' }}>
                   <label class="custom-control-label w-100" for="fund_profit">
-                    <strong>Profit</strong>
-                    <div class="d-flex justify-content-between align-items-center mt-1">
-                      <small class="text-muted">Deduct from profit rollover</small>
+                    <div class="d-flex justify-content-between align-items-center">
+                      <strong>Profit</strong>
                       <span class="available-amount text-success" id="fund-profit-amount">TZS {{ number_format($balances['available_profit'], 0) }}</span>
                     </div>
                   </label>
@@ -533,8 +508,8 @@ jQuery(function($) {
 
     const $preview = $('#balancePreview');
     if (data.is_finalized) {
-      $preview.addClass('is-finalized');
-      $('#preview-status-badge').removeClass('badge-success').addClass('badge-warning').text('Finalized');
+      $preview.removeClass('d-none').addClass('is-finalized');
+      $('#preview-status-badge').text('Finalized');
       $('#finalizedNotice').removeClass('d-none');
       $('#issueFormFields').addClass('issue-form-disabled');
       $('#issueSubmitBtn').prop('disabled', true);
@@ -547,8 +522,8 @@ jQuery(function($) {
         $('#useNextOpenDayBtn').addClass('d-none');
       }
     } else {
-      $preview.removeClass('is-finalized');
-      $('#preview-status-badge').removeClass('badge-warning').addClass('badge-success').text('Open');
+      $preview.addClass('d-none').removeClass('is-finalized');
+      $('#preview-status-badge').text('Open');
       $('#finalizedNotice').addClass('d-none');
       $('#issueFormFields').removeClass('issue-form-disabled');
       $('#issueSubmitBtn').prop('disabled', false);

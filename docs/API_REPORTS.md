@@ -73,6 +73,7 @@ GET /api/v1/reports
   "data": {
     "reports": [
       { "key": "daily-report", "label": "Daily Report", "path": "/reports/daily-report" },
+      { "key": "payment-channels", "label": "Payment channels", "path": "/reports/payment-channels" },
       { "key": "circulation-profit", "label": "Circulation vs Profit", "path": "/reports/circulation-profit" },
       { "key": "daily-sales", "label": "Daily Sales", "path": "/reports/daily-sales" },
       { "key": "expenses", "label": "Expense Report", "path": "/reports/expenses" },
@@ -89,6 +90,40 @@ GET /api/v1/reports
       "max_days": 62
     },
     "filters": { "branch_id": 10, "business_types": [], "multi_business": false }
+  }
+}
+```
+
+---
+
+## Payment channels (single day)
+
+```
+GET /api/v1/reports/payment-channels?report_date=2026-10-08
+```
+
+Web: `/reports/payment-channels`
+
+Day-only breakdown of collections by payment method. Same filters as the daily report payment section (`report_date`, optional `business_type`, optional `branch_id` for owners). If this endpoint is unavailable, mobile clients may fall back to `GET /api/v1/reports/daily-report` and read `data.data.sources` for the same day (`day_amount`, `day_orders` as transaction count).
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `report_date` | `YYYY-MM-DD` | today | Day to report on (future dates fall back to today). `date` / `end_date` are also accepted. |
+| `business_type` | string | all | Department key from `filters.business_types` |
+| `branch_id` | int | tenant branch | Owner only |
+
+```json
+{
+  "success": true,
+  "message": "OK",
+  "data": {
+    "report": "payment-channels",
+    "title": "Payment channels",
+    "report_date": "2026-10-08",
+    "sources": [
+      { "method": "cash", "label": "Cash", "day_amount": 150000, "count": 12 },
+      { "method": "mpesa", "label": "M-Pesa", "day_amount": 80000, "count": 5 }
+    ]
   }
 }
 ```

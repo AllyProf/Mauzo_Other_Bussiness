@@ -25,6 +25,7 @@ class BusinessReportApiService
     {
         return [
             ['key' => 'daily-report', 'label' => 'Daily Report', 'path' => '/reports/daily-report'],
+            ['key' => 'payment-channels', 'label' => 'Payment channels', 'path' => '/reports/payment-channels'],
             ['key' => 'circulation-profit', 'label' => 'Circulation vs Profit', 'path' => '/reports/circulation-profit'],
             ['key' => 'daily-sales', 'label' => 'Daily Sales', 'path' => '/reports/daily-sales'],
             ['key' => 'expenses', 'label' => 'Expense Report', 'path' => '/reports/expenses'],
@@ -130,6 +131,45 @@ class BusinessReportApiService
                         : null,
                 ],
                 'data' => $data,
+            ];
+        });
+    }
+
+    /**
+     * Payment totals by method for a single day (mobile-friendly subset of daily report sources).
+     *
+     * @return array<string, mixed>
+     */
+    public function paymentChannelsReport(User $user, Business $business, ?int $branchFilterId, Request $request): array
+    {
+        return $this->withWebContext($user, (int) $business->id, $branchFilterId, function () use ($user, $business, $branchFilterId, $request) {
+            $input = $request->input('report_date') ?: $request->input('date') ?: $request->input('end_date');
+            $reportDate = $input ? \Carbon\Carbon::parse($input) : now();
+            if ($reportDate->isFuture()) {
+                $reportDate = now();
+            }
+            $reportDate = $reportDate->toDateString();
+
+            $filter = $this->filterMeta($user, $business, $branchFilterId, $request);
+            $businessTypeKey = $this->reports->resolveBusinessTypeFilter($request, $business, $filter['business_types']);
+            $snapshot = $this->reports->dailySnapshotReport($business, $reportDate, $businessTypeKey);
+
+            $sources = collect($snapshot['sources'] ?? [])
+                ->map(fn (array $row) => [
+                    'method' => (string) ($row['method'] ?? ''),
+                    'label' => (string) ($row['label'] ?? ''),
+                    'day_amount' => (float) ($row['day_amount'] ?? 0),
+                    'count' => (int) ($row['day_orders'] ?? 0),
+                ])
+                ->sortByDesc('day_amount')
+                ->values()
+                ->all();
+
+            return [
+                'report' => 'payment-channels',
+                'title' => 'Payment channels',
+                'report_date' => $snapshot['report_date'] ?? $reportDate,
+                'sources' => $sources,
             ];
         });
     }

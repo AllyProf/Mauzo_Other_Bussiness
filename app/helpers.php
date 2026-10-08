@@ -156,6 +156,12 @@ if (! function_exists('business_report_menu_options')) {
                 'label' => __('menu.daily_report'),
             ],
             [
+                'key' => 'payment-channels',
+                'feature' => 'reports_daily',
+                'route' => 'reports.payment-channels',
+                'label' => 'Payment channels',
+            ],
+            [
                 'key' => 'circulation-profit',
                 'feature' => 'reports_circulation',
                 'route' => 'reports.circulation-profit',

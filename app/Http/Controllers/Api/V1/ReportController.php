@@ -28,6 +28,35 @@ class ReportController extends ApiController
         );
     }
 
+    public function paymentChannels(Request $request): JsonResponse
+    {
+        if ($deny = $this->authorizeApiAny(['view_reports'])) {
+            return $deny;
+        }
+
+        $request->validate([
+            'report_date' => ['nullable', 'date'],
+            'date' => ['nullable', 'date'],
+            'business_type' => ['nullable', 'string'],
+            'branch_id' => ['nullable', 'integer'],
+        ]);
+
+        $user = $request->user();
+        $business = $this->apiBusiness();
+
+        if (! $business) {
+            return $this->error('No active business.', 422);
+        }
+
+        $branchFilterId = $this->reports->branchFilterId($user, $this->tenantContext(), $request);
+
+        try {
+            return $this->success($this->reports->paymentChannelsReport($user, $business, $branchFilterId, $request));
+        } catch (\Throwable $e) {
+            return $this->error('Failed to load report: '.$e->getMessage(), 500);
+        }
+    }
+
     public function dailyReport(Request $request): JsonResponse
     {
         if ($deny = $this->authorizeApiAny(['view_reports'])) {

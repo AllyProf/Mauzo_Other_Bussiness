@@ -609,6 +609,18 @@ Personal notes for the logged-in user (each user sees **only their own** notes Ã
 
 ---
 
+# Money Shorts (same as web /money-shorts)
+
+`GET /money-shorts?status=outstanding&business_type=liquor&search=sindato`
+
+**Permission:** `manage_money_shorts`, `verify_day_closing`, or `view_reports`.
+
+Actions: `POST /money-shorts/{dayClosing}/pay`, `POST /money-shorts/{dayClosing}/salary-deduction`, `DELETE /money-shorts/settlements/{settlement}`.
+
+Full request/response shapes: [`API_MONEY_SHORTS.md`](API_MONEY_SHORTS.md).
+
+---
+
 # Closing History (same as web /day-closing/history)
 `GET /day-closing/history?status=verified&date_from=2026-09-01&date_to=2026-09-30&business_type=liquor&per_page=20`
 

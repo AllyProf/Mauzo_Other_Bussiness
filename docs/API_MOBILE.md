@@ -953,6 +953,23 @@ Same as web `/roles`, `/roles/create`, `/employees`, and `/employees/create`.
 
 ---
 
+## Money Shorts
+
+Track verified handover shortages; record repayments or salary deductions (web `/money-shorts`).
+
+**Full docs:** [`API_MONEY_SHORTS.md`](API_MONEY_SHORTS.md)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/money-shorts` | Stats, open shorts, settlement history, payment methods |
+| POST | `/money-shorts/{dayClosing}/pay` | Cash repayment (Master Sheet) |
+| POST | `/money-shorts/{dayClosing}/salary-deduction` | Clear via salary deduction |
+| DELETE | `/money-shorts/settlements/{id}` | Undo a settlement |
+
+**Permission:** `manage_money_shorts`, `verify_day_closing`, or `view_reports`
+
+---
+
 ## Petty Cash
 
 Issue cash from circulation or profit for restock, payments, salaries, or operations.

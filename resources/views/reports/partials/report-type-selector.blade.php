@@ -2,10 +2,10 @@
   $reportMenuOptions = $reportMenuOptions ?? business_report_menu_options();
   $activeReportUrl = collect($reportMenuOptions)->firstWhere('active')['url']
     ?? ($reportMenuOptions[0]['url'] ?? url()->current());
-  $isDailyReport = request()->routeIs('reports.daily-report');
+  $isSingleDayReport = request()->routeIs('reports.daily-report', 'reports.payment-channels');
   $hubFrom = $dateRange['from'] ?? request('start_date', now()->toDateString());
   $hubTo = $dateRange['to'] ?? request('end_date', now()->toDateString());
-  if ($isDailyReport) {
+  if ($isSingleDayReport) {
     $hubTo = $reportDate ?? request('report_date', $hubTo);
     $hubFrom = $hubTo;
   }
@@ -93,7 +93,8 @@
 
   function syncDailyMode() {
     var opt = selector.options[selector.selectedIndex];
-    var isDaily = opt && opt.getAttribute('data-key') === 'daily-report';
+    var key = opt && opt.getAttribute('data-key');
+    var isDaily = key === 'daily-report' || key === 'payment-channels';
     if (fromWrap) fromWrap.style.display = isDaily ? 'none' : '';
     if (startInput) startInput.disabled = !!isDaily;
     if (endInput) {
