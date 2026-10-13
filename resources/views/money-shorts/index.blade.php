@@ -7,15 +7,6 @@
   .money-short-row { transition: background 0.15s ease; }
   .money-short-row:hover { background-color: rgba(148, 0, 0, 0.04) !important; }
   .status-pill { border-radius: 50px; padding: 4px 10px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
-  .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; }
-  .business-type-tab {
-    cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
-    font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
-    transition: all .15s ease; line-height: 1.5; text-decoration: none !important;
-  }
-  .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
-  .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
-  .business-type-tab i { margin-right: 5px; }
 </style>
 @endsection
 
@@ -62,8 +53,6 @@
       Showing money shorts allocated to <strong>{{ $activeBusinessLabel ?? $activeBusinessType }}</strong>
       based on that department&apos;s share of the handover sales.
     </p>
-  @else
-    <p class="small text-muted mb-0">Select a business tab to see shorts tied to that department only.</p>
   @endif
 </div>
 @endif

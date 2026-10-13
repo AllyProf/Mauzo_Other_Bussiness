@@ -185,7 +185,7 @@
         const amount = Math.max(0, Math.round(parseFloat(presetAmount) || 0));
         return `
             <div class="split-payment-line" data-split-index="${index}">
-                <h6><i class="fa fa-plus-circle"></i> Payment ${index + 2}</h6>
+                <div class="split-line-title">Payment ${index + 2}</div>
                 <div class="form-group mb-2">
                     <label class="small font-weight-bold required">Payment Option</label>
                     <select name="split_payments[${index}][payment_method]" class="form-control form-control-sm split-line-method" required>
@@ -255,7 +255,6 @@
         const onInvoice = hasInvoiceCustomer();
 
         $('#customerInfoFields, #partialPaymentAlert, #debtPaymentAlert, #repayDateSection').hide();
-        $('#customerInfoPlaceholder').hide();
         currentPaymentMode = '';
 
         renderInvoiceCustomerSummary();
@@ -271,8 +270,6 @@
         } else if (method && isPartialAmount) {
             $('#customerInfoFields, #partialPaymentAlert, #repayDateSection').show();
             currentPaymentMode = 'partial';
-        } else if (!onInvoice && method && !isPartialAmount && methodType !== 'credit') {
-            $('#customerInfoPlaceholder').show();
         }
 
         setCustomerFieldRequirements(currentPaymentMode);
@@ -425,8 +422,8 @@
         $('#remainingAfterPay').val(formatMoneyLabel(remaining));
 
         if (isSplitPaymentActive()) {
-            $('#splitPaymentSummary').show().html(
-                `<strong>Paying now:</strong> ${formatMoneyLabel(applied)} of ${formatMoneyLabel(currentBalance)}`
+            $('#splitPaymentSummary').show().text(
+                `${formatMoneyLabel(applied)} of ${formatMoneyLabel(currentBalance)} today`
             );
         } else {
             $('#splitPaymentSummary').hide().text('');
@@ -485,7 +482,7 @@
             });
             $('#linkedOrdersNote')
                 .show()
-                .html('<i class="fa fa-link"></i> One payment covers <strong>' + refs.length + ' separate orders</strong> in history: ' + refs.join(' + '));
+                .text('Linked orders: ' + refs.join(' + '));
         } else {
             $('#linkedOrdersNote').hide().empty();
         }

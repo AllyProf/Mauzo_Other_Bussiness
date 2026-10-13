@@ -32,15 +32,6 @@
     font-family: 'Courier New', Courier, monospace;
     font-weight: 700;
   }
-  .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; }
-  .business-type-tab {
-    cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
-    font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
-    transition: all .15s ease; line-height: 1.5; text-decoration: none !important;
-  }
-  .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
-  .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
-  .business-type-tab i { margin-right: 5px; }
   .issue-form-disabled { opacity: 0.65; pointer-events: none; }
   .btn.is-loading { pointer-events: none; }
   .petty-cash-page .widget-small { min-height: 90px; border-radius: 8px !important; margin-bottom: 15px; }

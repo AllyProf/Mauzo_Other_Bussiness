@@ -11,36 +11,35 @@
           </button>
         </div>
         <div class="modal-body">
-            <div class="alert alert-info mb-3">
+            <div class="alert alert-info mb-3 py-2">
                 <div class="row">
-                    <div class="col-sm-6 col-6"><strong>Order Ref:</strong> <span id="payRef"></span></div>
-                    <div class="col-sm-6 col-6 text-sm-right text-right"><strong>Order Total:</strong> <span id="payOrderTotal"></span></div>
-                    <div class="col-sm-6 col-6 mt-2"><strong>Already Paid:</strong> <span id="payAmountPaid"></span></div>
-                    <div class="col-sm-6 col-6 mt-2 text-sm-right text-right"><strong class="text-danger">Balance Due:</strong> <span id="payBalance"></span></div>
+                    <div class="col-sm-6 col-6"><strong>Ref:</strong> <span id="payRef"></span></div>
+                    <div class="col-sm-6 col-6 text-sm-right text-right"><strong>Total:</strong> <span id="payOrderTotal"></span></div>
+                    <div class="col-sm-6 col-6 mt-2"><strong>Paid:</strong> <span id="payAmountPaid"></span></div>
+                    <div class="col-sm-6 col-6 mt-2 text-sm-right text-right"><strong class="text-danger">Due:</strong> <span id="payBalance"></span></div>
                 </div>
-                <p class="mb-0 mt-2 small" id="linkedOrdersNote" style="display:none;"></p>
+                <p class="mb-0 mt-2 small text-muted" id="linkedOrdersNote" style="display:none;"></p>
             </div>
             <div id="linkedSaleInputs"></div>
 
-            <h6 class="text-muted text-uppercase mb-2"><i class="fa fa-list"></i> Order Items</h6>
-            <p class="small text-muted mb-2">Adjust prices, apply discounts, or remove unwanted items before collecting payment.</p>
+            <h6 class="text-muted text-uppercase mb-2"><i class="fa fa-list"></i> Items</h6>
             <div class="table-responsive mb-3">
-                <table class="table table-sm table-bordered mb-0" id="payItemsTable">
+                <table class="table table-sm table-hover table-bordered mb-0" id="payItemsTable">
                     <thead class="thead-light">
                         <tr>
                             <th>Product</th>
                             <th class="text-center" style="width:60px;">Qty</th>
                             <th class="text-right" style="width:110px;">List Price</th>
-                            <th style="width:120px;">Adjust By</th>
+                            <th style="width:120px;">Adjust</th>
                             <th style="width:200px;">Value</th>
                             <th class="text-right" style="width:110px;">Line Total</th>
-                            <th class="text-center" style="width:40px;"><i class="fa fa-trash" title="Remove Item"></i></th>
+                            <th class="text-center" style="width:40px;"><i class="fa fa-trash"></i></th>
                         </tr>
                     </thead>
                     <tbody id="payItemsBody"></tbody>
                     <tfoot>
                         <tr>
-                            <th colspan="5" class="text-right">Revised Order Total</th>
+                            <th colspan="5" class="text-right">Revised Total</th>
                             <th class="text-right text-success" id="payRevisedTotal">TZS 0</th>
                             <th></th>
                         </tr>
@@ -50,9 +49,8 @@
             <div id="payLineItemsHidden"></div>
 
             <div class="row">
-              {{-- Left: Payment --}}
               <div class="col-md-6 pr-md-3 payment-modal-column">
-                <h6 class="text-muted text-uppercase mb-3"><i class="fa fa-credit-card"></i> Payment Details</h6>
+                <h6 class="text-muted text-uppercase mb-3"><i class="fa fa-credit-card"></i> Payment</h6>
 
                 <div class="form-group">
                     <label class="control-label font-weight-bold">Payment Option</label>
@@ -67,77 +65,64 @@
                         </option>
                         @endforeach
                     </select>
-                    <small class="text-muted">Choose how the customer pays today.</small>
                 </div>
 
-                <div id="payReceiveDetailsBox" class="alert alert-info py-2 small" style="display:none;">
-                  <strong>Pay to:</strong> <span id="payReceiveDetailsText"></span>
+                <div id="payReceiveDetailsBox" class="alert alert-info py-2 small mb-3" style="display:none;">
+                  <span id="payReceiveDetailsText"></span>
                 </div>
 
                 <div id="paymentAmountSection" style="display: none;">
                     <div class="form-group">
-                        <label class="control-label required">Amount Paying Now</label>
+                        <label class="control-label font-weight-bold">Amount Paying Now</label>
                         <input type="number" name="amount_paid" id="amountPaid" class="form-control" min="1" step="1">
-                        <small class="text-muted">Full balance, partial amount, or the first part of a split payment (whole TZS).</small>
                     </div>
-                    <div id="splitPaymentPrompt" class="alert alert-light border py-2 mb-2" style="display: none;">
+                    <div id="splitPaymentPrompt" class="mb-2" style="display: none;">
                         <div class="custom-control custom-checkbox mb-0">
                             <input type="checkbox" class="custom-control-input" id="splitPaymentEnabled">
-                            <label class="custom-control-label" for="splitPaymentEnabled">
-                                <strong>Pay the rest with another method now</strong>
-                                <br><small class="text-muted">Split today’s payment (e.g. 1,000 M-Pesa + 1,000 cash) without putting the customer on credit.</small>
-                            </label>
+                            <label class="custom-control-label" for="splitPaymentEnabled">Split with another method</label>
                         </div>
                     </div>
                     <div id="splitPaymentLines" style="display: none;"></div>
                     <div class="form-group mb-2">
-                        <label class="control-label">Balance After Payment(s)</label>
+                        <label class="control-label font-weight-bold">Balance After Payment</label>
                         <input type="text" id="remainingAfterPay" class="form-control bg-light text-danger font-weight-bold" readonly>
                     </div>
-                    <div id="splitPaymentSummary" class="small text-muted mb-2" style="display: none;"></div>
+                    <p id="splitPaymentSummary" class="small text-muted mb-2" style="display: none;"></p>
                 </div>
 
                 <div id="providerFields" style="display: none;">
                     <div class="form-group">
-                        <label class="control-label required">Provider / Platform</label>
+                        <label class="control-label font-weight-bold">Provider / Platform</label>
                         <select id="paymentProvider" class="form-control">
                             <option value="">-- Select Provider --</option>
                         </select>
                         <input type="hidden" name="payment_provider" id="paymentProviderValue">
-                        <input type="text" id="paymentProviderCustom" class="form-control mt-2" placeholder="Or type a custom provider (e.g. Mixx by Yas)">
-                        <small class="text-muted">Pick from the list <strong>or</strong> type a custom name below — you do not need both.</small>
+                        <input type="text" id="paymentProviderCustom" class="form-control mt-2" placeholder="Custom provider">
                     </div>
                     <div class="form-group mb-0">
-                        <label class="control-label required">Transaction Reference No.</label>
-                        <input type="text" name="transaction_reference" id="transactionReference" class="form-control" placeholder="e.g. 7XG12AB9Z">
+                        <label class="control-label font-weight-bold">Transaction Reference</label>
+                        <input type="text" name="transaction_reference" id="transactionReference" class="form-control" placeholder="Reference no.">
                     </div>
                 </div>
               </div>
 
-              {{-- Right: Customer --}}
               <div class="col-md-6 pl-md-3 payment-modal-column border-left" id="customerColumn">
-                <h6 class="text-muted text-uppercase mb-3"><i class="fa fa-user"></i> Customer Details</h6>
+                <h6 class="text-muted text-uppercase mb-3"><i class="fa fa-user"></i> Customer</h6>
 
-                <div id="customerOnRecord" class="alert alert-light border mb-3" style="display: none;">
-                  <div class="small text-muted text-uppercase mb-1">Customer on this invoice</div>
-                  <div class="font-weight-bold" id="payCustomerDisplayName">—</div>
-                  <div class="text-muted" id="payCustomerDisplayPhone"></div>
-                </div>
-
-                <div id="customerInfoPlaceholder" class="text-center text-muted py-5">
-                    <i class="fa fa-check-circle fa-2x mb-2 text-success"></i>
-                    <p class="mb-0 small">Customer details are not required for full payment.</p>
+                <div id="customerOnRecord" class="alert alert-light border mb-3 py-2" style="display: none;">
+                  <div class="font-weight-bold mb-0" id="payCustomerDisplayName">—</div>
+                  <div class="text-muted small" id="payCustomerDisplayPhone"></div>
                 </div>
 
                 <div id="customerInfoFields" style="display: none;">
-                    <div id="partialPaymentAlert" class="alert alert-warning py-2" style="display: none;">
-                        <small><i class="fa fa-info-circle"></i> Remaining balance will be on credit — enter customer details and when they will pay the rest.</small>
+                    <div id="partialPaymentAlert" class="alert alert-warning py-2 mb-3" style="display: none;">
+                        <small class="mb-0">Partial payment — customer and due date required.</small>
                     </div>
-                    <div id="debtPaymentAlert" class="alert alert-warning py-2" style="display: none;">
-                        <small><i class="fa fa-info-circle"></i> No payment now — record customer details and when they will repay.</small>
+                    <div id="debtPaymentAlert" class="alert alert-warning py-2 mb-3" style="display: none;">
+                        <small class="mb-0">On credit — customer and due date required.</small>
                     </div>
                     <div class="form-group">
-                        <label class="control-label">Select Customer</label>
+                        <label class="control-label font-weight-bold">Select Customer</label>
                         <select name="customer_id" id="payCustomerSelect" class="form-control">
                             <option value="">Walk-in / Manual entry</option>
                             @foreach($customers ?? [] as $customer)
@@ -149,23 +134,21 @@
                         @endif
                     </div>
                     <div class="form-group">
-                        <label class="control-label">Customer Name</label>
-                        <input type="text" name="customer_name" id="payCustomerName" class="form-control" placeholder="Customer full name">
+                        <label class="control-label font-weight-bold">Customer Name</label>
+                        <input type="text" name="customer_name" id="payCustomerName" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label class="control-label">Customer Phone</label>
+                        <label class="control-label font-weight-bold">Customer Phone</label>
                         @include('partials.phone-country-input', ['id' => 'payCustomerPhoneLocal', 'nameless' => true, 'placeholder' => '712345678'])
                         <input type="hidden" name="customer_phone" id="payCustomerPhone">
-                        <small class="text-muted">Pick the country, then type the number without the leading 0.</small>
                     </div>
                     <div class="form-group" id="repayDateSection" style="display: none;">
-                        <label class="control-label required">Repayment Due Date</label>
+                        <label class="control-label font-weight-bold">Repayment Due Date</label>
                         <input type="date" name="due_date" id="payDueDate" class="form-control" min="{{ date('Y-m-d') }}">
-                        <small class="text-muted">When the customer will pay the remaining balance.</small>
                     </div>
                     <div class="form-group mb-0">
-                        <label class="control-label">Note</label>
-                        <textarea name="notes" id="payNotes" class="form-control" rows="3" placeholder="e.g. Will pay balance on Friday"></textarea>
+                        <label class="control-label font-weight-bold">Note</label>
+                        <textarea name="notes" id="payNotes" class="form-control" rows="2"></textarea>
                     </div>
                 </div>
               </div>
@@ -199,15 +182,16 @@
   }
   #paymentModal .split-payment-line {
     border: 1px solid #dee2e6;
-    border-radius: 8px;
+    border-radius: 4px;
     padding: 12px;
     margin-bottom: 10px;
     background: #f8f9fa;
   }
-  #paymentModal .split-payment-line h6 {
+  #paymentModal .split-payment-line .split-line-title {
     font-size: 0.8rem;
     text-transform: uppercase;
     color: #6c757d;
+    font-weight: 700;
     margin-bottom: 10px;
   }
 </style>

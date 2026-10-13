@@ -327,6 +327,9 @@
         @canany(['manage_business_settings', 'manage_payment_methods'])
         <li><a class="treeview-item {{ Request::is('settings*') ? 'active' : '' }}" href="{{ route('settings.index') }}" data-tour="menu-settings"><i class="icon fa fa-gears"></i> {{ __('menu.business_settings') }}</a></li>
         @endcanany
+        @if(Auth::user()->role === 'owner')
+        <li><a class="treeview-item {{ Request::is('business-website*') ? 'active' : '' }}" href="{{ route('business-website.index') }}"><i class="icon fa fa-globe"></i> {{ __('menu.business_website') }}</a></li>
+        @endif
         @can('manage_branches')
         @if(plan_feature('branches'))
         <li><a class="treeview-item {{ Request::is('branches*') ? 'active' : '' }}" href="{{ route('branches.index') }}" data-tour="menu-branches"><i class="icon fa fa-building"></i> {{ __('menu.branches') }}</a></li>

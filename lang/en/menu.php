@@ -79,6 +79,7 @@ return [
     'branches' => 'Branches',
     'sales_targets' => 'Sales Targets',
     'business_settings' => 'Business Settings',
+    'business_website' => 'Business Website',
     'upgrade_plan' => 'Upgrade Plan',
     'activity_log' => 'Activity Log',
     'system_guide' => 'System Guide',

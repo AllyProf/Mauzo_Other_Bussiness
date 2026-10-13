@@ -16,15 +16,6 @@
     -webkit-line-clamp: 2;
     overflow: hidden;
   }
-  .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; flex: 1; min-width: 0; }
-  .business-type-tab {
-    cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
-    font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
-    transition: all .15s ease; line-height: 1.5;
-  }
-  .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
-  .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
-  .business-type-tab i { margin-right: 5px; }
   .sales-page .widget-small { min-height: 88px; border-radius: 8px !important; margin-bottom: 12px; }
   .sales-page .widget-small .icon { min-width: 64px !important; padding: 10px !important; font-size: 2rem !important; }
   .sales-page .widget-small .info h4 { font-size: 0.82rem !important; }
@@ -47,7 +38,42 @@
     overflow: hidden;
   }
   .sales-page .sales-mobile-payment { margin-bottom: 10px; line-height: 1.4; }
-  .sales-page .sales-mobile-actions { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; border-top: 1px solid #eee; }
+  .sales-page .sales-mobile-actions { padding-top: 8px; border-top: 1px solid #eee; }
+  .sales-page .sale-row-actions {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .sales-page .sale-row-actions .sale-action-pay {
+    white-space: nowrap;
+  }
+  .sales-page .sale-actions-more .sale-actions-menu-btn {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .sales-page .sale-actions-more .sale-actions-menu-btn::after {
+    display: none;
+  }
+  .sales-page .sale-actions-dropdown {
+    min-width: 11rem;
+    font-size: 0.875rem;
+  }
+  .sales-page .sale-actions-dropdown .dropdown-item {
+    padding: 0.45rem 1rem;
+  }
+  .sales-page .sale-cancel-form { margin: 0; }
+  .sales-page .sale-cancel-form .dropdown-item {
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  .sales-page .sale-cancel-form .dropdown-item:hover,
+  .sales-page .sale-cancel-form .dropdown-item:focus {
+    background-color: #f8f9fa;
+  }
 
   @media (max-width: 991.98px) {
     .sales-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }

@@ -4,15 +4,6 @@
 
 @section('styles')
 <style>
-  .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; flex: 1; min-width: 0; }
-  .business-type-tab {
-    cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
-    font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
-    transition: all .15s ease; line-height: 1.5; text-decoration: none !important;
-  }
-  .business-type-tab.active { background: #940000; color: #fff !important; border-color: #940000; }
-  .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000 !important; }
-  .business-type-tab i { margin-right: 5px; }
   .debts-page .widget-small { min-height: 88px; border-radius: 8px !important; margin-bottom: 12px; }
   .debts-page .widget-small .icon { min-width: 64px !important; padding: 10px !important; font-size: 2rem !important; }
   .debts-page .widget-small .info h4 { font-size: 0.82rem !important; }

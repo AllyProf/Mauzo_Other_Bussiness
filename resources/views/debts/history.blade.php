@@ -2,19 +2,6 @@
 
 @section('title', 'Debt History - SpareParts POS')
 
-@section('css')
-<style>
-  .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; flex: 1; min-width: 0; }
-  .business-type-tab {
-    border: 1px solid #dee2e6; background: #fff; color: #495057; border-radius: 20px;
-    padding: 6px 14px; font-size: 13px; white-space: nowrap; cursor: pointer; transition: all .15s ease;
-  }
-  .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
-  .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
-  .business-type-tab i { margin-right: 5px; }
-</style>
-@endsection
-
 @section('content')
 <div class="app-title">
   <div>

@@ -17,15 +17,6 @@
   .nested-table { font-size: 0.85rem; background: white; border: 1px solid #dee2e6; }
   .nested-table th { background: #6c757d !important; color: white !important; text-transform: uppercase; font-size: 0.7rem; border: none !important; }
   .manager-received { background-color: #e8f5e9 !important; }
-  .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; }
-  .business-type-tab {
-    cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
-    font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
-    transition: all .15s ease; line-height: 1.5; text-decoration: none !important;
-  }
-  .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
-  .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
-  .business-type-tab i { margin-right: 5px; }
   .business-type-row td:first-child + td + td { font-weight: 600; color: #940000; }
   .owner-reports-page .or-filter-form .form-group { margin-bottom: 0.75rem; }
   .owner-reports-page .or-mobile-card {

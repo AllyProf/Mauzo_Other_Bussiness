@@ -19,15 +19,4 @@
   <p class="small text-muted mb-0">{!! __('live_sales.filtered_to', ['label' => '<strong>'.e($activeBusinessLabel ?? $activeBusinessType).'</strong>']) !!}</p>
   @endif
 </div>
-<style>
-  .pulse-filter-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; max-width: 100%; }
-  .pulse-filter-tab {
-    cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
-    font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
-    transition: all .15s ease; line-height: 1.5; text-decoration: none !important;
-  }
-  .pulse-filter-tab.active { background: #940000; color: #fff; border-color: #940000; }
-  .pulse-filter-tab:hover:not(.active) { border-color: #940000; color: #940000; }
-  .pulse-filter-tab i { margin-right: 5px; }
-</style>
 @endif

@@ -321,11 +321,14 @@ class SaleController extends Controller
                 ->get();
 
             $stockContext = app(SaleStockService::class)->shiftStockContext($openShift);
+            $receivingPrices = app(\App\Services\ItemSellingPriceResolver::class)
+                ->latestReceivingPricesByItemId($businessId);
+            $priceResolver = app(\App\Services\ItemSellingPriceResolver::class);
 
-            $itemsByCategory = $categoryRecords->mapWithKeys(function ($cat) use ($openShift, $stockContext) {
+            $itemsByCategory = $categoryRecords->mapWithKeys(function ($cat) use ($openShift, $stockContext, $receivingPrices, $priceResolver) {
                 $typeKey = $cat->source_business_type_key ?: 'other';
                 $stockService = app(SaleStockService::class);
-                $items = $cat->items->map(function ($item) use ($openShift, $stockContext, $typeKey, $stockService) {
+                $items = $cat->items->map(function ($item) use ($openShift, $stockContext, $typeKey, $stockService, $priceResolver, $receivingPrices) {
                     $available = $stockService->availableStockForShift($item, $openShift, $stockContext);
                     if ($available <= 0) {
                         return null;
@@ -343,6 +346,40 @@ class SaleController extends Controller
                         ?? $normalized->first();
                     $defaultPackaging = $defaultRow['packaging'] ?? null;
 
+                    $packagingRows = $normalized->map(function ($row) use ($available, $item, $priceResolver, $receivingPrices) {
+                        $p = $row['packaging'];
+                        $qpu = (int) $row['quantity_per_unit'];
+                        $sellingPrice = $priceResolver->resolvePackagingPrice(
+                            $item,
+                            (float) $p->selling_price,
+                            $receivingPrices
+                        );
+
+                        return [
+                            'id' => $p->id,
+                            'name' => $p->packagingType->name ?? 'Unit',
+                            'quantity_per_unit' => $qpu,
+                            'selling_price' => $sellingPrice,
+                            'max_qty' => (int) floor($available / max(1, $qpu)),
+                        ];
+                    })->values();
+
+                    if ($packagingRows->isEmpty()) {
+                        $fallback = $priceResolver->receivingFallbackPrice($item, $receivingPrices);
+                        $packagingRows = collect([[
+                            'id' => null,
+                            'name' => $item->baseStockUnitName(),
+                            'quantity_per_unit' => 1,
+                            'selling_price' => $fallback,
+                            'max_qty' => (int) floor($available),
+                        ]]);
+                        $defaultPackaging = null;
+                    }
+
+                    $defaultPackagingId = $defaultPackaging?->id;
+                    $pricedRow = $packagingRows->first(fn ($r) => (float) ($r['selling_price'] ?? 0) > 0);
+                    $headlinePrice = (float) ($pricedRow['selling_price'] ?? $packagingRows->first()['selling_price'] ?? 0);
+
                     return [
                         'id' => $item->id,
                         'name' => $item->name,
@@ -350,20 +387,9 @@ class SaleController extends Controller
                         'stock' => $available,
                         'stock_pieces' => $available,
                         'stock_unit' => 'pcs',
-                        'selling_price' => (float) (optional($defaultPackaging)->selling_price ?? 0),
-                        'default_packaging_id' => $defaultPackaging?->id,
-                        'packagings' => $normalized->map(function ($row) use ($available) {
-                            $p = $row['packaging'];
-                            $qpu = (int) $row['quantity_per_unit'];
-
-                            return [
-                                'id' => $p->id,
-                                'name' => $p->packagingType->name ?? 'Unit',
-                                'quantity_per_unit' => $qpu,
-                                'selling_price' => (float) $p->selling_price,
-                                'max_qty' => (int) floor($available / max(1, $qpu)),
-                            ];
-                        })->values()->all(),
+                        'selling_price' => $headlinePrice,
+                        'default_packaging_id' => $defaultPackagingId,
+                        'packagings' => $packagingRows->values()->all(),
                         'businessTypeKey' => $typeKey,
                     ];
                 })->filter()->values();

@@ -9,6 +9,12 @@ Route::match(['get', 'post'], '/locale/{locale}', [App\Http\Controllers\LocaleCo
 
 Route::get('/', [LandingController::class, 'index'])->name('landing.index');Route::post('/request-demo', [App\Http\Controllers\LandingLeadController::class, 'store'])->name('landing.lead.store');
 
+Route::get('/site/{slug}', [App\Http\Controllers\PublicBusinessSiteController::class, 'home'])->name('public.site.home');
+Route::get('/site/{slug}/{page}', [App\Http\Controllers\PublicBusinessSiteController::class, 'page'])
+    ->where('page', 'about|contact|order|products')
+    ->name('public.site.page');
+Route::post('/site/{slug}/contact', [App\Http\Controllers\PublicBusinessSiteController::class, 'submitContact'])->name('public.site.contact.submit');
+
 // Authentication Routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
@@ -287,6 +293,15 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::post('/day-closing/{dayClosing}/verify', [App\Http\Controllers\DayClosingController::class, 'verify'])->name('day-closing.verify');
 
     // Business Settings (Owner)
+    Route::get('/business-website', [App\Http\Controllers\BusinessWebsiteController::class, 'index'])->name('business-website.index');
+    Route::put('/business-website/settings', [App\Http\Controllers\BusinessWebsiteController::class, 'updateSettings'])->name('business-website.settings.update');
+    Route::get('/business-website/pages/{page}', [App\Http\Controllers\BusinessWebsiteController::class, 'editPage'])
+        ->where('page', 'home|products|about|contact|order')
+        ->name('business-website.edit-page');
+    Route::put('/business-website/pages/{page}', [App\Http\Controllers\BusinessWebsiteController::class, 'updatePage'])
+        ->where('page', 'home|products|about|contact|order')
+        ->name('business-website.update-page');
+
     Route::get('/settings', [App\Http\Controllers\BusinessSettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings/profile', [App\Http\Controllers\BusinessSettingsController::class, 'updateProfile'])->name('settings.profile.update');
     Route::match(['get', 'post', 'put'], '/settings/invoice-preview', [App\Http\Controllers\BusinessSettingsController::class, 'invoicePreview'])->name('settings.invoice-preview');

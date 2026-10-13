@@ -82,16 +82,6 @@
         width: 20px; height: 20px; line-height: 18px; padding: 0; font-size: 14px; cursor: pointer;
     }
 
-    .business-type-tabs { display: flex; gap: 6px; overflow-x: auto; flex-wrap: nowrap; flex: 1; min-width: 0; }
-    .business-type-tab {
-        cursor: pointer; padding: 5px 12px; border-radius: 20px; background: #fff; color: #495057;
-        font-size: 11px; white-space: nowrap; border: 1px solid #dee2e6; font-weight: 600;
-        transition: all .15s ease; line-height: 1.5;
-    }
-    .business-type-tab.active { background: #940000; color: #fff; border-color: #940000; }
-    .business-type-tab:hover:not(.active) { border-color: #940000; color: #940000; }
-    .business-type-tab i { margin-right: 5px; }
-
     .product-card-wrapper { animation: fadeIn 0.3s ease-out; }
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }

@@ -511,6 +511,7 @@
             100% { left: 100%; }
         }
     </style>
+    @include('partials.business-type-tabs-styles')
     @yield('styles')
     @if(auth()->check() && auth()->user()->business && ! auth()->user()->canCollectCustomerPayments())
       <style>.open-payment-modal-btn { display: none !important; }</style>

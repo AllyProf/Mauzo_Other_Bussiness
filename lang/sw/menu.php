@@ -79,6 +79,7 @@ return [
     'branches' => 'Matawi',
     'sales_targets' => 'Malengo ya Mauzo',
     'business_settings' => 'Mipangilio ya Biashara',
+    'business_website' => 'Tovuti ya Biashara',
     'upgrade_plan' => 'Boresha Kifurushi',
     'activity_log' => 'Rekodi ya Shughuli',
     'system_guide' => 'Mwongozo wa Mfumo',

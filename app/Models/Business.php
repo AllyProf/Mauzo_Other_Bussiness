@@ -1035,6 +1035,11 @@ class Business extends Model
         ];
     }
 
+    public function website()
+    {
+        return $this->hasOne(BusinessWebsite::class);
+    }
+
     public function logoUrl(): ?string
     {
         if (! filled($this->logo_path)) {

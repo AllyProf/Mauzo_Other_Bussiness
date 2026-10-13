@@ -73,26 +73,7 @@
       @endif
     </div>
     <div class="sales-mobile-actions">
-      @if(in_array($sale->payment_status, ['pending', 'partial', 'debt']))
-        <button type="button"
-          class="btn btn-sm btn-success open-payment-modal-btn"
-          title="Record Payment"
-          data-sale-id="{{ $sale->id }}"
-          data-ref="{{ e($sale->reference_no) }}"
-          data-total="{{ $sale->total_amount }}"
-          data-paid="{{ $sale->amount_paid }}"
-          data-customer-id="{{ $sale->customer_id ?? '' }}"
-          data-customer-name="{{ e($sale->customer_name ?? '') }}"
-          data-customer-phone="{{ e($sale->customer_phone ?? '') }}"
-          data-due-date="{{ $sale->due_date ? \Carbon\Carbon::parse($sale->due_date)->format('Y-m-d') : '' }}"
-          data-items='@json($payItems)'><i class="fa fa-money"></i></button>
-        <form action="{{ route('sales.cancel', $sale->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to cancel this sale? Stock will be returned.');">
-          @csrf
-          <button type="submit" class="btn btn-sm btn-danger" title="Cancel Sale"><i class="fa fa-times"></i></button>
-        </form>
-      @endif
-      <a href="{{ route('invoices.show', $sale->id) }}" class="btn btn-sm btn-primary" title="View Invoice"><i class="fa fa-file-text-o"></i></a>
-      <a href="{{ route('sales.show', $sale->id) }}" class="btn btn-sm btn-secondary" title="View Receipt"><i class="fa fa-eye"></i></a>
+      @include('sales.partials.sale-row-actions', ['sale' => $sale, 'payItems' => $payItems])
     </div>
   </div>
 @endforeach

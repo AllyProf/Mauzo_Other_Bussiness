@@ -89,58 +89,115 @@
     .place-order-btn:hover { background: #7a0000; }
     .place-order-btn:disabled { background: #ced4da; cursor: not-allowed; color: #6c757d;}
 
-    .qty-selector { display: flex; align-items: center; justify-content: center; margin: 20px 0; }
-    .qty-btn { background: #343a40; color: #fff; border: none; width: 40px; height: 40px; font-size: 20px; border-radius: 5px; cursor: pointer;}
-    .qty-btn:hover { background: #23272b; }
-    .qty-input { width: 80px; height: 40px; text-align: center; border: 1px solid #ced4da; margin: 0 10px; border-radius: 5px; font-weight: bold; font-size: 16px;}
-    .modal-header { background: #940000; color: #fff; border-bottom: none;}
-    .modal-header .close { color: #fff; opacity: 1;}
-    .modal-title { font-weight: bold; }
-    .stock-info { text-align: center; color: #6c757d; font-size: 12px; margin-bottom: 10px;}
-    .price-info { text-align: center; color: #940000; font-size: 20px; font-weight: bold; margin-bottom: 20px;}
-    .modal-item-name { text-align: center; font-weight: 700; font-size: 15px; color: #333; margin-bottom: 12px; }
-    .packaging-switch {
-        display: flex;
-        gap: 0;
-        border-radius: 8px;
-        overflow: hidden;
-        border: 2px solid #940000;
+    #addToCartModal .modal-header { background: #940000; color: #fff; border-bottom: none; }
+    #addToCartModal .modal-header .close { color: #fff; opacity: 1; }
+    #addToCartModal .modal-title { font-weight: 700; font-size: 1rem; }
+    #addToCartModal .modal-body { padding: 1rem 1.25rem 0.5rem; }
+    #addToCartModal .modal-item-name {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #212529;
         margin-bottom: 4px;
+        line-height: 1.35;
     }
-    .packaging-switch-btn {
-        flex: 1;
-        padding: 10px 6px;
-        border: none;
+    #addToCartModal .modal-item-meta {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+    #addToCartModal .modal-price-box {
+        text-align: center;
+        padding: 10px 12px;
+        margin-bottom: 1rem;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #940000;
+    }
+    #addToCartModal .modal-price-box small {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6c757d;
+    }
+    #addToCartModal .qty-selector {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 6px;
+    }
+    #addToCartModal .qty-btn {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        line-height: 34px;
+        border-radius: 4px;
+    }
+    #addToCartModal .qty-input {
+        width: 72px;
+        height: 36px;
+        text-align: center;
+        font-weight: 700;
+        -moz-appearance: textfield;
+    }
+    #addToCartModal .qty-input::-webkit-outer-spin-button,
+    #addToCartModal .qty-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    #addToCartModal .packaging-switch {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 0;
+    }
+    #addToCartModal .packaging-switch-btn {
+        flex: 1 1 auto;
+        min-width: calc(50% - 4px);
+        padding: 8px 10px;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
         background: #fff;
         color: #495057;
         font-size: 12px;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.15s;
+        transition: border-color 0.15s, background 0.15s, color 0.15s;
         line-height: 1.25;
     }
-    .packaging-switch-btn + .packaging-switch-btn {
-        border-left: 1px solid #940000;
+    #addToCartModal .packaging-switch-btn:hover:not(.active):not(.disabled) {
+        border-color: #940000;
+        background: #fce8e8;
+        color: #940000;
     }
-    .packaging-switch-btn:hover:not(.active) {
-        background: #fff5f5;
+    #addToCartModal .packaging-switch-btn.active {
+        background: #fce8e8;
+        border-color: #940000;
+        color: #940000;
     }
-    .packaging-switch-btn.active {
-        background: #940000;
-        color: #fff;
-    }
-    .packaging-switch-btn.disabled,
-    .packaging-switch-btn:disabled {
+    #addToCartModal .packaging-switch-btn.disabled,
+    #addToCartModal .packaging-switch-btn:disabled {
         opacity: 0.45;
         cursor: not-allowed;
         background: #f8f9fa;
     }
-    .packaging-switch-btn small {
+    #addToCartModal .packaging-switch-btn small {
         display: block;
         font-size: 10px;
         font-weight: 500;
-        opacity: 0.9;
+        color: #6c757d;
         margin-top: 2px;
+    }
+    #addToCartModal .packaging-switch-btn.active small { color: #940000; }
+    #addToCartModal .btn-primary {
+        background-color: #940000;
+        border-color: #940000;
+    }
+    #addToCartModal .btn-primary:hover {
+        background-color: #7a0000;
+        border-color: #7a0000;
     }
 
     /* Mobile / tablet only — desktop rules above are unchanged */
@@ -349,13 +406,6 @@
             font-size: 15px;
             padding: 14px;
         }
-        .pos-page #posCustomerManual .col-6 {
-            flex: 0 0 100%;
-            max-width: 100%;
-            padding-left: 15px !important;
-            padding-right: 15px !important;
-            margin-bottom: 8px;
-        }
         .pos-page .alert {
             font-size: 0.82rem;
             padding: 8px 10px;
@@ -520,12 +570,12 @@
                     </small>
                     @endif
                 </div>
-                <div id="posCustomerManual" class="row mb-2">
-                    <div class="col-6 pr-1">
+                <div id="posCustomerManual" class="mb-2">
+                    <div class="mb-2">
                         <label style="font-size: 11px; color: #6c757d; margin-bottom: 2px;">Name</label>
                         <input type="text" name="customer_name" id="posCustomerName" class="form-control form-control-sm" placeholder="Optional">
                     </div>
-                    <div class="col-6 pl-1">
+                    <div>
                         <label style="font-size: 11px; color: #6c757d; margin-bottom: 2px;">Phone</label>
                         @include('partials.phone-country-input', ['id' => 'posCustomerPhone', 'nameless' => true, 'size' => 'sm', 'placeholder' => '712345678'])
                         <input type="hidden" name="customer_phone" id="posCustomerPhoneHidden">
@@ -564,40 +614,47 @@
 
 <!-- Add to Order Modal -->
 <div class="modal fade" id="addToCartModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 400px;">
+  <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 420px;">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="fa fa-plus-circle"></i> Add to Order</h5>
+        <h5 class="modal-title"><i class="fa fa-shopping-cart"></i> Add to Order</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
       <div class="modal-body">
         <div class="modal-item-name" id="modalItemName"></div>
-        <div class="stock-info"><i class="fa fa-database"></i> <span id="modalStockText">0 in stock</span></div>
+        <div class="modal-item-meta" id="modalStockText"></div>
+
         <div class="form-group mb-3" id="modalPackagingGroup" style="display:none;">
-            <label class="control-label text-center d-block small text-uppercase text-muted mb-2">Sell as</label>
+            <label class="control-label font-weight-bold mb-2">Sell as</label>
             <div class="packaging-switch" id="modalPackagingSwitch"></div>
         </div>
-        <div class="price-info" id="modalPriceDisplay">TSh <span id="modalPrice">0</span> <small id="modalPriceUnit" style="font-size:12px;color:#6c757d;">per unit</small></div>
+
+        <div class="modal-price-box" id="modalPriceDisplay">
+          TZS <span id="modalPrice">0</span> <small id="modalPriceUnit">/ unit</small>
+        </div>
         <div class="form-group mb-3" id="modalPriceEditGroup" style="display:none;">
-            <label class="control-label text-center d-block font-weight-bold">Selling Price (TZS) <span class="text-danger">*</span></label>
-            <input type="number" class="form-control text-center" id="modalPriceInput" min="1" step="1" placeholder="e.g. 10000">
-            <small class="text-muted d-block text-center mt-1">No price set for this item yet. Enter the price for this sale — it will be saved for next time.</small>
+            <label class="control-label font-weight-bold">Price (TZS) <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="modalPriceInput" min="1" step="1" placeholder="Selling price">
         </div>
 
-        <div class="form-group">
-            <label class="control-label text-center d-block" id="modalQtyLabel">Quantity</label>
+        <div class="form-group mb-2">
+            <label class="control-label font-weight-bold" id="modalQtyLabel">Quantity</label>
             <div class="qty-selector">
-                <button type="button" class="qty-btn" id="qtyMinus"><i class="fa fa-minus"></i></button>
-                <input type="number" class="qty-input" id="modalQtyInput" value="1" min="1">
-                <button type="button" class="qty-btn" id="qtyPlus"><i class="fa fa-plus"></i></button>
+                <button type="button" class="btn btn-secondary qty-btn" id="qtyMinus" aria-label="Decrease quantity"><i class="fa fa-minus"></i></button>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control qty-input" id="modalQtyInput" value="1" autocomplete="off">
+                <button type="button" class="btn btn-secondary qty-btn" id="qtyPlus" aria-label="Increase quantity"><i class="fa fa-plus"></i></button>
             </div>
         </div>
+        <div class="modal-line-total text-center pt-1 pb-2" id="modalLineTotalWrap">
+          <span class="text-muted small d-block">Line total</span>
+          <strong style="color:#940000;font-size:1.15rem;">TZS <span id="modalLineTotal">0</span></strong>
+        </div>
       </div>
-      <div class="modal-footer d-flex justify-content-between">
+      <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="confirmAddToCart"><i class="fa fa-plus"></i> Add to Order</button>
+        <button type="button" class="btn btn-primary" id="confirmAddToCart"><i class="fa fa-plus"></i> Add</button>
       </div>
     </div>
   </div>
@@ -844,11 +901,19 @@
         }
 
         const available = list.filter(p => packagingMaxQty(item, p) > 0);
+        const pick = (candidates) => candidates.find(p => parseFloat(p.selling_price) > 0) || candidates[0];
+
+        const pricedPiece = available.find(p => parseInt(p.quantity_per_unit, 10) === 1 && parseFloat(p.selling_price) > 0);
+        if (pricedPiece) return pricedPiece;
+
+        const anyPriced = available.find(p => parseFloat(p.selling_price) > 0);
+        if (anyPriced) return anyPriced;
+
         const pieceUnit = available.find(p => parseInt(p.quantity_per_unit, 10) === 1);
         if (pieceUnit) return pieceUnit;
         if (available.length) return available[0];
 
-        return list.find(p => p.id === item.default_packaging_id) || list[0];
+        return pick([list.find(p => p.id === item.default_packaging_id)].filter(Boolean)) || list[0];
     }
 
     function itemHasPrice(item) {
@@ -878,7 +943,23 @@
     }
 
     function activeUnitPrice(item, packaging) {
-        return parseFloat(packaging?.selling_price ?? item?.selling_price ?? 0) || 0;
+        const direct = parseFloat(packaging?.selling_price ?? 0);
+        if (direct > 0) {
+            return direct;
+        }
+        const itemPrice = parseFloat(item?.selling_price ?? 0);
+        if (itemPrice > 0) {
+            return itemPrice;
+        }
+        const list = item?.packagings || [];
+        for (let i = 0; i < list.length; i++) {
+            const p = parseFloat(list[i].selling_price);
+            if (p > 0) {
+                return p;
+            }
+        }
+
+        return 0;
     }
 
     function renderItems(items) {
@@ -957,6 +1038,38 @@
     // Modal Logic
     let currentModalPackaging = null;
 
+    function modalUnitPrice() {
+        if (currentModalService) {
+            return parseFloat(currentModalService.price) || 0;
+        }
+        if (!currentModalItem) {
+            return 0;
+        }
+        if ($('#modalPriceEditGroup').is(':visible')) {
+            return parseFloat($('#modalPriceInput').val()) || 0;
+        }
+
+        return activeUnitPrice(currentModalItem, currentModalPackaging || defaultPackaging(currentModalItem));
+    }
+
+    function modalQtyValue() {
+        return Math.max(0, parseInt(String($('#modalQtyInput').val()).replace(/\D/g, ''), 10) || 0);
+    }
+
+    function setModalQty(next) {
+        const max = parseInt($('#modalQtyInput').attr('data-max'), 10);
+        const cap = Number.isFinite(max) && max > 0 ? max : 9999;
+        const val = Math.min(cap, Math.max(1, next));
+        $('#modalQtyInput').val(val);
+        updateModalLineTotal();
+    }
+
+    function updateModalLineTotal() {
+        const unitPrice = modalUnitPrice();
+        const qty = modalQtyValue();
+        $('#modalLineTotal').text(formatTZS(unitPrice * qty));
+    }
+
     function refreshModalPackaging() {
         if (!currentModalItem) return;
 
@@ -985,8 +1098,8 @@
                             data-id="${pkg.id}" ${disabled ? 'disabled' : ''}>
                         ${pkg.name}
                         ${parseFloat(pkg.selling_price) > 0
-                            ? '<small>TSh ' + formatTZS(pkg.selling_price) + ' · ' + avail + ' avail.</small>'
-                            : '<small class="text-warning">Price not set · ' + avail + ' avail.</small>'}
+                            ? '<small>TZS ' + formatTZS(pkg.selling_price) + ' · ' + avail + ' avail.</small>'
+                            : '<small class="text-warning">No price · ' + avail + ' avail.</small>'}
                     </button>
                 `);
             });
@@ -1005,7 +1118,7 @@
 
         $('#modalItemName').text(currentModalItem.name);
         $('#modalStockText').text(
-            formatStockQty(pieces) + ' pcs in stock · can sell up to ' + maxQty + ' ' + unitName
+            formatStockQty(pieces) + ' in stock · max ' + maxQty + ' ' + unitName
         );
 
         if (needsPrice) {
@@ -1016,12 +1129,14 @@
             $('#modalPriceDisplay').show();
             $('#modalPriceEditGroup').hide();
             $('#modalPrice').text(formatTZS(unitPrice));
-            $('#modalPriceUnit').text('per ' + unitName);
+            $('#modalPriceUnit').text('/ ' + unitName);
         }
 
         $('#modalQtyLabel').text('Quantity (' + unitName + ')');
-        $('#modalQtyInput').val(maxQty > 0 ? 1 : 0).attr('max', Math.max(0, maxQty));
+        const cap = Math.max(0, maxQty);
+        $('#modalQtyInput').val(cap > 0 ? 1 : 0).attr('data-max', cap);
         $('#confirmAddToCart').prop('disabled', maxQty <= 0);
+        updateModalLineTotal();
     }
 
     window.openModal = function(itemId) {
@@ -1049,9 +1164,10 @@
         $('#modalPriceEditGroup').hide();
         $('#modalPriceDisplay').show();
         $('#modalPrice').text(formatTZS(service.price));
-        $('#modalPriceUnit').text('per ' + (service.unit_label || 'unit'));
-        $('#modalQtyInput').val(1).attr('max', 9999);
+        $('#modalPriceUnit').text('/ ' + (service.unit_label || 'unit'));
+        $('#modalQtyInput').val(1).attr('data-max', 9999);
         $('#modalQtyLabel').text('Quantity (' + (service.unit_label || 'units') + ')');
+        updateModalLineTotal();
         $('#addToCartModal').modal('show');
     };
 
@@ -1063,26 +1179,31 @@
         refreshModalPackaging();
     });
 
-    $('#qtyMinus').click(function() {
-        let val = parseInt($('#modalQtyInput').val()) || 1;
-        if (val > 1) $('#modalQtyInput').val(val - 1);
+    $('#qtyMinus').on('click', function (e) {
+        e.preventDefault();
+        setModalQty(modalQtyValue() - 1);
     });
 
-    $('#qtyPlus').click(function() {
-        let val = parseInt($('#modalQtyInput').val()) || 1;
-        let max = parseInt($('#modalQtyInput').attr('max')) || 9999;
-        if (val < max) $('#modalQtyInput').val(val + 1);
+    $('#qtyPlus').on('click', function (e) {
+        e.preventDefault();
+        setModalQty(modalQtyValue() + 1);
     });
 
-    $('#modalQtyInput').on('change input', function() {
-        let val = parseInt($(this).val()) || 1;
-        let max = parseInt($(this).attr('max')) || 9999;
-        if (val > max) $(this).val(max);
-        if (val < 1) $(this).val(1);
+    $('#modalQtyInput').on('input change blur', function () {
+        const max = parseInt($(this).attr('data-max'), 10) || 9999;
+        let val = modalQtyValue();
+        if (val < 1) val = 1;
+        if (val > max) val = max;
+        $(this).val(val);
+        updateModalLineTotal();
+    });
+
+    $('#modalPriceInput').on('input change', function () {
+        updateModalLineTotal();
     });
 
     $('#confirmAddToCart').click(function() {
-        const qty = parseInt($('#modalQtyInput').val()) || 1;
+        const qty = modalQtyValue() || 1;
 
         if (currentModalService) {
             const cartKey = 'service:' + currentModalService.id;
