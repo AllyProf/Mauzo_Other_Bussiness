@@ -79,7 +79,19 @@
               @forelse($debtorRows as $c)
               <tr>
                 <td><strong>{{ $c['name'] }}</strong></td>
-                <td class="text-center">{{ $c['orders'] }}</td>
+                <td class="text-center">
+                  @if(($c['orders'] ?? 0) > 0)
+                  <button type="button"
+                    class="btn btn-link btn-sm p-0 debtor-orders-btn font-weight-bold"
+                    data-customer="{{ e($c['name']) }}"
+                    data-sales='@json($c['sales'] ?? [])'
+                    title="View outstanding orders">
+                    {{ $c['orders'] }}
+                  </button>
+                  @else
+                  0
+                  @endif
+                </td>
                 <td class="money-col text-danger font-weight-bold">{{ money($c['balance']) }}</td>
               </tr>
               @empty
@@ -151,9 +163,104 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="debtorOrdersModal" tabindex="-1" role="dialog" aria-labelledby="debtorOrdersModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="debtorOrdersModalLabel">Outstanding orders</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body p-0">
+        <p class="px-3 pt-3 mb-2 text-muted small" id="debtorOrdersModalCustomer"></p>
+        <div class="table-responsive">
+          <table class="table table-hover table-bordered report-table mb-0">
+            <thead>
+              <tr>
+                <th>{{ __('tables.columns.reference') }}</th>
+                <th>Date</th>
+                <th>{{ __('tables.columns.due_date') }}</th>
+                <th class="money-col">{{ __('tables.columns.sale_total') }}</th>
+                <th class="money-col">{{ __('tables.columns.paid') }}</th>
+                <th class="money-col">Balance</th>
+                <th class="text-center d-print-none" style="width: 4rem;"></th>
+              </tr>
+            </thead>
+            <tbody id="debtorOrdersModalBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 @endsection
 
 @section('report-scripts')
+<script>
+(function () {
+  var currencyLabel = @json(config('app.currency_code', 'TZS'));
+
+  function formatMoney(amount) {
+    var n = Number(amount) || 0;
+    return currencyLabel + ' ' + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    var parts = iso.split('-');
+    if (parts.length !== 3) return iso;
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10) + ', ' + parts[0];
+  }
+
+  document.querySelectorAll('.debtor-orders-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var customer = btn.getAttribute('data-customer') || '';
+      var sales = [];
+      try {
+        sales = JSON.parse(btn.getAttribute('data-sales') || '[]');
+      } catch (e) {
+        sales = [];
+      }
+
+      document.getElementById('debtorOrdersModalLabel').textContent = 'Outstanding orders';
+      document.getElementById('debtorOrdersModalCustomer').textContent = customer;
+
+      var tbody = document.getElementById('debtorOrdersModalBody');
+      tbody.innerHTML = '';
+
+      if (!sales.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No orders found.</td></tr>';
+      } else {
+        sales.forEach(function (sale) {
+          var tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td><strong>' + (sale.reference_no || '—') + '</strong></td>' +
+            '<td>' + formatDate(sale.date) + '</td>' +
+            '<td>' + formatDate(sale.due_date) + '</td>' +
+            '<td class="money-col">' + formatMoney(sale.total) + '</td>' +
+            '<td class="money-col">' + formatMoney(sale.paid) + '</td>' +
+            '<td class="money-col text-danger font-weight-bold">' + formatMoney(sale.balance) + '</td>' +
+            '<td class="text-center"><a href="' + (sale.show_url || '#') + '" class="btn btn-sm btn-primary" title="View receipt"><i class="fa fa-eye"></i></a></td>';
+          tbody.appendChild(tr);
+        });
+      }
+
+      if (window.jQuery) {
+        jQuery('#debtorOrdersModal').modal('show');
+      } else {
+        document.getElementById('debtorOrdersModal').classList.add('show');
+        document.getElementById('debtorOrdersModal').style.display = 'block';
+      }
+    });
+  });
+})();
+</script>
 <script>
 (function () {
   var baseScaleOptions = {

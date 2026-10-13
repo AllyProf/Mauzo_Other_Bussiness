@@ -623,6 +623,7 @@ class BusinessReportService
                     'name' => $name,
                     'orders' => $group->count(),
                     'balance' => (float) $group->sum(fn ($s) => (float) $s->total_amount - (float) $s->amount_paid),
+                    'sales' => $this->debtorOrdersForCustomerGroup($group),
                 ];
             })
             ->sortByDesc('balance')
@@ -663,15 +664,39 @@ class BusinessReportService
         $periodStats = $this->snapshotSalesStats($business, $periodFrom, $periodTo, $businessTypeKey);
         $dayPayments = $this->snapshotPaymentBreakdown($business, $periodTo, $periodTo, $businessTypeKey);
         $periodPayments = $this->snapshotPaymentBreakdown($business, $periodFrom, $periodTo, $businessTypeKey);
+        $dayPlatforms = $this->snapshotPaymentPlatformBreakdown($business, $periodTo, $periodTo, $businessTypeKey);
+        $periodPlatforms = $this->snapshotPaymentPlatformBreakdown($business, $periodFrom, $periodTo, $businessTypeKey);
 
         $methods = collect($dayPayments)->pluck('method')
             ->merge(collect($periodPayments)->pluck('method'))
             ->unique()
             ->values();
 
-        $sources = $methods->map(function ($method) use ($dayPayments, $periodPayments, $business) {
+        $sources = $methods->map(function ($method) use ($dayPayments, $periodPayments, $dayPlatforms, $periodPlatforms, $business) {
             $dayRow = collect($dayPayments)->firstWhere('method', $method);
             $periodRow = collect($periodPayments)->firstWhere('method', $method);
+
+            $platformKeys = collect($dayPlatforms)->where('method', $method)->pluck('key')
+                ->merge(collect($periodPlatforms)->where('method', $method)->pluck('key'))
+                ->unique()
+                ->values();
+
+            $platforms = $platformKeys->map(function ($key) use ($dayPlatforms, $periodPlatforms) {
+                $dayPlatform = collect($dayPlatforms)->firstWhere('key', $key);
+                $periodPlatform = collect($periodPlatforms)->firstWhere('key', $key);
+
+                return [
+                    'key' => $key,
+                    'provider' => $dayPlatform['provider'] ?? $periodPlatform['provider'],
+                    'label' => $dayPlatform['label'] ?? $periodPlatform['label'],
+                    'day_amount' => (float) ($dayPlatform['amount'] ?? 0),
+                    'period_amount' => (float) ($periodPlatform['amount'] ?? 0),
+                ];
+            })->sortByDesc('period_amount')->values()->all();
+
+            if (! in_array($method, ['mobile_money', 'bank'], true)) {
+                $platforms = [];
+            }
 
             return [
                 'method' => $method,
@@ -680,6 +705,7 @@ class BusinessReportService
                 'day_amount' => (float) ($dayRow['amount'] ?? 0),
                 'period_orders' => (int) ($periodRow['orders'] ?? 0),
                 'period_amount' => (float) ($periodRow['amount'] ?? 0),
+                'platforms' => $platforms,
             ];
         })->sortByDesc('period_amount')->values()->all();
 
@@ -882,6 +908,44 @@ class BusinessReportService
 
     private function snapshotPaymentBreakdown(Business $business, string $from, string $to, ?string $businessTypeKey = null): array
     {
+        ['payments' => $payments, 'sales' => $sales] = $this->loadSnapshotPayments($business, $from, $to, $businessTypeKey);
+
+        return $payments->groupBy('payment_method')->map(function ($group, $method) use ($business, $sales) {
+            $saleIds = $group->pluck('sale_id')->unique();
+
+            return [
+                'method' => $method,
+                'label' => $business->paymentMethodLabel($method),
+                'orders' => $saleIds->filter(fn ($id) => $sales->has($id))->count(),
+                'amount' => (float) $group->sum('amount'),
+            ];
+        })->values()->all();
+    }
+
+    private function snapshotPaymentPlatformBreakdown(Business $business, string $from, string $to, ?string $businessTypeKey = null): array
+    {
+        ['payments' => $payments] = $this->loadSnapshotPayments($business, $from, $to, $businessTypeKey);
+
+        return $payments->groupBy(fn (SalePayment $payment) => $this->snapshotPaymentPlatformKey($payment))
+            ->map(function ($group, $key) {
+                /** @var SalePayment $first */
+                $first = $group->first();
+
+                return [
+                    'key' => $key,
+                    'method' => $first->payment_method,
+                    'provider' => $first->payment_provider,
+                    'label' => $this->snapshotPaymentPlatformLabel($first),
+                    'amount' => (float) $group->sum('amount'),
+                ];
+            })->values()->all();
+    }
+
+    /**
+     * @return array{payments: \Illuminate\Support\Collection<int, SalePayment>, sales: \Illuminate\Support\Collection<int|string, Sale>}
+     */
+    private function loadSnapshotPayments(Business $business, string $from, string $to, ?string $businessTypeKey = null): array
+    {
         if ($businessTypeKey) {
             $saleIds = $this->saleItemsQuery($business, $from, $to, $businessTypeKey)
                 ->pluck('sale_id')
@@ -905,16 +969,43 @@ class BusinessReportService
                 ->keyBy('id');
         }
 
-        return $payments->groupBy('payment_method')->map(function ($group, $method) use ($business, $sales) {
-            $saleIds = $group->pluck('sale_id')->unique();
+        return ['payments' => $payments, 'sales' => $sales];
+    }
 
-            return [
-                'method' => $method,
-                'label' => $business->paymentMethodLabel($method),
-                'orders' => $saleIds->filter(fn ($id) => $sales->has($id))->count(),
-                'amount' => (float) $group->sum('amount'),
-            ];
-        })->values()->all();
+    private function snapshotPaymentPlatformKey(SalePayment $payment): string
+    {
+        $method = (string) $payment->payment_method;
+
+        if ($method === 'cash') {
+            return 'cash';
+        }
+
+        $provider = strtolower(trim((string) ($payment->payment_provider ?? '')));
+        if ($provider !== '') {
+            $slug = str_replace([' ', '-', '.', '/'], '_', $provider);
+
+            return $method.':'.$slug;
+        }
+
+        return $method === 'bank' ? $method.':other' : $method.':other';
+    }
+
+    private function snapshotPaymentPlatformLabel(SalePayment $payment): string
+    {
+        $provider = trim((string) ($payment->payment_provider ?? ''));
+        if ($provider !== '') {
+            return $provider;
+        }
+
+        if ($payment->payment_method === 'bank') {
+            return __('reports.daily.bank_other');
+        }
+
+        if ($payment->payment_method === 'mobile_money') {
+            return __('reports.daily.mobile_other');
+        }
+
+        return ucfirst(str_replace('_', ' ', (string) $payment->payment_method));
     }
 
     private function scopedSales(int $businessId): Builder
@@ -1315,6 +1406,7 @@ class BusinessReportService
                     'name' => $name,
                     'orders' => $group->count(),
                     'balance' => (float) $group->sum('filtered_balance'),
+                    'sales' => $this->debtorOrdersForCustomerGroup($group, true),
                 ];
             })
             ->sortByDesc('balance')
@@ -1347,6 +1439,34 @@ class BusinessReportService
         $key = $line->item?->category?->source_business_type_key ?: 'other';
 
         return $key === $businessTypeKey;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Sale>  $sales
+     * @return list<array<string, mixed>>
+     */
+    private function debtorOrdersForCustomerGroup($sales, bool $useFilteredBalance = false): array
+    {
+        return $sales->map(function (Sale $sale) use ($useFilteredBalance) {
+            $balance = $useFilteredBalance && isset($sale->filtered_balance)
+                ? (float) $sale->filtered_balance
+                : (float) $sale->total_amount - (float) $sale->amount_paid;
+
+            return [
+                'sale_id' => $sale->id,
+                'reference_no' => $sale->reference_no,
+                'date' => $sale->sale_date ? Carbon::parse($sale->sale_date)->toDateString() : null,
+                'due_date' => $sale->due_date?->toDateString(),
+                'total' => (float) $sale->total_amount,
+                'paid' => (float) $sale->amount_paid,
+                'balance' => $balance,
+                'payment_status' => $sale->payment_status,
+                'show_url' => route('sales.show', $sale->id),
+            ];
+        })
+            ->sortByDesc('date')
+            ->values()
+            ->all();
     }
 
     /**
