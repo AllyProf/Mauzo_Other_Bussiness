@@ -20,7 +20,14 @@
   .sales-page .widget-small .icon { min-width: 64px !important; padding: 10px !important; font-size: 2rem !important; }
   .sales-page .widget-small .info h4 { font-size: 0.82rem !important; }
   .sales-page .widget-small .info p { font-size: 15px !important; word-break: break-word; }
-  .sales-page .sales-title-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .sales-page .sales-title-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+  }
   .sales-page .sales-mobile-card {
     border: 1px solid #dee2e6; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: #fff;
   }
@@ -82,11 +89,18 @@
   }
 
   @media (max-width: 767.98px) {
-    .sales-page .app-title { flex-direction: column; align-items: flex-start !important; }
+    .sales-page .app-title {
+      flex-wrap: wrap;
+      align-items: flex-start !important;
+      gap: 12px;
+    }
     .sales-page .app-title h1 { font-size: 1.15rem; }
     .sales-page .app-title p { font-size: 0.82rem; }
-    .sales-page .sales-title-actions { width: 100%; }
-    .sales-page .sales-title-actions .btn { flex: 1 1 100%; text-align: center; }
+    .sales-page .sales-title-actions {
+      width: 100%;
+      justify-content: flex-start;
+    }
+    .sales-page .sales-title-actions .btn { flex: 1 1 auto; text-align: center; }
     .sales-page .widget-small .icon { min-width: 52px !important; font-size: 1.5rem !important; }
   }
 </style>
@@ -110,30 +124,30 @@
         All sales — products and services
       @endif
     </p>
-    <div class="sales-title-actions d-print-none">
-      @if(($requiresOpenShift ?? false) && !($openShift ?? null))
-        <a href="{{ route('shifts.create') }}" class="btn btn-warning btn-sm"><i class="fa fa-clock-o"></i> {{ __('pages.sales.open_shift_first') }}</a>
-      @else
-        <a href="{{ route('sales.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> {{ __('pages.sales.new_sale') }}</a>
-      @endif
+  </div>
+  <div class="sales-title-actions d-print-none">
+    @if(($requiresOpenShift ?? false) && !($openShift ?? null))
+      <a href="{{ route('shifts.create') }}" class="btn btn-warning btn-sm"><i class="fa fa-clock-o"></i> {{ __('pages.sales.open_shift_first') }}</a>
+    @else
+      <a href="{{ route('sales.create') }}" class="btn btn-primary btn-sm"><i class="fa fa-plus"></i> {{ __('pages.sales.new_sale') }}</a>
+    @endif
 
-      @if($requiresOpenShift ?? false)
-        @if($showAllHistory ?? false)
-          @if($openShift ?? null)
-            <a href="{{ route('sales.index', ['history' => 'current']) }}" class="btn btn-info btn-sm"><i class="fa fa-calendar-check-o"></i> View Current Shift</a>
-          @endif
-        @else
-          <a href="{{ route('sales.index', ['history' => 'all']) }}" class="btn btn-secondary btn-sm"><i class="fa fa-history"></i> View All My Past Sales</a>
+    @if($requiresOpenShift ?? false)
+      @if($showAllHistory ?? false)
+        @if($openShift ?? null)
+          <a href="{{ route('sales.index', ['history' => 'current']) }}" class="btn btn-info btn-sm"><i class="fa fa-calendar-check-o"></i> View Current Shift</a>
         @endif
+      @else
+        <a href="{{ route('sales.index', ['history' => 'all']) }}" class="btn btn-secondary btn-sm"><i class="fa fa-history"></i> View All My Past Sales</a>
       @endif
+    @endif
 
-      @php
-        $filtersActive = request('period') || request('date_from') || request('date_to') || request('search') || request('q') || request('status') || request('payment_method');
-      @endphp
-      <button type="button" class="btn btn-sm {{ $filtersActive ? 'btn-info' : 'btn-outline-info' }}" data-toggle="collapse" data-target="#filterCollapse" aria-expanded="{{ $filtersActive ? 'true' : 'false' }}" aria-controls="filterCollapse">
-        <i class="fa fa-filter"></i> Filters
-      </button>
-    </div>
+    @php
+      $filtersActive = request('period') || request('date_from') || request('date_to') || request('search') || request('q') || request('status') || request('payment_method');
+    @endphp
+    <button type="button" class="btn btn-sm {{ $filtersActive ? 'btn-info' : 'btn-outline-info' }}" data-toggle="collapse" data-target="#filterCollapse" aria-expanded="{{ $filtersActive ? 'true' : 'false' }}" aria-controls="filterCollapse">
+      <i class="fa fa-filter"></i> Filters
+    </button>
   </div>
 </div>
 

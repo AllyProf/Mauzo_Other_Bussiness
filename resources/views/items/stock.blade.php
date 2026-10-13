@@ -89,6 +89,93 @@
     }
 
     .view-btn.active { background-color: #940000 !important; border-color: #940000 !important; color: #fff !important; }
+
+    .stock-page .stock-stats-row {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 8px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (min-width: 768px) {
+        .stock-page .stock-stats-row--2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .stock-page .stock-stats-row--5 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+    @media (min-width: 992px) {
+        .stock-page .stock-stats-row--5 {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+    }
+    @media (min-width: 1400px) {
+        .stock-page .stock-stats-row {
+            gap: 14px;
+        }
+    }
+    .stock-page .stock-stat-cell {
+        display: flex;
+        min-width: 0;
+    }
+    .stock-page .stock-stat-cell .widget-small {
+        width: 100%;
+        min-height: 96px;
+        height: 100%;
+        margin-bottom: 0;
+        border-radius: 8px !important;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .stock-page .widget-small .icon {
+        min-width: 72px;
+        width: 72px;
+        flex-shrink: 0;
+        padding: 14px 10px !important;
+        font-size: 2rem !important;
+        align-self: stretch;
+    }
+    .stock-page .widget-small .icon .fa {
+        line-height: 1;
+    }
+    .stock-page .widget-small .info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-self: stretch;
+        padding: 12px 14px !important;
+        min-width: 0;
+    }
+    .stock-page .widget-small .info h4 {
+        font-size: 0.7rem !important;
+        line-height: 1.35;
+        letter-spacing: 0.03em;
+        margin: 0 0 6px !important;
+        min-height: 2.7em;
+        display: flex;
+        align-items: flex-end;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+    }
+    .stock-page .widget-small .info .stat-value {
+        margin: 0;
+        font-size: 1.05rem !important;
+        line-height: 1.25;
+        word-break: break-word;
+    }
+    .stock-page .widget-small .info .stat-value b {
+        font-weight: 700;
+    }
+    .stock-page .widget-small .info .stat-meta {
+        margin: 4px 0 0;
+        min-height: 1.15em;
+        font-size: 0.68rem;
+        line-height: 1.2;
+        opacity: 0.88;
+    }
+    .stock-page .widget-small .info .stat-meta:empty {
+        min-height: 1.15em;
+    }
 </style>
 @endsection
 
@@ -96,6 +183,7 @@
 @php
   $multiBusiness = $multiBusiness ?? count($businessTypes ?? []) > 1;
 @endphp
+<div class="stock-page">
 <div class="app-title">
   <div>
     <h1><i class="fa fa-cubes"></i> {{ __('stock.title') }}</h1>
@@ -110,53 +198,55 @@
 </div>
 
 <!-- Statistics -->
-@php
-  $statCol = $canViewValue ? 'col-xl col-lg-4 col-sm-6' : 'col-md-3 col-sm-6';
-@endphp
-<div class="row">
-  <div class="{{ $statCol }}">
+<div class="stock-stats-row {{ $canViewValue ? 'stock-stats-row--5' : 'stock-stats-row--2' }}">
+  <div class="stock-stat-cell">
     <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-cubes fa-3x"></i>
       <div class="info">
         <h4>{{ __('stock.stats.total_items') }}</h4>
-        <p><b>{{ $stats['total_items'] }}</b></p>
+        <p class="stat-value"><b>{{ $stats['total_items'] }}</b></p>
+        <p class="stat-meta"></p>
       </div>
     </div>
   </div>
-  <div class="{{ $statCol }}">
+  <div class="stock-stat-cell">
     <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-exclamation-triangle fa-3x"></i>
       <div class="info">
         <h4>{{ __('stock.stats.low_stock_items') }}</h4>
-        <p><b>{{ $stats['low_stock'] }}</b> <small>{{ __('stock.stats.from_settings', ['count' => $lowStockThreshold]) }}</small></p>
+        <p class="stat-value"><b>{{ $stats['low_stock'] }}</b></p>
+        <p class="stat-meta"><small>{{ __('stock.stats.from_settings', ['count' => $lowStockThreshold]) }}</small></p>
       </div>
     </div>
   </div>
   @if($canViewValue)
-  <div class="{{ $statCol }}">
+  <div class="stock-stat-cell">
     <div class="widget-small danger coloured-icon">
       <i class="icon fa fa-archive fa-3x"></i>
       <div class="info">
         <h4>{{ __('stock.stats.stock_value') }}</h4>
-        <p><b id="stockValueDisplay">{{ money($totalCostValue ?? 0) }}</b> <small>{{ __('stock.stats.at_cost') }}</small></p>
+        <p class="stat-value"><b id="stockValueDisplay">{{ money($totalCostValue ?? 0) }}</b></p>
+        <p class="stat-meta"><small>{{ __('stock.stats.at_cost') }}</small></p>
       </div>
     </div>
   </div>
-  <div class="{{ $statCol }}">
+  <div class="stock-stat-cell">
     <div class="widget-small info coloured-icon">
       <i class="icon fa fa-line-chart fa-3x"></i>
       <div class="info">
         <h4>{{ __('stock.stats.expected_revenue') }}</h4>
-        <p><b id="expectedRevenueDisplay">{{ money($totalExpectedRevenue ?? $totalValue) }}</b></p>
+        <p class="stat-value"><b id="expectedRevenueDisplay">{{ money($totalExpectedRevenue ?? $totalValue) }}</b></p>
+        <p class="stat-meta"></p>
       </div>
     </div>
   </div>
-  <div class="{{ $statCol }}">
+  <div class="stock-stat-cell">
     <div class="widget-small success coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
         <h4>{{ __('stock.stats.expected_profit') }}</h4>
-        <p><b id="expectedProfitDisplay">{{ money($totalExpectedProfit ?? $totalMargin ?? 0) }}</b></p>
+        <p class="stat-value"><b id="expectedProfitDisplay">{{ money($totalExpectedProfit ?? $totalMargin ?? 0) }}</b></p>
+        <p class="stat-meta"></p>
       </div>
     </div>
   </div>
@@ -545,6 +635,7 @@
     </div>
   </div>
 </div>
+</div>{{-- .stock-page --}}
 @endsection
 
 @section('scripts')

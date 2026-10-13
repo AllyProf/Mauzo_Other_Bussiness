@@ -314,7 +314,12 @@ class ShiftController extends Controller
         $items = $itemsQuery
             ->orderBy('name')
             ->get()
-            ->each(fn (Item $item) => $item->stock_info = $stockDisplay->format($item));
+            ->each(function (Item $item) use ($stockDisplay) {
+                $item->stock_info = array_merge(
+                    $stockDisplay->format($item),
+                    ['units_display' => $stockDisplay->allUnitsDisplay($item)]
+                );
+            });
 
         $shortageService = app(StockShortageImpactService::class);
         $myStockShortages = $shortageService->staffShortagesForUser($user);

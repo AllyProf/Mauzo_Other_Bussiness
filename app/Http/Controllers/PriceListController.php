@@ -89,17 +89,14 @@ class PriceListController extends Controller
         $pricedPackagingCount = 0;
 
         foreach ($items as $item) {
-            $normalized = $normalizer->normalizeItemPackagings($item, $item->packagings);
-
-            $packagingRows = $normalized->map(function ($row) {
-                $packaging = $row['packaging'];
-
-                return [
-                    'label' => $packaging->packagingType?->name ?? 'Unit',
-                    'quantity_per_unit' => max(1, (int) $row['quantity_per_unit']),
-                    'selling_price' => (float) $packaging->selling_price,
-                ];
-            })->filter(fn ($row) => $showUnpriced || $row['selling_price'] > 0)->values();
+            $packagingRows = $normalizer->priceListPackagingRows($item, $item->packagings)
+                ->filter(fn ($row) => $showUnpriced || $row['selling_price'] > 0)
+                ->map(fn ($row) => [
+                    'label' => $row['label'],
+                    'quantity_per_unit' => $row['quantity_per_unit'],
+                    'selling_price' => $row['selling_price'],
+                ])
+                ->values();
 
             if ($packagingRows->isEmpty()) {
                 if (! $showUnpriced) {

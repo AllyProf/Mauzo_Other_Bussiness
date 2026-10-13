@@ -75,9 +75,12 @@ class SupplierController extends Controller
             'business_id' => Auth::user()->business_id,
             'branch_id' => $branchId,
             'name' => $request->name,
+            'supplier_type' => $request->input('supplier_type'),
+            'contact_person' => $request->input('contact_person'),
             'email' => $request->email,
             'phone' => PhoneCountries::fromRequest($request),
             'region' => $request->region,
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         return redirect()->route('suppliers.index')->with('success', 'Supplier registered successfully.');
@@ -87,9 +90,12 @@ class SupplierController extends Controller
     {
         return [
             'name' => 'required|string|max:255',
+            'supplier_type' => 'nullable|string|max:100',
+            'contact_person' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone' => PhoneCountries::rules(true, tzMobileOnly: false),
             'region' => 'nullable|string|max:100',
+            'is_active' => 'nullable|boolean',
             'branch_id' => $this->branchValidationRule(),
         ];
     }
@@ -120,10 +126,13 @@ class SupplierController extends Controller
 
         $supplier->update([
             'name' => $request->name,
+            'supplier_type' => $request->input('supplier_type'),
+            'contact_person' => $request->input('contact_person'),
             'email' => $request->email,
             'phone' => PhoneCountries::fromRequest($request),
             'region' => $request->region,
             'branch_id' => $branchId,
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         return redirect()->route('suppliers.index')->with('success', 'Supplier updated successfully.');

@@ -17,8 +17,23 @@
         <form action="{{ route('suppliers.update', $supplier->id) }}" method="POST">
           @csrf @method('PUT')
           <div class="form-group">
-            <label class="control-label">Supplier Name</label>
+            <label class="control-label">Company Name</label>
             <input class="form-control" type="text" name="name" value="{{ old('name', $supplier->name) }}" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label class="control-label">Type</label>
+              <select class="form-control" name="supplier_type">
+                <option value="">— Select —</option>
+                @foreach(['Beverage', 'General', 'Spirits', 'Other'] as $type)
+                  <option value="{{ $type }}" {{ old('supplier_type', $supplier->supplier_type) === $type ? 'selected' : '' }}>{{ $type }}</option>
+                @endforeach
+              </select>
+            </div>
+            <div class="form-group col-md-6">
+              <label class="control-label">Contact Person</label>
+              <input class="form-control" type="text" name="contact_person" value="{{ old('contact_person', $supplier->contact_person) }}">
+            </div>
           </div>
           @if(($branches ?? collect())->count() > 1 && Auth::user()->seesBusinessWideData())
           <div class="form-group">
@@ -50,13 +65,19 @@
             @include('partials.email-suggest-input', ['id' => 'editSupplierEmail', 'value' => old('email', $supplier->email)])
           </div>
           <div class="form-group">
-            <label class="control-label">Region</label>
+            <label class="control-label">City / Region</label>
             <select class="form-control" name="region">
                 <option value="">-- Select Region --</option>
-                @foreach(['Arusha', 'Dar es Salaam', 'Dodoma', 'Mbeya', 'Mwanza', 'Morogoro', 'Tanga', 'Kilimanjaro', 'Zanzibar'] as $reg)
-                    <option value="{{ $reg }}" {{ $supplier->region == $reg ? 'selected' : '' }}>{{ $reg }}</option>
+                @foreach(['Arusha', 'Dar es Salaam', 'Dodoma', 'Mbeya', 'Mwanza', 'Morogoro', 'Mtwara', 'Tanga', 'Kilimanjaro', 'Zanzibar'] as $reg)
+                    <option value="{{ $reg }}" {{ old('region', $supplier->region) == $reg ? 'selected' : '' }}>{{ $reg }}</option>
                 @endforeach
             </select>
+          </div>
+          <div class="form-group">
+            <div class="custom-control custom-checkbox">
+              <input type="checkbox" class="custom-control-input" id="supplierActive" name="is_active" value="1" {{ old('is_active', $supplier->is_active ?? true) ? 'checked' : '' }}>
+              <label class="custom-control-label" for="supplierActive">Active supplier</label>
+            </div>
           </div>
           <div class="tile-footer">
             <button class="btn btn-primary" type="submit"><i class="fa fa-check-circle"></i> Update Supplier</button>

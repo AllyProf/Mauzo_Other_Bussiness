@@ -44,6 +44,8 @@ return [
         'title' => 'Orodha ya Bidhaa',
         'subtitle' => 'Orodha ya bidhaa zote zilizosajiliwa kwenye duka lako',
         'stock_title' => 'Stock ya Bidhaa',
+        'delete_confirm_title' => 'Futa bidhaa?',
+        'delete_confirm_text' => ':name itaondolewa kabisa. Hatua hii haiwezi kutenduliwa.',
     ],
     'invoices' => [
         'title' => 'Ankara',

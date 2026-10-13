@@ -1099,6 +1099,7 @@
           }
         });
       }
+      window.confirmAction = confirmAction;
     </script>
 
     <style>

@@ -119,6 +119,57 @@ class ItemPackagingNormalizer
     }
 
     /**
+     * Selling rows for price list / customer sheets: normalized, largest pack first,
+     * drops duplicate lines that share the same pack size and selling price.
+     *
+     * @param  Collection<int, ItemPackaging>  $packagings
+     * @return Collection<int, array{item_packaging_id: int, packaging_type_id: int, label: string, quantity_per_unit: int, selling_price: float}>
+     */
+    public function priceListPackagingRows(Item $item, Collection $packagings): Collection
+    {
+        $receivingPackagingId = (int) ($item->receiving_packaging_id ?? 0);
+
+        $rows = $this->normalizeItemPackagings($item, $packagings)
+            ->map(function (array $row) {
+                $packaging = $row['packaging'];
+
+                return [
+                    'item_packaging_id' => (int) $packaging->id,
+                    'packaging_type_id' => (int) $packaging->packaging_id,
+                    'label' => $packaging->packagingType?->name ?? 'Unit',
+                    'quantity_per_unit' => max(1, (int) $row['quantity_per_unit']),
+                    'selling_price' => (float) $packaging->selling_price,
+                ];
+            })
+            ->sort(function (array $a, array $b) use ($receivingPackagingId) {
+                $bySize = $b['quantity_per_unit'] <=> $a['quantity_per_unit'];
+                if ($bySize !== 0) {
+                    return $bySize;
+                }
+
+                $aRecv = $a['packaging_type_id'] === $receivingPackagingId ? 1 : 0;
+                $bRecv = $b['packaging_type_id'] === $receivingPackagingId ? 1 : 0;
+
+                return $bRecv <=> $aRecv;
+            })
+            ->values();
+
+        $seen = [];
+        $deduped = collect();
+
+        foreach ($rows as $row) {
+            $key = $row['quantity_per_unit'].'|'.number_format($row['selling_price'], 2, '.', '');
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $deduped->push($row);
+        }
+
+        return $deduped->values();
+    }
+
+    /**
      * @param  Collection<int, ItemPackaging>  $packagings
      */
     public function detectInversion(Item $item, Collection $packagings): ?array

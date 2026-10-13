@@ -44,6 +44,8 @@ return [
         'title' => 'Items Inventory',
         'subtitle' => 'List of all registered items for your shop',
         'stock_title' => 'Item Stock',
+        'delete_confirm_title' => 'Delete item?',
+        'delete_confirm_text' => ':name will be removed permanently. This cannot be undone.',
     ],
     'invoices' => [
         'title' => 'Invoices',

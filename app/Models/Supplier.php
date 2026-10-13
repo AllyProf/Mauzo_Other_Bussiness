@@ -10,11 +10,17 @@ class Supplier extends Model
         'business_id',
         'branch_id',
         'name',
+        'supplier_type',
         'contact_person',
         'phone',
         'email',
         'address',
         'region',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 
     public function business()

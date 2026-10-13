@@ -27,9 +27,6 @@
 @endsection
 
 @section('content')
-@php
-  $hasBulkItems = $items->contains(fn ($item) => ($item->stock_info['has_bulk_stock'] ?? false));
-@endphp
 <div class="app-title" data-tour="shift-stock-check">
   <div>
     <h1><i class="fa fa-clipboard"></i> Open Shift — Physical Stock Check</h1>
@@ -40,17 +37,6 @@
 
 @include('home.partials.my-stock-shortages')
 
-@if(!empty($assignedBusinessLabel) || !empty($assignedBranchName))
-<div class="alert alert-info py-2 mb-3">
-  <i class="fa fa-user"></i>
-  Your stock check shows items for
-  @if(!empty($assignedBranchName)) branch <strong>{{ $assignedBranchName }}</strong>@endif
-  @if(!empty($assignedBranchName) && !empty($assignedBusinessLabel)) · @endif
-  @if(!empty($assignedBusinessLabel)) business <strong>{{ $assignedBusinessLabel }}</strong>@endif
-  only.
-</div>
-@endif
-
 <div class="tile">
   <form action="{{ route('shifts.store') }}" method="POST" id="openShiftForm">
     @csrf
@@ -60,13 +46,6 @@
         <i class="fa fa-exclamation-triangle"></i> No items with stock on hand. Receive stock or add items before opening a shift.
       </div>
     @else
-      @if($hasBulkItems)
-        <div class="alert alert-light border small mb-3 py-2">
-          <i class="fa fa-info-circle text-primary"></i>
-          Items sold by <strong>box and piece</strong> (e.g. 74 pcs · 7 Box) need only one count — enter the <strong>total pieces</strong> you physically have. Box totals in System Stock are for reference.
-        </div>
-      @endif
-
       <div class="d-flex flex-wrap align-items-center justify-content-end mb-3">
         <div class="stock-search-wrap">
           <input type="text" id="itemSearch" class="form-control form-control-sm" placeholder="Search by name or SKU...">
@@ -103,7 +82,12 @@
                   @if($item->sku)<br><small class="text-muted">{{ $item->sku }}</small>@endif
                 </td>
                 <td>{{ $item->category->name ?? '—' }}</td>
-                <td class="text-right system-stock">{{ $stockInfo['stock_display'] }}</td>
+                <td class="text-right system-stock">
+                  {{ $stockInfo['units_display'] ?? $stockInfo['stock_display'] }}
+                  @if(!empty($stockInfo['has_bulk_stock']))
+                    <br><small class="text-muted">{{ $stockInfo['formatted_pieces'] }} pcs total</small>
+                  @endif
+                </td>
                 <td class="text-right">
                   <div class="count-pcs-wrap ml-auto">
                     <input type="number"

@@ -4,15 +4,63 @@
 
 @section('styles')
 <style>
+  .items-page .items-toolbar {
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 0 !important;
+  }
+  .items-page .items-toolbar .title h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2c3e50;
+  }
+  .items-page .items-filter-bars {
+    padding: 0 1rem 1rem;
+    border-bottom: 1px solid #e9ecef;
+  }
+  .items-page .items-filter-row + .items-filter-row {
+    margin-top: 10px;
+  }
+  .items-page .items-filter-row-label {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c757d;
+    margin-bottom: 6px;
+  }
   .items-page .business-type-tabs,
   .items-page .category-tabs {
-    scrollbar-width: none;
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-items: stretch;
+    gap: 8px;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: #c8cdd3 transparent;
   }
   .items-page .business-type-tabs::-webkit-scrollbar,
-  .items-page .category-tabs::-webkit-scrollbar { display: none; }
-  .items-page .category-tabs {
-    width: 100%;
-    margin-top: 10px;
+  .items-page .category-tabs::-webkit-scrollbar {
+    height: 5px;
+  }
+  .items-page .business-type-tabs::-webkit-scrollbar-thumb,
+  .items-page .category-tabs::-webkit-scrollbar-thumb {
+    background: #c8cdd3;
+    border-radius: 4px;
+  }
+  .items-page .business-type-tab,
+  .items-page .category-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    box-sizing: border-box;
+    vertical-align: top;
   }
 
   .items-page .items-name-cell strong {
@@ -54,9 +102,9 @@
       flex-direction: column;
       align-items: stretch !important;
     }
-    .items-page .items-toolbar-tabs {
-      width: 100%;
-      margin-bottom: 12px;
+    .items-page .items-filter-bars {
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
     }
     .items-page .items-toolbar-side {
       width: 100%;
@@ -174,41 +222,11 @@
 <div class="row">
   <div class="col-md-12">
     <div class="tile">
-      <div class="tile-title-w-btn flex-wrap items-toolbar">
-        <div class="d-flex align-items-center flex-wrap mb-2 mb-md-0 items-toolbar-tabs" style="flex: 1; min-width: 0;">
-          @if($multiBusiness ?? false)
-          <div class="business-type-tabs mr-md-3" id="businessTypeTabs">
-            <button type="button" class="business-type-tab active" data-business-type="all">
-              <i class="fa fa-th-large"></i> All
-            </button>
-            @foreach($businessTypes as $type)
-            <button type="button" class="business-type-tab" data-business-type="{{ $type['key'] }}">
-              <i class="fa {{ $type['icon'] }}"></i> {{ $type['label'] }}
-            </button>
-            @endforeach
-          </div>
-          @else
-          <h3 class="title mb-0">All Items</h3>
-          @endif
-          @if(($categoryFilters ?? collect())->isNotEmpty() || ($hasUncategorizedItems ?? false))
-          <div class="category-tabs" id="categoryTabs">
-            <button type="button" class="category-tab active" data-category="all">All Categories</button>
-            @foreach($categoryFilters as $cat)
-            <button type="button" class="category-tab"
-                    data-category="{{ $cat['slug'] }}"
-                    data-business-type="{{ $cat['business_type_key'] }}">
-              {{ $cat['name'] }}
-            </button>
-            @endforeach
-            @if($hasUncategorizedItems ?? false)
-            <button type="button" class="category-tab" data-category="uncategorized" data-business-type="other">
-              Uncategorized
-            </button>
-            @endif
-          </div>
-          @endif
+      <div class="tile-title-w-btn items-toolbar">
+        <div class="title mb-0">
+          <h3 class="mb-0">All Items</h3>
         </div>
-        <div class="d-flex align-items-center items-toolbar-side">
+        <div class="d-flex align-items-center items-toolbar-side flex-shrink-0">
             @php
                 $maxItems = $business->plan->max_items ?? 0;
                 $currentItems = $items->count();
@@ -230,6 +248,49 @@
             @endcan
         </div>
       </div>
+
+      @if(($multiBusiness ?? false) || ($categoryFilters ?? collect())->isNotEmpty() || ($hasUncategorizedItems ?? false))
+      <div class="items-filter-bars">
+        @if($multiBusiness ?? false)
+        <div class="items-filter-row">
+          <span class="items-filter-row-label">Department</span>
+          <div class="business-type-tabs" id="businessTypeTabs">
+            <button type="button" class="business-type-tab active" data-business-type="all">
+              <i class="fa fa-th-large"></i> All
+            </button>
+            @foreach($businessTypes as $type)
+            <button type="button" class="business-type-tab" data-business-type="{{ $type['key'] }}">
+              <i class="fa {{ $type['icon'] }}"></i> {{ $type['label'] }}
+            </button>
+            @endforeach
+          </div>
+        </div>
+        @endif
+        @if(($categoryFilters ?? collect())->isNotEmpty() || ($hasUncategorizedItems ?? false))
+        <div class="items-filter-row">
+          @if($multiBusiness ?? false)
+          <span class="items-filter-row-label">Category</span>
+          @endif
+          <div class="category-tabs" id="categoryTabs">
+            <button type="button" class="category-tab active" data-category="all">All Categories</button>
+            @foreach($categoryFilters as $cat)
+            <button type="button" class="category-tab"
+                    data-category="{{ $cat['slug'] }}"
+                    data-business-type="{{ $cat['business_type_key'] }}">
+              {{ $cat['name'] }}
+            </button>
+            @endforeach
+            @if($hasUncategorizedItems ?? false)
+            <button type="button" class="category-tab" data-category="uncategorized" data-business-type="other">
+              Uncategorized
+            </button>
+            @endif
+          </div>
+        </div>
+        @endif
+      </div>
+      @endif
+
       <div class="tile-body">
         @if(session('success'))
             <div class="alert alert-success">
@@ -288,10 +349,16 @@
                             <a href="{{ route('items.edit', $item->id) }}" class="btn btn-sm btn-info" title="Edit Item"><i class="fa fa-edit"></i></a>
                             @endcan
                             @can('delete_items')
-                            <form action="{{ route('items.destroy', $item->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this item? This action cannot be undone.');">
+                            <form action="{{ route('items.destroy', $item->id) }}" method="POST" class="item-delete-form" style="display:inline;">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-danger" title="Delete Item"><i class="fa fa-trash"></i></button>
+                                <button type="button"
+                                  class="btn btn-sm btn-danger item-delete-btn"
+                                  title="Delete Item"
+                                  data-confirm-title="{{ __('pages.items.delete_confirm_title') }}"
+                                  data-confirm-text="{{ __('pages.items.delete_confirm_text', ['name' => $item->name]) }}">
+                                  <i class="fa fa-trash"></i>
+                                </button>
                             </form>
                             @endcan
                         </div>
@@ -328,6 +395,38 @@
             order: [[0, 'asc']],
             pageLength: isMobile ? 10 : 25,
             lengthMenu: isMobile ? [[10, 25, 50], [10, 25, 50]] : [[10, 25, 50, 100], [10, 25, 50, 100]],
+        });
+
+        $('#sampleTable').on('click', '.item-delete-btn', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const btn = this;
+            const form = btn.closest('form');
+            if (!form) {
+                return;
+            }
+            const title = btn.getAttribute('data-confirm-title') || 'Delete item?';
+            const text = btn.getAttribute('data-confirm-text') || '';
+            if (typeof window.confirmAction === 'function') {
+                window.confirmAction(e, title, text);
+                return;
+            }
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: title,
+                    text: text,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#940000',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, proceed!',
+                    cancelButtonText: 'No, cancel!',
+                }).then(function (result) {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            }
         });
 
         function refreshCategoryTabVisibility() {

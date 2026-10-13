@@ -39,11 +39,7 @@
   </div>
 </div>
 
-@if($activeBranchName ?? null)
-  <div class="alert alert-info py-2 mb-3">
-    <i class="fa fa-map-marker"></i> Showing suppliers for <strong>{{ $activeBranchName }}</strong>.
-  </div>
-@elseif($viewingAllBranches ?? false)
+@if($viewingAllBranches ?? false)
   <div class="alert alert-secondary py-2 mb-3">
     <i class="fa fa-sitemap"></i> Viewing suppliers for <strong>all branches</strong>. Switch branch in the header to filter.
   </div>
@@ -56,10 +52,13 @@
         <table class="table table-hover table-bordered" id="sampleTable">
           <thead>
             <tr>
-              <th>{{ __('tables.columns.name') }}</th>
-              <th>Phone Number</th>
+              <th>Company Name</th>
+              <th>Type</th>
+              <th>Contact Person</th>
+              <th>Phone</th>
               <th>{{ __('tables.columns.email') }}</th>
-              <th>{{ __('tables.columns.region') }}</th>
+              <th>City</th>
+              <th>Status</th>
               @if($viewingAllBranches ?? false)
                 <th>Branch</th>
               @endif
@@ -70,9 +69,18 @@
             @forelse($suppliers as $supplier)
                 <tr>
                     <td><strong>{{ $supplier->name }}</strong></td>
-                    <td>{{ $supplier->phone }}</td>
+                    <td>{{ $supplier->supplier_type ?: '—' }}</td>
+                    <td>{{ $supplier->contact_person ?: 'N/A' }}</td>
+                    <td>{{ $supplier->phone ?: 'N/A' }}</td>
                     <td>{{ $supplier->email ?: 'N/A' }}</td>
-                    <td><span class="badge badge-info">{{ $supplier->region ?: 'N/A' }}</span></td>
+                    <td>{{ $supplier->region ?: 'N/A' }}</td>
+                    <td>
+                      @if($supplier->is_active ?? true)
+                        <span class="badge badge-success">Active</span>
+                      @else
+                        <span class="badge badge-secondary">Inactive</span>
+                      @endif
+                    </td>
                     @if($viewingAllBranches ?? false)
                       <td>{{ $supplier->branch?->name ?? '—' }}</td>
                     @endif
@@ -87,7 +95,7 @@
                 </tr>
             @empty
                 <tr>
-                  <td colspan="{{ ($viewingAllBranches ?? false) ? 6 : 5 }}" class="text-center text-muted py-4">
+                  <td colspan="{{ ($viewingAllBranches ?? false) ? 9 : 8 }}" class="text-center text-muted py-4">
                     {{ __('tables.empty.suppliers') }}
                   </td>
                 </tr>
@@ -117,8 +125,23 @@
             </div>
           @endif
           <div class="form-group">
-            <label class="control-label">Supplier Name</label>
+            <label class="control-label">Company Name</label>
             <input class="form-control" type="text" name="name" value="{{ $reopenRegister ? old('name') : '' }}" placeholder="e.g. Arusha Auto Parts" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label class="control-label">Type</label>
+              <select class="form-control" name="supplier_type">
+                <option value="">— Select —</option>
+                @foreach(['Beverage', 'General', 'Spirits', 'Other'] as $type)
+                  <option value="{{ $type }}" {{ $reopenRegister && old('supplier_type') === $type ? 'selected' : '' }}>{{ $type }}</option>
+                @endforeach
+              </select>
+            </div>
+            <div class="form-group col-md-6">
+              <label class="control-label">Contact Person</label>
+              <input class="form-control" type="text" name="contact_person" value="{{ $reopenRegister ? old('contact_person') : '' }}" placeholder="Optional">
+            </div>
           </div>
           @if(($formBranches ?? collect())->count() > 1 && Auth::user()->seesBusinessWideData())
           <div class="form-group">
@@ -151,7 +174,7 @@
             <label class="control-label">Region</label>
             <select class="form-control" name="region">
               <option value="">-- Select Region --</option>
-              @foreach(['Arusha', 'Dar es Salaam', 'Dodoma', 'Mbeya', 'Mwanza', 'Morogoro', 'Tanga', 'Kilimanjaro', 'Zanzibar'] as $region)
+              @foreach(['Arusha', 'Dar es Salaam', 'Dodoma', 'Mbeya', 'Mwanza', 'Morogoro', 'Mtwara', 'Tanga', 'Kilimanjaro', 'Zanzibar'] as $region)
                 <option value="{{ $region }}" {{ $reopenRegister && old('region') === $region ? 'selected' : '' }}>{{ $region }}</option>
               @endforeach
             </select>

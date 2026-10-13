@@ -75,12 +75,12 @@ class PriceListController extends ApiController
         $pricedPackagingCount = 0;
 
         foreach ($items as $item) {
-            $rows = $normalizer->normalizeItemPackagings($item, $item->packagings)
+            $rows = $normalizer->priceListPackagingRows($item, $item->packagings)
                 ->map(fn ($row) => [
-                    'packaging_id' => $row['packaging']->id,
-                    'label' => $row['packaging']->packagingType?->name ?? 'Unit',
-                    'quantity_per_unit' => max(1, (int) $row['quantity_per_unit']),
-                    'selling_price' => (float) $row['packaging']->selling_price,
+                    'packaging_id' => $row['item_packaging_id'],
+                    'label' => $row['label'],
+                    'quantity_per_unit' => $row['quantity_per_unit'],
+                    'selling_price' => $row['selling_price'],
                 ])
                 ->filter(fn ($row) => $showUnpriced || $row['selling_price'] > 0)
                 ->values();
