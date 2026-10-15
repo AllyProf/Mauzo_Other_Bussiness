@@ -6,7 +6,6 @@
 <div class="app-title">
   <div>
     <h1><i class="fa fa-building"></i> Business Management</h1>
-    <p>Manage all registered tenants and their subscriptions. To set <strong>fixed</strong> or <strong>profit share</strong> billing per business, click Edit and use the Revenue Collection section.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
@@ -17,7 +16,7 @@
 <div class="row">
   <div class="col-md-12">
     @if($pendingRegistrations->isNotEmpty())
-    <div class="tile mb-4" style="border-left: 4px solid #f39c12;">
+    <div class="tile mb-4">
       <h3 class="tile-title text-warning"><i class="fa fa-hourglass-half"></i> Pending Registrations ({{ $pendingRegistrations->count() }})</h3>
       <p class="text-muted mb-3">Review new sign-ups from the public registration page or mobile app. Approve to start their free trial, or reject to remove the request.</p>
       <div class="table-responsive">
@@ -55,20 +54,29 @@
                 </span>
               </td>
               <td>{{ $business->created_at->format('M d, Y h:i A') }}</td>
-              <td class="text-center text-nowrap">
-                <button type="button" class="btn btn-info btn-sm mr-1" title="View details" data-toggle="modal" data-target="#pendingBusinessModal-{{ $business->id }}"><i class="fa fa-eye"></i></button>
-                <form action="{{ route('admin.businesses.approve', $business->id) }}" method="POST" class="d-inline">
-                  @csrf
-                  <button type="submit" class="btn btn-success btn-sm mr-1" title="Approve & activate" onclick="confirmAction(event, 'Approve registration?', 'This will activate the account and start their free trial.')">
-                    <i class="fa fa-check"></i> Approve
+              <td class="text-center pending-registration-actions">
+                <div class="btn-group">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Actions">
+                    <i class="fa fa-ellipsis-v"></i>
                   </button>
-                </form>
-                <form action="{{ route('admin.businesses.reject', $business->id) }}" method="POST" class="d-inline">
-                  @csrf
-                  <button type="submit" class="btn btn-danger btn-sm" title="Reject registration" onclick="confirmAction(event, 'Reject registration?', 'This will permanently remove this registration request.')">
-                    <i class="fa fa-times"></i>
-                  </button>
-                </form>
+                  <div class="dropdown-menu dropdown-menu-right">
+                    <button type="button" class="dropdown-item" data-toggle="modal" data-target="#pendingBusinessModal-{{ $business->id }}">
+                      <i class="fa fa-eye text-info"></i> View details
+                    </button>
+                    <form action="{{ route('admin.businesses.approve', $business->id) }}" method="POST">
+                      @csrf
+                      <button type="submit" class="dropdown-item" onclick="confirmAction(event, 'Approve registration?', 'This will activate the account and start their free trial.')">
+                        <i class="fa fa-check text-success"></i> Approve registration
+                      </button>
+                    </form>
+                    <form action="{{ route('admin.businesses.reject', $business->id) }}" method="POST">
+                      @csrf
+                      <button type="submit" class="dropdown-item text-danger" onclick="confirmAction(event, 'Reject registration?', 'This will permanently remove this registration request.')">
+                        <i class="fa fa-times"></i> Reject registration
+                      </button>
+                    </form>
+                  </div>
+                </div>
               </td>
             </tr>
             @endforeach
@@ -297,9 +305,12 @@
   tr.business-row-expanded td {
     border-bottom: none;
   }
-  .business-actions .dropdown-item { font-size: 13px; }
-  .business-actions .dropdown-item i { width: 16px; margin-right: 6px; }
-  .business-actions form { margin: 0; }
+  .business-actions .dropdown-item,
+  .pending-registration-actions .dropdown-item { font-size: 13px; }
+  .business-actions .dropdown-item i,
+  .pending-registration-actions .dropdown-item i { width: 16px; margin-right: 6px; }
+  .business-actions form,
+  .pending-registration-actions form { margin: 0; }
 </style>
 @endsection
 

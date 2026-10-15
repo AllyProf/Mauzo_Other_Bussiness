@@ -47,6 +47,33 @@
   }
   @media (max-width: 767.98px) {
     .btn-reports-submit { margin-top: 0; }
+    .reports-hub-actions { margin-top: 0; }
+  }
+  .reports-hub-submit-col .reports-hub-label-spacer {
+    visibility: hidden;
+    display: block;
+    height: 0;
+    margin-bottom: 0.35rem;
+  }
+  @media (min-width: 768px) {
+    .reports-hub-submit-col .reports-hub-label-spacer {
+      height: auto;
+      min-height: 1.2em;
+    }
+  }
+  .reports-hub-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 1.45rem;
+  }
+  .reports-hub-actions .btn-reports-submit {
+    margin-top: 0;
+    white-space: nowrap;
+  }
+  .reports-hub-actions .report-export-link {
+    white-space: nowrap;
   }
 </style>
 <div class="reports-hub-filter d-print-none">
@@ -74,8 +101,12 @@
         <input type="date" name="end_date" id="hub_end_date" class="form-control" value="{{ $hubTo }}">
         <input type="hidden" name="report_date" id="hub_report_date" value="{{ $hubTo }}" disabled>
       </div>
-      <div class="col-12 col-md-2 col-lg-2 form-group">
-        <button type="submit" class="btn btn-reports-submit btn-block">{{ __('menu.submit_report') }}</button>
+      <div class="col-12 col-md-auto col-lg-auto form-group reports-hub-submit-col">
+        <span class="reports-hub-label reports-hub-label-spacer" aria-hidden="true">&nbsp;</span>
+        <div class="reports-hub-actions">
+          <button type="submit" class="btn btn-reports-submit">{{ __('menu.submit_report') }}</button>
+          @include('reports.partials.export-buttons')
+        </div>
       </div>
     </div>
   </form>
@@ -115,6 +146,43 @@
     syncDailyMode();
   });
   syncDailyMode();
+
+  function buildExportUrl(format) {
+    var opt = selector.options[selector.selectedIndex];
+    var key = opt && opt.getAttribute('data-key');
+    if (!key) return '#';
+    var base = @json(url('/reports/export'));
+    var params = new URLSearchParams();
+    params.set('format', format);
+    if (form.querySelector('[name=business_type]')) {
+      params.set('business_type', form.querySelector('[name=business_type]').value);
+    }
+    var isDaily = key === 'daily-report' || key === 'payment-channels';
+    if (isDaily && endInput && endInput.value) {
+      params.set('report_date', endInput.value);
+    } else {
+      if (startInput && startInput.value && !startInput.disabled) {
+        params.set('start_date', startInput.value);
+      }
+      if (endInput && endInput.value) {
+        params.set('end_date', endInput.value);
+      }
+    }
+    @if(request()->boolean('cashiers_only'))
+    params.set('cashiers_only', '1');
+    @endif
+    return base + '/' + key + '?' + params.toString();
+  }
+
+  document.querySelectorAll('.report-export-link').forEach(function (link) {
+    link.addEventListener('click', function () {
+      var format = link.getAttribute('data-format');
+      var url = buildExportUrl(format);
+      if (url !== '#') {
+        link.setAttribute('href', url);
+      }
+    });
+  });
 })();
 </script>
 @endif

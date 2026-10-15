@@ -17,21 +17,12 @@
           {{ __('dashboard.dashboard') }}
         @endif
       </h1>
+    @if(!($isOwnerDashboard ?? false) && !($isSalesOfficerDashboard ?? false))
     <p>
         @if(Auth::user()->role == 'super_admin')
             {{ __('dashboard.platform_overview') }}
         @elseif($isUnassignedStaffDashboard ?? false)
             {{ __('dashboard.unassigned_message', ['name' => Auth::user()->name]) }}
-        @elseif($isSalesOfficerDashboard ?? false)
-            {{ __('dashboard.welcome_back', ['name' => Auth::user()->name]) }}
-            @if(!empty($activeBranchLabel))
-              <span class="badge badge-light ml-1"><i class="fa fa-map-marker"></i> {{ $activeBranchLabel }}</span>
-            @endif
-        @elseif($isOwnerDashboard ?? false)
-            {{ __('dashboard.welcome_back_owner', ['name' => Auth::user()->name]) }} &mdash; {{ now()->format('l, F j, Y') }}
-            @if(!empty($activeBranchLabel))
-              <span class="badge badge-light ml-1"><i class="fa fa-map-marker"></i> {{ $activeBranchLabel }}</span>
-            @endif
         @else
             {{ __('dashboard.overview', ['business' => Auth::user()->business?->name ?? 'Spare Parts']) }}
             @if(!empty($canSwitchBranch))
@@ -39,6 +30,7 @@
             @endif
         @endif
     </p>
+    @endif
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>

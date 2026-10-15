@@ -11,13 +11,13 @@ return [
     'scope' => [
         'open_shift_prompt' => 'Open a shift to see live data',
         'your_shift' => 'Your shift #:id',
-        'business_shift' => 'Business · Shift #:id (:name)',
-        'business_today' => 'Business · Today',
+        'business_shift' => ':business · Shift #:id (:name)',
+        'business_today' => ':business · Today',
         'your_sales_today' => 'Your sales today',
     ],
 
     'monitoring_shift' => 'Monitoring Shift #:id (started :time)',
-    'pulse_for' => 'Real-time pulse for :scope — :date',
+    'pulse_for' => 'Real-time pulse for :scope',
     'filter_business_type' => 'Business type: :label',
     'filtered_to' => 'Filtered to :label.',
 

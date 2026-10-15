@@ -5,7 +5,7 @@
 @section('content')
 <div class="app-title">
   <div>
-    <h1 class="text-danger"><i class="fa fa-wrench"></i> {{ $stockAdjustment->reference_no }}</h1>
+    <h1><i class="fa fa-sliders"></i> {{ $stockAdjustment->reference_no }}</h1>
     <p>{{ __('stock_adjustments.show.subtitle') }}</p>
   </div>
   <div>
@@ -25,7 +25,7 @@
 
 <div class="row">
   <div class="col-md-12">
-    <div class="tile border-danger" style="border-width: 2px;">
+    <div class="tile">
       <div class="row mb-4">
         <div class="col-md-6">
           <p class="mb-1"><strong>{{ __('stock_adjustments.show.date') }}:</strong> {{ $stockAdjustment->adjustment_date->format('d M Y') }}</p>

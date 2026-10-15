@@ -24,6 +24,33 @@
         .app-header {
             background-color: #940000 !important;
         }
+        .app-header__datetime {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 10px;
+            color: rgba(255, 255, 255, 0.92);
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .app-header__time-sep {
+            opacity: 0.75;
+        }
+        @media (max-width: 767.98px) {
+            .app-header__datetime {
+                flex: 0 1 auto;
+                max-width: 42%;
+                padding: 0 4px 0 0;
+                font-size: 11px;
+                font-weight: 700;
+            }
+        }
         .app-header__logo {
             background-color: #940000 !important;
             font-family: 'Century Gothic', 'Segoe UI', sans-serif !important;
@@ -386,6 +413,12 @@
             color: #dc3545;
             font-weight: 700;
         }
+        .app-nav__branch-toggle {
+            display: inline-flex;
+            align-items: center;
+            max-width: 200px;
+            padding: 12px 10px !important;
+        }
         .branch-switch-label {
             color: #fff;
             font-size: 0.85rem;
@@ -393,6 +426,16 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+        @media (max-width: 767.98px) {
+            .app-nav__branch-toggle {
+                max-width: 88px;
+                padding: 10px 6px !important;
+            }
+            .branch-switch-label {
+                max-width: 64px;
+                font-size: 0.75rem;
+            }
         }
         .header-switch-menu {
             min-width: 240px;

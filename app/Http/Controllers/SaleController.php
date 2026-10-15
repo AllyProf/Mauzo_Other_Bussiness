@@ -15,6 +15,7 @@ use App\Models\Category;
 use App\Models\Customer;
 use App\Services\CashierPaymentGuard;
 use App\Services\ItemPackagingNormalizer;
+use App\Services\ItemStockDisplayService;
 use App\Services\SaleStockService;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -325,10 +326,11 @@ class SaleController extends Controller
                 ->latestReceivingPricesByItemId($businessId);
             $priceResolver = app(\App\Services\ItemSellingPriceResolver::class);
 
-            $itemsByCategory = $categoryRecords->mapWithKeys(function ($cat) use ($openShift, $stockContext, $receivingPrices, $priceResolver) {
+            $stockDisplayService = app(ItemStockDisplayService::class);
+            $itemsByCategory = $categoryRecords->mapWithKeys(function ($cat) use ($openShift, $stockContext, $receivingPrices, $priceResolver, $stockDisplayService) {
                 $typeKey = $cat->source_business_type_key ?: 'other';
                 $stockService = app(SaleStockService::class);
-                $items = $cat->items->map(function ($item) use ($openShift, $stockContext, $typeKey, $stockService, $priceResolver, $receivingPrices) {
+                $items = $cat->items->map(function ($item) use ($openShift, $stockContext, $typeKey, $stockService, $priceResolver, $receivingPrices, $stockDisplayService) {
                     $available = $stockService->availableStockForShift($item, $openShift, $stockContext);
                     if ($available <= 0) {
                         return null;
@@ -386,6 +388,7 @@ class SaleController extends Controller
                         'sku' => $item->sku ?? '',
                         'stock' => $available,
                         'stock_pieces' => $available,
+                        'stock_display' => $stockDisplayService->remainsDisplay($item, $available),
                         'stock_unit' => 'pcs',
                         'selling_price' => $headlinePrice,
                         'default_packaging_id' => $defaultPackagingId,

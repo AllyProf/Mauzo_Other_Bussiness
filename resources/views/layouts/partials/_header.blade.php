@@ -3,6 +3,11 @@
      href="{{ url('/home') }}"
      title="{{ $headerBrand ?? 'SP-POS' }}">{{ $headerBrand ?? 'SP-POS' }}</a>
   <a class="app-sidebar__toggle" href="#" data-toggle="sidebar" aria-label="Hide Sidebar"></a>
+  <div class="app-header__datetime" aria-live="polite">
+    <span class="app-header__date d-none d-lg-inline">{{ now()->format('l, F j, Y') }}</span>
+    <span class="app-header__time-sep d-none d-lg-inline" aria-hidden="true">·</span>
+    <span class="app-header__time" id="appHeaderTime">{{ now()->format('h:i A') }}</span>
+  </div>
   <ul class="app-nav app-nav--toolbar">
     @include('partials.language-switcher')
     <li class="app-nav__action app-nav__theme">
@@ -37,10 +42,9 @@
     @endif
     @if(!empty($canSwitchBranch) && ($ownerBranches ?? collect())->isNotEmpty())
     <li class="dropdown app-nav__action app-nav__branch">
-      <a class="app-nav__item app-nav__icon-btn" href="#" data-toggle="dropdown" aria-label="{{ __('common.switch_branch') }}" title="{{ __('common.switch_branch') }}">
-        <i class="fa fa-map-marker"></i>
-        <span class="d-none d-md-inline ml-2 branch-switch-label">{{ $activeBranchLabel ?? __('common.branch') }}</span>
-        <i class="fa fa-caret-down ml-1 d-none d-md-inline"></i>
+      <a class="app-nav__item app-nav__branch-toggle" href="#" data-toggle="dropdown" aria-label="{{ __('common.switch_branch') }}" title="{{ __('common.switch_branch') }}">
+        <span class="branch-switch-label">{{ $activeBranchLabel ?? __('common.branch') }}</span>
+        <i class="fa fa-caret-down ml-1"></i>
       </a>
       <ul class="dropdown-menu dropdown-menu-right header-switch-menu">
         <li class="dropdown-header">{{ __('common.switch_branch') }}</li>
@@ -62,7 +66,6 @@
             @csrf
             <input type="hidden" name="branch_id" value="{{ $branch->id }}">
             <button type="submit" class="dropdown-item {{ (int) ($activeBranchId ?? 0) === (int) $branch->id ? 'active' : '' }}">
-              <span class="header-switch-menu__icon"><i class="fa fa-map-marker"></i></span>
               <span class="header-switch-menu__label">
                 {{ $branch->name }}
                 @if($branch->is_default)
@@ -215,6 +218,25 @@
   @keyframes gsCaret { 50% { opacity: 0; } }
 </style>
 <script>
+(function () {
+  var timeEl = document.getElementById('appHeaderTime');
+  if (timeEl) {
+    function formatHeaderTime(d) {
+      var h = d.getHours();
+      var m = d.getMinutes();
+      var ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12;
+      if (h === 0) h = 12;
+      return h + ':' + String(m).padStart(2, '0') + ' ' + ampm;
+    }
+    function tickHeaderClock() {
+      timeEl.textContent = formatHeaderTime(new Date());
+    }
+    tickHeaderClock();
+    setInterval(tickHeaderClock, 30000);
+  }
+})();
+
 (function () {
   var toggle = document.getElementById('themeToggle');
   if (!toggle) return;

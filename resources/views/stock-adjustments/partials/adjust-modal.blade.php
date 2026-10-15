@@ -1,14 +1,14 @@
 @if($form)
 @php $multiBusiness = $form['multiBusiness'] ?? false; @endphp
 <div class="modal fade" id="adjustStockModal" tabindex="-1" role="dialog" aria-labelledby="adjustStockModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg danger-adjust-modal-dialog modal-dialog-scrollable" role="document">
-    <div class="modal-content danger-adjust-modal-content">
+  <div class="modal-dialog modal-lg stock-adjust-modal-dialog modal-dialog-scrollable" role="document">
+    <div class="modal-content stock-adjust-modal-content">
       <form action="{{ route('stock-adjustments.store') }}" method="POST" id="adjust-form">
         @csrf
-        <div class="modal-header danger-adjust-modal-header">
+        <div class="modal-header stock-adjust-modal-header">
           <div>
             <h5 class="modal-title mb-0" id="adjustStockModalLabel">
-              <i class="fa fa-exclamation-triangle"></i> {{ __('stock_adjustments.modal.title') }}
+              <i class="fa fa-sliders"></i> {{ __('stock_adjustments.modal.title') }}
             </h5>
             <small class="d-block mt-1 opacity-90">{{ __('stock_adjustments.modal.subtitle') }}</small>
           </div>
@@ -17,12 +17,19 @@
           </button>
         </div>
 
-        <div class="modal-body danger-adjust-modal-body">
-          <div class="alert alert-danger py-2 mb-3 small">
-            <i class="fa fa-warning"></i> {{ __('stock_adjustments.danger_hint') }}
+        <div class="modal-body stock-adjust-modal-body">
+          <div class="stock-adjust-steps mb-3">
+            <div class="stock-adjust-step"><span>1</span> {{ __('stock_adjustments.show.date') }} &amp; {{ __('stock_adjustments.show.reason') }}</div>
+            @if($multiBusiness)
+            <div class="stock-adjust-step"><span>2</span> {{ __('categories.business_type') }} &amp; {{ __('categories.category_name') }}</div>
+            @else
+            <div class="stock-adjust-step"><span>2</span> {{ __('categories.category_name') }}</div>
+            @endif
+            <div class="stock-adjust-step"><span>3</span> {{ __('stock_adjustments.modal.new_stock') }}</div>
           </div>
 
-          <div class="danger-adjust-panel mb-3">
+          <div class="stock-adjust-panel mb-3">
+            <h6 class="stock-adjust-section-title"><i class="fa fa-info-circle"></i> {{ __('stock_adjustments.modal.title') }}</h6>
             <div class="row">
               <div class="col-sm-6 mb-2 mb-sm-0">
                 <label class="control-label font-weight-bold">{{ __('stock_adjustments.show.date') }}</label>
@@ -71,15 +78,20 @@
           </div>
 
           <div class="alert alert-warning py-2 mb-3 small">
-            <i class="fa fa-info-circle"></i> {{ __('stock_adjustments.modal.unit_notice') }}
+            <i class="fa fa-warning"></i> {{ __('stock_adjustments.danger_hint') }}
           </div>
 
-          <div class="danger-adjust-table-wrap">
-            <table class="table table-bordered table-sm mb-0" id="adjust-items-table">
+          <div class="alert alert-light border py-2 mb-3 small">
+            <i class="fa fa-info-circle text-primary"></i> {{ __('stock_adjustments.modal.unit_notice') }}
+          </div>
+
+          <h6 class="stock-adjust-section-title mb-2"><i class="fa fa-cubes"></i> {{ __('tables.columns.item') }}</h6>
+          <div class="stock-adjust-table-wrap">
+            <table class="table table-bordered table-hover table-sm mb-0" id="adjust-items-table">
               <thead class="thead-light">
                 <tr>
                   <th>{{ __('tables.columns.item') }}</th>
-                  <th class="text-center" style="width:80px;">{{ __('stock_adjustments.modal.current_stock') }}</th>
+                  <th class="text-center" style="width:140px;">{{ __('stock_adjustments.modal.current_stock') }}</th>
                   <th class="text-center" style="width:100px;">{{ __('stock_adjustments.modal.new_stock') }}</th>
                   <th class="text-center" style="width:90px;">{{ __('stock_adjustments.modal.change') }}</th>
                   <th style="width:120px;">{{ __('tables.columns.notes') }}</th>
@@ -107,10 +119,10 @@
           </div>
         </div>
 
-        <div class="modal-footer danger-adjust-modal-footer">
+        <div class="modal-footer stock-adjust-modal-footer">
           <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-          <button class="btn btn-danger" type="submit" id="adjust-submit-btn" disabled>
-            <i class="fa fa-wrench"></i> {{ __('stock_adjustments.modal.submit') }}
+          <button class="btn btn-primary" type="submit" id="adjust-submit-btn" disabled>
+            <i class="fa fa-check"></i> {{ __('stock_adjustments.modal.submit') }}
           </button>
         </div>
       </form>

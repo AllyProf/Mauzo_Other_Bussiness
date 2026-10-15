@@ -25,11 +25,6 @@
       <h3 class="mb-0"><i class="fa fa-calendar mr-2"></i>{{ __('reports.daily.title') }}</h3>
       <p class="text-muted small mb-0 mt-1">{{ $reportDay }} · {{ __('reports.daily.period_note', ['period' => $d['period_label']]) }}</p>
     </div>
-    <div class="btn-group btn-group-sm d-print-none">
-      <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-        <i class="fa fa-print"></i> {{ __('reports.daily.print') }}
-      </button>
-    </div>
   </div>
   <div class="tile-body pt-2">
     <div class="table-responsive">
@@ -92,6 +87,20 @@
             <td class="num">{{ money($d['source_totals']['period_amount'] ?? 0) }}</td>
           </tr>
           @endif
+
+          <tr class="section-head">
+            <td colspan="3">{{ __('reports.daily.section_performance') }}</td>
+          </tr>
+          <tr>
+            <td class="metric-label">{{ __('reports.daily.profit_generated') }}</td>
+            <td class="num">{{ money($d['net_profit']['day'] ?? 0) }}</td>
+            <td class="num">{{ money($d['net_profit']['period'] ?? 0) }}</td>
+          </tr>
+          <tr>
+            <td class="metric-label">{{ __('reports.daily.circulation_generated') }}</td>
+            <td class="num">{{ money($d['circulation_generated']['day'] ?? 0) }}</td>
+            <td class="num">{{ money($d['circulation_generated']['period'] ?? 0) }}</td>
+          </tr>
 
           <tr class="section-head">
             <td colspan="3">{{ __('reports.daily.section_expenses') }}</td>

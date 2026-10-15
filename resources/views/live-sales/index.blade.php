@@ -180,18 +180,19 @@
 <div class="app-title">
     <div>
         <h1><i class="fa fa-bolt"></i> {{ $activeShift ? __('live_sales.live_shift_pulse') : __('live_sales.daily_sales_monitor') }}</h1>
+        @if($pulseMode === 'none' || $activeShift || !empty($filterNote))
         <p>
             @if($pulseMode === 'none')
                 <span class="text-warning"><i class="fa fa-exclamation-triangle"></i> {{ $scopeLabel }}</span>
             @elseif($activeShift)
                 {{ __('live_sales.monitoring_shift', ['id' => $activeShift->id, 'time' => $activeShift->opened_at->format('H:i')]) }}
-            @else
-                {!! __('live_sales.pulse_for', ['scope' => '<strong>'.$scopeLabel.'</strong>', 'date' => now()->translatedFormat('l, F j')]) !!}
             @endif
             @if(!empty($filterNote))
-            <br><small class="text-muted" id="pulse-filter-note"><i class="fa fa-filter"></i> {{ $filterNote }}</small>
+                @if($pulseMode === 'none' || $activeShift)<br>@endif
+                <small class="text-muted" id="pulse-filter-note"><i class="fa fa-filter"></i> {{ $filterNote }}</small>
             @endif
         </p>
+        @endif
     </div>
     <ul class="app-breadcrumb breadcrumb">
         <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>

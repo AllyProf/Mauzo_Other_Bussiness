@@ -273,6 +273,19 @@
     gap: 0.75rem;
     margin-bottom: 0.75rem;
   }
+  .report-page .report-export-dropdown .dropdown-item {
+    font-size: 13px;
+    padding: 0.45rem 1rem;
+  }
+  .report-page .report-export-dropdown .dropdown-item i {
+    width: 18px;
+    margin-right: 8px;
+    text-align: center;
+  }
+  .report-page .report-export-toggle {
+    padding: 0.35rem 0.65rem;
+    line-height: 1.2;
+  }
 </style>
 @endsection
 

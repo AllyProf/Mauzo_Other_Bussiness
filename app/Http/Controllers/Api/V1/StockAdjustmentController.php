@@ -110,8 +110,6 @@ class StockAdjustmentController extends ApiController
         $categoryList = [];
         foreach ($categories as $category) {
             $items = $category->items->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->map(function (Item $item) use ($stockDisplay) {
-                $formatted = $stockDisplay->format($item);
-
                 return [
                     'id' => $item->id,
                     'name' => $item->name,
@@ -119,9 +117,6 @@ class StockAdjustmentController extends ApiController
                     'brand' => $item->brand ?? '',
                     'stock' => (float) $item->current_stock,
                     'stock_label' => $stockDisplay->remainsDisplay($item),
-                    'stock_breakdown' => collect($formatted['packaging_breakdown'] ?? [])
-                        ->map(fn ($row) => $row['formatted_count'].' '.$row['name'])
-                        ->implode(' · '),
                 ];
             })->values()->all();
 

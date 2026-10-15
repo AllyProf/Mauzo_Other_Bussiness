@@ -1,6 +1,14 @@
 <?php
 
 return [
+    'export' => [
+        'menu' => 'Export report',
+        'excel' => 'Export Excel',
+        'date_label' => 'Generated: :date',
+        'prepared_by' => 'Prepared by: :name',
+        'pdf' => 'PDF',
+        'generated_by' => 'Prepared by :name · :at',
+    ],
     'daily' => [
         'title' => 'Daily Report',
         'print' => 'Print',
@@ -29,6 +37,8 @@ return [
         'no_expenses' => 'No expenses recorded for this period.',
         'net_cash' => 'Net Cash (Collected − Expenses)',
         'net_profit' => 'Net Profit (Gross Profit − Expenses)',
+        'profit_generated' => 'Profit generated',
+        'circulation_generated' => 'Money in circulation generated',
         'section_circulation' => 'Money in Circulation',
         'opening_circulation' => 'Opening Circulation',
         'money_in_circulation' => 'Money in Circulation (end of day)',

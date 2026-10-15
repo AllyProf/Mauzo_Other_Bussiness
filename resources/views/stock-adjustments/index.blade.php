@@ -4,61 +4,159 @@
 
 @section('styles')
 <style>
-  .danger-zone-banner {
-    border-left: 4px solid #dc3545;
-    background: #fff5f5;
+  .stock-adjust-modal-dialog { max-width: 920px; }
+  .stock-adjust-modal-content {
+    border: none;
+    border-radius: 8px;
+    overflow: hidden;
   }
-  .danger-adjust-modal-dialog { max-width: 920px; }
-  .danger-adjust-modal-content { border: none; border-radius: 8px; overflow: hidden; }
-  .danger-adjust-modal-header {
-    background: linear-gradient(135deg, #c0392b, #922b21);
+  .stock-adjust-modal-header {
+    background: #940000;
     color: #fff;
+    align-items: center;
     padding: 1rem 1.25rem;
   }
-  .danger-adjust-modal-body { padding: 1.25rem 1.5rem; background: #f8f9fa; }
-  .danger-adjust-modal-footer { background: #fff; border-top: 1px solid #dee2e6; }
-  .danger-adjust-panel {
+  .stock-adjust-modal-header .close {
+    opacity: 1;
+    text-shadow: none;
+    margin: -0.5rem -0.5rem -0.5rem auto;
+  }
+  .stock-adjust-modal-body {
+    padding: 1.25rem 1.5rem;
+    background: #f8f9fa;
+  }
+  .stock-adjust-modal-footer {
     background: #fff;
-    border: 1px solid #f1c0c0;
+    border-top: 1px solid #dee2e6;
+    padding: 0.85rem 1.25rem;
+  }
+  .stock-adjust-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .stock-adjust-step {
+    flex: 1 1 140px;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    color: #495057;
+  }
+  .stock-adjust-step span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #940000;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-right: 0.5rem;
+  }
+  .stock-adjust-panel {
+    background: #fff;
+    border: 1px solid #e9ecef;
     border-radius: 8px;
     padding: 1rem 1.15rem;
   }
-  .danger-adjust-table-wrap {
+  .stock-adjust-section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #6c757d;
+    margin-bottom: 0.75rem;
+  }
+  .stock-adjust-table-wrap {
     background: #fff;
     border: 1px solid #e9ecef;
     border-radius: 8px;
     max-height: 320px;
     overflow: auto;
   }
+  .stock-adjust-table-wrap table { margin-bottom: 0; }
+  .stock-adjust-table-wrap thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8f9fa;
+    box-shadow: 0 1px 0 #dee2e6;
+  }
+  .new-stock-input {
+    max-width: 100px;
+    margin: 0 auto;
+    text-align: center;
+    -moz-appearance: textfield;
+  }
+  .new-stock-input::-webkit-outer-spin-button,
+  .new-stock-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
   .change-positive { color: #28a745; font-weight: 700; }
   .change-negative { color: #dc3545; font-weight: 700; }
   .change-neutral { color: #6c757d; }
+
+  @media (max-width: 991.98px) {
+    .stock-adjustments-page .app-title {
+      flex-wrap: wrap;
+      align-items: flex-start !important;
+      gap: 10px;
+    }
+    .stock-adjustments-page .app-title h1 { font-size: 1.35rem; line-height: 1.35; }
+    .stock-adjustments-page .app-title p {
+      display: block !important;
+      font-size: 0.88rem;
+      font-style: normal;
+    }
+    .stock-adjustments-page .app-title > div .btn {
+      width: 100%;
+      margin-left: 0 !important;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .stock-adjust-modal-dialog {
+      max-width: calc(100vw - 1rem);
+      margin: 0.5rem auto;
+    }
+    .stock-adjust-modal-body { padding: 1rem; }
+    .stock-adjust-step { flex: 1 1 100%; }
+    .new-stock-input { max-width: none; width: 100%; }
+    .stock-adjust-table-wrap { max-height: 240px; }
+    .stock-adjustments-page .adjustments-col-hide-mobile { display: none !important; }
+  }
 </style>
 @endsection
 
 @section('content')
+<div class="stock-adjustments-page">
 <div class="app-title">
   <div>
-    <h1 class="text-danger"><i class="fa fa-exclamation-triangle"></i> {{ __('stock_adjustments.title') }}</h1>
+    <h1><i class="fa fa-sliders"></i> {{ __('stock_adjustments.title') }}</h1>
     <p>{{ __('stock_adjustments.subtitle') }}</p>
   </div>
   @if($canAdjust)
   <div>
-    <button type="button" class="btn btn-danger shadow-sm" data-toggle="modal" data-target="#adjustStockModal">
-      <i class="fa fa-wrench"></i> {{ __('stock_adjustments.new_adjustment') }}
+    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#adjustStockModal">
+      <i class="fa fa-plus"></i> {{ __('stock_adjustments.new_adjustment') }}
     </button>
   </div>
   @endif
 </div>
 
-<div class="alert danger-zone-banner py-3 mb-3">
-  <strong class="text-danger"><i class="fa fa-warning"></i> {{ __('stock_adjustments.danger_zone') }}</strong>
-  <span class="d-block small text-muted mt-1">{{ __('stock_adjustments.danger_hint') }}</span>
+<div class="alert alert-light border mb-3 py-2">
+  <i class="fa fa-info-circle text-primary"></i>
+  <strong>{{ __('stock_adjustments.danger_zone') }}</strong>
+  <span class="d-block small text-muted mt-1 mb-0">{{ __('stock_adjustments.danger_hint') }}</span>
 </div>
 
 <div class="row mb-3">
-  <div class="col-md-4">
-    <div class="widget-small danger coloured-icon">
+  <div class="col-6 col-md-4">
+    <div class="widget-small primary coloured-icon">
       <i class="icon fa fa-list-alt fa-3x"></i>
       <div class="info">
         <h4>{{ __('stock_adjustments.stats.records') }}</h4>
@@ -66,8 +164,8 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="widget-small warning coloured-icon">
+  <div class="col-6 col-md-4">
+    <div class="widget-small info coloured-icon">
       <i class="icon fa fa-cubes fa-3x"></i>
       <div class="info">
         <h4>{{ __('stock_adjustments.stats.lines') }}</h4>
@@ -75,8 +173,8 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="widget-small info coloured-icon">
+  <div class="col-12 col-md-4">
+    <div class="widget-small warning coloured-icon">
       <i class="icon fa fa-exchange fa-3x"></i>
       <div class="info">
         <h4>{{ __('stock_adjustments.stats.net_change') }}</h4>
@@ -89,65 +187,68 @@
 <div class="row">
   <div class="col-md-12">
     <div class="tile">
-      <h3 class="tile-title">{{ __('stock_adjustments.history') }}</h3>
-      <div class="table-responsive">
-        <table class="table table-hover table-bordered mb-0">
-          <thead class="bg-light">
-            <tr>
-              <th>{{ __('stock_adjustments.show.reference') }}</th>
-              <th>{{ __('stock_adjustments.show.date') }}</th>
-              <th>{{ __('stock_adjustments.show.reason') }}</th>
-              <th>{{ __('categories.items_count') }}</th>
-              <th>{{ __('stock_adjustments.show.net_change') }}</th>
-              <th>{{ __('stock_adjustments.show.recorded_by') }}</th>
-              <th>{{ __('stock_adjustments.show.status') }}</th>
-              <th>{{ __('tables.columns.actions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            @forelse($adjustments as $adjustment)
+      <div class="tile-body">
+        <h3 class="tile-title mb-3">{{ __('stock_adjustments.history') }}</h3>
+        <div class="table-responsive">
+          <table class="table table-hover table-bordered mb-0">
+            <thead class="thead-light">
               <tr>
-                <td><strong class="text-danger">{{ $adjustment->reference_no }}</strong></td>
-                <td>{{ $adjustment->adjustment_date->format('d M Y') }}</td>
-                <td>{{ $adjustment->reasonLabel() }}</td>
-                <td>{{ $adjustment->items_count }}</td>
-                <td>
-                  @php $net = (float) $adjustment->net_adjustment; @endphp
-                  <span class="{{ $net > 0 ? 'change-positive' : ($net < 0 ? 'change-negative' : 'change-neutral') }}">
-                    {{ $net > 0 ? '+' : '' }}{{ number_format($net, 0) }}
-                  </span>
-                </td>
-                <td>{{ $adjustment->user->name ?? '—' }}</td>
-                <td>
-                  @if($adjustment->isCancelled())
-                    <span class="badge badge-secondary">{{ __('stock_adjustments.status.cancelled') }}</span>
-                  @else
-                    <span class="badge badge-danger">{{ __('stock_adjustments.status.completed') }}</span>
-                  @endif
-                </td>
-                <td class="text-nowrap">
-                  <a href="{{ route('stock-adjustments.show', $adjustment) }}" class="btn btn-sm btn-outline-danger"><i class="fa fa-eye"></i></a>
-                  @if(!$adjustment->isCancelled() && $canAdjust)
-                  <form action="{{ route('stock-adjustments.cancel', $adjustment) }}" method="POST" class="d-inline">
-                    @csrf
-                    <button type="submit" class="btn btn-sm btn-outline-secondary" onclick="confirmAction(event, @json(__('stock_adjustments.cancel_confirm_title')), @json(__('stock_adjustments.cancel_confirm_text')))">
-                      <i class="fa fa-undo"></i>
-                    </button>
-                  </form>
-                  @endif
-                </td>
+                <th>{{ __('stock_adjustments.show.reference') }}</th>
+                <th>{{ __('stock_adjustments.show.date') }}</th>
+                <th class="adjustments-col-hide-mobile">{{ __('stock_adjustments.show.reason') }}</th>
+                <th class="adjustments-col-hide-mobile">{{ __('categories.items_count') }}</th>
+                <th>{{ __('stock_adjustments.show.net_change') }}</th>
+                <th class="adjustments-col-hide-mobile">{{ __('stock_adjustments.show.recorded_by') }}</th>
+                <th>{{ __('stock_adjustments.show.status') }}</th>
+                <th>{{ __('tables.columns.actions') }}</th>
               </tr>
-            @empty
-              <tr>
-                <td colspan="8" class="text-center text-muted py-4">No adjustment records yet.</td>
-              </tr>
-            @endforelse
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              @forelse($adjustments as $adjustment)
+                <tr>
+                  <td><strong class="text-primary">{{ $adjustment->reference_no }}</strong></td>
+                  <td>{{ $adjustment->adjustment_date->format('d M Y') }}</td>
+                  <td class="adjustments-col-hide-mobile">{{ $adjustment->reasonLabel() }}</td>
+                  <td class="adjustments-col-hide-mobile">{{ $adjustment->items_count }}</td>
+                  <td>
+                    @php $net = (float) $adjustment->net_adjustment; @endphp
+                    <span class="{{ $net > 0 ? 'change-positive' : ($net < 0 ? 'change-negative' : 'change-neutral') }}">
+                      {{ $net > 0 ? '+' : '' }}{{ number_format($net, 0) }}
+                    </span>
+                  </td>
+                  <td class="adjustments-col-hide-mobile">{{ $adjustment->user->name ?? '—' }}</td>
+                  <td>
+                    @if($adjustment->isCancelled())
+                      <span class="badge badge-secondary">{{ __('stock_adjustments.status.cancelled') }}</span>
+                    @else
+                      <span class="badge badge-success">{{ __('stock_adjustments.status.completed') }}</span>
+                    @endif
+                  </td>
+                  <td class="text-nowrap">
+                    <a href="{{ route('stock-adjustments.show', $adjustment) }}" class="btn btn-sm btn-outline-primary" title="{{ __('common.view') ?? 'View' }}"><i class="fa fa-eye"></i></a>
+                    @if(!$adjustment->isCancelled() && $canAdjust)
+                    <form action="{{ route('stock-adjustments.cancel', $adjustment) }}" method="POST" class="d-inline">
+                      @csrf
+                      <button type="submit" class="btn btn-sm btn-outline-secondary" onclick="confirmAction(event, @json(__('stock_adjustments.cancel_confirm_title')), @json(__('stock_adjustments.cancel_confirm_text')))">
+                        <i class="fa fa-undo"></i>
+                      </button>
+                    </form>
+                    @endif
+                  </td>
+                </tr>
+              @empty
+                <tr>
+                  <td colspan="8" class="text-center text-muted py-4">No adjustment records yet.</td>
+                </tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
+        {{ $adjustments->links() }}
       </div>
-      {{ $adjustments->links() }}
     </div>
   </div>
+</div>
 </div>
 
 @if($form ?? null)
@@ -219,27 +320,21 @@ $(function () {
       return;
     }
     adjustItemsByCategory[catId].forEach(function (item, idx) {
-      const breakdown = item.stock_label
-        ? '<small class="text-info d-block mt-1"><i class="fa fa-cubes"></i> ' + item.stock_label + '</small>'
-        : '';
-      const pkgHint = item.stock_breakdown
-        ? '<small class="text-muted d-block">(' + item.stock_breakdown + ')</small>'
-        : '';
+      const currentCell = item.stock_label
+        ? '<span class="font-weight-bold d-block text-left" style="font-size:0.85rem;line-height:1.35;">' + item.stock_label + '</span>'
+        : '<span class="font-weight-bold d-block">' + Number(item.stock).toLocaleString() + '</span><small class="text-muted">pcs</small>';
       tbody.append(`
         <tr data-item-id="${item.id}" data-current="${item.stock}">
           <td>
             <strong>${item.name}</strong>
             <small class="text-muted d-block">${item.sku || 'No SKU'}</small>
-            ${breakdown}
-            ${pkgHint}
             <input type="hidden" name="items[${idx}][id]" value="${item.id}">
           </td>
           <td class="text-center align-middle">
-            <span class="font-weight-bold d-block">${Number(item.stock).toLocaleString()}</span>
-            <small class="text-muted">pcs</small>
+            ${currentCell}
           </td>
           <td class="text-center align-middle">
-            <input type="number" name="items[${idx}][new_stock]" class="form-control form-control-sm new-stock-input text-center" value="${item.stock}" min="0" step="0.01" title="Total pieces in stock">
+            <input type="number" name="items[${idx}][new_stock]" class="form-control form-control-sm new-stock-input" value="${item.stock}" min="0" step="0.01" inputmode="decimal" title="Total pieces in stock">
             <small class="text-muted">pcs</small>
           </td>
           <td class="text-center align-middle change-cell">${formatChange(0)}</td>

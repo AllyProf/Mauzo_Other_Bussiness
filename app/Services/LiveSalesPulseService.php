@@ -15,9 +15,15 @@ class LiveSalesPulseService
     /**
      * @return array{shift: ?Shift, mode: string, date: string, scope_label: string}
      */
-    public function resolveContext(User $user, Business $business, bool $businessWide, ?int $branchFilterId = null): array
-    {
+    public function resolveContext(
+        User $user,
+        Business $business,
+        bool $businessWide,
+        ?int $branchFilterId = null,
+        ?string $branchName = null,
+    ): array {
         $date = now()->toDateString();
+        $businessScope = $this->businessScopeLabel($business, $branchName);
 
         if ($user->requiresOpenShift()) {
             $shift = Shift::openForUser($user->id, $business->id);
@@ -40,8 +46,12 @@ class LiveSalesPulseService
                 'mode' => $shift ? 'shift' : 'day',
                 'date' => $date,
                 'scope_label' => $shift
-                    ? __('live_sales.scope.business_shift', ['id' => $shift->id, 'name' => $shift->user?->name ?? ''])
-                    : __('live_sales.scope.business_today'),
+                    ? __('live_sales.scope.business_shift', [
+                        'business' => $businessScope,
+                        'id' => $shift->id,
+                        'name' => $shift->user?->name ?? '',
+                    ])
+                    : __('live_sales.scope.business_today', ['business' => $businessScope]),
             ];
         }
 
@@ -65,7 +75,13 @@ class LiveSalesPulseService
         bool $scopeToStaffOnly,
         array $filters = [],
     ): array {
-        $context = $this->resolveContext($user, $business, $businessWide, $filters['branch_filter_id'] ?? null);
+        $context = $this->resolveContext(
+            $user,
+            $business,
+            $businessWide,
+            $filters['branch_filter_id'] ?? null,
+            $filters['branch_name'] ?? null,
+        );
         $shift = $context['shift'];
         $date = $context['date'];
         $branchFilterId = $filters['branch_filter_id'] ?? null;
@@ -368,6 +384,18 @@ class LiveSalesPulseService
         }
 
         return '';
+    }
+
+    private function businessScopeLabel(Business $business, ?string $branchName): string
+    {
+        $label = trim((string) $business->name);
+        $branchName = trim((string) ($branchName ?? ''));
+
+        if ($branchName !== '') {
+            return $label !== '' ? $label.' · '.$branchName : $branchName;
+        }
+
+        return $label !== '' ? $label : __('common.business');
     }
 
     /**

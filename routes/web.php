@@ -342,6 +342,7 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
         Route::get('/products', [App\Http\Controllers\ReportController::class, 'products'])->name('products');
         Route::get('/debts', [App\Http\Controllers\ReportController::class, 'debts'])->name('debts');
         Route::get('/cashiers', [App\Http\Controllers\ReportController::class, 'cashiers'])->name('cashiers');
+        Route::get('/export/{reportKey}', [App\Http\Controllers\ReportController::class, 'export'])->name('export');
     });
 
     Route::get('/owner-reports/{date}', [App\Http\Controllers\OwnerDailyReportController::class, 'show'])->name('owner-reports.show')->where('date', '[0-9]{4}-[0-9]{2}-[0-9]{2}');

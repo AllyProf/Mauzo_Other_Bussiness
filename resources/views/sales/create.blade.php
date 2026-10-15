@@ -105,22 +105,6 @@
         color: #6c757d;
         margin-bottom: 1rem;
     }
-    #addToCartModal .modal-price-box {
-        text-align: center;
-        padding: 10px 12px;
-        margin-bottom: 1rem;
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #940000;
-    }
-    #addToCartModal .modal-price-box small {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #6c757d;
-    }
     #addToCartModal .qty-selector {
         display: flex;
         align-items: center;
@@ -631,9 +615,6 @@
             <div class="packaging-switch" id="modalPackagingSwitch"></div>
         </div>
 
-        <div class="modal-price-box" id="modalPriceDisplay">
-          TZS <span id="modalPrice">0</span> <small id="modalPriceUnit">/ unit</small>
-        </div>
         <div class="form-group mb-3" id="modalPriceEditGroup" style="display:none;">
             <label class="control-label font-weight-bold">Price (TZS) <span class="text-danger">*</span></label>
             <input type="number" class="form-control" id="modalPriceInput" min="1" step="1" placeholder="Selling price">
@@ -867,15 +848,28 @@
         }
     }
 
+    function displayUnitName(name) {
+        if (!name) return 'unit';
+        const cleaned = String(name).replace(/\s*\(Pcs\)/gi, '').trim();
+        return cleaned || String(name);
+    }
+
     function packagingLabel(item, packaging) {
         if (!packaging) return '';
         if ((item.packagings || []).length <= 1) return '';
-        return ' (' + packaging.name + ')';
+        return ' (' + displayUnitName(packaging.name) + ')';
     }
 
     function formatStockQty(value) {
         const num = parseFloat(value) || 0;
         return Number.isInteger(num) ? String(num) : num.toFixed(2);
+    }
+
+    function itemStockText(item) {
+        if (item && item.stock_display) {
+            return item.stock_display;
+        }
+        return formatStockQty(item.stock_pieces ?? item.stock) + ' pcs';
     }
 
     function stockPieces(item) {
@@ -981,7 +975,7 @@
                         <div class="item-icon">${iconHtml}</div>
                         <div class="item-title">${item.name}</div>
                         <div class="item-meta">
-                            <div class="item-stock">Stock: <b>${formatStockQty(item.stock_pieces ?? item.stock)} pcs</b></div>
+                            <div class="item-stock">Stock: <b>${itemStockText(item)}</b></div>
                             <div class="item-price${itemHasPrice(item) ? '' : ' unset'}">${itemPriceText(item) ? 'TSh ' + itemPriceText(item) : 'Price not set'}</div>
                         </div>
                         <div class="add-btn">
@@ -997,7 +991,7 @@
                 const row = `
                     <div class="item-row" onclick="openModal(${item.id})">
                         <div class="item-row-title">${item.name}</div>
-                        <div class="item-row-stock">Stock: ${formatStockQty(item.stock_pieces ?? item.stock)} pcs</div>
+                        <div class="item-row-stock">Stock: ${itemStockText(item)}</div>
                         <div class="item-row-price${itemHasPrice(item) ? '' : ' unset'}">${itemPriceText(item) ? 'TSh ' + itemPriceText(item) : 'Price not set'}</div>
                         <div class="add-btn" style="border:none; margin:0; padding:0;"><i class="fa fa-plus-circle fa-lg"></i></div>
                     </div>
@@ -1112,24 +1106,20 @@
         }
 
         const maxQty = packagingMaxQty(currentModalItem, currentModalPackaging);
-        const unitName = currentModalPackaging?.name || 'unit';
+        const unitName = displayUnitName(currentModalPackaging?.name || 'unit');
         const unitPrice = activeUnitPrice(currentModalItem, currentModalPackaging);
         const needsPrice = unitPrice <= 0;
 
         $('#modalItemName').text(currentModalItem.name);
         $('#modalStockText').text(
-            formatStockQty(pieces) + ' in stock · max ' + maxQty + ' ' + unitName
+            itemStockText(currentModalItem) + ' · max ' + maxQty + ' ' + unitName
         );
 
         if (needsPrice) {
-            $('#modalPriceDisplay').hide();
             $('#modalPriceEditGroup').show();
             $('#modalPriceInput').val('');
         } else {
-            $('#modalPriceDisplay').show();
             $('#modalPriceEditGroup').hide();
-            $('#modalPrice').text(formatTZS(unitPrice));
-            $('#modalPriceUnit').text('/ ' + unitName);
         }
 
         $('#modalQtyLabel').text('Quantity (' + unitName + ')');
@@ -1162,11 +1152,8 @@
         $('#modalStockText').text(service.unit_label || 'unit');
         $('#modalPackagingGroup').hide();
         $('#modalPriceEditGroup').hide();
-        $('#modalPriceDisplay').show();
-        $('#modalPrice').text(formatTZS(service.price));
-        $('#modalPriceUnit').text('/ ' + (service.unit_label || 'unit'));
         $('#modalQtyInput').val(1).attr('data-max', 9999);
-        $('#modalQtyLabel').text('Quantity (' + (service.unit_label || 'units') + ')');
+        $('#modalQtyLabel').text('Quantity (' + displayUnitName(service.unit_label || 'units') + ')');
         updateModalLineTotal();
         $('#addToCartModal').modal('show');
     };

@@ -1,6 +1,14 @@
 <?php
 
 return [
+    'export' => [
+        'menu' => 'Pakua ripoti',
+        'excel' => 'Pakua Excel',
+        'date_label' => 'Imetengenezwa: :date',
+        'prepared_by' => 'Imeandaliwa na: :name',
+        'pdf' => 'PDF',
+        'generated_by' => 'Imeandaliwa na :name · :at',
+    ],
     'daily' => [
         'title' => 'Ripoti ya Siku',
         'print' => 'Chapisha',
@@ -29,6 +37,8 @@ return [
         'no_expenses' => 'Hakuna matumizi yaliyorekodiwa kwa kipindi hiki.',
         'net_cash' => 'Fedha Halisi (Zilizokusanywa − Matumizi)',
         'net_profit' => 'Faida Halisi (Faida Ghafi − Matumizi)',
+        'profit_generated' => 'Faida iliyotengenezwa',
+        'circulation_generated' => 'Pesa zinazozunguka zilizotengenezwa',
         'section_circulation' => 'Fedha Kwenye Mzunguko',
         'opening_circulation' => 'Mzunguko wa Kuanzia',
         'money_in_circulation' => 'Fedha Kwenye Mzunguko (mwisho wa siku)',

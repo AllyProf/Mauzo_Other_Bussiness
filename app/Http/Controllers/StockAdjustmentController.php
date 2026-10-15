@@ -270,18 +270,12 @@ class StockAdjustmentController extends Controller
                 $stockDisplay = app(ItemStockDisplayService::class);
 
                 return [$cat->id => $cat->items->map(function ($item) use ($stockDisplay) {
-                    $formatted = $stockDisplay->format($item);
-                    $breakdown = collect($formatted['packaging_breakdown'] ?? [])
-                        ->map(fn ($row) => $row['formatted_count'].' '.$row['name'])
-                        ->implode(' · ');
-
                     return [
                         'id' => $item->id,
                         'name' => $item->name,
                         'sku' => $item->sku ?? '',
                         'stock' => (float) $item->current_stock,
                         'stock_label' => $stockDisplay->remainsDisplay($item),
-                        'stock_breakdown' => $breakdown,
                     ];
                 })->values()];
             })

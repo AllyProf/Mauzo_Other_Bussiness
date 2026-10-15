@@ -745,6 +745,27 @@ class BusinessReportService
         $dayGrossProfit = $this->snapshotGrossProfit($business, $periodTo, $periodTo, $businessTypeKey);
         $periodGrossProfit = $this->snapshotGrossProfit($business, $periodFrom, $periodTo, $businessTypeKey);
 
+        $periodOpeningProfit = (float) ($periodStartTotals['opening_profit'] ?? 0);
+        $periodOpeningCirculation = (float) ($periodStartTotals['opening_circulation'] ?? 0);
+        $dayProfitGenerated = (float) ($dayTotals['net_profit'] ?? 0);
+        $dayCirculationGenerated = max(0, round(
+            (float) ($dayTotals['closing_circulation'] ?? 0)
+            - (float) ($dayTotals['opening_circulation'] ?? 0)
+            + (float) ($dayTotals['owner_circulation_expenses'] ?? 0),
+            2
+        ));
+        $periodOwnerCirculationExpenses = $this->snapshotOwnerCirculationExpenses($business, $periodFrom, $periodTo, $businessTypeKey);
+        $periodProfitGenerated = max(0, round(
+            (float) ($dayTotals['closing_profit'] ?? 0) - $periodOpeningProfit,
+            2
+        ));
+        $periodCirculationGenerated = max(0, round(
+            (float) ($dayTotals['closing_circulation'] ?? 0)
+            - $periodOpeningCirculation
+            + $periodOwnerCirculationExpenses,
+            2
+        ));
+
         return [
             'report_date' => $periodTo,
             'report_date_label' => $day->format('d-M'),
@@ -813,16 +834,31 @@ class BusinessReportService
                 'period' => $periodStats['collected'] - $periodExpenses['total'],
             ],
             'net_profit' => [
-                'day' => $dayGrossProfit - $dayExpenses['total'],
-                'period' => $periodGrossProfit - $periodExpenses['total'],
+                'day' => $dayProfitGenerated,
+                'period' => $periodProfitGenerated,
+            ],
+            'circulation_generated' => [
+                'day' => $dayCirculationGenerated,
+                'period' => $periodCirculationGenerated,
             ],
             'circulation' => [
                 'day_opening' => (float) ($dayTotals['opening_circulation'] ?? 0),
-                'period_opening' => (float) ($periodStartTotals['opening_circulation'] ?? 0),
+                'period_opening' => $periodOpeningCirculation,
                 'closing' => (float) ($dayTotals['closing_circulation'] ?? 0),
                 'closing_profit' => (float) ($dayTotals['closing_profit'] ?? 0),
             ],
         ];
+    }
+
+    private function snapshotOwnerCirculationExpenses(Business $business, string $from, string $to, ?string $businessTypeKey = null): float
+    {
+        $ownerQuery = BusinessOwnerExpense::where('business_id', $business->id)
+            ->where('fund_source', 'circulation')
+            ->whereBetween('expense_date', [$from, $to])
+            ->when($businessTypeKey, fn ($q) => $q->where('business_type_key', $businessTypeKey));
+        $this->scopeOwnerExpensesByBranch($ownerQuery);
+
+        return (float) $ownerQuery->sum('amount');
     }
 
     private function snapshotGrossProfit(Business $business, string $from, string $to, ?string $businessTypeKey = null): float

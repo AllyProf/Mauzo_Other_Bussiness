@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\BusinessReportExportService;
 use App\Services\BusinessReportService;
 use App\Services\CashierPerformanceService;
 use Illuminate\Http\Request;
@@ -11,8 +12,50 @@ use Illuminate\Support\Facades\Auth;
 
 class ReportController extends Controller
 {
-    public function __construct(private BusinessReportService $reports)
+    public function __construct(
+        private BusinessReportService $reports,
+        private BusinessReportExportService $exports,
+    ) {}
+
+    public function export(Request $request, string $reportKey)
     {
+        $this->authorizeAny(['view_reports']);
+
+        $allowedKeys = collect(business_report_menu_options())->pluck('key');
+        if (! $allowedKeys->contains($reportKey)) {
+            abort(404);
+        }
+
+        $format = $request->validate([
+            'format' => 'required|in:pdf,excel',
+        ])['format'];
+
+        $filter = $this->branchBusinessFilterContext($request);
+        $business = $filter['business'];
+        $branchFilterId = $this->resolveBranchFilterId();
+
+        $payload = $this->exports->build(
+            $reportKey,
+            $business,
+            Auth::user(),
+            $request,
+            $branchFilterId,
+            $filter['businessTypes'] ?? []
+        );
+
+        $filename = $this->exports->filename($payload, $format);
+
+        if ($format === 'pdf') {
+            return response($this->exports->renderPdf($payload), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            ]);
+        }
+
+        return response($this->exports->renderExcel($payload), 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
     }
 
     public function index(Request $request)

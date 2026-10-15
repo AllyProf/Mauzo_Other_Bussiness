@@ -11,13 +11,13 @@ return [
     'scope' => [
         'open_shift_prompt' => 'Fungua kipindi kuona data ya moja kwa moja',
         'your_shift' => 'Kipindi chako #:id',
-        'business_shift' => 'Biashara · Kipindi #:id (:name)',
-        'business_today' => 'Biashara · Leo',
+        'business_shift' => ':business · Kipindi #:id (:name)',
+        'business_today' => ':business · Leo',
         'your_sales_today' => 'Mauzo yako leo',
     ],
 
     'monitoring_shift' => 'Inafuatilia Kipindi #:id (ilianza :time)',
-    'pulse_for' => 'Mtiririko wa moja kwa moja kwa :scope — :date',
+    'pulse_for' => 'Mtiririko wa moja kwa moja kwa :scope',
     'filter_business_type' => 'Aina ya biashara: :label',
     'filtered_to' => 'Imechujwa kwa :label.',
 

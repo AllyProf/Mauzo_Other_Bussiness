@@ -11,11 +11,6 @@
     <div class="title">
       <h3 class="mb-0"><i class="fa fa-credit-card mr-2"></i>{{ $title ?? 'Payment channels' }}</h3>
     </div>
-    <div class="btn-group btn-group-sm d-print-none">
-      <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-        <i class="fa fa-print"></i> {{ __('reports.daily.print') }}
-      </button>
-    </div>
   </div>
   <div class="tile-body">
     <div class="daily-report-meta">
