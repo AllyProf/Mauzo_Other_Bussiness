@@ -21,6 +21,8 @@ return [
         'daily' => 'Siku',
         'period' => 'Kipindi',
         'orders' => 'Oda',
+        'view_all_orders' => 'Angalia oda zote',
+        'all_orders_title' => 'Oda zote — :date',
         'gross_sales' => 'Mauzo Ghafi',
         'collected' => 'Zilizokusanywa',
         'outstanding' => 'Deni Lililobaki',

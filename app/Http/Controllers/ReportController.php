@@ -130,10 +130,12 @@ class ReportController extends Controller
         $business = $filter['business'];
         $activeBusinessType = $this->reports->resolveBusinessTypeFilter($request, $business, $filter['businessTypes']);
         $data = $this->reports->dailySnapshotReport($business, $reportDate, $activeBusinessType);
+        $dayOrders = $this->reports->dailyReportOrdersModal($business, $reportDate, $activeBusinessType);
 
         return view('reports.daily-report', [
             'title' => __('reports.daily.title'),
             'data' => $data,
+            'dayOrders' => $dayOrders,
             'business' => $business,
             'businessTypes' => $filter['businessTypes'],
             'multiBusiness' => $filter['multiBusiness'],

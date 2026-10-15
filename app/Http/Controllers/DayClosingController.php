@@ -2078,7 +2078,14 @@ class DayClosingController extends Controller
         $query = SalePayment::query()
             ->where('user_id', $collectorUserId)
             ->whereHas('sale', fn ($q) => $q->where('business_id', $businessId)->where('payment_status', '!=', 'cancelled'))
-            ->with(['sale.user', 'sale.payments', 'user']);
+            ->with([
+                'sale.user',
+                'sale.payments',
+                'sale.items.item',
+                'sale.items.service',
+                'sale.items.itemPackaging.packagingType',
+                'user',
+            ]);
 
         if ($shiftPaymentWindow) {
             $this->scopePaymentsToShiftWindow($query, $shiftPaymentWindow);
@@ -2261,7 +2268,7 @@ class DayClosingController extends Controller
             if ($carriedIds->isNotEmpty()) {
                 $carried = Sale::query()
                     ->whereIn('id', $carriedIds)
-                    ->with(['user', 'payments'])
+                    ->with(['user', 'payments', 'items.item', 'items.service', 'items.itemPackaging.packagingType'])
                     ->get();
 
                 $sales = $sales->merge($carried);
@@ -2295,6 +2302,7 @@ class DayClosingController extends Controller
                 return [
                     'ref' => $sale->reference_no,
                     'sale_txn_ref' => $sale->transaction_reference,
+                    'items' => $this->summarizeSaleItems($sale),
                     'cashier' => $sale->user->name ?? 'Unknown',
                     'total' => (float) $sale->total_amount,
                     'paid' => (float) $sale->amount_paid,
@@ -2347,6 +2355,7 @@ class DayClosingController extends Controller
                     'id' => $sale->id,
                     'ref' => $sale->reference_no,
                     'sale_txn_ref' => $sale->transaction_reference,
+                    'items' => $this->summarizeSaleItems($sale),
                     'cashier' => $sale->user->name ?? 'Unknown',
                     'total' => (float) $sale->total_amount,
                     'paid' => (float) $sale->amount_paid,
@@ -2362,6 +2371,16 @@ class DayClosingController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    protected function summarizeSaleItems(Sale $sale): string
+    {
+        $sale->loadMissing(['items.item', 'items.service', 'items.itemPackaging.packagingType']);
+
+        return $sale->items
+            ->map(fn ($line) => $line->soldLineDescription())
+            ->filter(fn ($label) => trim($label) !== '')
+            ->implode(', ');
     }
 
     protected function resolvePlatformKey(SalePayment $payment): string

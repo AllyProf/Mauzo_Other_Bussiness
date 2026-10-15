@@ -33,7 +33,7 @@ function renderDayClosingSalesModal(sales, title) {
   if (!sales.length) {
     jQuery('#sales-content').html('<div class="alert alert-info">No sales found for this shift.</div>');
   } else {
-    let html = '<div class="table-responsive"><table class="table table-sm table-bordered table-hover"><thead><tr><th>Ref</th><th>{{ __('tables.columns.time') }}</th><th>{{ __('tables.columns.cashier') }}</th><th>{{ __('tables.columns.total') }}</th><th>{{ __('tables.columns.paid') }}</th><th>Balance</th><th>This Shift</th><th>Payment</th><th>Payment Ref</th><th>{{ __('tables.columns.status') }}</th></tr></thead><tbody>';
+    let html = '<div class="table-responsive"><table class="table table-sm table-bordered table-hover"><thead><tr><th>Ref</th><th>{{ __('tables.columns.item') }}</th><th>{{ __('tables.columns.time') }}</th><th>{{ __('tables.columns.cashier') }}</th><th>{{ __('tables.columns.total') }}</th><th>{{ __('tables.columns.paid') }}</th><th>Balance</th><th>This Shift</th><th>Payment</th><th>Payment Ref</th><th>{{ __('tables.columns.status') }}</th></tr></thead><tbody>';
     sales.forEach(s => {
       let payHtml = '-';
       if (s.payments && s.payments.length) {
@@ -54,8 +54,12 @@ function renderDayClosingSalesModal(sales, title) {
       const shiftCollected = s.carried_over && s.shift_collected != null
         ? `<span class="text-success font-weight-bold">TZS ${Number(s.shift_collected).toLocaleString()}</span>`
         : '-';
+      const itemsCell = s.items
+        ? `<span class="small">${dayClosingEscapeHtml(s.items)}</span>`
+        : '<span class="text-muted">—</span>';
       html += `<tr>
         <td><strong>${refLabel}</strong></td>
+        <td>${itemsCell}</td>
         <td>${dayClosingEscapeHtml(s.time)}</td>
         <td>${dayClosingEscapeHtml(s.cashier)}</td>
         <td>TZS ${Number(s.total).toLocaleString()}</td>

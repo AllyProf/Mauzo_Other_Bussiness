@@ -17,6 +17,8 @@
   })->values();
   $expenseRows = collect($d['expenses'] ?? [])->filter(fn ($e) => ($e['day'] ?? 0) > 0 || ($e['period'] ?? 0) > 0)->values();
   $reportDay = \Carbon\Carbon::parse($d['report_date'])->format('d M Y');
+  $ordersMetricDay = (int) (collect($d['metrics'] ?? [])->firstWhere('key', 'orders')['day'] ?? 0);
+  $dayOrderCount = max(count($dayOrders ?? []), $ordersMetricDay);
 @endphp
 
 <div class="tile mb-0 daily-report-tile">
@@ -130,9 +132,36 @@
     </div>
   </div>
 </div>
+
+@if($dayOrderCount > 0)
+<div class="modal fade" id="salesModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ __('reports.daily.all_orders_title', ['date' => $reportDay]) }}</h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body"><div id="sales-content"></div></div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button></div>
+    </div>
+  </div>
+</div>
+@endif
 @endsection
 
 @section('report-scripts')
+@if($dayOrderCount > 0)
+@include('day-closing.partials.sales-modal-render')
+<script>
+jQuery(function ($) {
+  const dayOrders = @json($dayOrders);
+  const modalTitle = @json(__('reports.daily.all_orders_title', ['date' => $reportDay]));
+  $('#dailyReportViewOrdersBtn').on('click', function () {
+    renderDayClosingSalesModal(dayOrders, modalTitle);
+  });
+});
+</script>
+@endif
 <style>
   .daily-report-tile .tile-title-w-btn .title h3 { font-size: 1.15rem; }
   .daily-report-table-compact .metric-col { width: 40%; }

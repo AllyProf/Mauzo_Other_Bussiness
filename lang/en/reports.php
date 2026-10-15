@@ -21,6 +21,8 @@ return [
         'total_collected' => 'Total collected',
         'net_cash_short' => 'Net cash (after expenses)',
         'orders' => 'Orders',
+        'view_all_orders' => 'View all orders',
+        'all_orders_title' => 'All orders — :date',
         'gross_sales' => 'Gross Sales',
         'collected' => 'Collected',
         'outstanding' => 'Outstanding',

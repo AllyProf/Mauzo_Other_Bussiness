@@ -850,6 +850,69 @@ class BusinessReportService
         ];
     }
 
+    /**
+     * Orders for the daily report day (View all orders modal).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function dailyReportOrdersModal(Business $business, string $reportDate, ?string $businessTypeKey = null): array
+    {
+        $date = Carbon::parse($reportDate)->toDateString();
+
+        $query = $this->scopedSales($business->id)
+            ->whereBetween('sale_date', [$date, $date])
+            ->where('payment_status', '!=', 'cancelled')
+            ->with([
+                'user',
+                'payments',
+                'items.item',
+                'items.service',
+                'items.itemPackaging.packagingType',
+            ])
+            ->orderBy('created_at');
+
+        if ($businessTypeKey) {
+            $saleIds = $this->saleItemsQuery($business, $date, $date, $businessTypeKey)
+                ->pluck('sale_id')
+                ->unique()
+                ->all();
+            $query->whereIn('id', $saleIds !== [] ? $saleIds : [-1]);
+        }
+
+        return $query->get()->map(function (Sale $sale) {
+            $paymentRows = $sale->payments->map(fn (SalePayment $p) => [
+                'method' => $p->payment_method,
+                'provider' => $p->payment_provider,
+                'amount' => (float) $p->amount,
+                'reference' => $p->transaction_reference,
+                'time' => $p->created_at?->format('h:i A'),
+            ])->values()->all();
+
+            $items = $sale->items
+                ->map(fn (SaleItem $line) => $line->soldLineDescription())
+                ->filter(fn ($label) => trim($label) !== '')
+                ->implode(', ');
+
+            return [
+                'id' => $sale->id,
+                'ref' => $sale->reference_no,
+                'sale_txn_ref' => $sale->transaction_reference,
+                'items' => $items,
+                'cashier' => $sale->user->name ?? 'Unknown',
+                'total' => (float) $sale->total_amount,
+                'paid' => (float) $sale->amount_paid,
+                'balance' => max(0, (float) $sale->total_amount - (float) $sale->amount_paid),
+                'status' => $sale->payment_status,
+                'time' => $sale->created_at?->format('h:i A') ?? '—',
+                'customer' => $sale->customer_name,
+                'payments' => $paymentRows,
+                'carried_over' => false,
+                'origin_shift_id' => null,
+                'shift_collected' => null,
+            ];
+        })->values()->all();
+    }
+
     private function snapshotOwnerCirculationExpenses(Business $business, string $from, string $to, ?string $businessTypeKey = null): float
     {
         $ownerQuery = BusinessOwnerExpense::where('business_id', $business->id)

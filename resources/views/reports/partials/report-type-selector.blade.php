@@ -105,6 +105,17 @@
         <span class="reports-hub-label reports-hub-label-spacer" aria-hidden="true">&nbsp;</span>
         <div class="reports-hub-actions">
           <button type="submit" class="btn btn-reports-submit">{{ __('menu.submit_report') }}</button>
+          @if(request()->routeIs('reports.daily-report'))
+            @php
+              $ordersMetricDay = (int) (collect($data['metrics'] ?? [])->firstWhere('key', 'orders')['day'] ?? 0);
+              $dailyReportOrdersCount = max(count($dayOrders ?? []), $ordersMetricDay);
+            @endphp
+            @if($dailyReportOrdersCount > 0)
+            <button type="button" class="btn btn-sm btn-info" id="dailyReportViewOrdersBtn">
+              <i class="fa fa-eye"></i> {{ __('reports.daily.view_all_orders') }} ({{ $dailyReportOrdersCount }})
+            </button>
+            @endif
+          @endif
           @include('reports.partials.export-buttons')
         </div>
       </div>

@@ -593,15 +593,7 @@ document.addEventListener('DOMContentLoaded', function () {
         @endif
       </h3>
       <div class="tile-body">
-        <p class="text-muted small mb-3">
-          Closed and submitted shifts only — staff still selling are listed below and excluded from these totals.
-        </p>
         @if(count($businessTypeBreakdown ?? []) > 0)
-          <h5 class="mb-3"><i class="fa fa-sitemap"></i> {{ ($serviceMenuContext ?? false) ? 'By Service Business' : 'By Business Type' }}</h5>
-          <p class="text-muted small mb-3">
-            Profit and circulation follow your shop setting
-            (<strong>{{ ($expenseDeductFrom ?? 'circulation') === 'profit' ? 'expenses from profit' : 'expenses from circulation' }}</strong>).
-          </p>
           <div class="d-lg-none mb-3">
             @foreach($businessTypeBreakdown as $typeRow)
             <div class="dc-mobile-card">
