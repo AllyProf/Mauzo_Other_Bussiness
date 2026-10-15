@@ -45,5 +45,16 @@ return [
         'opening_circulation' => 'Mzunguko wa Kuanzia',
         'money_in_circulation' => 'Fedha Kwenye Mzunguko (mwisho wa siku)',
         'available_profit' => 'Faida Inayopatikana',
+        'section_items_sold' => 'Bidhaa zilizouzwa leo',
+        'items_sold_note' => 'Stock ya kuanzia kutoka hesabu ya kwanza ya shift; iliyobaki kutoka hesabu ya kufunga, au kuanzia minus iliyouzwa (leo inatumia stock hai ikiwa hakuna hesabu).',
+        'col_opening' => 'Kuanzia',
+        'col_sold' => 'Imeuza',
+        'col_remains' => 'Iliyobaki',
+        'no_items_sold' => 'Hakuna mauzo ya bidhaa kwa tarehe hii.',
+    ],
+    'daily_items_sold' => [
+        'title' => 'Bidhaa Zilizouzwa Kila Siku',
+        'legend_sold' => 'Imeuza leo',
+        'legend_not_sold' => 'Hakukuwa na mauzo leo',
     ],
 ];

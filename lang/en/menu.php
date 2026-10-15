@@ -18,6 +18,7 @@ return [
     'report_date' => 'Report Date',
     'submit_report' => 'Submit',
     'daily_report' => 'Daily Report',
+    'daily_items_sold' => 'Daily Items Sold',
     'regional_report' => 'Regional Report',
     'registration_funnel' => 'Registration Funnel',
     'demo_leads' => 'Demo Leads',

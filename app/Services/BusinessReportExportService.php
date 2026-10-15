@@ -38,12 +38,15 @@ class BusinessReportExportService
         $title = collect(business_report_menu_options())->firstWhere('key', $reportKey)['label']
             ?? ucfirst(str_replace('-', ' ', $reportKey));
 
-        if (in_array($reportKey, ['daily-report', 'payment-channels'], true)) {
+        if (in_array($reportKey, ['daily-report', 'payment-channels', 'daily-items-sold'], true)) {
             $reportDate = $this->singleReportDate($request);
             $periodLabel = Carbon::parse($reportDate)->format('d M Y');
-            $sections = $reportKey === 'daily-report'
-                ? $this->sectionsDailyReport($business, $reportDate, $businessTypeKey)
-                : $this->sectionsPaymentChannels($business, $reportDate, $businessTypeKey);
+            $sections = match ($reportKey) {
+                'daily-report' => $this->sectionsDailyReport($business, $reportDate, $businessTypeKey),
+                'payment-channels' => $this->sectionsPaymentChannels($business, $reportDate, $businessTypeKey),
+                'daily-items-sold' => $this->sectionsDailyItemsSold($business, $reportDate, $businessTypeKey),
+                default => [],
+            };
         } else {
             $range = $this->reports->parseDateRange($request);
             $periodLabel = Carbon::parse($range['from'])->format('d M Y').' – '.Carbon::parse($range['to'])->format('d M Y');
@@ -284,6 +287,30 @@ class BusinessReportExportService
         ];
 
         return $sections;
+    }
+
+    private function sectionsDailyItemsSold(Business $business, string $reportDate, ?string $businessTypeKey): array
+    {
+        $rows = collect($this->reports->dailyReportDayItemStock($business, $reportDate, $businessTypeKey))
+            ->map(fn (array $row) => [
+                $row['name'],
+                $row['category'],
+                $row['opening_display'],
+                $row['sold_display'],
+                $row['remains_display'],
+            ])->all();
+
+        return [[
+            'title' => __('reports.daily_items_sold.title'),
+            'headers' => [
+                __('tables.columns.item'),
+                __('tables.columns.category'),
+                __('reports.daily.col_opening'),
+                __('reports.daily.col_sold'),
+                __('reports.daily.col_remains'),
+            ],
+            'rows' => $rows,
+        ]];
     }
 
     private function sectionsPaymentChannels(Business $business, string $reportDate, ?string $businessTypeKey): array

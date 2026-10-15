@@ -1,5 +1,11 @@
+@php
+  $prevShiftKey = null;
+@endphp
 @foreach($sales as $sale)
     @php
+      $shiftKey = $sale->shift_id ? 's'.$sale->shift_id : 'none';
+      $showShiftSeparator = $prevShiftKey !== null && $shiftKey !== $prevShiftKey;
+      $prevShiftKey = $shiftKey;
       $businessTypeKeys = $sale->items
           ->map(function ($line) {
               if ($line->service_id) {
@@ -16,6 +22,9 @@
       $hasServiceLines = $sale->items->contains(fn ($line) => ! empty($line->service_id));
       $hasProductLines = $sale->items->contains(fn ($line) => ! empty($line->item_id));
     @endphp
+    @if($showShiftSeparator)
+      @include('sales.partials.sale-shift-separator', ['sale' => $sale])
+    @endif
     <tr data-business-types="{{ $businessTypeKeys->implode(',') }}">
         <td data-order="{{ $sale->id }}">{{ \Carbon\Carbon::parse($sale->sale_date)->format('M d, Y') }}</td>
         <td>

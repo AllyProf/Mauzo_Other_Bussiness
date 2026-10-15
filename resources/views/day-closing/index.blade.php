@@ -192,9 +192,6 @@
       </div>
       <div class="collapse" id="pendingOtherDays">
       <div class="tile-body pt-3">
-        <p class="text-muted mb-3">
-          You are viewing <strong>{{ \Carbon\Carbon::parse($date)->format('M d, Y') }}</strong>, but earlier handovers still need approval before they post to the Master Sheet.
-        </p>
         <div class="d-lg-none mb-3">
           @foreach($pendingFromOtherDays as $pending)
           <div class="dc-mobile-card">
@@ -262,9 +259,9 @@ document.addEventListener('DOMContentLoaded', function () {
 @elseif(($isBossReview ?? false) && ($pendingOnSelectedDate ?? collect())->isNotEmpty())
 <div class="row mb-3">
   <div class="col-md-12">
-    <div class="alert alert-warning mb-0">
+    <div class="alert alert-warning mb-0 py-2">
       <i class="fa fa-hourglass-half"></i>
-      <strong>{{ $pendingOnSelectedDate->count() }} handover(s) on this date</strong> still need verification — review <strong>oldest first</strong> (top to bottom).
+      <strong>{{ $pendingOnSelectedDate->count() }}</strong> handover(s) awaiting verification
     </div>
   </div>
 </div>
@@ -280,11 +277,9 @@ document.addEventListener('DOMContentLoaded', function () {
     closed at {{ $shift->closed_at->format('M d, Y h:i A') }}
   @endif
   @if($shift->user?->isPaymentCashier())
-    — cashier handover: {{ count($allDaySales) }} order(s) paid at your counter, {{ money(collect($platformBreakdown)->sum('amount')) }} collected.
-    Submit handover below to close your shift and hand the money to your boss.
+    — {{ count($allDaySales) }} order(s), {{ money(collect($platformBreakdown)->sum('amount')) }} collected
   @else
-  — {{ $summary['sales_count'] ?? $shift->sales_count }} sale(s), {{ money($summary['gross_sales'] ?? $shift->gross_sales) }} gross.
-  Submit handover below to close your shift and send collections to your boss.
+  — {{ $summary['sales_count'] ?? $shift->sales_count }} sale(s), {{ money($summary['gross_sales'] ?? $shift->gross_sales) }} gross
   @endif
 </div>
 @endif
@@ -469,13 +464,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         @if(($debtCollections['count'] ?? 0) > 0)
           <h4 class="mt-4 mb-3"><i class="fa fa-history"></i> Prior-Shift Collections ({{ $debtCollections['count'] }})</h4>
-          <p class="text-muted small mb-2">
-            @if($shift ?? null)
-              Credit payments collected during this shift on orders from earlier shifts — included in your handover total below.
-            @else
-              Payments collected today on credit sales outside today's shift sales — included in handover but separate from shift sales.
-            @endif
-          </p>
           <div class="d-lg-none mb-3">
             @foreach($debtCollections['items'] as $item)
             <div class="dc-mobile-card">
@@ -747,21 +735,6 @@ document.addEventListener('DOMContentLoaded', function () {
             </table>
           </div>
         @endif
-        @if($serviceMenuContext ?? false)
-          @if(!($ownerDirectClosing ?? null) && ($canPostOwnerDirectSales ?? false))
-          <div class="alert alert-light border mb-3">
-            <i class="fa fa-info-circle"></i>
-            When you sell services yourself, use <strong>Verify &amp; Close</strong> below — no shift is required for owners.
-          </div>
-          @endif
-        @elseif(!($ownerDirectClosing ?? null) && ($canPostOwnerDirectSales ?? false))
-        <div class="alert alert-light border mb-3">
-          <i class="fa fa-info-circle"></i>
-          When you sell yourself, use <strong>Verify &amp; Close</strong> below for <em>your</em> sales only.
-          Staff handovers stay separate — verify each staff card too before finalizing the day on the Master Sheet.
-        </div>
-        @endif
-
         @if($canPostOwnerDirectSales ?? false)
           <div class="alert alert-warning border mb-0">
             <form method="POST" action="{{ route('day-closing.post-owner-sales') }}" id="postOwnerSalesForm">
@@ -772,11 +745,9 @@ document.addEventListener('DOMContentLoaded', function () {
               @endif
 
               <div class="mb-3">
-                <strong><i class="fa fa-book"></i> {{ ($serviceMenuContext ?? false) ? 'Close your service day' : 'Close your day' }}</strong><br>
-                <span class="small">
-                  Confirm {{ $ownerDirectSummary['sales_count'] ?? 0 }} {{ ($serviceMenuContext ?? false) ? 'service ' : '' }}sale(s),
-                  TZS {{ number_format($ownerDirectSummary['gross_sales'] ?? 0, 0) }} gross /
-                  TZS {{ number_format($ownerDirectSummary['amount_collected'] ?? 0, 0) }} collected on orders.
+                <strong><i class="fa fa-book"></i> {{ ($serviceMenuContext ?? false) ? 'Close service day' : 'Close your day' }}</strong>
+                <span class="small ml-1">
+                  · {{ $ownerDirectSummary['sales_count'] ?? 0 }} sale(s) · {{ money($ownerDirectSummary['gross_sales'] ?? 0) }}
                 </span>
               </div>
 
@@ -784,7 +755,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="col-12 col-md-4 mb-3">
                   <label class="font-weight-bold text-muted small text-uppercase mb-1">Expected Handover</label>
                   <div class="form-control bg-light font-weight-bold">{{ money($ownerDirectExpectedHandover ?? 0) }}</div>
-                  <small class="text-muted">Total payments recorded for your sales today</small>
                 </div>
                 <div class="col-12 col-md-4 mb-3">
                   <label for="ownerActualReceived" class="font-weight-bold mb-1">Actual Amount Received <span class="text-danger">*</span></label>
@@ -800,7 +770,6 @@ document.addEventListener('DOMContentLoaded', function () {
                            value="{{ old('actual_received', round($ownerDirectExpectedHandover ?? 0)) }}"
                            data-expected="{{ round($ownerDirectExpectedHandover ?? 0) }}">
                   </div>
-                  <small class="text-muted">Enter a lower amount if you are short</small>
                 </div>
                 <div class="col-12 col-md-4 mb-3">
                   <label class="font-weight-bold text-muted small text-uppercase mb-1">Money Short</label>
@@ -828,31 +797,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
               @if($ownerDirectFinancePreview ?? null)
               <div class="bg-white rounded border p-3 mb-3">
-                <div class="font-weight-bold mb-2"><i class="fa fa-calculator"></i> Posts to Master Sheet after Verify &amp; Close</div>
                 <div class="row text-center">
                   <div class="col-md-4 mb-2 mb-md-0">
                     <small class="text-uppercase text-muted font-weight-bold">Margin</small>
                     <div class="font-weight-bold">{{ money($ownerDirectFinancePreview['gross_profit'] ?? 0) }}</div>
-                    <small class="text-muted">Sales − cost</small>
                   </div>
                   <div class="col-md-4 mb-2 mb-md-0">
                     <small class="text-uppercase text-muted font-weight-bold">Profit</small>
                     <div class="font-weight-bold text-success">{{ money($ownerDirectFinancePreview['net_profit'] ?? 0) }}</div>
-                    <small class="text-muted">Taken from handover</small>
                   </div>
                   <div class="col-md-4">
                     <small class="text-uppercase text-muted font-weight-bold">Circulation</small>
                     <div class="font-weight-bold text-primary">{{ money($ownerDirectFinancePreview['circulation_refill'] ?? 0) }}</div>
-                    <small class="text-muted">Rest of your {{ money($ownerDirectExpectedHandover ?? 0) }}</small>
                   </div>
                 </div>
               </div>
               @endif
 
-              <div class="d-flex flex-wrap justify-content-between align-items-center">
-                <p class="small text-muted mb-2 mb-md-0">
-                  One click verifies and posts to the Master Sheet. Finalize the day there when you are ready.
-                </p>
+              <div class="text-right">
                 <button type="button" class="btn btn-success" id="postOwnerSalesBtn">
                   <i class="fa fa-check"></i> {{ ($serviceMenuContext ?? false) ? 'Verify &amp; Close Service Day' : 'Verify &amp; Close' }}
                 </button>
@@ -888,14 +850,7 @@ document.addEventListener('DOMContentLoaded', function () {
   <div class="col-md-12">
     <div class="tile">
       <h3 class="tile-title"><i class="fa fa-clock-o"></i> Shifts In Progress — {{ $displayDate }}</h3>
-      <div class="tile-body">
-        <p class="text-muted small mb-3">
-          @if($serviceMenuContext ?? false)
-            Staff with open service shifts on this date. Owner sales do not use shifts and are already included in the totals above.
-          @else
-            These staff are still selling. Their sales are not included in the totals above until they submit handover.
-          @endif
-        </p>
+      <div class="tile-body pt-2">
         <div class="d-lg-none mb-3">
           @foreach($openShiftsInProgress as $pendingShift)
           <div class="dc-mobile-card">

@@ -11,6 +11,8 @@ use App\Models\OwnerDailyReport;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SalePayment;
+use App\Models\Shift;
+use App\Models\ShiftStockCheck;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Database\Eloquent\Builder;
@@ -913,6 +915,134 @@ class BusinessReportService
         })->values()->all();
     }
 
+    /**
+     * Items sold on the report day with opening stock, sold qty, and remaining (pieces).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function dailyReportDayItemStock(Business $business, string $reportDate, ?string $businessTypeKey = null): array
+    {
+        $date = Carbon::parse($reportDate)->toDateString();
+        $stockDisplay = app(ItemStockDisplayService::class);
+
+        $soldByItem = [];
+        $lines = $this->saleItemsQuery($business, $date, $date, $businessTypeKey)
+            ->with(['item.category', 'item.packagings.packagingType', 'item.receivingPackaging', 'itemPackaging.packagingType'])
+            ->whereNotNull('item_id')
+            ->whereNull('service_id')
+            ->get();
+
+        foreach ($lines as $line) {
+            $item = $line->item;
+            if (! $item || ! $this->itemMatchesBranchFilter($item)) {
+                continue;
+            }
+
+            $itemId = (int) $item->id;
+            $pieces = (float) $item->stockUnitsForPackaging((int) $line->quantity, $line->itemPackaging);
+            $soldByItem[$itemId] = ($soldByItem[$itemId] ?? 0.0) + $pieces;
+        }
+
+        $shiftQuery = Shift::query()
+            ->where('business_id', $business->id)
+            ->whereDate('opened_at', $date);
+        $this->scopeBranchUsers($shiftQuery);
+        $shifts = $shiftQuery->orderBy('opened_at')->get();
+
+        $openingByItem = [];
+        $closingByItem = [];
+        if ($shifts->isNotEmpty()) {
+            $firstShiftId = (int) $shifts->first()->id;
+            $lastShiftId = (int) $shifts->last()->id;
+
+            $openingByItem = ShiftStockCheck::query()
+                ->where('shift_id', $firstShiftId)
+                ->where('check_type', 'opening')
+                ->pluck('counted_stock', 'item_id')
+                ->map(fn ($value) => (float) $value)
+                ->all();
+
+            $closingByItem = ShiftStockCheck::query()
+                ->where('shift_id', $lastShiftId)
+                ->where('check_type', 'closing')
+                ->pluck('counted_stock', 'item_id')
+                ->map(fn ($value) => (float) $value)
+                ->all();
+        }
+
+        $itemIds = collect(array_keys($soldByItem))
+            ->merge(array_keys($openingByItem))
+            ->unique()
+            ->filter()
+            ->values();
+
+        if ($itemIds->isEmpty()) {
+            return [];
+        }
+
+        $items = Item::query()
+            ->where('business_id', $business->id)
+            ->whereIn('id', $itemIds)
+            ->with(['category', 'packagings.packagingType', 'receivingPackaging'])
+            ->get()
+            ->keyBy('id');
+
+        $isToday = $date === now()->toDateString();
+        $rows = [];
+
+        foreach ($itemIds as $itemId) {
+            $item = $items->get($itemId);
+            if (! $item || ! $this->itemMatchesBranchFilter($item) || ! $this->itemMatchesBusinessTypeFilter($item, $businessTypeKey)) {
+                continue;
+            }
+
+            $sold = (float) ($soldByItem[$itemId] ?? 0);
+            $opening = array_key_exists($itemId, $openingByItem) ? (float) $openingByItem[$itemId] : null;
+
+            if ($sold <= 0.0001 && $opening === null) {
+                continue;
+            }
+
+            $wasSold = $sold > 0.0001;
+            $remains = array_key_exists($itemId, $closingByItem)
+                ? (float) $closingByItem[$itemId]
+                : ($opening !== null ? max(0.0, $opening - $sold) : null);
+
+            if ($remains === null && $isToday && $wasSold) {
+                $remains = max(0.0, (float) $item->current_stock);
+            }
+
+            $rows[] = [
+                'item_id' => (int) $itemId,
+                'name' => $item->name,
+                'category' => $item->category?->name ?? 'Uncategorized',
+                'opening_pieces' => $opening,
+                'sold_pieces' => $sold,
+                'remains_pieces' => $remains,
+                'was_sold' => $wasSold,
+                'opening_display' => $opening !== null ? $stockDisplay->remainsDisplay($item, $opening) : '—',
+                'sold_display' => $wasSold ? $stockDisplay->remainsDisplay($item, $sold) : '—',
+                'remains_display' => $remains !== null ? $stockDisplay->remainsDisplay($item, $remains) : '—',
+            ];
+        }
+
+        usort($rows, function (array $a, array $b) {
+            $soldRank = ((int) ($b['was_sold'] ?? false)) <=> ((int) ($a['was_sold'] ?? false));
+            if ($soldRank !== 0) {
+                return $soldRank;
+            }
+            if ($a['was_sold'] && $b['was_sold']) {
+                $bySold = $b['sold_pieces'] <=> $a['sold_pieces'];
+
+                return $bySold !== 0 ? $bySold : strcasecmp($a['name'], $b['name']);
+            }
+
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        return $rows;
+    }
+
     private function snapshotOwnerCirculationExpenses(Business $business, string $from, string $to, ?string $businessTypeKey = null): float
     {
         $ownerQuery = BusinessOwnerExpense::where('business_id', $business->id)
@@ -1536,6 +1666,30 @@ class BusinessReportService
     private function saleItemMatchesBusinessType(SaleItem $line, string $businessTypeKey): bool
     {
         $key = $line->item?->category?->source_business_type_key ?: 'other';
+
+        return $key === $businessTypeKey;
+    }
+
+    private function itemMatchesBranchFilter(Item $item): bool
+    {
+        $branchId = active_branch_id();
+        if (! $branchId || ! active_branch_service()->canSwitch()) {
+            return true;
+        }
+
+        return (int) ($item->category?->branch_id) === (int) $branchId;
+    }
+
+    private function itemMatchesBusinessTypeFilter(Item $item, ?string $businessTypeKey): bool
+    {
+        if (! $businessTypeKey) {
+            return true;
+        }
+
+        $key = $item->category?->source_business_type_key;
+        if ($businessTypeKey === 'other') {
+            return $key === null || $key === '' || $key === 'other';
+        }
 
         return $key === $businessTypeKey;
     }

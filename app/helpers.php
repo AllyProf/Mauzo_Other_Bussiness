@@ -140,84 +140,199 @@ if (! function_exists('plan_feature_any')) {
     }
 }
 
-if (! function_exists('business_report_menu_options')) {
+if (! function_exists('business_report_catalog')) {
     /**
-     * Report types available on the business Reports hub (plan-gated).
+     * All business report types (plan feature + staff permission per type).
      *
-     * @return list<array{key: string, label: string, url: string, active: bool}>
+     * @return list<array{key: string, feature: string, permission: string, route: string, label: string}>
      */
-    function business_report_menu_options(?string $activeKey = null): array
+    function business_report_catalog(): array
     {
-        $catalog = [
+        return [
             [
                 'key' => 'daily-report',
                 'feature' => 'reports_daily',
+                'permission' => 'view_report_daily_report',
                 'route' => 'reports.daily-report',
                 'label' => __('menu.daily_report'),
             ],
             [
                 'key' => 'payment-channels',
                 'feature' => 'reports_daily',
+                'permission' => 'view_report_payment_channels',
                 'route' => 'reports.payment-channels',
                 'label' => 'Payment channels',
             ],
             [
+                'key' => 'daily-items-sold',
+                'feature' => 'reports_daily',
+                'permission' => 'view_report_daily_items_sold',
+                'route' => 'reports.daily-items-sold',
+                'label' => __('menu.daily_items_sold'),
+            ],
+            [
                 'key' => 'circulation-profit',
                 'feature' => 'reports_circulation',
+                'permission' => 'view_report_circulation_profit',
                 'route' => 'reports.circulation-profit',
                 'label' => __('menu.circulation_vs_profit'),
             ],
             [
                 'key' => 'daily-sales',
                 'feature' => 'reports_daily',
+                'permission' => 'view_report_daily_sales',
                 'route' => 'reports.daily-sales',
                 'label' => __('menu.daily_sales'),
             ],
             [
                 'key' => 'expenses',
                 'feature' => 'reports_expenses',
+                'permission' => 'view_report_expenses',
                 'route' => 'reports.expenses',
                 'label' => __('menu.expenses'),
             ],
             [
                 'key' => 'profit',
                 'feature' => 'reports_profit',
+                'permission' => 'view_report_profit',
                 'route' => 'reports.profit',
                 'label' => __('menu.profit'),
             ],
             [
                 'key' => 'sales-analytics',
                 'feature' => 'reports_sales',
+                'permission' => 'view_report_sales_analytics',
                 'route' => 'reports.sales-analytics',
                 'label' => __('menu.sales_analytics'),
             ],
             [
                 'key' => 'products',
                 'feature' => 'reports_products',
+                'permission' => 'view_report_products',
                 'route' => 'reports.products',
                 'label' => __('menu.products'),
             ],
             [
                 'key' => 'debts',
                 'feature' => 'reports_debts',
+                'permission' => 'view_report_debts',
                 'route' => 'reports.debts',
                 'label' => __('menu.debt_report'),
             ],
             [
                 'key' => 'cashiers',
                 'feature' => 'reports_sales',
+                'permission' => 'view_report_cashiers',
                 'route' => 'reports.cashiers',
                 'label' => 'Cashier Performance',
             ],
         ];
+    }
+}
 
+if (! function_exists('business_report_permission_for_key')) {
+    function business_report_permission_for_key(string $reportKey): ?string
+    {
+        $item = collect(business_report_catalog())->firstWhere('key', $reportKey);
+
+        return $item['permission'] ?? null;
+    }
+}
+
+if (! function_exists('business_report_permission_keys')) {
+    /** @return list<string> */
+    function business_report_permission_keys(): array
+    {
+        return collect(business_report_catalog())
+            ->pluck('permission')
+            ->merge(['view_report_master_sheet'])
+            ->unique()
+            ->values()
+            ->all();
+    }
+}
+
+if (! function_exists('business_report_authorize_abilities')) {
+    /** @return list<string> */
+    function business_report_authorize_abilities(string $reportKey): array
+    {
+        $permission = business_report_permission_for_key($reportKey);
+
+        return array_values(array_filter(['view_reports', $permission]));
+    }
+}
+
+if (! function_exists('user_can_business_report')) {
+    function user_can_business_report(string $reportKey, ?\App\Models\User $user = null): bool
+    {
+        $user = $user ?? auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->can('view_reports')) {
+            return true;
+        }
+
+        $permission = business_report_permission_for_key($reportKey);
+
+        return $permission && $user->can($permission);
+    }
+}
+
+if (! function_exists('user_can_any_business_report')) {
+    function user_can_any_business_report(?\App\Models\User $user = null): bool
+    {
+        $user = $user ?? auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->can('view_reports')) {
+            return true;
+        }
+
+        foreach (business_report_permission_keys() as $permission) {
+            if ($user->can($permission)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+if (! function_exists('user_can_master_sheet')) {
+    function user_can_master_sheet(?\App\Models\User $user = null): bool
+    {
+        $user = $user ?? auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        return $user->can('view_reports') || $user->can('view_report_master_sheet');
+    }
+}
+
+if (! function_exists('business_report_menu_options')) {
+    /**
+     * Report types available on the business Reports hub (plan + permission gated).
+     *
+     * @return list<array{key: string, label: string, url: string, active: bool}>
+     */
+    function business_report_menu_options(?string $activeKey = null): array
+    {
         if ($activeKey === null && request()->routeIs('reports.*')) {
             $activeKey = str_replace('reports.', '', (string) request()->route()?->getName());
         }
 
         $options = [];
-        foreach ($catalog as $item) {
+        foreach (business_report_catalog() as $item) {
             if (! plan_feature($item['feature'])) {
+                continue;
+            }
+
+            if (! user_can_business_report($item['key'])) {
                 continue;
             }
 

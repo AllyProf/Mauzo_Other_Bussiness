@@ -18,7 +18,7 @@ class OwnerReportController extends ApiController
 
     public function index(Request $request): JsonResponse
     {
-        if ($deny = $this->authorizeApiAny(['view_reports'])) {
+        if ($deny = $this->authorizeApiMasterSheet()) {
             return $deny;
         }
 
@@ -42,7 +42,7 @@ class OwnerReportController extends ApiController
 
     public function show(Request $request, string $date): JsonResponse
     {
-        if ($deny = $this->authorizeApiAny(['view_reports'])) {
+        if ($deny = $this->authorizeApiMasterSheet()) {
             return $deny;
         }
 
@@ -67,7 +67,7 @@ class OwnerReportController extends ApiController
 
     public function storeExpense(Request $request, string $date): JsonResponse
     {
-        if ($deny = $this->authorizeApiAny(['view_reports'])) {
+        if ($deny = $this->authorizeApiMasterSheet()) {
             return $deny;
         }
 
@@ -93,7 +93,7 @@ class OwnerReportController extends ApiController
 
     public function destroyExpense(Request $request, string $date, BusinessOwnerExpense $expense): JsonResponse
     {
-        if ($deny = $this->authorizeApiAny(['view_reports'])) {
+        if ($deny = $this->authorizeApiMasterSheet()) {
             return $deny;
         }
 

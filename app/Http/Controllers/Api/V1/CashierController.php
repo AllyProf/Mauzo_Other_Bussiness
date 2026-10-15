@@ -121,7 +121,7 @@ class CashierController extends ApiController
 
   public function performance(Request $request, CashierPerformanceService $performance): JsonResponse
   {
-    if ($deny = $this->authorizeApiAny(['view_reports'])) {
+    if ($deny = $this->authorizeApiBusinessReport('cashiers')) {
       return $deny;
     }
 

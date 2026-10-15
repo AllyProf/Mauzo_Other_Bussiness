@@ -4,6 +4,24 @@
 
 @section('styles')
 <style>
+  #salesTable tr.sales-shift-separator td {
+    background: #f4f6f9;
+    border-top: 2px solid #940000;
+    border-bottom: 1px solid #dee2e6;
+    padding: 8px 12px;
+    font-size: 0.88rem;
+    vertical-align: middle;
+  }
+  .sales-page .sales-shift-separator-mobile {
+    margin: 14px 0 8px;
+    padding: 8px 12px;
+    background: #f4f6f9;
+    border-left: 3px solid #940000;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #495057;
+  }
   #salesTable td.sold-items-cell {
     max-width: 260px;
     white-space: normal;
@@ -361,6 +379,10 @@
                         visible++;
                     }
                 });
+                $('.sales-shift-separator-mobile').each(function () {
+                    const $nextCard = $(this).nextAll('.sales-mobile-card').first();
+                    $(this).toggle($nextCard.length > 0 && $nextCard.is(':visible'));
+                });
                 $('#salesMobileNoMatch').toggleClass('d-none', visible > 0 || $('.sales-mobile-card').length === 0);
             }
 
@@ -368,10 +390,7 @@
                 paging: false,
                 searching: false,
                 info: false,
-                order: [[0, 'desc']],
-                columnDefs: [
-                    { targets: 0, type: 'num' },
-                ],
+                ordering: false,
             });
             $(table.table().container()).addClass('sales-datatable-wrap');
             if (hasMultipleBusinessTypes) {
@@ -389,6 +408,9 @@
                     }
 
                     const row = table.row(dataIndex).node();
+                    if ($(row).hasClass('sales-shift-separator')) {
+                        return true;
+                    }
                     const keys = String($(row).attr('data-business-types') || '').split(',').filter(Boolean);
 
                     return keys.indexOf(String(activeBusinessType)) !== -1;

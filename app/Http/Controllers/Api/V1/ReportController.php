@@ -15,7 +15,7 @@ class ReportController extends ApiController
 
     public function index(Request $request): JsonResponse
     {
-        if ($deny = $this->authorizeApiAny(['view_reports'])) {
+        if ($deny = $this->authorizeApiBusinessReportsHub()) {
             return $deny;
         }
 
@@ -30,7 +30,7 @@ class ReportController extends ApiController
 
     public function paymentChannels(Request $request): JsonResponse
     {
-        if ($deny = $this->authorizeApiAny(['view_reports'])) {
+        if ($deny = $this->authorizeApiBusinessReport('payment-channels')) {
             return $deny;
         }
 
@@ -59,7 +59,7 @@ class ReportController extends ApiController
 
     public function dailyReport(Request $request): JsonResponse
     {
-        if ($deny = $this->authorizeApiAny(['view_reports'])) {
+        if ($deny = $this->authorizeApiBusinessReport('daily-report')) {
             return $deny;
         }
 
@@ -79,6 +79,35 @@ class ReportController extends ApiController
 
         try {
             return $this->success($this->reports->dailyReport($user, $business, $branchFilterId, $request));
+        } catch (\Throwable $e) {
+            return $this->error('Failed to load report: '.$e->getMessage(), 500);
+        }
+    }
+
+    public function dailyItemsSold(Request $request): JsonResponse
+    {
+        if ($deny = $this->authorizeApiBusinessReport('daily-items-sold')) {
+            return $deny;
+        }
+
+        $request->validate([
+            'report_date' => ['nullable', 'date'],
+            'date' => ['nullable', 'date'],
+            'business_type' => ['nullable', 'string'],
+            'branch_id' => ['nullable', 'integer'],
+        ]);
+
+        $user = $request->user();
+        $business = $this->apiBusiness();
+
+        if (! $business) {
+            return $this->error('No active business.', 422);
+        }
+
+        $branchFilterId = $this->reports->branchFilterId($user, $this->tenantContext(), $request);
+
+        try {
+            return $this->success($this->reports->dailyItemsSoldReport($user, $business, $branchFilterId, $request));
         } catch (\Throwable $e) {
             return $this->error('Failed to load report: '.$e->getMessage(), 500);
         }
@@ -121,7 +150,7 @@ class ReportController extends ApiController
 
     private function report(Request $request, string $key): JsonResponse
     {
-        if ($deny = $this->authorizeApiAny(['view_reports'])) {
+        if ($deny = $this->authorizeApiBusinessReport($key)) {
             return $deny;
         }
 

@@ -284,14 +284,14 @@
 
         {{-- Reports & Analytics --}}
         @php ob_start(); @endphp
-        @canany(['view_reports', 'verify_day_closing', 'finalize_reports'])
+        @if(user_can_any_business_report() || auth()->user()?->can('verify_day_closing') || auth()->user()?->can('finalize_reports'))
         @if(plan_feature_any(['reports_daily', 'reports_expenses', 'reports_sales', 'reports_products', 'reports_debts', 'reports_profit', 'reports_circulation']))
         <li><a class="treeview-item {{ Request::is('reports*') ? 'active' : '' }}" href="{{ route('reports.index') }}" data-tour="menu-reports"><i class="icon fa fa-bar-chart"></i> {{ __('menu.reports') }}</a></li>
         @endif
-        @if(plan_feature('master_sheet'))
+        @endif
+        @if(plan_feature('master_sheet') && user_can_master_sheet())
         <li><a class="treeview-item {{ Request::is('owner-reports*') ? 'active' : '' }}" href="{{ route('owner-reports.index') }}" data-tour="menu-master-sheet"><i class="icon fa fa-list-alt"></i> {{ __('menu.master_sheet') }}</a></li>
         @endif
-        @endcanany
         @can('view_audit_logs')
         <li><a class="treeview-item {{ Request::is('activity-log*') ? 'active' : '' }}" href="{{ route('business.activity-log') }}" data-tour="menu-activity-log"><i class="icon fa fa-history"></i> {{ __('menu.activity_log') }}</a></li>
         @endcan

@@ -45,5 +45,16 @@ return [
         'opening_circulation' => 'Opening Circulation',
         'money_in_circulation' => 'Money in Circulation (end of day)',
         'available_profit' => 'Available Profit',
+        'section_items_sold' => 'Items sold today',
+        'items_sold_note' => 'Opening from the first shift stock count that day; remains from closing count when recorded, otherwise opening minus sold (today uses live stock if no count).',
+        'col_opening' => 'Opening',
+        'col_sold' => 'Sold',
+        'col_remains' => 'Remains',
+        'no_items_sold' => 'No product sales on this date.',
+    ],
+    'daily_items_sold' => [
+        'title' => 'Daily Items Sold',
+        'legend_sold' => 'Sold today',
+        'legend_not_sold' => 'No sales today',
     ],
 ];

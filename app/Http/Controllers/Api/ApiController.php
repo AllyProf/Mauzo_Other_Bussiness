@@ -65,4 +65,22 @@ abstract class ApiController extends Controller
 
     return $this->forbidden('You do not have permission for this action.');
   }
+
+  protected function authorizeApiBusinessReport(string $reportKey): ?JsonResponse
+  {
+    return $this->authorizeApiAny(business_report_authorize_abilities($reportKey));
+  }
+
+  protected function authorizeApiBusinessReportsHub(): ?JsonResponse
+  {
+    return $this->authorizeApiAny(array_merge(
+      ['view_reports'],
+      business_report_permission_keys()
+    ));
+  }
+
+  protected function authorizeApiMasterSheet(): ?JsonResponse
+  {
+    return $this->authorizeApiAny(['view_reports', 'view_report_master_sheet']);
+  }
 }

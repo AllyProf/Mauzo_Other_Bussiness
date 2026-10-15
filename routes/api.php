@@ -218,6 +218,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/reports', [ReportController::class, 'index']);
         Route::get('/reports/daily-report', [ReportController::class, 'dailyReport']);
         Route::get('/reports/payment-channels', [ReportController::class, 'paymentChannels']);
+        Route::get('/reports/daily-items-sold', [ReportController::class, 'dailyItemsSold']);
         Route::get('/reports/circulation-profit', [ReportController::class, 'circulationProfit']);
         Route::get('/reports/daily-sales', [ReportController::class, 'dailySales']);
         Route::get('/reports/expenses', [ReportController::class, 'expenses']);

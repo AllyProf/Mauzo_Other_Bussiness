@@ -204,9 +204,7 @@ class OwnerDailyReportService
 
         $this->scopeBranchSales($salesQuery);
 
-        $sales = $salesQuery->with(['items.item.packagings'])->get();
-
-        $sales = $salesQuery->with(['items.item.packagings'])->get();
+        $sales = $salesQuery->with(['items.item.packagings', 'items.itemPackaging'])->get();
 
         return $this->profitTotalsFromSales($sales, $dayClosing);
     }
@@ -216,10 +214,10 @@ class OwnerDailyReportService
         $grossSales = $sales->sum('total_amount');
         $costOfGoods = 0;
 
+        $lineCost = app(SaleItemCostService::class);
         foreach ($sales as $sale) {
             foreach ($sale->items as $line) {
-                $unitCost = (float) ($line->cost_price ?? optional($line->item?->packagings?->first())->cost_price ?? 0);
-                $costOfGoods += $unitCost * (float) $line->quantity;
+                $costOfGoods += $lineCost->lineCostOfGoods($line);
             }
         }
 
@@ -787,6 +785,19 @@ class OwnerDailyReportService
             ];
         }
 
+        if ($shiftNetProfit <= 0) {
+            return [
+                'gross_profit' => $grossProfit,
+                'net_handover' => $netHandover,
+                'net_profit' => 0.0,
+                'shift_total_profit' => max(0, $shiftNetProfit),
+                'circulation_refill' => max(0, $netHandover),
+                'expense_deduct_from' => $deductFrom,
+                'profit_short' => 0.0,
+                'circulation_short' => 0.0,
+            ];
+        }
+
         $profitFromHandover = min($netHandover, $shiftNetProfit);
 
         return [
@@ -869,10 +880,10 @@ class OwnerDailyReportService
             return ['gross_sales' => 0.0, 'cost_of_goods' => 0.0, 'gross_profit' => 0.0];
         }
 
+        $lineCost = app(SaleItemCostService::class);
         $costOfGoods = 0.0;
         foreach ($sale->items as $line) {
-            $unitCost = (float) ($line->cost_price ?? optional($line->item?->packagings?->first())->cost_price ?? 0);
-            $costOfGoods += $unitCost * (float) $line->quantity;
+            $costOfGoods += $lineCost->lineCostOfGoods($line);
         }
 
         $saleProfit = max(0, $saleTotal - $costOfGoods);

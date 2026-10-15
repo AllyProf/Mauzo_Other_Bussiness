@@ -8,12 +8,10 @@
 <div class="alert alert-success border mb-0" id="owner-day-close">
   <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
     <div>
-      <h5 class="alert-heading mb-1"><i class="fa fa-check-circle"></i> Your {{ ($serviceMenuContext ?? false) ? 'service day is' : 'day is' }} closed &amp; posted</h5>
-      <p class="mb-0 small">
-        Closed {{ $closing->verified_at?->format('M d, Y h:i A') ?? $closing->submitted_at?->format('M d, Y h:i A') ?? '—' }}
-        · {{ $closing->sales_count }} sale(s)
-        · {{ money($closing->gross_sales) }} gross
-        · {{ money($closing->amount_collected) }} collected on orders
+      <h5 class="alert-heading mb-1"><i class="fa fa-check-circle"></i> Closed</h5>
+      <p class="mb-0 small text-muted">
+        {{ $closing->verified_at?->format('M d, Y h:i A') ?? $closing->submitted_at?->format('M d, Y h:i A') ?? '—' }}
+        · {{ $closing->sales_count }} sale(s) · {{ money($closing->gross_sales) }}
       </p>
     </div>
     <div class="mt-2 mt-md-0">

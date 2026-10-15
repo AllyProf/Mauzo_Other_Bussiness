@@ -24,7 +24,7 @@ class OwnerDailyReportController extends Controller
 
     public function index(Request $request)
     {
-        \Illuminate\Support\Facades\Gate::authorize('view_reports');
+        $this->authorizeMasterSheet();
 
         $serviceMenuContext = $request->routeIs('services.master-sheet');
         $masterSheetRoute = $serviceMenuContext ? 'services.master-sheet' : 'owner-reports.index';
@@ -131,7 +131,7 @@ class OwnerDailyReportController extends Controller
 
     public function show(Request $request, string $date)
     {
-        \Illuminate\Support\Facades\Gate::authorize('view_reports');
+        $this->authorizeMasterSheet();
 
         $parsedDate = Carbon::parse($date)->toDateString();
 
@@ -144,7 +144,7 @@ class OwnerDailyReportController extends Controller
 
     public function storeExpense(Request $request, string $date)
     {
-        \Illuminate\Support\Facades\Gate::authorize('view_reports');
+        $this->authorizeMasterSheet();
 
         if (Auth::user()->role !== 'owner' && Auth::user()->role !== 'super_admin') {
             abort(403, 'Only the business owner can record restock expenses.');
@@ -201,7 +201,7 @@ class OwnerDailyReportController extends Controller
 
     public function destroyExpense(string $date, BusinessOwnerExpense $expense)
     {
-        \Illuminate\Support\Facades\Gate::authorize('view_reports');
+        $this->authorizeMasterSheet();
 
         if (Auth::user()->role !== 'owner' && Auth::user()->role !== 'super_admin') {
             abort(403);

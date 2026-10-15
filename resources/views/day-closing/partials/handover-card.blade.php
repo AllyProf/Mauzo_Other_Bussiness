@@ -32,10 +32,8 @@
     <div class="alert alert-success"><i class="fa fa-check-circle"></i> Verified by {{ $dayClosing->verifier->name ?? 'Boss' }} on {{ $dayClosing->verified_at?->format('M d, Y h:i A') }}</div>
   @elseif($dayClosing->status === 'disputed')
     <div class="alert alert-danger"><i class="fa fa-exclamation-triangle"></i> <strong>Disputed:</strong> {{ $dayClosing->dispute_reason }}</div>
-  @elseif($canVerifyHandover ?? false)
-    <div class="alert alert-warning"><i class="fa fa-clock-o"></i> Review collections below, then verify to post debt, profit, and circulation to the Master Sheet.</div>
-  @elseif($dayClosing->status === 'submitted')
-    <div class="alert alert-warning"><i class="fa fa-clock-o"></i> <strong>Awaiting boss verification.</strong> Your handover has been submitted successfully.</div>
+  @elseif($dayClosing->status === 'submitted' && ! ($canVerifyHandover ?? false))
+    <div class="alert alert-warning py-2 mb-0"><i class="fa fa-clock-o"></i> Awaiting verification</div>
   @endif
 
   @include('day-closing.partials.final-handover-summary', ['handoverSummary' => $handoverSummary ?? [
@@ -216,42 +214,20 @@
 
   @if($canViewBossFinancials ?? false)
   <div class="border-top pt-4 mt-2">
-    <h5 class="mb-2"><i class="fa fa-calculator"></i> Posts to Master Sheet After Verify</h5>
     <div class="row text-center">
       <div class="col-4 mb-2">
         <div class="small text-muted text-uppercase font-weight-bold">Customer credit</div>
         <div class="h5 mb-0 {{ $shiftUnpaid > 0 ? 'text-danger' : 'text-success' }}">{{ money($shiftUnpaid) }}</div>
-        <div class="small text-muted">Still owed from this shift</div>
       </div>
       <div class="col-4 mb-2">
         <div class="small text-muted text-uppercase font-weight-bold">Profit</div>
         <div class="h5 mb-0 {{ ($financeData['net_profit'] ?? 0) > 0 ? 'text-success' : 'text-muted' }}">{{ money($financeData['net_profit'] ?? 0) }}</div>
-        @if(($financeData['expense_deduct_from'] ?? 'circulation') === 'profit' && ($financeData['gross_profit'] ?? 0) > 0)
-          <div class="small text-muted">
-            Margin {{ money($financeData['gross_profit']) }}
-            @if(($dayClosing->total_expenses ?? 0) > 0)
-              − expenses {{ money($dayClosing->total_expenses) }}
-            @endif
-          </div>
-        @endif
       </div>
       <div class="col-4 mb-2">
         <div class="small text-muted text-uppercase font-weight-bold">Circulation</div>
         <div class="h5 mb-0 text-primary">{{ money($financeData['closing_circulation'] ?? $financeData['circulation_refill'] ?? 0) }}</div>
-        <div class="small text-muted">Handover cash after profit take</div>
       </div>
     </div>
-    @if(($financeData['expense_deduct_from'] ?? '') === 'profit'
-        && ($dayClosing->total_expenses ?? 0) > 0
-        && ($financeData['gross_profit'] ?? 0) > 0
-        && ($financeData['net_profit'] ?? 0) <= 0)
-      <div class="alert alert-light border small mb-0 mt-2">
-        <i class="fa fa-info-circle"></i>
-        Shop setting: expenses come from <strong>profit</strong>.
-        This shift’s margin ({{ money($financeData['gross_profit']) }}) is less than expenses ({{ money($dayClosing->total_expenses) }}),
-        so posted profit is <strong>0</strong> and the full handover ({{ money($financeData['net_handover'] ?? $dayClosing->expectedHandoverAmount()) }}) goes to circulation.
-      </div>
-    @endif
   </div>
   @endif
 
@@ -319,7 +295,7 @@
         </div>
         <div class="d-flex flex-wrap align-items-center">
           <button type="submit" class="btn btn-success btn-lg mb-2" {{ $canVerifyNow ? '' : 'disabled' }}>
-            <i class="fa fa-check"></i> Verify &amp; Post to Master Sheet
+            <i class="fa fa-check"></i> Verify
           </button>
         </div>
       </form>

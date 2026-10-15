@@ -34,8 +34,7 @@ class BusinessTypeBreakdownService
                 }
 
                 $share = $saleTotal > 0 ? ($lineTotal / $saleTotal) : 0;
-                $unitCost = (float) ($line->cost_price ?? optional($line->item?->packagings?->first())->cost_price ?? 0);
-                $lineCost = $unitCost * (float) $line->quantity;
+                $lineCost = app(SaleItemCostService::class)->lineCostOfGoods($line);
 
                 if (! isset($rows[$typeKey])) {
                     $rows[$typeKey] = [
@@ -187,10 +186,10 @@ class BusinessTypeBreakdownService
                 continue;
             }
 
+            $lineCost = app(SaleItemCostService::class);
             $costOfGoods = 0.0;
             foreach ($sale->items as $line) {
-                $unitCost = (float) ($line->cost_price ?? optional($line->item?->packagings?->first())->cost_price ?? 0);
-                $costOfGoods += $unitCost * (float) $line->quantity;
+                $costOfGoods += $lineCost->lineCostOfGoods($line);
             }
 
             $saleProfit = max(0, $saleTotal - $costOfGoods);

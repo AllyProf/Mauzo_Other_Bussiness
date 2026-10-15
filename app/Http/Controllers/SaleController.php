@@ -198,7 +198,7 @@ class SaleController extends Controller
         ];
 
         $sales = (clone $salesQuery)
-            ->with(['user', 'items.item.category', 'items.itemPackaging.packagingType', 'items.service.category', 'customer'])
+            ->with(['user', 'shift', 'items.item.category', 'items.itemPackaging.packagingType', 'items.service.category', 'customer'])
             ->latest('id')
             ->paginate(15);
 

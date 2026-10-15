@@ -18,6 +18,7 @@ return [
         'gross_sales' => 'Mauzo Jumla',
         'collected' => 'Imekusanywa',
         'outstanding' => 'Inayodaiwa',
+        'no_shift_sales' => 'Mauzo bila kipindi',
     ],
     'customers' => [
         'title' => 'Usimamizi wa Wateja',

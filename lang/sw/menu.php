@@ -18,6 +18,7 @@ return [
     'report_date' => 'Tarehe ya Ripoti',
     'submit_report' => 'Wasilisha',
     'daily_report' => 'Ripoti ya Siku',
+    'daily_items_sold' => 'Bidhaa Zilizouzwa Kila Siku',
     'regional_report' => 'Ripoti ya Mikoa',
     'registration_funnel' => 'Mchakato wa Usajili',
     'demo_leads' => 'Maombi ya Demo',

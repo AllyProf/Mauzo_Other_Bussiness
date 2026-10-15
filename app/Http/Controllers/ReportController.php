@@ -19,7 +19,7 @@ class ReportController extends Controller
 
     public function export(Request $request, string $reportKey)
     {
-        $this->authorizeAny(['view_reports']);
+        $this->authorizeBusinessReport($reportKey);
 
         $allowedKeys = collect(business_report_menu_options())->pluck('key');
         if (! $allowedKeys->contains($reportKey)) {
@@ -60,7 +60,7 @@ class ReportController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeAny(['view_reports', 'verify_day_closing', 'finalize_reports']);
+        $this->authorizeBusinessReportsHub();
 
         $options = business_report_menu_options();
         if ($options === []) {
@@ -80,7 +80,7 @@ class ReportController extends Controller
 
     public function paymentChannels(Request $request)
     {
-        $this->authorizeAny(['view_reports']);
+        $this->authorizeBusinessReport('payment-channels');
         $reportDate = $request->filled('report_date')
             ? \Carbon\Carbon::parse($request->report_date)->toDateString()
             : ($request->filled('end_date')
@@ -119,7 +119,7 @@ class ReportController extends Controller
 
     public function dailyReport(Request $request)
     {
-        $this->authorizeAny(['view_reports']);
+        $this->authorizeBusinessReport('daily-report');
         $reportDate = $request->filled('report_date')
             ? \Carbon\Carbon::parse($request->report_date)->toDateString()
             : ($request->filled('end_date')
@@ -144,6 +144,36 @@ class ReportController extends Controller
             'reportDate' => $reportDate,
             'dateRange' => [
                 'from' => $data['period_from'],
+                'to' => $reportDate,
+            ],
+        ] + $filter);
+    }
+
+    public function dailyItemsSold(Request $request)
+    {
+        $this->authorizeBusinessReport('daily-items-sold');
+        $reportDate = $request->filled('report_date')
+            ? \Carbon\Carbon::parse($request->report_date)->toDateString()
+            : ($request->filled('end_date')
+                ? \Carbon\Carbon::parse($request->end_date)->toDateString()
+                : now()->toDateString());
+
+        $filter = $this->branchBusinessFilterContext($request);
+        $business = $filter['business'];
+        $activeBusinessType = $this->reports->resolveBusinessTypeFilter($request, $business, $filter['businessTypes']);
+        $dayItemStock = $this->reports->dailyReportDayItemStock($business, $reportDate, $activeBusinessType);
+
+        return view('reports.daily-items-sold', [
+            'title' => __('reports.daily_items_sold.title'),
+            'dayItemStock' => $dayItemStock,
+            'business' => $business,
+            'businessTypes' => $filter['businessTypes'],
+            'multiBusiness' => $filter['multiBusiness'],
+            'activeBusinessType' => $activeBusinessType,
+            'businessTypeNote' => null,
+            'reportDate' => $reportDate,
+            'dateRange' => [
+                'from' => $reportDate,
                 'to' => $reportDate,
             ],
         ] + $filter);
@@ -238,7 +268,7 @@ class ReportController extends Controller
 
     private function renderReport(Request $request, string $view, string $title, callable $builder)
     {
-        $this->authorizeAny(['view_reports']);
+        $this->authorizeBusinessReport($view);
         $range = $this->reports->parseDateRange($request);
         $filter = $this->branchBusinessFilterContext($request);
         $business = $filter['business'];

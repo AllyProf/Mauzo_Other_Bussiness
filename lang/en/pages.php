@@ -18,6 +18,7 @@ return [
         'gross_sales' => 'Gross Sales',
         'collected' => 'Collected',
         'outstanding' => 'Outstanding',
+        'no_shift_sales' => 'Sales without a shift',
     ],
     'customers' => [
         'title' => 'Customer Management',

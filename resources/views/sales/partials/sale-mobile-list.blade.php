@@ -1,5 +1,11 @@
+@php
+  $prevShiftKey = null;
+@endphp
 @foreach($sales as $sale)
   @php
+    $shiftKey = $sale->shift_id ? 's'.$sale->shift_id : 'none';
+    $showShiftSeparator = $prevShiftKey !== null && $shiftKey !== $prevShiftKey;
+    $prevShiftKey = $shiftKey;
     $businessTypeKeys = $sale->items
         ->map(fn ($line) => $line->item?->category?->source_business_type_key ?: 'other')
         ->unique()
@@ -20,6 +26,9 @@
         && (int) $sale->shift_id !== (int) $openShift->id
         && in_array($sale->payment_status, ['pending', 'partial', 'debt'], true);
   @endphp
+  @if($showShiftSeparator)
+    @include('sales.partials.sale-shift-separator-mobile', ['sale' => $sale])
+  @endif
   <div class="sales-mobile-card" data-business-types="{{ $businessTypeKeys->implode(',') }}">
     <div class="sales-mobile-head">
       <div>

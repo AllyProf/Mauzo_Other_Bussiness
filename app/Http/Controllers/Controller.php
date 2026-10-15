@@ -20,6 +20,24 @@ abstract class Controller
         abort(403);
     }
 
+    protected function authorizeBusinessReport(string $reportKey): void
+    {
+        $this->authorizeAny(business_report_authorize_abilities($reportKey));
+    }
+
+    protected function authorizeBusinessReportsHub(): void
+    {
+        $this->authorizeAny(array_merge(
+            ['view_reports', 'verify_day_closing', 'finalize_reports'],
+            business_report_permission_keys()
+        ));
+    }
+
+    protected function authorizeMasterSheet(): void
+    {
+        $this->authorizeAny(['view_reports', 'view_report_master_sheet']);
+    }
+
     protected function actsAsBusinessWideViewer(): bool
     {
         return (bool) auth()->user()?->seesBusinessWideData();
