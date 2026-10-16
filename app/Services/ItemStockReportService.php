@@ -118,6 +118,7 @@ class ItemStockReportService
             $stockInfo = app(ItemStockDisplayService::class)->format($item, $pieces);
 
             [$holdingValue, $costHoldingValue] = $this->expectedValueFromStock(
+                $item,
                 $pieces,
                 $packagingPrices,
                 $item->packagings
@@ -496,21 +497,24 @@ class ItemStockReportService
      * @param  \Illuminate\Support\Collection<int, \App\Models\ItemPackaging>  $packagingModels
      * @return array{0: float, 1: float}
      */
-    private function expectedValueFromStock(float $pieces, array $packagingPrices, Collection $packagingModels): array
+    private function expectedValueFromStock(Item $item, float $pieces, array $packagingPrices, Collection $packagingModels): array
     {
         if ($pieces <= 0 || $packagingPrices === []) {
             return [0.0, 0.0];
         }
+
+        $costService = app(SaleItemCostService::class);
 
         if (count($packagingPrices) <= 1) {
             $p = $packagingPrices[0];
             $qpu = max(1, (int) $p['quantity_per_unit']);
             $model = $packagingModels->first();
             $sellPerPiece = (float) ($p['selling_price'] ?? 0) / $qpu;
-            $costPerPiece = (float) ($model?->cost_price ?? 0) / max(1, (int) ($model?->quantity_per_unit ?? 1));
+            $revenue = $pieces * $sellPerPiece;
+            $costPerPiece = $costService->costPerPiece($item, $model, $revenue);
 
             return [
-                round($pieces * $sellPerPiece, 2),
+                round($revenue, 2),
                 round($pieces * $costPerPiece, 2),
             ];
         }
@@ -542,8 +546,9 @@ class ItemStockReportService
             $pieceModel = $packagingModels->first(fn ($p) => (int) $p->quantity_per_unit === 1)
                 ?? $packagingModels->first();
             $sellPerPiece = (float) ($pieceRow['selling_price'] ?? 0) / $pieceQpu;
-            $costPerPiece = (float) ($pieceModel?->cost_price ?? 0) / max(1, (int) ($pieceModel?->quantity_per_unit ?? 1));
-            $revenue += $remaining * $sellPerPiece;
+            $looseRevenue = $remaining * $sellPerPiece;
+            $costPerPiece = $costService->costPerPiece($item, $pieceModel, $looseRevenue);
+            $revenue += $looseRevenue;
             $cost += $remaining * $costPerPiece;
         }
 

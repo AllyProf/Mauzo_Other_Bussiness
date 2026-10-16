@@ -240,12 +240,13 @@
       </div>
     </div>
   </div>
+  @php $headerExpectedProfit = (float) ($totalExpectedProfit ?? $totalMargin ?? 0); @endphp
   <div class="stock-stat-cell">
-    <div class="widget-small success coloured-icon">
+    <div class="widget-small {{ $headerExpectedProfit >= 0 ? 'success' : 'danger' }} coloured-icon">
       <i class="icon fa fa-money fa-3x"></i>
       <div class="info">
         <h4>{{ __('stock.stats.expected_profit') }}</h4>
-        <p class="stat-value"><b id="expectedProfitDisplay">{{ money($totalExpectedProfit ?? $totalMargin ?? 0) }}</b></p>
+        <p class="stat-value"><b id="expectedProfitDisplay" class="{{ $headerExpectedProfit >= 0 ? 'text-success' : 'text-danger' }}">{{ money($headerExpectedProfit) }}</b></p>
         <p class="stat-meta"></p>
       </div>
     </div>

@@ -8,6 +8,27 @@ use App\Models\SaleItem;
 class SaleItemCostService
 {
     /**
+     * Normalized cost per base stock piece for a packaging row (stock reports, valuations).
+     */
+    public function costPerPiece(Item $item, ?\App\Models\ItemPackaging $packaging = null, float $sellValueHint = 0): float
+    {
+        $item->loadMissing(['packagings.packagingType']);
+
+        $packaging = $packaging ?? $item->packagings->sortBy('quantity_per_unit')->first();
+        if (! $packaging) {
+            return 0.0;
+        }
+
+        $qpu = max(1, (int) $packaging->quantity_per_unit);
+        $packCost = (float) ($packaging->cost_price ?? 0);
+        if ($packCost <= 0) {
+            return 0.0;
+        }
+
+        return $this->resolveCostPerPiece($item, $packaging, $packCost, $qpu, 1.0, $sellValueHint);
+    }
+
+    /**
      * Cost of goods for one sale line (packaging-aware, piece-normalized when bulk cost is on a piece line).
      */
     public function lineCostOfGoods(SaleItem $line): float
