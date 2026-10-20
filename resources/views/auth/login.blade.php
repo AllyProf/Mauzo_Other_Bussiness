@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    @include('partials.favicon')
     <meta name="description" content="{{ __('auth.seo.login_description') }}">
     <meta name="robots" content="noindex,nofollow">
     <link rel="canonical" href="{{ route('login') }}">

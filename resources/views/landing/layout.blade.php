@@ -9,8 +9,7 @@
     @include('landing.partials.seo-head')
   @endif
 
-  <link href="{{ asset('mauzo_link.png') }}" rel="icon">
-  <link href="{{ asset('gp-assets/img/apple-touch-icon.png') }}" rel="apple-touch-icon">
+  @include('partials.favicon')
 
   <link href="https://fonts.googleapis.com" rel="preconnect">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>

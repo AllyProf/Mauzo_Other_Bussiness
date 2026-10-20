@@ -6,7 +6,7 @@
   <title>@yield('title', $business->name)</title>
   <meta name="description" content="{{ $website->tagline ?? $business->name }}">
 
-  <link href="{{ asset('mauzo_link.png') }}" rel="icon">
+  @include('partials.favicon')
   <link href="https://fonts.googleapis.com" rel="preconnect">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Poppins:wght@400;500;600;700&family=Raleway:wght@600;700;800&display=swap" rel="stylesheet">
