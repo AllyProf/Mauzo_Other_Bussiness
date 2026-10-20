@@ -9,9 +9,9 @@ return [
         'description' => 'Mfumo wa kisasa wa kuuza, kuhifadhi bidhaa ghala, kufunga siku na kuripoti kwa mmiliki — kwa maduka, vipuri, duka la dawa na biashara za huduma nchini Tanzania.',
     ],
     'seo' => [
-        'title' => 'Mfumo wa POS na usimamizi wa duka Tanzania',
-        'description' => 'Mauzo Link ni POS ya wingu kwa maduka nchini Tanzania: duka na matawi mengi, usajili bidhaa, uuzaji kwa skani, madeni, ankara, kufunga zamu, ripoti za mzunguko wa pesa na faida, SMS na skrini ya mmiliki. Wavuti na simu.',
-        'keywords' => 'POS Tanzania, mfumo wa mauzo, usimamizi wa duka, madeni, matawi mengi, kufunga siku, faida na mzunguko, duka la vipuri, duka la dawa, Mauzo Link, programu ya biashara',
+        'title' => 'Mfumo wa POS na usimamizi wa duka Tanzania | Mauzo Link',
+        'description' => 'Mauzo Link — mfumo wa duka, mfumo wa bar, na POS nchini Tanzania: kaunta ya mauzo, skani, bidhaa ghala, madeni, ankara, matawi mengi, kufunga zamu, ripoti za faida na mzunguko. Kompyuta na simu.',
+        'keywords' => 'Mauzo Link, POS, POS Tanzania, POS nchini Tanzania, POS Afrika Mashariki, mfumo wa POS, mfumo wa mauzo, mfumo wa duka, mfumo wa maduka, mfumo wa bar, mfumo wa pub, mfumo wa mgahawa, mfumo wa hoteli, mfumo wa duka la dawa, mfumo wa pharmacy, mfumo wa duka la vipuri, mfumo wa spare parts, mfumo wa duka la nguo, mfumo wa rejareja, mfumo wa saluni, mfumo wa karakana, mfumo wa duka la virutubisho, mfumo wa duka la vifaa, mfumo wa biashara, mfumo wa kaunta, mfumo wa hesabu duka, programu ya duka, programu ya biashara, usimamizi wa duka, kaunta ya mauzo, POS simu, uuzaji kwa skani, madeni, ankara, kufunga siku, kufunga zamu, faida na mzunguko, matawi mengi, POS Dar es Salaam, POS Arusha, POS Mwanza, POS Moshi, POS Dodoma, POS Kilimanjaro',
         'trial_offer' => 'Jaribio la bure kwa biashara mpya baada ya kuidhinishwa',
     ],
     'nav' => [

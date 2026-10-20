@@ -9,9 +9,9 @@ return [
         'description' => 'Modern point of sale, inventory, shift closing, and owner reports for Tanzanian retail, spare parts, pharmacy, and service businesses.',
     ],
     'seo' => [
-        'title' => 'POS & Shop Management Software in Tanzania',
-        'description' => 'Mauzo Link is cloud POS for Tanzanian shops: multiple stores and branches, item register, barcode sales, debt tracking, invoices, shift closing, cash circulation vs profit reports, SMS reminders, and owner dashboards. Web and mobile.',
-        'keywords' => 'POS Tanzania, shop management Tanzania, retail POS, spare parts shop software, pharmacy POS, debt management, multi-branch POS, shift closing, profit report, Mauzo Link, mfumo wa mauzo',
+        'title' => 'POS & Shop Management Software Tanzania | Mauzo Link',
+        'description' => 'Mauzo Link — POS in Tanzania for shops, bars, restaurants, and more: checkout, barcode sales, stock, debts, invoices, branches, shift closing, profit reports. Web and mobile.',
+        'keywords' => 'Mauzo Link, POS, POS in Tanzania, POS Tanzania, Tanzania POS, point of sale in Tanzania, best POS Tanzania, cloud POS Tanzania, mobile POS Tanzania, shop POS system, store POS system, bar POS system, pub POS, restaurant POS Tanzania, hotel POS, pharmacy POS Tanzania, spare parts POS, hardware shop POS, retail POS Tanzania, salon POS, shop management system Tanzania, inventory POS, barcode POS, POS Dar es Salaam, POS Arusha, POS Mwanza, POS Moshi, POS Dodoma, East Africa POS, mfumo wa duka, mfumo wa bar, mfumo wa mauzo, programu ya duka',
         'trial_offer' => 'Free trial for new businesses after registration approval',
     ],
     'nav' => [
