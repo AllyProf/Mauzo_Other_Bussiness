@@ -97,6 +97,11 @@
     <h1><i class="fa fa-list"></i> {{ __('categories.title') }}</h1>
     <p>{{ __('categories.subtitle') }}</p>
   </div>
+  <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
+    <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+    <li class="breadcrumb-item"><a href="#">{{ __('menu.categories') }}</a></li>
+  </ul>
 </div>
 
 @if(count($importedTypes) > 0)

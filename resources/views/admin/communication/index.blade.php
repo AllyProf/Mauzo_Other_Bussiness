@@ -75,6 +75,7 @@
     <p>Manage bulk SMS communication and edit automated notification templates</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
     <li class="breadcrumb-item"><a href="#">Communication Room</a></li>
   </ul>

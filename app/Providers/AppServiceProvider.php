@@ -66,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
                     'showSystemTour' => false,
                     'systemTourSteps' => [],
                     'canReplaySystemTour' => false,
+                    'subscriptionRenewalNotice' => null,
                 ];
 
                 $user = auth()->user();
@@ -136,6 +137,11 @@ class AppServiceProvider extends ServiceProvider
 
                     $data['headerNotificationCount'] = (int) $data['dueNoteRemindersCount']
                         + (int) $data['pendingBranchSuppliesCount'];
+
+                    if ($user->role === 'owner') {
+                        $renewalBusiness = $businessService->activeBusiness() ?? $user->business;
+                        $data['subscriptionRenewalNotice'] = subscription_renewal_notice_for($renewalBusiness);
+                    }
                 }
 
                 $view->with($data);

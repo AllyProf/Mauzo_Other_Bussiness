@@ -69,6 +69,7 @@
     @endif
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><a href="{{ route('services.categories') }}">Services</a></li>
     <li class="breadcrumb-item">Sales (POS)</li>
   </ul>

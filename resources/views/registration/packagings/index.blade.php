@@ -96,6 +96,11 @@
     <h1><i class="fa fa-archive"></i> {{ __('packaging.title') }}</h1>
     <p>{{ __('packaging.subtitle') }}</p>
   </div>
+  <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
+    <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+    <li class="breadcrumb-item"><a href="#">{{ __('menu.packaging_units') }}</a></li>
+  </ul>
 </div>
 
 @if($configuredTypes->isNotEmpty())

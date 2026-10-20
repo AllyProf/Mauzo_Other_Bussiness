@@ -246,10 +246,14 @@ class PlatformSmsService
         }
 
         $platformName = $this->platformName();
+        $business->loadMissing('plan');
+        $message = $business->isFreeFixedRenewal()
+            ? "{$platformName}: Your free plan period ends on {$expiryLabel}. Please renew to extend access (no charge)."
+            : "{$platformName}: Your subscription expires on {$expiryLabel}. Please renew to avoid interruption.";
 
         return $this->sendToBusiness(
             $business,
-            "{$platformName}: Your subscription expires on {$expiryLabel}. Please renew to avoid interruption.",
+            $message,
             'expiry_reminder',
             null,
         );

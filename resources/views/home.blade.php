@@ -33,6 +33,7 @@
     @endif
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
     <li class="breadcrumb-item"><a href="{{ url('/home') }}">{{ __('dashboard.breadcrumb_dashboard') }}</a></li>
     @if($isSalesOfficerDashboard ?? false)
@@ -42,6 +43,10 @@
     @endif
   </ul>
 </div>
+
+@if($isOwnerDashboard ?? false)
+  @include('partials.subscription-renewal-banner')
+@endif
 
 @if($isUnassignedStaffDashboard ?? false)
   @include('home.unassigned-staff')

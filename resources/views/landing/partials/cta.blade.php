@@ -4,17 +4,17 @@
     <div class="row justify-content-center" data-aos="zoom-in" data-aos-delay="100">
       <div class="col-xl-10">
         <div class="text-center">
-          <h3>Ready to modernize your shop?</h3>
+          <h3>{{ __('landing.cta.title') }}</h3>
           <p>
-            Join businesses using {{ $platformName }} to sell faster, control stock, and close every day with accurate cash and profit reports.
+            {{ __('landing.cta.body', ['platform' => $platformName ?? config('app.name')]) }}
             @if($registrationOpen)
-              Register today and start your {{ $trialDays }}-day trial after approval.
+              {{ ' '.__('landing.cta.trial_note', ['days' => $trialDays]) }}
             @endif
           </p>
           @if($registrationOpen)
-            <a class="cta-btn me-2" href="{{ route('register.business') }}">Register Now</a>
+            <a class="cta-btn me-2" href="{{ route('register.business') }}">{{ __('landing.cta.register') }}</a>
           @endif
-          <a class="cta-btn" href="#contact">Request a Demo</a>
+          <a class="cta-btn" href="#contact">{{ __('landing.cta.demo') }}</a>
         </div>
       </div>
     </div>

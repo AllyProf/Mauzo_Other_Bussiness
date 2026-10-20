@@ -1,14 +1,11 @@
 @php
   $appName = $platformName ?? 'Mauzo Link';
-  $screens = [
-      ['img' => 'gp-assets/img/mobile_img2.png', 'tab' => 'Selling & Dashboard', 'caption' => 'Sell, scan and follow today\'s orders, collections and profit.'],
-      ['img' => 'gp-assets/img/mobile_img.png', 'tab' => 'Secure Login', 'caption' => 'Sign in with password or fingerprint, in Swahili or English.'],
-  ];
+  $screens = __('landing.mobile.screens');
 @endphp
 <section id="mobile-app" class="mobile-app section">
   <div class="container section-title" data-aos="fade-up">
-    <h2>Mobile App</h2>
-    <p>Run your business from your pocket</p>
+    <h2>{{ __('landing.mobile.section_title') }}</h2>
+    <p>{{ __('landing.mobile.section_sub') }}</p>
   </div>
 
   <div class="container">
@@ -18,43 +15,42 @@
           <span class="mobile-app__badge"><i class="bi bi-android2"></i> Android</span>
           <span class="mobile-app__badge"><i class="bi bi-apple"></i> iOS</span>
         </div>
-        <h3 class="mobile-app__title">{{ $appName }} POS, wherever you are</h3>
-        <p class="mobile-app__lead">
-          Everything your team does at the counter, now on Android and iPhone. Same account, same data,
-          synced live with the web dashboard.
-        </p>
+        <h3 class="mobile-app__title">{{ __('landing.mobile.title', ['app' => $appName]) }}</h3>
+        <p class="mobile-app__lead">{{ __('landing.mobile.lead') }}</p>
 
         <ul class="mobile-app__list">
-          <li><i class="bi bi-upc-scan"></i><div><strong>Sell on the go</strong><span>Search items or scan QR codes, with stock and packaging shown on every product.</span></div></li>
-          <li><i class="bi bi-speedometer2"></i><div><strong>Today at a glance</strong><span>Orders, collected cash, outstanding debts and profit, updated as you sell.</span></div></li>
-          <li><i class="bi bi-calendar-check"></i><div><strong>Day close from your phone</strong><span>Hand over the shift, record expenses and send it for the owner's verification.</span></div></li>
-          <li><i class="bi bi-fingerprint"></i><div><strong>Fast, secure sign-in</strong><span>Fingerprint login and full Swahili &amp; English support.</span></div></li>
+          @foreach(__('landing.mobile.list') as $row)
+          <li><i class="bi {{ $row['icon'] }}"></i><div><strong>{{ $row['title'] }}</strong><span>{{ $row['text'] }}</span></div></li>
+          @endforeach
         </ul>
 
         <div class="mobile-app__actions">
           @if($registrationOpen ?? true)
             <a href="{{ route('register.business') }}" class="mobile-app__btn mobile-app__btn--primary">
-              <i class="bi bi-rocket-takeoff"></i> Get Started
+              <i class="bi bi-rocket-takeoff"></i> {{ __('landing.mobile.get_started') }}
             </a>
           @endif
           <a href="{{ route('landing.index') }}#contact" class="mobile-app__btn mobile-app__btn--outline">
-            <i class="bi bi-phone"></i> Request the App
+            <i class="bi bi-phone"></i> {{ __('landing.mobile.request_app') }}
           </a>
         </div>
 
         <div class="mobile-app__stores">
           <div class="mobile-app__store">
             <i class="bi bi-google-play"></i>
-            <div><small>Available on</small><strong>Google Play</strong></div>
+            <div><small>{{ __('landing.mobile.store_google') }}</small><strong>{{ __('landing.mobile.google_play') }}</strong></div>
           </div>
           <div class="mobile-app__store">
             <i class="bi bi-apple"></i>
-            <div><small>Download on the</small><strong>App Store</strong></div>
+            <div><small>{{ __('landing.mobile.store_apple') }}</small><strong>{{ __('landing.mobile.app_store') }}</strong></div>
           </div>
         </div>
       </div>
 
       <div class="col-lg-7" data-aos="fade-up" data-aos-delay="200">
+        @php
+          $screenImages = ['gp-assets/img/mobile_img2.png', 'gp-assets/img/mobile_img.png'];
+        @endphp
         <div class="mobile-app__tabs" role="tablist">
           @foreach($screens as $i => $screen)
             <button type="button" class="mobile-app__tab {{ $i === 0 ? 'active' : '' }}"
@@ -69,8 +65,8 @@
           <div class="carousel-inner">
             @foreach($screens as $i => $screen)
               <div class="carousel-item {{ $i === 0 ? 'active' : '' }}">
-                <a href="{{ asset($screen['img']) }}" class="glightbox" data-gallery="mobile-app" data-title="{{ $screen['tab'] }}" data-description="{{ $screen['caption'] }}">
-                  <img src="{{ asset($screen['img']) }}" class="d-block w-100" alt="{{ $appName }} mobile app — {{ $screen['tab'] }}" loading="lazy">
+                <a href="{{ asset($screenImages[$i] ?? $screenImages[0]) }}" class="glightbox" data-gallery="mobile-app" data-title="{{ $screen['tab'] }}" data-description="{{ $screen['caption'] }}">
+                  <img src="{{ asset($screenImages[$i] ?? $screenImages[0]) }}" class="d-block w-100" alt="{{ $appName }} — {{ $screen['tab'] }}" loading="lazy">
                 </a>
                 <p class="mobile-app__caption"><i class="bi bi-zoom-in"></i> {{ $screen['caption'] }}</p>
               </div>
@@ -78,11 +74,11 @@
           </div>
           <button class="carousel-control-prev" type="button" data-bs-target="#mobileAppCarousel" data-bs-slide="prev">
             <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Previous</span>
+            <span class="visually-hidden">{{ __('landing.mobile.carousel_prev') }}</span>
           </button>
           <button class="carousel-control-next" type="button" data-bs-target="#mobileAppCarousel" data-bs-slide="next">
             <span class="carousel-control-next-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Next</span>
+            <span class="visually-hidden">{{ __('landing.mobile.carousel_next') }}</span>
           </button>
         </div>
       </div>

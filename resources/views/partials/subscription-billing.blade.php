@@ -7,23 +7,36 @@
   $monthlyDue = $business->usesProfitShareBilling()
     ? $currentFee['amount']
     : ($currentFee['monthly_equivalent'] ?? $currentFee['amount']);
+  $renewalNotice = subscription_renewal_notice_for($business);
+  $isFreePlan = $business->isFreeFixedRenewal();
 @endphp
 
+@if($renewalNotice)
+  @include('partials.subscription-renewal-banner', ['subscriptionRenewalNotice' => $renewalNotice])
+@endif
+
+@if($plan && $isFreePlan)
+<div class="alert alert-success text-left mb-4">
+  <h5 class="mb-2"><i class="fa fa-gift"></i> Free plan</h5>
+  <p class="mb-0">There is <strong>no subscription fee</strong> on {{ $plan->name }}. When your period ends, contact the platform administrator to extend access at no charge.</p>
+</div>
+@elseif($plan)
 <div class="alert alert-primary text-left mb-4">
   <h5 class="mb-2"><i class="fa fa-money"></i> Amount Due</h5>
-  @if($plan)
-    <p class="mb-1">
-      <strong>This month:</strong> TZS {{ number_format($monthlyDue, 0) }}
-      <br><small class="text-muted">{{ $currentFee['label'] }}</small>
-    </p>
-    <p class="mb-0">
-      <strong>To renew subscription:</strong> TZS {{ number_format($renewalFee['amount'], 0) }}
-      <br><small class="text-muted">{{ $renewalFee['detail'] ?? $renewalFee['label'] }}</small>
-    </p>
-  @else
-    <p class="mb-0">No subscription plan is assigned. Contact the platform administrator.</p>
-  @endif
+  <p class="mb-1">
+    <strong>This month:</strong> TZS {{ number_format($monthlyDue, 0) }}
+    <br><small class="text-muted">{{ $currentFee['label'] }}</small>
+  </p>
+  <p class="mb-0">
+    <strong>To renew subscription:</strong> TZS {{ number_format($renewalFee['amount'], 0) }}
+    <br><small class="text-muted">{{ $renewalFee['detail'] ?? $renewalFee['label'] }}</small>
+  </p>
 </div>
+@else
+<div class="alert alert-primary text-left mb-4">
+  <p class="mb-0">No subscription plan is assigned. Contact the platform administrator.</p>
+</div>
+@endif
 
 @if($plan)
 <div class="table-responsive mb-4">
@@ -37,6 +50,17 @@
           {{ $business->expiry_date->format('d M, Y') }}
           @if($business->expiry_date->isPast())
             <span class="badge badge-danger ml-1">Expired</span>
+          @elseif($renewalNotice)
+            @php $daysLeft = (int) ($renewalNotice['days_left'] ?? 0); @endphp
+            <span class="badge badge-danger ml-1">
+              @if($daysLeft === 0)
+                Expires today — renew
+              @elseif($daysLeft === 1)
+                1 day left — renew
+              @else
+                {{ $daysLeft }} days left — renew
+              @endif
+            </span>
           @endif
         @else
           Not set
@@ -61,7 +85,7 @@
 @endif
 
 @php $paymentInstructions = platform_settings('payment_instructions'); @endphp
-@if($paymentInstructions)
+@if($paymentInstructions && ! $isFreePlan)
 <div class="alert alert-light border text-left mb-4">
   <strong><i class="fa fa-money"></i> How to Pay &amp; Renew</strong>
   <div class="mt-2" style="white-space:pre-wrap;">{{ $paymentInstructions }}</div>

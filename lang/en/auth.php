@@ -11,6 +11,10 @@ return [
     'show_password' => 'Show password',
     'hide_password' => 'Hide password',
     'login_title' => 'Login',
+    'seo' => [
+        'login_description' => 'Sign in to your Mauzo Link business account — POS, inventory, and owner reports.',
+        'register_description' => 'Register your shop on Mauzo Link — Tanzanian cloud POS with branches, debts, invoices, shift closing, and mobile selling.',
+    ],
     'pending_approval' => 'Your registration is pending approval. We will notify you once your account is activated.',
     'business_inactive' => 'Your business account is inactive. Please contact support.',
     'business_suspended' => 'Your business account is suspended. Please contact support.',

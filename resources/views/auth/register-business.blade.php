@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{{ __('auth.seo.register_description') }}">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="{{ route('register.business') }}">
   <link rel="stylesheet" type="text/css" href="{{ asset('panel-assets/css/main.css') }}">
   <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
   <title>{{ __('auth.register_title') }} — {{ $platformSettings['platform_name'] ?? config('app.name') }}</title>

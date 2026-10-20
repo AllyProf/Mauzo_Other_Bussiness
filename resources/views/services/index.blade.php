@@ -24,6 +24,7 @@
     <p>Choose service business templates, import categories, set prices, then sell from Service POS</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home"></i></li>
     <li class="breadcrumb-item">Services</li>
   </ul>

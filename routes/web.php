@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::match(['get', 'post'], '/locale/{locale}', [App\Http\Controllers\LocaleController::class, 'switch'])->name('locale.switch');
 
+Route::get('/sitemap.xml', [App\Http\Controllers\SeoController::class, 'sitemap'])->name('seo.sitemap');
+Route::get('/robots.txt', [App\Http\Controllers\SeoController::class, 'robots'])->name('seo.robots');
+
 Route::get('/', [LandingController::class, 'index'])->name('landing.index');Route::post('/request-demo', [App\Http\Controllers\LandingLeadController::class, 'store'])->name('landing.lead.store');
 
 Route::get('/site/{slug}', [App\Http\Controllers\PublicBusinessSiteController::class, 'home'])->name('public.site.home');
@@ -155,6 +158,7 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     Route::get('/support/{ticket}', [App\Http\Controllers\SupportTicketController::class, 'show'])->name('tickets.show_tenant');
 
     Route::get('/help', [App\Http\Controllers\TenantHelpController::class, 'index'])->name('help.index');
+    Route::get('/help/getting-started', [App\Http\Controllers\TenantHelpController::class, 'gettingStarted'])->name('help.getting-started');
     Route::get('/help/{slug}', [App\Http\Controllers\TenantHelpController::class, 'show'])->name('help.show');
 
     Route::middleware('check.business.retail')->group(function () {

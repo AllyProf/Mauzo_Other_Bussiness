@@ -119,6 +119,7 @@ class PlatformReminderService
         $channels = $this->reminderChannels();
         $sentAny = false;
         $expiryLabel = Carbon::parse($business->expiry_date)->format('d M Y');
+        $business->loadMissing('plan');
 
         if (in_array('email', $channels, true) && filled($business->email)) {
             $sentAny = $this->platformMail->sendExpiryReminder($business, $expiryLabel) || $sentAny;

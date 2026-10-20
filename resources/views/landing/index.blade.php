@@ -1,8 +1,5 @@
 @extends('landing.layout')
 
-@section('title', ($platformName ?? 'Mauzo Link').' — POS & Business Management')
-@section('meta_description', 'Modern point of sale, inventory, shift closing, and owner reports for Tanzanian retail, spare parts, pharmacy, and service businesses.')
-
 @section('content')
   @include('landing.partials.hero')
   @include('landing.partials.about')

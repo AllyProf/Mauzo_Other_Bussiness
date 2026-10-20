@@ -17,6 +17,7 @@
     <p>Track handover shortages and record when staff pay back cash or when the amount is deducted from salary.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
     <li class="breadcrumb-item"><a href="{{ url('/home') }}">Dashboard</a></li>
     <li class="breadcrumb-item"><a href="{{ route('day-closing.index') }}">Daily Reconciliation</a></li>

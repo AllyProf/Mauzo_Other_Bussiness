@@ -44,6 +44,7 @@
     <p>Live feed — updates automatically every few seconds using your current filters.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><a href="{{ route('admin.audit-logs.export', request()->query()) }}"><i class="fa fa-download"></i> Export CSV</a></li>
   </ul>
 </div>

@@ -321,12 +321,16 @@ class PlatformMailService
         }
 
         $platformName = $this->platformName();
+        $business->loadMissing('plan');
+        $body = $business->isFreeFixedRenewal()
+            ? "Your {$platformName} free plan period ends on {$expiryLabel}. Please renew to extend access — there is no charge for renewal on your current plan. Contact the platform administrator if you need help."
+            : "Your {$platformName} subscription expires on {$expiryLabel}. Please renew promptly to keep your POS active.";
 
         try {
             Mail::to($email)->send(new PaymentReminderMail(
                 $business,
                 'Subscription Expiring Soon',
-                "Your {$platformName} subscription expires on {$expiryLabel}. Please renew promptly to keep your POS active.",
+                $body,
                 null
             ));
 

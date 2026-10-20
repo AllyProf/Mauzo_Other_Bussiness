@@ -11,6 +11,10 @@ return [
     'show_password' => 'Onyesha nenosiri',
     'hide_password' => 'Ficha nenosiri',
     'login_title' => 'Ingia',
+    'seo' => [
+        'login_description' => 'Ingia kwenye akaunti yako ya biashara Mauzo Link — POS, bidhaa ghala na ripoti za mmiliki.',
+        'register_description' => 'Sajili duka lako kwenye Mauzo Link — POS ya wingu Tanzania yenye matawi, madeni, ankara, kufunga siku na mauzo kwenye simu.',
+    ],
     'pending_approval' => 'Usajili wako unasubiri uidhinishwe. Tutakujulisha akaunti yako itakapoanzishwa.',
     'business_inactive' => 'Akaunti ya biashara yako haifanyi kazi. Tafadhali wasiliana na msaada.',
     'business_suspended' => 'Akaunti ya biashara yako imesimamishwa. Tafadhali wasiliana na msaada.',

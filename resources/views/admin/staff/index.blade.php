@@ -45,6 +45,7 @@
     <p>Create admin users and assign them a role you define.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     @if(platform_admin_can('platform_roles'))
     <li class="breadcrumb-item"><a href="{{ route('admin.platform-roles.index') }}"><i class="fa fa-shield"></i> Admin Roles</a></li>
     @endif

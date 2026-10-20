@@ -9,6 +9,7 @@
     <p>{{ __('profile.manage_account') }}</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
     <li class="breadcrumb-item">{{ __('common.breadcrumb_profile') }}</li>
   </ul>

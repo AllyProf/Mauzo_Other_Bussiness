@@ -314,6 +314,33 @@ if (! function_exists('user_can_master_sheet')) {
     }
 }
 
+if (! function_exists('subscription_renewal_notice_for')) {
+    /**
+     * @return array{expiry_date: \Illuminate\Support\Carbon, days_left: int, plan_name: string, is_free_renewal: bool, renewal_amount: ?float}|null
+     */
+    function subscription_renewal_notice_for(?\App\Models\Business $business): ?array
+    {
+        if (! $business
+            || ! $business->is_active
+            || $business->isPendingApproval()
+            || ! $business->isExpiringSoon()) {
+            return null;
+        }
+
+        $business->loadMissing('plan');
+
+        return [
+            'expiry_date' => $business->expiry_date,
+            'days_left' => (int) $business->daysUntilExpiry(),
+            'plan_name' => $business->plan?->name ?? 'Your plan',
+            'is_free_renewal' => $business->isFreeFixedRenewal(),
+            'renewal_amount' => $business->usesProfitShareBilling()
+                ? null
+                : $business->effectiveBillingPrice(),
+        ];
+    }
+}
+
 if (! function_exists('business_report_menu_options')) {
     /**
      * Report types available on the business Reports hub (plan + permission gated).
@@ -458,5 +485,188 @@ if (! function_exists('packaging_templates')) {
         }
 
         return $templates;
+    }
+}
+
+if (! function_exists('tenant_system_guide_visible')) {
+    function tenant_system_guide_visible(): bool
+    {
+        $user = auth()->user();
+
+        return $user
+            && ! $user->isPlatformAdmin()
+            && \Illuminate\Support\Facades\Route::has('help.getting-started');
+    }
+}
+
+if (! function_exists('tenant_system_guide_url')) {
+    function tenant_system_guide_url(): string
+    {
+        $routeName = request()->route()?->getName();
+
+        foreach (config('usage_guide.steps', []) as $index => $step) {
+            if (($step['route'] ?? null) === $routeName) {
+                return route('help.getting-started').'#guide-step-'.($index + 1);
+            }
+        }
+
+        return route('help.getting-started');
+    }
+}
+
+if (! function_exists('page_manual_for_route')) {
+    /**
+     * @return array<string, mixed>|null
+     */
+    function page_manual_for_route(?string $routeName): ?array
+    {
+        if (! tenant_system_guide_visible()) {
+            return null;
+        }
+
+        if (! $routeName && request()->is('home')) {
+            $routeName = 'home';
+        }
+
+        if (! $routeName) {
+            return null;
+        }
+
+        $routes = config('page_manuals.routes', []);
+        $def = is_array($routes) ? ($routes[$routeName] ?? null) : null;
+
+        if (! $def) {
+            foreach (config('page_manuals.prefix_routes', []) as $prefix => $prefixDef) {
+                if (str_starts_with($routeName, $prefix)) {
+                    $def = $prefixDef;
+                    break;
+                }
+            }
+        }
+
+        if (! $def || empty($def['key'])) {
+            return null;
+        }
+
+        $key = $def['key'];
+        $copy = __('page_manual.screens.'.$key);
+        if (! is_array($copy)) {
+            return null;
+        }
+
+        $wireframe = $def['wireframe'] ?? 'list';
+        $hotspots = config('page_manuals.wireframes.'.$wireframe, []);
+        $stepDefs = $copy['steps'] ?? $copy['callouts'] ?? [];
+
+        $defaultSpot = static fn (int $index): array => ['x' => 50, 'y' => min(85, 18 + ($index * 18))];
+
+        $resolveSpot = static function (array $hotspots, int $index) use ($defaultSpot): array {
+            $spot = $hotspots[$index] ?? $defaultSpot($index);
+            if (isset($spot[0]) && is_array($spot[0]) && isset($spot[0]['x'])) {
+                $spot = $spot[0];
+            }
+
+            return $spot;
+        };
+
+        $callouts = collect($stepDefs)->values()->map(function (array $step, int $index) use ($hotspots, $resolveSpot) {
+            $n = (int) ($step['n'] ?? ($index + 1));
+            $spot = $resolveSpot($hotspots, $index);
+
+            $merged = array_merge($step, [
+                'n' => $n,
+                'x' => $spot['x'] ?? 50,
+                'y' => $spot['y'] ?? 50,
+            ]);
+
+            if (isset($spot['tx'], $spot['ty'])) {
+                $merged['tx'] = $spot['tx'];
+                $merged['ty'] = $spot['ty'];
+            }
+
+            return $merged;
+        })->filter(fn ($c) => ! empty($c['title']) || ! empty($c['text']))->values()->all();
+
+        if ($callouts === []) {
+            return null;
+        }
+
+        $screenshotPanels = [];
+        $screenshotPaths = $def['screenshots'] ?? null;
+        if (is_array($screenshotPaths) && $screenshotPaths !== []) {
+            foreach (array_values($screenshotPaths) as $index => $path) {
+                if (! is_string($path) || $path === '') {
+                    continue;
+                }
+                $spot = $resolveSpot($hotspots, $index);
+                $n = (int) ($callouts[$index]['n'] ?? ($index + 1));
+                $pin = [
+                    'n' => $n,
+                    'x' => $spot['x'] ?? 50,
+                    'y' => $spot['y'] ?? 50,
+                ];
+                if (isset($spot['tx'], $spot['ty'])) {
+                    $pin['tx'] = $spot['tx'];
+                    $pin['ty'] = $spot['ty'];
+                }
+                $screenshotPanels[] = [
+                    'screenshot' => $path,
+                    'callouts' => [$pin],
+                ];
+            }
+        }
+
+        return [
+            'key' => $key,
+            'wireframe' => $wireframe,
+            'screenshot' => $def['screenshot'] ?? null,
+            'screenshot_panels' => $screenshotPanels !== [] ? $screenshotPanels : null,
+            'title' => $copy['title'] ?? $key,
+            'menu' => $copy['menu'] ?? '',
+            'intro' => $copy['intro'] ?? __('page_manual.intro'),
+            'callouts' => $callouts,
+        ];
+    }
+}
+
+if (! function_exists('page_manual_for_current_route')) {
+    /**
+     * @return array<string, mixed>|null
+     */
+    function page_manual_for_current_route(): ?array
+    {
+        return page_manual_for_route(request()->route()?->getName());
+    }
+}
+
+if (! function_exists('system_guide_setup_steps_for_manual')) {
+    /**
+     * @return array<int, array{number: int, title: string, menu: string, url: string|null}>
+     */
+    function system_guide_setup_steps_for_manual(): array
+    {
+        if (! tenant_system_guide_visible()) {
+            return [];
+        }
+
+        return collect(config('usage_guide.steps', []))->map(function (array $def, int $index) {
+            $key = $def['key'] ?? '';
+            $copy = __('help.getting_started.steps.'.$key);
+            if (! is_array($copy)) {
+                $copy = ['title' => $key, 'menu' => ''];
+            }
+
+            $routeName = $def['route'] ?? null;
+            $url = ($routeName && \Illuminate\Support\Facades\Route::has($routeName))
+                ? route($routeName)
+                : route('help.getting-started').'#guide-step-'.($index + 1);
+
+            return [
+                'number' => $index + 1,
+                'title' => $copy['title'] ?? $key,
+                'menu' => $copy['menu'] ?? '',
+                'url' => $url,
+            ];
+        })->values()->all();
     }
 }

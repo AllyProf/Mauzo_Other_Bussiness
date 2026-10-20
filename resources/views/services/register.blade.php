@@ -17,6 +17,7 @@
     <p>Import ready-made templates or define a custom service business for your branch</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home"></i></li>
     <li class="breadcrumb-item"><a href="{{ route('services.categories') }}">Services</a></li>
     <li class="breadcrumb-item">Register Business</li>

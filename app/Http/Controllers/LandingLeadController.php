@@ -21,7 +21,7 @@ class LandingLeadController extends Controller
         ]);
 
         if (blank($validated['email']) && blank($validated['phone'])) {
-            return back()->withErrors(['email' => 'Please provide an email or phone number.'])->withInput();
+            return back()->withErrors(['email' => __('landing.lead.email_or_phone')])->withInput();
         }
 
         PlatformLead::create([
@@ -55,9 +55,9 @@ class LandingLeadController extends Controller
         }
 
         if ($request->expectsJson()) {
-            return response()->json(['message' => 'Thank you! We will contact you shortly.']);
+            return response()->json(['message' => __('landing.lead.success')]);
         }
 
-        return back()->with('lead_success', 'Thank you! We will contact you shortly about your demo request.');
+        return back()->with('lead_success', __('landing.lead.success'));
     }
 }

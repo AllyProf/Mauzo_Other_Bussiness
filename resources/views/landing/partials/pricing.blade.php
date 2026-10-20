@@ -1,14 +1,14 @@
 <section id="pricing" class="services section">
   <div class="container section-title" data-aos="fade-up">
-    <h2>Pricing</h2>
-    <p>Transparent plans for growing Tanzanian businesses</p>
+    <h2>{{ __('landing.pricing.title') }}</h2>
+    <p>{{ __('landing.pricing.subtitle') }}</p>
   </div>
 
   <div class="container" data-aos="fade-up" data-aos-delay="100">
     @if($plans->isEmpty())
       <div class="text-center py-4">
-        <p class="mb-3">Contact us for current pricing and a tailored package for your business size.</p>
-        <a href="#contact" class="btn-getstarted px-4 py-2">Talk to Sales</a>
+        <p class="mb-3">{{ __('landing.pricing.empty') }}</p>
+        <a href="#contact" class="btn-getstarted px-4 py-2">{{ __('landing.pricing.talk_sales') }}</a>
       </div>
     @else
       <div class="row gy-4 justify-content-center">
@@ -24,31 +24,31 @@
         <div class="col-lg-4 col-md-6">
           <div class="pricing-card h-100 {{ $index === 1 ? 'featured' : '' }}">
             @if($index === 1)
-              <span class="plan-badge">Popular</span>
+              <span class="plan-badge">{{ __('landing.pricing.popular') }}</span>
             @endif
             @if($trialDays > 0 && $index === 0)
-              <span class="plan-badge" style="background:#28a745;">{{ $trialDays }}-day trial</span>
+              <span class="plan-badge" style="background:#28a745;">{{ __('landing.pricing.trial_badge', ['days' => $trialDays]) }}</span>
             @endif
             <h4>{{ $plan->name }}</h4>
             <ul>
               @forelse($preview as $label)
                 <li><i class="bi bi-check-circle"></i> {{ $label }}</li>
               @empty
-                <li><i class="bi bi-check-circle"></i> Core POS &amp; Inventory</li>
+                <li><i class="bi bi-check-circle"></i> {{ __('landing.pricing.core_fallback') }}</li>
               @endforelse
             </ul>
             @if($remaining > 0)
               <button class="view-all-features-btn" data-bs-toggle="modal" data-bs-target="#{{ $modalId }}">
-                <i class="bi bi-grid"></i> View all {{ $featureLabels->count() }} features
+                <i class="bi bi-grid"></i> {{ __('landing.pricing.view_all', ['count' => $featureLabels->count()]) }}
               </button>
             @endif
             @if($registrationOpen)
-              <a href="{{ route('register.business') }}" class="pricing-cta-btn">Register Now</a>
+              <a href="{{ route('register.business') }}" class="pricing-cta-btn">{{ __('landing.pricing.register') }}</a>
             @endif
             <div class="pricing-contact-links">
-              <a href="tel:0616775800" title="Call Us"><i class="bi bi-telephone-fill"></i> Call</a>
+              <a href="tel:0616775800" title="{{ __('landing.pricing.call') }}"><i class="bi bi-telephone-fill"></i> {{ __('landing.pricing.call') }}</a>
               <span class="pricing-contact-sep">|</span>
-              <a href="https://wa.me/255616775800" target="_blank" title="WhatsApp Us"><i class="bi bi-whatsapp"></i> WhatsApp</a>
+              <a href="https://wa.me/255616775800" target="_blank" title="{{ __('landing.pricing.whatsapp') }}"><i class="bi bi-whatsapp"></i> {{ __('landing.pricing.whatsapp') }}</a>
             </div>
           </div>
         </div>
@@ -59,9 +59,9 @@
             <div class="modal-content plan-modal-content">
               <div class="modal-header plan-modal-header">
                 <h5 class="modal-title" id="{{ $modalId }}Label">
-                  <i class="bi bi-check2-all"></i> {{ $plan->name }} — All Features
+                  <i class="bi bi-check2-all"></i> {{ __('landing.pricing.modal_title', ['name' => $plan->name]) }}
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="{{ __('landing.close') }}"></button>
               </div>
               <div class="modal-body">
                 @foreach(config('plan_features.groups', []) as $groupName => $groupFeatures)
@@ -80,9 +80,9 @@
               </div>
               <div class="modal-footer plan-modal-footer">
                 @if($registrationOpen)
-                  <a href="{{ route('register.business') }}" class="pricing-cta-btn">Register Now</a>
+                  <a href="{{ route('register.business') }}" class="pricing-cta-btn">{{ __('landing.pricing.register') }}</a>
                 @endif
-                <button type="button" class="btn-modal-close" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn-modal-close" data-bs-dismiss="modal">{{ __('landing.pricing.close') }}</button>
               </div>
             </div>
           </div>

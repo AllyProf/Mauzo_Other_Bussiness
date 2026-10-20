@@ -9,6 +9,7 @@
     <p>Knowledge base, tutorials, and system answers at your fingertips.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
     <li class="breadcrumb-item active"><a href="#">Help Center</a></li>
   </ul>
@@ -16,6 +17,17 @@
 
 <div class="row">
   <div class="col-md-12">
+    <div class="tile p-4 mb-4 border-0 shadow-sm" style="border-radius: 8px; border-left: 4px solid #940000 !important;">
+      <div class="d-flex flex-wrap align-items-center justify-content-between" style="gap: 12px;">
+        <div>
+          <h2 class="h4 mb-1 font-weight-bold"><i class="fa fa-book text-danger mr-2"></i> {{ __('menu.system_guide') }}</h2>
+          <p class="text-muted mb-0 small">{{ __('help.getting_started.subtitle') }}</p>
+        </div>
+        <a href="{{ route('help.getting-started') }}" class="btn btn-primary">
+          <i class="fa fa-arrow-right"></i> {{ __('help.getting_started.title') }}
+        </a>
+      </div>
+    </div>
     {{-- Search/Jumbotron Header --}}
     <div class="tile text-white p-5 text-center mb-4" style="background: linear-gradient(135deg, #940000 0%, #d32f2f 100%); border-radius: 8px; box-shadow: 0 4px 15px rgba(148,0,0,0.2);">
       <h2 class="mb-2 font-weight-bold text-white"><i class="fa fa-graduation-cap mr-2"></i> How can we help you today?</h2>

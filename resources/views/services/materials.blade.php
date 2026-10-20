@@ -9,6 +9,7 @@
     <p>Paper, ink, film and other supplies — separate from shop inventory. Stock deducts when service sales are paid.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home"></i></li>
     <li class="breadcrumb-item"><a href="{{ route('services.categories') }}">Services</a></li>
     <li class="breadcrumb-item">Materials</li>

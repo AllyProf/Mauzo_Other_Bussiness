@@ -3,9 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>@yield('title', $platformName ?? config('app.name'))</title>
-  <meta name="description" content="@yield('meta_description', 'Modern point of sale, inventory, and business management for Tanzanian shops and enterprises.')">
-  <meta name="keywords" content="POS, inventory, Tanzania, retail, Mauzo Link, spare parts, shop management">
+  @hasSection('seo_head')
+    @yield('seo_head')
+  @else
+    @include('landing.partials.seo-head')
+  @endif
 
   <link href="{{ asset('mauzo_link.png') }}" rel="icon">
   <link href="{{ asset('gp-assets/img/apple-touch-icon.png') }}" rel="apple-touch-icon">
@@ -31,13 +33,13 @@
   @if(session('lead_success'))
     <div class="alert alert-success alert-dismissible fade show landing-alert shadow" role="alert">
       <i class="bi bi-check-circle me-1"></i> {{ session('lead_success') }}
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('landing.close') }}"></button>
     </div>
   @endif
   @if(session('error'))
     <div class="alert alert-danger alert-dismissible fade show landing-alert shadow" role="alert">
       <i class="bi bi-exclamation-circle me-1"></i> {{ session('error') }}
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('landing.close') }}"></button>
     </div>
   @endif
 

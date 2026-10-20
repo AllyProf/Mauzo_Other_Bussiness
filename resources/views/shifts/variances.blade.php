@@ -89,6 +89,7 @@
     <p>Items recorded short during shift stock checks — review each entry and mark as <strong>will be paid</strong> or <strong>waived</strong>.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
     <li class="breadcrumb-item"><a href="{{ url('/home') }}">Dashboard</a></li>
     <li class="breadcrumb-item"><a href="{{ route('shifts.index') }}">Shifts</a></li>

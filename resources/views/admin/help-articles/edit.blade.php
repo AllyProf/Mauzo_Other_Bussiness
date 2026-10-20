@@ -9,6 +9,7 @@
     <p>Modify guide or tutorial details.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
     <li class="breadcrumb-item"><a href="{{ route('admin.help-articles.index') }}">Help Articles</a></li>
     <li class="breadcrumb-item active">Edit</li>

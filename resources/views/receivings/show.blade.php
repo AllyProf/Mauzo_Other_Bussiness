@@ -20,6 +20,7 @@
             <p>{{ __('receivings.show.subtitle') }}</p>
         </div>
         <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
             <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
             <li class="breadcrumb-item"><a href="{{ url('/home') }}">{{ __('menu.dashboard') }}</a></li>
             <li class="breadcrumb-item"><a href="{{ route('receivings.index') }}">{{ __('pages.receivings.title') }}</a></li>

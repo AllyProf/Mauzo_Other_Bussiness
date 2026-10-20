@@ -195,6 +195,7 @@
         @endif
     </div>
     <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
         <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
         <li class="breadcrumb-item"><a href="{{ route('live-sales.index') }}">{{ __('live_sales.live_monitor') }}</a></li>
         <li class="breadcrumb-item" id="last-updated-text" style="font-weight: bold; color: #940000;">{{ __('live_sales.synced_now') }}</li>

@@ -677,6 +677,37 @@ class Business extends Model
         return 'Active';
     }
 
+    public function daysUntilExpiry(): ?int
+    {
+        if (! $this->expiry_date) {
+            return null;
+        }
+
+        return (int) now()->startOfDay()->diffInDays(
+            \Carbon\Carbon::parse($this->expiry_date)->startOfDay(),
+            false
+        );
+    }
+
+    public function isExpiringSoon(?int $warningDays = null): bool
+    {
+        $daysLeft = $this->daysUntilExpiry();
+        if ($daysLeft === null || $daysLeft < 0) {
+            return false;
+        }
+
+        if ($warningDays === null) {
+            $warningDays = max(1, (int) app(\App\Services\PlatformSettingsService::class)->get('expiry_warning_days', 7));
+        }
+
+        return $daysLeft <= $warningDays;
+    }
+
+    public function isFreeFixedRenewal(): bool
+    {
+        return ! $this->usesProfitShareBilling() && $this->effectiveBillingPrice() <= 0;
+    }
+
     public function plan()
     {
         return $this->belongsTo(Plan::class);

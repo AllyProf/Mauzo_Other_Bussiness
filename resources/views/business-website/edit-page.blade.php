@@ -9,6 +9,7 @@
     <p>Content shown on your public site.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><a href="{{ route('business-website.index') }}">Business Website</a></li>
     <li class="breadcrumb-item active">{{ $pageLabel }}</li>
   </ul>

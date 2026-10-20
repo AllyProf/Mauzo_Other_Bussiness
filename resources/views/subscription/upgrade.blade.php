@@ -9,6 +9,7 @@
     <p>Review your subscription and unlock more modules for your business.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
     <li class="breadcrumb-item"><a href="{{ url('/home') }}">Dashboard</a></li>
     <li class="breadcrumb-item active">Upgrade Plan</li>
@@ -79,7 +80,7 @@
         @php $paymentInstructions = platform_settings('payment_instructions'); @endphp
         @if($paymentInstructions)
         <div class="alert alert-light border mt-3 mb-0">
-          <strong><i class="fa fa-phone"></i> Request an upgrade</strong>
+          <strong><i class="fa fa-phone"></i> {{ $business->isFreeFixedRenewal() ? 'Extend free access or upgrade' : 'Request an upgrade' }}</strong>
           <div class="mt-2" style="white-space:pre-wrap;">{{ $paymentInstructions }}</div>
           @if(platform_settings('support_email') || platform_settings('support_phone'))
           <p class="mb-0 mt-2 small text-muted">

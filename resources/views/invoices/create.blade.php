@@ -106,6 +106,12 @@
       <a href="{{ route('invoices.index') }}" class="btn btn-secondary btn-sm"><i class="fa fa-arrow-left"></i> Back to Invoices</a>
     </div>
   </div>
+  <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
+    <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+    <li class="breadcrumb-item"><a href="{{ route('invoices.index') }}">{{ __('menu.invoices') }}</a></li>
+    <li class="breadcrumb-item active">{{ __('page_manual.screens.invoices_create.title') }}</li>
+  </ul>
 </div>
 
 @if($openShift ?? false)

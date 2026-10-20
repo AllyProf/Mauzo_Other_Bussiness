@@ -15,13 +15,14 @@
       ['url' => $footerWhatsapp ? 'https://wa.me/'.$footerWhatsapp : '', 'fallback' => 'https://www.whatsapp.com/', 'icon' => 'bi-whatsapp', 'label' => 'WhatsApp', 'color' => '#25d366'],
   ];
   $home = route('landing.index');
+  $footerLinkLabels = __('landing.footer.links');
   $footerLinks = [
-      ['Home', $home.'#hero'],
-      ['About Us', $home.'#about'],
-      ['Mobile App', $home.'#mobile-app'],
-      ['Pricing', $home.'#pricing'],
-      ['FAQ', $home.'#faq'],
-      ['Contact Us', $home.'#contact'],
+      [$footerLinkLabels['home'] ?? 'Home', $home.'#hero'],
+      [$footerLinkLabels['about'] ?? 'About', $home.'#about'],
+      [$footerLinkLabels['mobile'] ?? 'Mobile', $home.'#mobile-app'],
+      [$footerLinkLabels['pricing'] ?? 'Pricing', $home.'#pricing'],
+      [$footerLinkLabels['faq'] ?? 'FAQ', $home.'#faq'],
+      [$footerLinkLabels['contact'] ?? 'Contact', $home.'#contact'],
   ];
 @endphp
 <footer id="footer" class="footer site-footer" style="--footer-brand: {{ $footerBrand }};">
@@ -38,14 +39,11 @@
           <img src="{{ asset('mauzo_link.png') }}" alt="{{ $footerName }}">
           <span>{{ $footerName }}</span>
         </a>
-        <p class="site-footer__about">
-          Modern POS and business management for Tanzanian shops — sales, stock, shift closing and
-          owner reports in one place, on web and mobile.
-        </p>
+        <p class="site-footer__about">{{ __('landing.footer.about') }}</p>
       </div>
 
       <div class="col-lg-3 col-md-6 site-footer__col">
-        <h4 class="site-footer__heading">Contact Us</h4>
+        <h4 class="site-footer__heading">{{ __('landing.footer.contact_heading') }}</h4>
         <ul class="site-footer__list">
           @if(filled($footerAddress))
             <li><i class="bi bi-geo-alt-fill"></i><span>{{ $footerAddress }}</span></li>
@@ -59,21 +57,21 @@
       </div>
 
       <div class="col-lg-3 col-md-6 site-footer__col">
-        <h4 class="site-footer__heading">Quick Links</h4>
+        <h4 class="site-footer__heading">{{ __('landing.footer.links_heading') }}</h4>
         <ul class="site-footer__list site-footer__links">
           @foreach($footerLinks as [$linkLabel, $linkUrl])
             <li><i class="bi bi-check-circle-fill"></i><a href="{{ $linkUrl }}">{{ $linkLabel }}</a></li>
           @endforeach
-          <li><i class="bi bi-check-circle-fill"></i><a href="{{ route('login') }}">Sign In</a></li>
+          <li><i class="bi bi-check-circle-fill"></i><a href="{{ route('login') }}">{{ __('landing.footer.sign_in') }}</a></li>
           @if($registrationOpen ?? true)
-            <li><i class="bi bi-check-circle-fill"></i><a href="{{ route('register.business') }}">Register Business</a></li>
+            <li><i class="bi bi-check-circle-fill"></i><a href="{{ route('register.business') }}">{{ __('landing.footer.register_business') }}</a></li>
           @endif
         </ul>
       </div>
 
       <div class="col-lg-3 col-md-6 site-footer__col">
-        <h4 class="site-footer__heading">Find us on Digital Platforms</h4>
-        <p class="site-footer__about mb-3">Follow us for tips, updates and new features.</p>
+        <h4 class="site-footer__heading">{{ __('landing.footer.social_heading') }}</h4>
+        <p class="site-footer__about mb-3">{{ __('landing.footer.social_lead') }}</p>
         <div class="site-footer__socials">
           @foreach($footerSocials as $social)
             <a href="{{ filled($social['url']) ? $social['url'] : $social['fallback'] }}" target="_blank" rel="noopener"
@@ -88,9 +86,9 @@
 
     <div class="site-footer__bottom">
       <p>
-        &copy; {{ date('Y') }} All Rights Reserved By <a href="{{ $home }}">{{ $footerName }}</a>
+        &copy; {{ date('Y') }} {{ __('landing.footer.rights') }} <a href="{{ $home }}">{{ $footerName }}</a>
         <span class="site-footer__sep">|</span>
-        <span class="site-footer__powered">Powered by <strong>EmCa Tech</strong></span>
+        <span class="site-footer__powered">{{ __('landing.footer.powered') }} <strong>EmCa Tech</strong></span>
       </p>
     </div>
   </div>

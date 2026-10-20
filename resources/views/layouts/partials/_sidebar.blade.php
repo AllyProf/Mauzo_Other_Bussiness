@@ -358,6 +358,8 @@
         </li>
         @endif
 
+        <li><a class="app-menu__item {{ Request::routeIs('help.getting-started') ? 'active' : '' }}" href="{{ route('help.getting-started') }}" data-tour="menu-guide"><i class="app-menu__icon fa fa-book"></i><span class="app-menu__label">{{ __('menu.system_guide') }}</span></a></li>
+
         @canany(['adjust_stock', 'view_stock_adjustments'])
         @if(business_retail_enabled())
         <li class="treeview danger-zone-menu {{ Request::is('stock-adjustments*') ? 'is-expanded' : '' }}">

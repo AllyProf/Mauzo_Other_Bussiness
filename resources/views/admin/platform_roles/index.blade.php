@@ -9,6 +9,7 @@
     <p>Define what each platform admin role can access.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><a href="{{ route('admin.platform-roles.create') }}"><i class="fa fa-plus"></i> New Role</a></li>
   </ul>
 </div>

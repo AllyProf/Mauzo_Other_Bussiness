@@ -32,6 +32,7 @@
     <p>Each category can have many services with different prices (e.g. Printing → B&amp;W, Colour)</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
     <li class="breadcrumb-item"><i class="fa fa-home"></i></li>
     <li class="breadcrumb-item"><a href="{{ route('services.register') }}">Services</a></li>
     <li class="breadcrumb-item">Categories</li>

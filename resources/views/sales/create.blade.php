@@ -4,7 +4,10 @@
 
 @section('styles')
 <style>
-    .pos-container { display: flex; height: calc(100vh - 120px); gap: 20px; }
+    .pos-page-title { margin-bottom: 10px !important; }
+    .pos-page-title h1 { font-size: 1.25rem; margin: 0; }
+    .pos-page-title .app-breadcrumb { margin-bottom: 0; }
+    .pos-container { display: flex; height: calc(100vh - 168px); gap: 20px; }
     .pos-left { flex: 7; display: flex; flex-direction: column; overflow: hidden; background: #fff; padding: 15px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .pos-right { flex: 3; display: flex; flex-direction: column; background: #fff; padding: 0; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
 
@@ -422,6 +425,18 @@
   $showCatalogToggle = $retailEnabled && $servicesEnabled;
 @endphp
 <div class="pos-page pos-products-tab-active" data-default-catalog="{{ $defaultCatalog }}">
+<div class="app-title pos-page-title">
+  <div>
+    <h1><i class="fa fa-shopping-cart text-primary"></i> Point of Sale</h1>
+  </div>
+  <ul class="app-breadcrumb breadcrumb">
+    @include('layouts.partials._breadcrumb_manual')
+    <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+    <li class="breadcrumb-item"><a href="{{ url('/home') }}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('sales.index') }}">Sales</a></li>
+    <li class="breadcrumb-item active">POS</li>
+  </ul>
+</div>
 @if($openShift ?? false)
 <div class="alert alert-success mb-3 py-2">
   <i class="fa fa-clock-o"></i> <strong>Shift #{{ $openShift->id }}</strong> open since {{ $openShift->opened_at->format('h:i A') }}
