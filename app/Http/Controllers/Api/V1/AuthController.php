@@ -154,7 +154,6 @@ class AuthController extends ApiController
       'subscription' => $business
         ? app(ApiSubscriptionSummaryService::class)->forBusiness($business)
         : null,
-      ...$userData,
     ];
   }
 

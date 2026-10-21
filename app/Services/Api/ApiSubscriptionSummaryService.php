@@ -22,8 +22,7 @@ class ApiSubscriptionSummaryService
     public function forBusiness(Business $business): array
     {
         $business->loadMissing('plan');
-        $billing = $this->billing->subscriptionOverview($business);
-        $plan = $billing['plan'] ?? $business->plan;
+        $plan = $business->plan;
 
         $expiryDate = $business->expiry_date;
         $daysRemaining = null;
@@ -39,10 +38,17 @@ class ApiSubscriptionSummaryService
         $locked = $this->platformSettings->businessIsLocked($business);
         $isActive = (bool) $business->is_active && ! $locked;
 
-        $unpaid = collect($billing['invoices'] ?? [])
-            ->first(fn (PlatformBillingInvoice $inv) => in_array($inv->status, ['unpaid', 'overdue', 'pending'], true));
+        $unpaid = subscription_outstanding_invoice_for($business);
 
-        $currentFee = $billing['current_fee'] ?? null;
+        $currentFee = null;
+        if ($plan && ! $business->usesProfitShareBilling()) {
+            $fee = $this->billing->calculateFee($business, now());
+            $currentFee = [
+                'amount' => (float) ($fee['amount'] ?? $fee['monthly_equivalent'] ?? 0),
+                'currency' => 'TZS',
+            ];
+        }
+
         $blockedReason = null;
         $accountStatus = $business->statusLabel();
 
@@ -67,10 +73,7 @@ class ApiSubscriptionSummaryService
                 'name' => $plan->name,
                 'code' => (string) ($plan->slug ?? $plan->name ?? $plan->id),
             ] : null,
-            'current_fee' => $currentFee ? [
-                'amount' => (float) ($currentFee['amount'] ?? $currentFee['monthly_equivalent'] ?? 0),
-                'currency' => 'TZS',
-            ] : null,
+            'current_fee' => $currentFee,
             'unpaid_invoice' => $unpaid ? $this->invoicePayload($unpaid) : null,
         ];
     }
@@ -96,7 +99,7 @@ class ApiSubscriptionSummaryService
             return null;
         }
 
-        $graceDays = (int) $this->platformSettings->get('subscription_grace_days', 0);
+        $graceDays = (int) $this->platformSettings->get('grace_period_days', 0);
 
         return Carbon::parse($business->expiry_date)
             ->addDays($graceDays)

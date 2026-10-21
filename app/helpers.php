@@ -348,8 +348,19 @@ if (! function_exists('subscription_renewal_notice_for')) {
      */
     function subscription_renewal_notice_for(?\App\Models\Business $business, bool $includeBillingLeadTime = false): ?array
     {
-        if (! $business || ! $business->is_active || $business->isPendingApproval()) {
+        static $cache = [];
+
+        if (! $business) {
             return null;
+        }
+
+        $cacheKey = $business->id.'|'.($includeBillingLeadTime ? '1' : '0');
+        if (array_key_exists($cacheKey, $cache)) {
+            return $cache[$cacheKey];
+        }
+
+        if (! $business->is_active || $business->isPendingApproval()) {
+            return $cache[$cacheKey] = null;
         }
 
         $business->loadMissing('plan');
@@ -366,7 +377,7 @@ if (! function_exists('subscription_renewal_notice_for')) {
 
         $unpaid = subscription_outstanding_invoice_for($business);
         if ($unpaid) {
-            return array_merge($base, [
+            return $cache[$cacheKey] = array_merge($base, [
                 'notice_type' => 'repayment',
                 'unpaid_invoice' => $unpaid,
             ]);
@@ -375,7 +386,7 @@ if (! function_exists('subscription_renewal_notice_for')) {
         $daysLeft = $business->daysUntilExpiry();
 
         if ($daysLeft !== null && $daysLeft < 0) {
-            return array_merge($base, [
+            return $cache[$cacheKey] = array_merge($base, [
                 'notice_type' => 'expired',
                 'days_left' => (int) $daysLeft,
             ]);
@@ -387,10 +398,10 @@ if (! function_exists('subscription_renewal_notice_for')) {
         }
 
         if ($daysLeft === null || $daysLeft > $warningDays) {
-            return null;
+            return $cache[$cacheKey] = null;
         }
 
-        return array_merge($base, [
+        return $cache[$cacheKey] = array_merge($base, [
             'notice_type' => 'expiring',
             'days_left' => (int) $daysLeft,
         ]);

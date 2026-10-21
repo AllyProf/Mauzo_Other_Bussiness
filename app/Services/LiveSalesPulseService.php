@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Business;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -99,29 +100,26 @@ class LiveSalesPulseService
         );
 
         $activeQuery = (clone $salesQuery)->where('payment_status', '!=', 'cancelled');
-        $sales = (clone $activeQuery)
-            ->with(['user', 'items.item.category', 'items.item.packagings', 'items.service.category'])
-            ->get();
 
-        $grossProfit = $this->grossProfitFromSales($sales);
-        $totalRevenue = (float) $sales->sum('total_amount');
-        $collected = (float) $sales->sum('amount_paid');
+        $grossProfit = $this->grossProfitFromQuery($activeQuery);
+        $totalRevenue = (float) (clone $activeQuery)->sum('total_amount');
+        $collected = (float) (clone $activeQuery)->sum('amount_paid');
 
-        $cashRevenue = $this->sumByPaymentMethods($sales, ['cash']);
+        $cashRevenue = (float) (clone $activeQuery)->where('payment_method', 'cash')->sum('amount_paid');
         $digitalRevenue = max(0, $collected - $cashRevenue);
 
         $circulation = max(0, $collected - $grossProfit);
 
-        $totalOrders = $sales->count();
-        $activeOrders = $sales->whereNotIn('payment_status', ['paid', 'cancelled'])->count();
-        $servedOrders = $sales->where('payment_status', 'paid')->count();
+        $totalOrders = (clone $salesQuery)->count();
+        $activeOrders = (clone $salesQuery)->whereNotIn('payment_status', ['paid', 'cancelled'])->count();
+        $servedOrders = (clone $salesQuery)->where('payment_status', 'paid')->count();
 
         $hourlyData = $this->hourlyVelocity($salesQuery, $shift, $date);
-        $categoryMix = $this->categoryMix($sales);
+        $categoryMix = $this->categoryMixFromQuery($activeQuery);
         $liveFeed = $this->liveFeed($salesQuery);
-        $staffPulse = $this->staffPulse($sales);
-        $topProducts = $this->topLines($sales, 'product', 5);
-        $topServices = $this->topLines($sales, 'service', 5);
+        $staffPulse = $this->staffPulseFromQuery($activeQuery);
+        $topProducts = $this->topLinesFromQuery($activeQuery, 'product', 5);
+        $topServices = $this->topLinesFromQuery($activeQuery, 'service', 5);
 
         return [
             'context' => $context,
@@ -367,6 +365,18 @@ class LiveSalesPulseService
         });
     }
 
+    private function grossProfitFromQuery(Builder $activeSalesQuery): float
+    {
+        $saleIds = (clone $activeSalesQuery)->select('sales.id');
+
+        $totals = SaleItem::query()
+            ->whereIn('sale_id', $saleIds)
+            ->selectRaw('COALESCE(SUM(COALESCE(subtotal, unit_price * quantity)), 0) as revenue, COALESCE(SUM(COALESCE(cost_price, 0) * quantity), 0) as cost_of_goods')
+            ->first();
+
+        return (float) ($totals->revenue ?? 0) - (float) ($totals->cost_of_goods ?? 0);
+    }
+
     private function grossProfitFromSales(Collection $sales): float
     {
         $costOfGoods = 0.0;
@@ -379,6 +389,108 @@ class LiveSalesPulseService
         }
 
         return (float) $sales->sum('total_amount') - $costOfGoods;
+    }
+
+    /**
+     * @return array{products: float, services: float}
+     */
+    private function categoryMixFromQuery(Builder $activeSalesQuery): array
+    {
+        $saleIds = (clone $activeSalesQuery)->select('sales.id');
+
+        $row = SaleItem::query()
+            ->whereIn('sale_id', $saleIds)
+            ->selectRaw('COALESCE(SUM(CASE WHEN service_id IS NOT NULL THEN COALESCE(subtotal, unit_price * quantity) ELSE 0 END), 0) as services, COALESCE(SUM(CASE WHEN service_id IS NULL THEN COALESCE(subtotal, unit_price * quantity) ELSE 0 END), 0) as products')
+            ->first();
+
+        return [
+            'products' => (float) ($row->products ?? 0),
+            'services' => (float) ($row->services ?? 0),
+        ];
+    }
+
+    /**
+     * @return Collection<int, object{user_id: int, name: string, orders: int, revenue: float}>
+     */
+    private function staffPulseFromQuery(Builder $activeSalesQuery): Collection
+    {
+        $rows = (clone $activeSalesQuery)
+            ->selectRaw('user_id, COUNT(*) as orders, SUM(total_amount) as revenue')
+            ->groupBy('user_id')
+            ->orderByDesc('revenue')
+            ->limit(8)
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return collect();
+        }
+
+        $users = User::query()
+            ->whereIn('id', $rows->pluck('user_id'))
+            ->get(['id', 'name'])
+            ->keyBy('id');
+
+        return $rows->map(function ($row) use ($users) {
+            return (object) [
+                'user_id' => (int) $row->user_id,
+                'name' => $users[(int) $row->user_id]->name ?? 'Staff',
+                'orders' => (int) $row->orders,
+                'revenue' => (float) $row->revenue,
+            ];
+        })->values();
+    }
+
+    /**
+     * @return Collection<int, object{name: string, total_qty: float, revenue: float}>
+     */
+    private function topLinesFromQuery(Builder $activeSalesQuery, string $type, int $limit): Collection
+    {
+        $saleIds = (clone $activeSalesQuery)->select('sales.id');
+
+        $lines = SaleItem::query()
+            ->whereIn('sale_id', $saleIds)
+            ->when($type === 'service', fn (Builder $q) => $q->whereNotNull('service_id'))
+            ->when($type === 'product', fn (Builder $q) => $q->whereNull('service_id'))
+            ->with([
+                'item:id,name',
+                'service:id,name',
+            ])
+            ->get(['id', 'sale_id', 'item_id', 'service_id', 'line_description', 'quantity', 'unit_price', 'subtotal']);
+
+        return $this->topLinesFromSaleItems($lines, $type, $limit);
+    }
+
+    /**
+     * @return Collection<int, object{name: string, total_qty: float, revenue: float}>
+     */
+    private function topLinesFromSaleItems(Collection $lines, string $type, int $limit): Collection
+    {
+        $aggregated = collect();
+
+        foreach ($lines as $item) {
+            $isService = (bool) $item->service_id;
+            if ($type === 'service' && ! $isService) {
+                continue;
+            }
+            if ($type === 'product' && $isService) {
+                continue;
+            }
+
+            $name = $isService
+                ? ($item->line_description ?: $item->service?->name ?: 'Service')
+                : ($item->item?->name ?? 'Item');
+
+            $existing = $aggregated->get($name, ['name' => $name, 'total_qty' => 0.0, 'revenue' => 0.0]);
+            $existing['total_qty'] += (float) $item->quantity;
+            $existing['revenue'] += (float) ($item->subtotal ?? ($item->unit_price * $item->quantity));
+            $aggregated->put($name, $existing);
+        }
+
+        return $aggregated
+            ->sortByDesc('revenue')
+            ->take($limit)
+            ->map(fn (array $row) => (object) $row)
+            ->values();
     }
 
     public function filterNote(?string $businessTypeKey, ?string $businessTypeLabel): string
@@ -461,7 +573,7 @@ class LiveSalesPulseService
     {
         return (clone $baseQuery)
             ->where('payment_status', '!=', 'cancelled')
-            ->with(['user', 'items.item', 'items.service'])
+            ->with(['user:id,name', 'items.item:id,name', 'items.service:id,name'])
             ->latest()
             ->limit(30)
             ->get();

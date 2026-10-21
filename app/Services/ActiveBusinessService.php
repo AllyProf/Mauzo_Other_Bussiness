@@ -10,6 +10,13 @@ class ActiveBusinessService
 {
     public const SESSION_KEY = 'active_business_id';
 
+    /** @var \Illuminate\Support\Collection<int, Business>|null */
+    private ?Collection $businessesCache = null;
+
+    private ?Business $activeBusinessCache = null;
+
+    private ?int $activeBusinessIdCache = null;
+
     public function canSwitch(): bool
     {
         $user = auth()->user();
@@ -26,13 +33,17 @@ class ActiveBusinessService
 
     public function businesses(): Collection
     {
+        if ($this->businessesCache !== null) {
+            return $this->businessesCache;
+        }
+
         $user = auth()->user();
 
         if (! $user || $user->role !== 'owner') {
-            return collect();
+            return $this->businessesCache = collect();
         }
 
-        return Business::query()
+        return $this->businessesCache = Business::query()
             ->where(function ($query) use ($user) {
                 $query->where('owner_user_id', $user->id);
 
@@ -49,6 +60,10 @@ class ActiveBusinessService
 
     public function activeBusinessId(): ?int
     {
+        if ($this->activeBusinessIdCache !== null) {
+            return $this->activeBusinessIdCache;
+        }
+
         $user = auth()->user();
 
         if (! $user) {
@@ -56,7 +71,7 @@ class ActiveBusinessService
         }
 
         if ($user->role !== 'owner') {
-            return $user->business_id;
+            return $this->activeBusinessIdCache = $user->business_id;
         }
 
         $businesses = $this->businesses();
@@ -71,13 +86,13 @@ class ActiveBusinessService
 
             session()->put($this->sessionKey(), $defaultId);
 
-            return $defaultId;
+            return $this->activeBusinessIdCache = $defaultId;
         }
 
         $value = (int) session($this->sessionKey());
 
         if ($businesses->contains('id', $value)) {
-            return $value;
+            return $this->activeBusinessIdCache = $value;
         }
 
         $fallback = $businesses->firstWhere('id', $user->business_id)?->id
@@ -85,24 +100,28 @@ class ActiveBusinessService
 
         session()->put($this->sessionKey(), $fallback);
 
-        return $fallback;
+        return $this->activeBusinessIdCache = $fallback;
     }
 
     public function activeBusiness(): ?Business
     {
+        if ($this->activeBusinessCache !== null) {
+            return $this->activeBusinessCache;
+        }
+
         $businessId = $this->activeBusinessId();
 
         if ($businessId) {
             $business = Business::find($businessId);
             if ($business) {
-                return $business;
+                return $this->activeBusinessCache = $business;
             }
         }
 
         $user = auth()->user();
 
-        return $user?->business
-            ?? ($user?->business_id ? Business::find($user->business_id) : null);
+        return $this->activeBusinessCache = ($user?->business
+            ?? ($user?->business_id ? Business::find($user->business_id) : null));
     }
 
     public function activeBusinessLabel(): string
@@ -126,6 +145,9 @@ class ActiveBusinessService
 
         session()->put($this->sessionKey(), $business->id);
         session()->save();
+
+        $this->activeBusinessIdCache = (int) $business->id;
+        $this->activeBusinessCache = $business;
 
         active_branch_service()->setActiveBranch(null);
     }

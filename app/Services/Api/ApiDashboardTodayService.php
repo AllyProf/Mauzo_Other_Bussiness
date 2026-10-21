@@ -3,6 +3,7 @@
 namespace App\Services\Api;
 
 use App\Models\Business;
+use App\Models\OwnerDailyReport;
 use App\Models\Sale;
 use App\Models\SalePayment;
 use App\Models\Shift;
@@ -11,11 +12,14 @@ use App\Services\ActiveBranchService;
 use App\Services\ActiveBusinessService;
 use App\Services\OwnerDailyReportService;
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class ApiDashboardTodayService
 {
+    /** @var array<string, array{day: float, period: float}> */
+    private array $profitBlockMemory = [];
+
     public function __construct(
         private OwnerDailyReportService $ownerReports,
         private ActiveBusinessService $activeBusiness,
@@ -116,23 +120,52 @@ class ApiDashboardTodayService
      */
     public function profitBlock(Business $business, string $date): array
     {
-        $dayTotals = $this->ownerReports->buildDayEndTotals($business, $date);
-        $dayNet = (float) ($dayTotals['net_profit'] ?? 0);
+        $branchKey = $this->activeBranch->activeBranchId() ?? 'all';
+        $memoryKey = $business->id.'|'.$branchKey.'|'.$date;
 
-        $periodNet = 0.0;
-        $start = Carbon::parse($date)->startOfMonth();
-        $end = Carbon::parse($date);
-
-        foreach (CarbonPeriod::create($start, $end) as $day) {
-            $d = $day->toDateString();
-            $built = $this->ownerReports->buildDayEndTotals($business, $d);
-            $periodNet += (float) ($built['net_profit'] ?? 0);
+        if (isset($this->profitBlockMemory[$memoryKey])) {
+            return $this->profitBlockMemory[$memoryKey];
         }
 
-        return [
-            'day' => round($dayNet, 2),
-            'period' => round($periodNet, 2),
-        ];
+        $cacheKey = 'api.net_profit.'.$memoryKey;
+
+        $result = Cache::remember($cacheKey, 60, function () use ($business, $date, $branchKey) {
+            $dayTotals = $this->ownerReports->buildDayEndTotals($business, $date);
+            $dayNet = (float) ($dayTotals['net_profit'] ?? 0);
+
+            if ($branchKey === 'all') {
+                $periodNet = $this->periodNetProfitFromReports($business, $date, $dayNet);
+
+                return [
+                    'day' => round($dayNet, 2),
+                    'period' => round($periodNet, 2),
+                ];
+            }
+
+            return [
+                'day' => round($dayNet, 2),
+                'period' => round($dayNet, 2),
+            ];
+        });
+
+        return $this->profitBlockMemory[$memoryKey] = $result;
+    }
+
+    private function periodNetProfitFromReports(Business $business, string $date, float $todayNet): float
+    {
+        $start = Carbon::parse($date)->startOfMonth()->toDateString();
+        $yesterday = Carbon::parse($date)->subDay()->toDateString();
+
+        $priorSum = 0.0;
+        if ($start <= $yesterday) {
+            $priorSum = (float) OwnerDailyReport::query()
+                ->where('business_id', $business->id)
+                ->whereDate('report_date', '>=', $start)
+                ->whereDate('report_date', '<=', $yesterday)
+                ->sum('net_profit');
+        }
+
+        return $priorSum + $todayNet;
     }
 
     private function scopeSalesToBranch($query, User $user, Business $business): void
