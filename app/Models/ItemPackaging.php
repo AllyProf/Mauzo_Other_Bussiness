@@ -17,4 +17,9 @@ class ItemPackaging extends Model
     {
         return $this->belongsTo(Packaging::class, 'packaging_id');
     }
+
+    public function unitBarcodes()
+    {
+        return $this->hasMany(ItemPackagingUnitBarcode::class);
+    }
 }

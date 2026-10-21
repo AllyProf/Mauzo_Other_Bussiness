@@ -377,7 +377,8 @@ class ItemController extends ApiController
                 $inner->where('name', 'like', "%{$q}%")
                     ->orWhere('sku', 'like', "%{$q}%")
                     ->orWhere('brand', 'like', "%{$q}%")
-                    ->orWhereHas('packagings', fn ($p) => $p->where('barcode', $q));
+                    ->orWhereHas('packagings', fn ($p) => $p->where('barcode', $q))
+                    ->orWhereHas('packagings.unitBarcodes', fn ($p) => $p->where('barcode', $q));
             });
         }
 
@@ -409,11 +410,13 @@ class ItemController extends ApiController
 
                     return [
                         'id' => $pkg->id,
+                        'item_packaging_id' => $pkg->id,
+                        'packaging_id' => $pkg->packaging_id,
                         'name' => $pkg->packagingType?->name ?? 'Unit',
                         'quantity_per_unit' => (int) $row['quantity_per_unit'],
                         'selling_price' => (float) $pkg->selling_price,
                         'cost_price' => (float) $pkg->cost_price,
-                        'barcode' => $pkg->barcode,
+                        'barcode' => $pkg->barcode ?? '',
                     ];
                 })->values(),
             ];
@@ -461,14 +464,24 @@ class ItemController extends ApiController
         }
 
         $data = $request->validate([
-            'code' => 'required|string|max:128',
+            'code' => 'required_without:barcode|nullable|string|max:128',
+            'barcode' => 'required_without:code|nullable|string|max:128',
             'branch_id' => 'nullable|integer|min:1',
             'context' => 'nullable|string|in:sell,receiving',
         ]);
 
+        $scanCode = trim((string) ($data['code'] ?? ''));
+        if ($scanCode === '' && ! empty($data['barcode'])) {
+            $scanCode = trim((string) $data['barcode']);
+        }
+
         $businessId = $this->apiBusinessId();
+        if ($scanCode === '') {
+            return $this->error('Barcode code is required.', 422);
+        }
+
         $lookup = app(\App\Services\BarcodeLookupService::class)->resolve(
-            $data['code'],
+            $scanCode,
             $businessId,
             fn ($q) => $this->scopeItemsForPos($q, $request->user())
         );
@@ -495,8 +508,10 @@ class ItemController extends ApiController
         $stockDisplay = app(ItemStockDisplayService::class);
         $info = $stockDisplay->format($item);
 
+        $resolvedBarcode = $lookup['scanned_barcode'] ?? $packaging->barcode;
+
         return $this->success([
-            'barcode' => $packaging->barcode,
+            'barcode' => $resolvedBarcode,
             'source' => $lookup['source'] ?? 'internal',
             'item' => [
                 'id' => $item->id,
@@ -528,6 +543,65 @@ class ItemController extends ApiController
         ]);
     }
 
+    public function linkBarcode(Request $request): JsonResponse
+    {
+        if ($deny = $this->authorizeApiAny(['edit_items', 'add_items', 'view_inventory'])) {
+            return $deny;
+        }
+
+        return $this->performLinkBarcode($request, null);
+    }
+
+    public function linkBarcodeForItem(Request $request, Item $item): JsonResponse
+    {
+        if ($deny = $this->authorizeApiAny(['edit_items', 'add_items', 'view_inventory'])) {
+            return $deny;
+        }
+
+        if ((int) $item->business_id !== $this->apiBusinessId()) {
+            return $this->forbidden();
+        }
+
+        return $this->performLinkBarcode($request, $item);
+    }
+
+    private function performLinkBarcode(Request $request, ?Item $item): JsonResponse
+    {
+        $request->validate([
+            'item_id' => 'nullable|integer|min:1',
+            'item_packaging_id' => 'nullable|integer|min:1',
+            'packaging_id' => 'nullable|integer|min:1',
+            'barcode' => 'nullable|string|max:128',
+            'code' => 'nullable|string|max:128',
+            'manufacturer_barcode' => 'nullable|string|max:128',
+            'quantity_per_unit' => 'nullable|integer|min:1',
+            'link_type' => 'nullable|string|in:primary,piece,case',
+            'unit_barcode' => 'nullable|boolean',
+        ]);
+
+        try {
+            $result = app(\App\Services\ItemBarcodeLinkService::class)->link(
+                $this->apiBusinessId(),
+                $request->all(),
+                $item?->id,
+            );
+        } catch (ValidationException $e) {
+            return $this->error('Validation failed.', 422, $e->errors());
+        }
+
+        $packaging = $result['packaging'];
+        $unitCount = $packaging->unitBarcodes->count();
+
+        return $this->success([
+            'item_id' => $packaging->item_id,
+            'item_packaging_id' => $packaging->id,
+            'unit_barcode_count' => $unitCount,
+            'link_mode' => $result['mode'],
+            'barcode' => $result['barcode'],
+            'duplicate' => (bool) ($result['duplicate'] ?? false),
+        ], 'Linked');
+    }
+
     public function barcodes(Request $request, Item $item): JsonResponse
     {
         if ($deny = $this->authorizeApiAny(['view_inventory', 'add_items', 'edit_items', 'process_sales'])) {
@@ -538,14 +612,16 @@ class ItemController extends ApiController
             return $this->forbidden();
         }
 
-        $item->load(['packagings.packagingType']);
+        $item->load(['packagings.packagingType', 'packagings.unitBarcodes']);
         $barcodeService = app(\App\Services\ItemBarcodeService::class);
 
         foreach ($item->packagings as $packaging) {
             $barcodeService->ensureBarcode($packaging, (int) $item->business_id);
         }
 
-        $item->refresh()->load(['packagings.packagingType']);
+        $item->refresh()->load(['packagings.packagingType', 'packagings.unitBarcodes']);
+
+        $sorted = $item->packagings->sortBy('quantity_per_unit')->values();
 
         return $this->success([
             'item' => [
@@ -553,7 +629,8 @@ class ItemController extends ApiController
                 'name' => $item->name,
                 'sku' => $item->sku,
             ],
-            'labels' => $item->packagings->sortBy('quantity_per_unit')->values()->map(function ($pkg) use ($barcodeService) {
+            'packagings' => $sorted->map(fn ($pkg) => $this->packagingBarcodesPayload($pkg))->values(),
+            'labels' => $sorted->map(function ($pkg) use ($barcodeService) {
                 $code = (string) $pkg->barcode;
 
                 return [
@@ -561,6 +638,7 @@ class ItemController extends ApiController
                     'packaging_name' => $pkg->packagingType?->name ?? 'Unit',
                     'barcode' => $code,
                     'selling_price' => (float) $pkg->selling_price,
+                    'unit_barcode_count' => $pkg->unitBarcodes->count(),
                     'barcode_png_base64' => $barcodeService->pngBase64($code),
                     'print_hint' => 'Use barcode_png_base64 as data:image/png;base64,... for label preview/print',
                 ];
@@ -584,7 +662,7 @@ class ItemController extends ApiController
             return $this->forbidden();
         }
 
-        $item->load(['category', 'packagings.packagingType', 'receivingPackaging']);
+        $item->load(['category', 'packagings.packagingType', 'packagings.unitBarcodes', 'receivingPackaging']);
 
         return $this->success([
             'item' => $this->itemDetailPayload($item),
@@ -749,16 +827,38 @@ class ItemController extends ApiController
             'packagings' => $normalized->map(function ($row) {
                 $pkg = $row['packaging'];
 
-                return [
+                return array_merge($this->packagingBarcodesPayload($pkg), [
                     'id' => $pkg->id,
-                    'packaging_id' => $pkg->packaging_id,
                     'name' => $pkg->packagingType?->name ?? 'Unit',
-                    'quantity_per_unit' => (int) $row['quantity_per_unit'],
                     'selling_price' => (float) $pkg->selling_price,
                     'cost_price' => (float) $pkg->cost_price,
-                    'barcode' => $pkg->barcode,
-                ];
+                ]);
             })->values(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function packagingBarcodesPayload(ItemPackaging $pkg): array
+    {
+        $unitRows = $pkg->relationLoaded('unitBarcodes')
+            ? $pkg->unitBarcodes
+            : collect();
+
+        $unitBarcodes = $unitRows
+            ->map(fn ($row) => ['barcode' => (string) $row->barcode])
+            ->values()
+            ->all();
+
+        return [
+            'item_packaging_id' => $pkg->id,
+            'packaging_id' => $pkg->packaging_id,
+            'quantity_per_unit' => (int) $pkg->quantity_per_unit,
+            'barcode' => (string) ($pkg->barcode ?? ''),
+            'manufacturer_barcode' => null,
+            'unit_barcode_count' => count($unitBarcodes),
+            'unit_barcodes' => $unitBarcodes,
         ];
     }
 

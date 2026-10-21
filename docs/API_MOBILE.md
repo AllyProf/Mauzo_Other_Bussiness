@@ -257,6 +257,8 @@ Switch active branch: `POST /auth/switch-branch`
 
 Same as web `/settings` — profile, finance, payments, automation, shift rules, subscription (read-only).
 
+**Subscription / upgrade screen (web `/subscription/upgrade`):** [`API_SUBSCRIPTION.md`](API_SUBSCRIPTION.md) — `GET /subscription/upgrade`, invoices, PDF, payment methods.
+
 **Full docs:** [`API_SETTINGS.md`](API_SETTINGS.md)
 
 | Method | Endpoint | Permission |

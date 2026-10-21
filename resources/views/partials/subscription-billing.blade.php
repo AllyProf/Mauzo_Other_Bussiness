@@ -86,12 +86,16 @@
 </div>
 @endif
 
-@php $paymentInstructions = platform_settings('payment_instructions'); @endphp
-@if($paymentInstructions && (! $isFreePlan || $outstandingInvoice))
-<div class="alert alert-light border text-left mb-4">
-  <strong><i class="fa fa-money"></i> How to Pay &amp; Renew</strong>
-  <div class="mt-2" style="white-space:pre-wrap;">{{ $paymentInstructions }}</div>
-</div>
+@php
+  $showPlatformPayment = ! $isFreePlan
+    || $outstandingInvoice
+    || ($noticeType === 'repayment')
+    || platform_invoice_payment_methods() !== [];
+@endphp
+@if($showPlatformPayment && empty($hidePlatformPayment))
+  @include('partials.subscription-platform-payment', [
+    'paymentMethodsTableClass' => $paymentMethodsTableClass ?? '',
+  ])
 @endif
 
 @if($invoices->isNotEmpty())

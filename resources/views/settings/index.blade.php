@@ -1033,6 +1033,7 @@
             'business' => $business,
             'infoTableClass' => 'settings-stack-table',
             'invoicesTableClass' => 'settings-invoices-table',
+            'paymentMethodsTableClass' => 'settings-stack-table',
           ])
 
           <table class="table table-bordered mb-4 settings-info-table">

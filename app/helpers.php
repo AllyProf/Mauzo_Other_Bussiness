@@ -106,6 +106,47 @@ if (! function_exists('platform_settings')) {
     }
 }
 
+if (! function_exists('platform_invoice_payment_methods')) {
+    /**
+     * Platform subscription / invoice pay details (Admin → System settings).
+     *
+     * @return list<array{provider: string, account_name: string, number_label: string, number: string}>
+     */
+    function platform_invoice_payment_methods(): array
+    {
+        $methods = platform_settings('invoice_payment_methods');
+        if (! is_array($methods)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($methods as $method) {
+            if (! is_array($method)) {
+                continue;
+            }
+
+            $row = [
+                'provider' => trim((string) ($method['provider'] ?? '')),
+                'account_name' => trim((string) ($method['account_name'] ?? '')),
+                'number_label' => trim((string) ($method['number_label'] ?? '')),
+                'number' => trim((string) ($method['number'] ?? '')),
+            ];
+
+            if ($row['provider'] === '' && $row['account_name'] === '' && $row['number'] === '') {
+                continue;
+            }
+
+            if ($row['number_label'] === '') {
+                $row['number_label'] = 'A/C no.';
+            }
+
+            $normalized[] = $row;
+        }
+
+        return $normalized;
+    }
+}
+
 if (! function_exists('tanzania_regions')) {
     function tanzania_regions(): array
     {

@@ -83,8 +83,11 @@ Route::prefix('v1')->group(function () {
 
         // Business settings (same as web /settings)
         Route::get('/subscription/status', [SubscriptionController::class, 'status']);
+        Route::get('/subscription/upgrade', [SubscriptionController::class, 'upgradeScreen']);
+        Route::get('/subscription/payment-options', [SubscriptionController::class, 'paymentOptions']);
         Route::get('/subscription/invoices', [SubscriptionController::class, 'invoices']);
         Route::get('/subscription/invoices/{invoice}', [SubscriptionController::class, 'showInvoice']);
+        Route::get('/subscription/invoices/{invoice}/pdf', [SubscriptionController::class, 'invoicePdf']);
 
         Route::get('/settings', [SettingsController::class, 'index']);
         Route::put('/settings/profile', [SettingsController::class, 'updateProfile']);
@@ -130,7 +133,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/items/check-name', [ItemController::class, 'checkName']);
         Route::get('/items/search', [ItemController::class, 'search']);
         Route::get('/items/lookup-barcode', [ItemController::class, 'lookupBarcode']);
+        Route::put('/items/link-barcode', [ItemController::class, 'linkBarcode']);
         Route::post('/items', [ItemController::class, 'store']);
+        Route::put('/items/{item}/link-barcode', [ItemController::class, 'linkBarcodeForItem']);
         Route::get('/items/{item}/barcodes', [ItemController::class, 'barcodes']);
         Route::get('/items/{item}/barcodes/print', [ItemController::class, 'printBarcodesData']);
 

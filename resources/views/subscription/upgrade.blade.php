@@ -28,7 +28,7 @@
     <div class="tile">
       <h3 class="tile-title">Your Current Plan</h3>
       <div class="tile-body">
-        @include('partials.subscription-billing')
+        @include('partials.subscription-billing', ['hidePlatformPayment' => true])
 
         @if(($disabledFeatures ?? []) !== [])
         <hr>
@@ -77,21 +77,7 @@
           </table>
         </div>
 
-        @php $paymentInstructions = platform_settings('payment_instructions'); @endphp
-        @if($paymentInstructions)
-        <div class="alert alert-light border mt-3 mb-0">
-          <strong><i class="fa fa-phone"></i> {{ $business->isFreeFixedRenewal() ? 'Extend free access or upgrade' : 'Request an upgrade' }}</strong>
-          <div class="mt-2" style="white-space:pre-wrap;">{{ $paymentInstructions }}</div>
-          @if(platform_settings('support_email') || platform_settings('support_phone'))
-          <p class="mb-0 mt-2 small text-muted">
-            Contact: {{ platform_settings('support_email') }}
-            @if(platform_settings('support_phone'))
-              · {{ platform_settings('support_phone') }}
-            @endif
-          </p>
-          @endif
-        </div>
-        @endif
+        @include('partials.subscription-platform-payment')
       </div>
     </div>
   </div>

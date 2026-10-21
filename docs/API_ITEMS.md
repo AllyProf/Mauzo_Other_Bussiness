@@ -52,8 +52,10 @@ Content-Type: application/json
 | `PUT` | `/items/{id}` | Update item |
 | `DELETE` | `/items/{id}` | Delete item |
 | `GET` | `/items/search` | POS search (stock > 0 only) |
-| `GET` | `/items/lookup-barcode` | POS scan lookup (`?code=`) |
-| `GET` | `/items/{id}/barcodes` | Label data + PNG base64 for print |
+| `GET` | `/items/lookup-barcode` | POS scan lookup (`?code=` or `?barcode=`) |
+| `PUT` | `/items/link-barcode` | Link scanned code to item / sell unit |
+| `PUT` | `/items/{id}/link-barcode` | Same (item id in path; omit `item_id` in body) |
+| `GET` | `/items/{id}/barcodes` | All linked codes + label PNG (primary + unit barcodes) |
 
 ### Permissions
 
@@ -66,6 +68,7 @@ Content-Type: application/json
 | Delete | `delete_items` |
 | POS search / barcode lookup | `process_sales` or `view_inventory` |
 | Barcode labels | `view_inventory`, `add_items`, `edit_items`, or `process_sales` |
+| Link barcode | `edit_items`, `add_items`, or `view_inventory` |
 
 ---
 
@@ -339,9 +342,10 @@ Each packaging in the response includes `barcode`.
 
 ## 8. Barcode scan lookup (fast checkout)
 
-`GET /items/lookup-barcode?code=ML001000000123`
+`GET /items/lookup-barcode?code=8690637034567`  
+Also accepts `?barcode=` (same as `code`).
 
-Resolves a **selling packaging** barcode generated at item register.
+Resolves a **primary** sell-unit barcode on `item_packagings.barcode` or any **per-piece** barcode stored for that unit (Baltika 144 / Bavaria 450 bottle scans).
 
 ```json
 {
@@ -374,7 +378,71 @@ Resolves a **selling packaging** barcode generated at item register.
 
 **Flutter flow:** open camera → scan → `lookup-barcode` → push `cart_line` into cart → pay.
 
-`404` if code is unknown for this business.
+`404` if code is unknown for this business.  
+`409` + `code: BARCODE_AMBIGUOUS` if multiple sell units match.
+
+---
+
+## 8b. Link barcode (mobile “link scan to item”)
+
+**Team note:** POS sends `PUT /items/link-barcode` with `link_type: piece` and `unit_barcode: true`. The **store label** stays on `barcode` (ML… from register). **Factory scans** append to `unit_barcodes`. Counts on `GET /items/{id}/barcodes`; POS uses `lookup-barcode`.
+
+**Use `PUT` only** (not POST).
+
+`PUT /api/v1/items/link-barcode`
+
+```json
+{
+  "item_id": 123,
+  "item_packaging_id": 456,
+  "barcode": "8690637034567",
+  "quantity_per_unit": 144
+}
+```
+
+**Field aliases:** `code` or `manufacturer_barcode` instead of `barcode`; `packaging_id` instead of `item_packaging_id`.
+
+**Case / primary code (default):** sets the sell unit’s main `barcode` (one code per sell unit).
+
+**Per-bottle / piece scans:** append without replacing the case code:
+
+```json
+{
+  "item_id": 123,
+  "item_packaging_id": 456,
+  "barcode": "8690637034567",
+  "link_type": "piece"
+}
+```
+
+Or `"unit_barcode": true`.
+
+**Nested route:** `PUT /api/v1/items/{item_id}/link-barcode` — same body; `item_id` optional in JSON.
+
+**Success `200` (app reads `item_packaging_id` + `unit_barcode_count`)**
+
+```json
+{
+  "success": true,
+  "message": "Linked",
+  "data": {
+    "item_id": 123,
+    "item_packaging_id": 456,
+    "unit_barcode_count": 3,
+    "link_mode": "piece",
+    "barcode": "5901234123457",
+    "duplicate": false
+  }
+}
+```
+
+Re-scanning the same piece code returns `200` with `"duplicate": true` and an unchanged count (no error).
+
+`link_mode` is `piece` when a unit barcode was appended; `primary` when setting the sell-unit label on `barcode`.
+
+**Errors `422`:** validation, duplicate barcode on another item, wrong business, missing sell unit.
+
+**Fallback:** `PUT /items/{id}` with `selling_packagings[].barcode` (heavier; one primary code per row only).
 
 ---
 
@@ -382,7 +450,25 @@ Resolves a **selling packaging** barcode generated at item register.
 
 `GET /items/{id}/barcodes`
 
-Returns each selling packaging barcode + `barcode_png_base64` for on-device / Bluetooth label print.
+Returns each selling packaging **primary** barcode + all **unit_barcodes** (piece scans) + `barcode_png_base64` for on-device / Bluetooth label print.
+
+```json
+{
+  "packagings": [
+    {
+      "item_packaging_id": 456,
+      "packaging_id": 5,
+      "quantity_per_unit": 250,
+      "barcode": "ML001000000456",
+      "manufacturer_barcode": null,
+      "unit_barcode_count": 3,
+      "unit_barcodes": [
+        { "barcode": "5901234123457" }
+      ]
+    }
+  ]
+}
+```
 
 Web print page (browser): `/items/{id}/barcodes/print`
 
