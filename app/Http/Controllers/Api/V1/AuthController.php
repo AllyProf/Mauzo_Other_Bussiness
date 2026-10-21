@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ApiController;
 use App\Models\AuditLog;
 use App\Models\FailedLoginAttempt;
 use App\Models\User;
+use App\Services\Api\ApiSubscriptionSummaryService;
 use App\Services\Api\ApiTenantContext;
 use App\Services\LoginSecurityService;
 use Illuminate\Http\JsonResponse;
@@ -82,7 +83,7 @@ class AuthController extends ApiController
     return $this->success([
       'token' => $token,
       'token_type' => 'Bearer',
-      'user' => $this->userPayload($user),
+      ...$this->sessionPayload($user),
     ], 'Login successful');
   }
 
@@ -101,7 +102,7 @@ class AuthController extends ApiController
 
   public function me(Request $request): JsonResponse
   {
-    return $this->success($this->userPayload($request->user()));
+    return $this->success($this->sessionPayload($request->user()));
   }
 
   public function switchBusiness(Request $request): JsonResponse
@@ -118,7 +119,7 @@ class AuthController extends ApiController
     $ctx->setUser($request->user());
     $ctx->setActiveBusiness((int) $data['business_id']);
 
-    return $this->success($this->userPayload($request->user()->fresh()), 'Business switched');
+    return $this->success($this->sessionPayload($request->user()->fresh()), 'Business switched');
   }
 
   public function switchBranch(Request $request): JsonResponse
@@ -135,7 +136,26 @@ class AuthController extends ApiController
     $ctx->setUser($request->user());
     $ctx->setActiveBranch(isset($data['branch_id']) ? (int) $data['branch_id'] : null);
 
-    return $this->success($this->userPayload($request->user()->fresh()), 'Branch switched');
+    return $this->success($this->sessionPayload($request->user()->fresh()), 'Branch switched');
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function sessionPayload(User $user): array
+  {
+    $userData = $this->userPayload($user);
+    $business = app(ApiTenantContext::class)->business() ?? $user->business;
+
+    return [
+      'user' => $userData,
+      'business' => $userData['business'] ?? null,
+      'branch' => $userData['branch'] ?? null,
+      'subscription' => $business
+        ? app(ApiSubscriptionSummaryService::class)->forBusiness($business)
+        : null,
+      ...$userData,
+    ];
   }
 
   /**

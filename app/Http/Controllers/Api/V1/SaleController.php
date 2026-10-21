@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Api\ApiController;
+use App\Services\Api\ApiDashboardTodayService;
 use App\Models\Item;
 use App\Models\Sale;
 use App\Models\SaleItem;
@@ -258,9 +259,12 @@ class SaleController extends ApiController
 
       $sale->refresh()->load(['items.item', 'payments.user:id,name', 'customer']);
 
+      $dashboardToday = $this->dashboardTodayCompact($request);
+
       return $this->success([
         'sale' => $this->saleDetail($sale),
         'payment_message' => $message,
+        'dashboard_today' => $dashboardToday,
       ], 'Payment recorded');
     } catch (\Illuminate\Validation\ValidationException $e) {
       DB::rollBack();
@@ -458,5 +462,27 @@ class SaleController extends ApiController
         $serviceQuery->where('branch_id', $branchId);
       });
     });
+  }
+
+  /**
+   * @return array<string, mixed>|null
+   */
+  private function dashboardTodayCompact(Request $request): ?array
+  {
+    $business = $this->apiBusiness();
+    $user = $request->user();
+    if (! $business || ! $user) {
+      return null;
+    }
+
+    $branchFilterId = $this->branchFilterId($user, $request);
+    $snap = app(ApiDashboardTodayService::class)->snapshot($user, $business, $branchFilterId);
+    $net = $snap['net_profit'] ?? ['day' => 0, 'period' => 0];
+
+    return [
+      'collected' => (float) ($snap['collected'] ?? $snap['today_revenue'] ?? 0),
+      'today_profit' => (float) ($snap['today_profit'] ?? $net['day'] ?? 0),
+      'net_profit' => $net,
+    ];
   }
 }

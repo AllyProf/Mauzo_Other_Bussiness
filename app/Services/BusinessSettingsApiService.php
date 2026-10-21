@@ -349,10 +349,16 @@ class BusinessSettingsApiService
     private function formatSubscription(Business $business, array $billing): array
     {
         $plan = $billing['plan'] ?? $business->plan;
+        $mobile = app(\App\Services\Api\ApiSubscriptionSummaryService::class)->forBusiness($business);
 
         return [
-            'account_status' => $business->statusLabel(),
-            'is_active' => (bool) $business->is_active,
+            'account_status' => $mobile['account_status'] ?? $business->statusLabel(),
+            'is_active' => (bool) ($mobile['is_active'] ?? $business->is_active),
+            'days_remaining' => $mobile['days_remaining'] ?? null,
+            'expiring_soon' => (bool) ($mobile['expiring_soon'] ?? false),
+            'expiring_soon_days_threshold' => $mobile['expiring_soon_days_threshold'] ?? 7,
+            'blocked_reason' => $mobile['blocked_reason'] ?? null,
+            'unpaid_invoice' => $mobile['unpaid_invoice'] ?? null,
             'plan' => $plan ? [
                 'id' => $plan->id,
                 'name' => $plan->name,

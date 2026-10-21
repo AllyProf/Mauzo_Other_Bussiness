@@ -210,6 +210,10 @@ class LiveSalesPulseService
                 'cash_revenue' => (float) $snapshot['today_cash'],
                 'digital_revenue' => (float) $snapshot['today_digital'],
                 'gross_profit' => (float) $snapshot['shift_profit'],
+                'net_profit' => $snapshot['net_profit'] ?? [
+                    'day' => (float) $snapshot['shift_profit'],
+                    'period' => (float) ($snapshot['period_net_profit'] ?? 0),
+                ],
                 'money_in_circulation' => (float) $snapshot['money_in_circulation'],
                 'margin_percent' => (float) $snapshot['margin_percent'],
                 'total_orders' => (int) $snapshot['total_orders'],

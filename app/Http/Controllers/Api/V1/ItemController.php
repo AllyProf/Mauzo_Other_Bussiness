@@ -289,6 +289,9 @@ class ItemController extends ApiController
                 'selling_packagings.*.packaging_id' => 'required|exists:packagings,id',
                 'selling_packagings.*.quantity_per_unit' => 'required|integer|min:1',
                 'selling_packagings.*.selling_price' => 'nullable|numeric|min:0',
+                'selling_packagings.*.barcode' => 'nullable|string|max:128',
+                'selling_packagings.*.manufacturer_barcode' => 'nullable|string|max:128',
+                'selling_packagings.*.barcode_type' => 'nullable|string|max:32',
                 'cost_price' => 'nullable|numeric|min:0',
             ];
 
@@ -306,7 +309,7 @@ class ItemController extends ApiController
                 return $this->error($scopeError, 422);
             }
 
-            $sellingRows = $request->input('selling_packagings', []);
+            $sellingRows = $this->mergeManufacturerBarcodes($request->input('selling_packagings', []));
             $packagingTypes = Packaging::query()->where('business_id', $business->id)->get();
             $normalizer = app(ItemPackagingNormalizer::class);
             $sellingRows = $normalizer->normalizeSellingRows(
@@ -458,23 +461,34 @@ class ItemController extends ApiController
         }
 
         $data = $request->validate([
-            'code' => 'required|string|max:64',
+            'code' => 'required|string|max:128',
+            'branch_id' => 'nullable|integer|min:1',
+            'context' => 'nullable|string|in:sell,receiving',
         ]);
 
-        $code = trim($data['code']);
         $businessId = $this->apiBusinessId();
+        $lookup = app(\App\Services\BarcodeLookupService::class)->resolve(
+            $data['code'],
+            $businessId,
+            fn ($q) => $this->scopeItemsForPos($q, $request->user())
+        );
 
-        $packaging = ItemPackaging::query()
-            ->where('barcode', $code)
-            ->whereHas('item', function ($q) use ($businessId, $request) {
-                $q->where('business_id', $businessId);
-                $this->scopeItemsForPos($q, $request->user());
-            })
-            ->with(['packagingType', 'item.category', 'item.receivingPackaging', 'item.packagings.packagingType'])
-            ->first();
+        if ($lookup['candidates']->count() > 1) {
+            return $this->error('Multiple items match this code.', 409, [
+                'code' => 'BARCODE_AMBIGUOUS',
+                'candidates' => $lookup['candidates']->map(fn ($pkg) => [
+                    'item_id' => $pkg->item_id,
+                    'item_name' => $pkg->item?->name,
+                    'item_packaging_id' => $pkg->id,
+                    'packaging_name' => $pkg->packagingType?->name,
+                    'barcode' => $pkg->barcode,
+                ])->values()->all(),
+            ]);
+        }
 
+        $packaging = $lookup['packaging'];
         if (! $packaging) {
-            return $this->error('Barcode not found for this business.', 404);
+            return $this->error('No item for this code.', 404, ['code' => 'BARCODE_NOT_FOUND']);
         }
 
         $item = $packaging->item;
@@ -483,6 +497,7 @@ class ItemController extends ApiController
 
         return $this->success([
             'barcode' => $packaging->barcode,
+            'source' => $lookup['source'] ?? 'internal',
             'item' => [
                 'id' => $item->id,
                 'name' => $item->name,
@@ -502,6 +517,7 @@ class ItemController extends ApiController
                 'selling_price' => (float) $packaging->selling_price,
                 'cost_price' => (float) $packaging->cost_price,
                 'barcode' => $packaging->barcode,
+                'barcode_type' => strlen(preg_replace('/\D+/', '', (string) $packaging->barcode) ?? '') >= 8 ? 'ean13' : 'internal',
             ],
             'cart_line' => [
                 'item_id' => $item->id,
@@ -600,6 +616,9 @@ class ItemController extends ApiController
                 'selling_packagings.*.packaging_id' => 'required|exists:packagings,id',
                 'selling_packagings.*.quantity_per_unit' => 'required|integer|min:1',
                 'selling_packagings.*.selling_price' => 'nullable|numeric|min:0',
+                'selling_packagings.*.barcode' => 'nullable|string|max:128',
+                'selling_packagings.*.manufacturer_barcode' => 'nullable|string|max:128',
+                'selling_packagings.*.barcode_type' => 'nullable|string|max:32',
                 'cost_price' => 'nullable|numeric|min:0',
             ];
 
@@ -617,7 +636,7 @@ class ItemController extends ApiController
                 return $this->error($scopeError, 422);
             }
 
-            $sellingRows = $request->input('selling_packagings', []);
+            $sellingRows = $this->mergeManufacturerBarcodes($request->input('selling_packagings', []));
             $packagingTypes = Packaging::query()->where('business_id', $business->id)->get();
             $normalizer = app(ItemPackagingNormalizer::class);
             $sellingRows = $normalizer->normalizeSellingRows(
@@ -965,13 +984,17 @@ class ItemController extends ApiController
                 $sell = (float) ($previous?->selling_price ?? 0);
             }
 
+            $barcode = filled($row['barcode'] ?? null)
+                ? trim((string) $row['barcode'])
+                : ($previous?->barcode);
+
             $created[] = ItemPackaging::create([
                 'item_id' => $item->id,
                 'packaging_id' => $row['packaging_id'],
                 'quantity_per_unit' => max(1, (int) ($row['quantity_per_unit'] ?? 1)),
                 'cost_price' => $cost,
                 'selling_price' => $sell,
-                'barcode' => $previous?->barcode,
+                'barcode' => $barcode,
             ]);
 
             $isFirst = false;
@@ -982,6 +1005,21 @@ class ItemController extends ApiController
             $created,
             $existing
         );
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeManufacturerBarcodes(array $rows): array
+    {
+        return collect($rows)->map(function ($row) {
+            if (empty($row['barcode']) && ! empty($row['manufacturer_barcode'])) {
+                $row['barcode'] = trim((string) $row['manufacturer_barcode']);
+            }
+
+            return $row;
+        })->all();
     }
 
     private function scopeItemsForPos($query, $user): void

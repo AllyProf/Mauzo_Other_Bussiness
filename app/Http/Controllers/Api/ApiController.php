@@ -23,7 +23,12 @@ abstract class ApiController extends Controller
       'message' => $message,
     ];
 
-    if ($errors !== null) {
+    if (is_array($errors) && isset($errors['code'])) {
+      $payload['code'] = $errors['code'];
+      unset($errors['code']);
+    }
+
+    if ($errors !== null && $errors !== []) {
       $payload['errors'] = $errors;
     }
 

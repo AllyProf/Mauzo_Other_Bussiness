@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ApiController;
 use App\Models\Branch;
 use App\Services\ActiveBranchService;
 use App\Services\ActiveBusinessService;
+use App\Services\Api\ApiDashboardTodayService;
 use App\Services\LiveSalesPulseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -36,6 +37,7 @@ class LiveSalesController extends ApiController
 
         $branchFilterId = $this->branchFilterId($user, $request);
         $this->applyWebBranchContext($user, (int) $business->id, $branchFilterId);
+        app(ApiDashboardTodayService::class)->applyBranchContext($user, $business, $branchFilterId);
 
         $filterContext = $this->filterContext($user, $business, $branchFilterId, $request);
         $businessWide = $user->seesBusinessWideData();
@@ -54,6 +56,13 @@ class LiveSalesController extends ApiController
                     'business_type_label' => $filterContext['active_business_label'],
                 ],
             );
+
+            $profit = app(ApiDashboardTodayService::class)->profitBlock(
+                $business,
+                now()->toDateString()
+            );
+            $snapshot['net_profit'] = $profit;
+            $snapshot['period_net_profit'] = $profit['period'];
 
             return $this->success([
                 'filters' => $filterContext,

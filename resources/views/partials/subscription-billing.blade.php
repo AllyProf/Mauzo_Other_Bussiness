@@ -7,8 +7,10 @@
   $monthlyDue = $business->usesProfitShareBilling()
     ? $currentFee['amount']
     : ($currentFee['monthly_equivalent'] ?? $currentFee['amount']);
-  $renewalNotice = subscription_renewal_notice_for($business);
+  $renewalNotice = subscription_renewal_notice_for($business, true);
   $isFreePlan = $business->isFreeFixedRenewal();
+  $noticeType = $renewalNotice['notice_type'] ?? 'expiring';
+  $outstandingInvoice = $renewalNotice['unpaid_invoice'] ?? subscription_outstanding_invoice_for($business);
 @endphp
 
 @if($renewalNotice)
@@ -85,7 +87,7 @@
 @endif
 
 @php $paymentInstructions = platform_settings('payment_instructions'); @endphp
-@if($paymentInstructions && ! $isFreePlan)
+@if($paymentInstructions && (! $isFreePlan || $outstandingInvoice))
 <div class="alert alert-light border text-left mb-4">
   <strong><i class="fa fa-money"></i> How to Pay &amp; Renew</strong>
   <div class="mt-2" style="white-space:pre-wrap;">{{ $paymentInstructions }}</div>

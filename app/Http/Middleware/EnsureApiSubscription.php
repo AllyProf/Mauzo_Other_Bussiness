@@ -16,6 +16,10 @@ class EnsureApiSubscription
 
   public function handle(Request $request, Closure $next): Response
   {
+    if ($this->isExemptRoute($request)) {
+      return $next($request);
+    }
+
     $user = $request->user();
 
     if ($user && in_array($user->role, ['super_admin', 'platform_staff'], true)) {
@@ -27,12 +31,40 @@ class EnsureApiSubscription
     if ($business && $this->platformSettings->businessIsLocked($business)) {
       return response()->json([
         'success' => false,
-        'message' => 'Subscription expired. Please renew to continue.',
+        'message' => 'Subscription ended. Pay to continue using MauzoLink.',
         'code' => 'SUBSCRIPTION_EXPIRED',
       ], 403);
     }
 
+    if ($business && ! $business->is_active) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Business is suspended.',
+        'code' => 'BUSINESS_SUSPENDED',
+      ], 403);
+    }
+
     return $next($request);
+  }
+
+  private function isExemptRoute(Request $request): bool
+  {
+    return $request->is(
+      'api/v1/auth/me',
+      'api/v1/auth/logout',
+      'api/v1/auth/switch-business',
+      'api/v1/auth/switch-branch',
+      'api/v1/settings',
+      'api/v1/settings/*',
+      'api/v1/subscription',
+      'api/v1/subscription/*',
+      'api/v1/notifications',
+      'api/v1/notifications/*',
+      'api/v1/profile',
+      'api/v1/profile/*',
+      'api/v1/devices',
+      'api/v1/devices/*',
+    );
   }
 
   private function jsonError(string $message, int $status): Response

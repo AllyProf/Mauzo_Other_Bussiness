@@ -314,30 +314,86 @@ if (! function_exists('user_can_master_sheet')) {
     }
 }
 
+if (! function_exists('subscription_outstanding_invoice_for')) {
+    function subscription_outstanding_invoice_for(?\App\Models\Business $business): ?\App\Models\PlatformBillingInvoice
+    {
+        if (! $business) {
+            return null;
+        }
+
+        return \App\Models\PlatformBillingInvoice::query()
+            ->where('business_id', $business->id)
+            ->whereIn('status', [
+                \App\Models\PlatformBillingInvoice::STATUS_PENDING,
+                \App\Models\PlatformBillingInvoice::STATUS_NOTIFIED,
+            ])
+            ->where('amount', '>', 0)
+            ->orderByDesc('billing_month')
+            ->first();
+    }
+}
+
 if (! function_exists('subscription_renewal_notice_for')) {
     /**
-     * @return array{expiry_date: \Illuminate\Support\Carbon, days_left: int, plan_name: string, is_free_renewal: bool, renewal_amount: ?float}|null
+     * @param  bool  $includeBillingLeadTime  When true (plan and billing pages), show expiry reminders up to 30 days out.
+     * @return array{
+     *     notice_type: 'repayment'|'expired'|'expiring',
+     *     expiry_date: ?\Illuminate\Support\Carbon,
+     *     days_left: ?int,
+     *     plan_name: string,
+     *     is_free_renewal: bool,
+     *     renewal_amount: ?float,
+     *     unpaid_invoice?: \App\Models\PlatformBillingInvoice
+     * }|null
      */
-    function subscription_renewal_notice_for(?\App\Models\Business $business): ?array
+    function subscription_renewal_notice_for(?\App\Models\Business $business, bool $includeBillingLeadTime = false): ?array
     {
-        if (! $business
-            || ! $business->is_active
-            || $business->isPendingApproval()
-            || ! $business->isExpiringSoon()) {
+        if (! $business || ! $business->is_active || $business->isPendingApproval()) {
             return null;
         }
 
         $business->loadMissing('plan');
 
-        return [
+        $base = [
             'expiry_date' => $business->expiry_date,
-            'days_left' => (int) $business->daysUntilExpiry(),
+            'days_left' => $business->daysUntilExpiry(),
             'plan_name' => $business->plan?->name ?? 'Your plan',
             'is_free_renewal' => $business->isFreeFixedRenewal(),
             'renewal_amount' => $business->usesProfitShareBilling()
                 ? null
                 : $business->effectiveBillingPrice(),
         ];
+
+        $unpaid = subscription_outstanding_invoice_for($business);
+        if ($unpaid) {
+            return array_merge($base, [
+                'notice_type' => 'repayment',
+                'unpaid_invoice' => $unpaid,
+            ]);
+        }
+
+        $daysLeft = $business->daysUntilExpiry();
+
+        if ($daysLeft !== null && $daysLeft < 0) {
+            return array_merge($base, [
+                'notice_type' => 'expired',
+                'days_left' => (int) $daysLeft,
+            ]);
+        }
+
+        $warningDays = max(1, (int) app(\App\Services\PlatformSettingsService::class)->get('expiry_warning_days', 7));
+        if ($includeBillingLeadTime) {
+            $warningDays = max($warningDays, 30);
+        }
+
+        if ($daysLeft === null || $daysLeft > $warningDays) {
+            return null;
+        }
+
+        return array_merge($base, [
+            'notice_type' => 'expiring',
+            'days_left' => (int) $daysLeft,
+        ]);
     }
 }
 

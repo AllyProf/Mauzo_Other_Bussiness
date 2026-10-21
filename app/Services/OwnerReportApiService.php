@@ -335,9 +335,26 @@ class OwnerReportApiService
 
                 DB::commit();
 
+                $day = $this->showDay($user, $businessId, $branchFilterId, $parsedDate);
+                $dashboardToday = null;
+                if ($parsedDate === now()->toDateString()) {
+                    $todaySvc = app(\App\Services\Api\ApiDashboardTodayService::class);
+                    $todaySvc->applyBranchContext($user, $business, $branchFilterId);
+                    $snap = $todaySvc->snapshot($user, $business, $branchFilterId, $parsedDate);
+                    $net = $snap['net_profit'] ?? ['day' => 0, 'period' => 0];
+                    $dashboardToday = [
+                        'today_profit' => (float) ($snap['today_profit'] ?? $net['day'] ?? 0),
+                        'net_profit' => $net,
+                    ];
+                }
+
                 return [
+                    'date' => $parsedDate,
+                    'day_finalized' => true,
+                    'daily_net_profit' => (float) ($day['daily_net_profit'] ?? $day['net_profit'] ?? 0),
                     'report' => $this->formatReport($report->fresh()),
-                    'day' => $this->showDay($user, $businessId, $branchFilterId, $parsedDate),
+                    'day' => $day,
+                    'dashboard_today' => $dashboardToday,
                 ];
             } catch (\Throwable $e) {
                 DB::rollBack();

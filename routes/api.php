@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\SalesTargetController;
 use App\Http\Controllers\Api\V1\ShiftController;
+use App\Http\Controllers\Api\V1\SubscriptionController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use Illuminate\Support\Facades\Route;
 
@@ -81,6 +82,10 @@ Route::prefix('v1')->group(function () {
         Route::delete('/branches/{branch}', [BranchController::class, 'destroy']);
 
         // Business settings (same as web /settings)
+        Route::get('/subscription/status', [SubscriptionController::class, 'status']);
+        Route::get('/subscription/invoices', [SubscriptionController::class, 'invoices']);
+        Route::get('/subscription/invoices/{invoice}', [SubscriptionController::class, 'showInvoice']);
+
         Route::get('/settings', [SettingsController::class, 'index']);
         Route::put('/settings/profile', [SettingsController::class, 'updateProfile']);
         Route::put('/settings/finance', [SettingsController::class, 'updateFinance']);
