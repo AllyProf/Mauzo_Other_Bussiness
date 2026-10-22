@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Api\ApiController;
 use App\Models\AuditLog;
-use App\Models\FailedLoginAttempt;
 use App\Models\User;
 use App\Services\Api\ApiSubscriptionSummaryService;
 use App\Services\Api\ApiTenantContext;
@@ -29,18 +28,8 @@ class AuthController extends ApiController
 
     $security = app(LoginSecurityService::class);
 
-    if ($ipBlockedUntil = $security->ipBlockedUntil($request->ip())) {
-      FailedLoginAttempt::record($credentials['email'], $request->ip(), $request->userAgent());
-
-      return $this->error(__('auth.ip_blocked', ['time' => $ipBlockedUntil->format('d M Y, H:i')]), 429);
-    }
-
     if (! $user || ! Hash::check($credentials['password'], $user->password)) {
-      $result = $security->registerFailure($email, $user, $request->ip(), $request->userAgent());
-
-      if ($result['ip_blocked_until']) {
-        return $this->error(__('auth.ip_blocked', ['time' => $result['ip_blocked_until']->format('d M Y, H:i')]), 429);
-      }
+      $security->registerFailure($email, $user, $request->ip(), $request->userAgent());
 
       return $this->error(__('auth.invalid_credentials'), 401);
     }

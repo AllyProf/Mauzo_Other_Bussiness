@@ -2,12 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Admin\Concerns\EnsuresPlatformAdmin;
-use App\Models\AuditLog;
-use App\Models\BlockedIp;
+use App\Http\Controllers\Controller;
 use App\Models\FailedLoginAttempt;
-use App\Services\LoginSecurityService;
 use Illuminate\Http\Request;
 
 class FailedLoginController extends Controller
@@ -32,20 +29,6 @@ class FailedLoginController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        $blockedIps = BlockedIp::where('blocked_until', '>', now())
-            ->orderByDesc('blocked_until')
-            ->get();
-
-        return view('admin.security.failed-logins', compact('attempts', 'blockedIps'));
-    }
-
-    public function unblockIp(BlockedIp $blockedIp, LoginSecurityService $security)
-    {
-        $this->ensurePlatformAdmin('security');
-
-        $security->unblockIp($blockedIp);
-        AuditLog::log('IP_UNBLOCKED', "Unblocked IP {$blockedIp->ip_address}");
-
-        return back()->with('success', "IP {$blockedIp->ip_address} has been unblocked.");
+        return view('admin.security.failed-logins', compact('attempts'));
     }
 }

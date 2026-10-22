@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
-use App\Models\FailedLoginAttempt;
 use App\Models\User;
 use App\Services\LoginSecurityService;
 use Illuminate\Http\Request;
@@ -33,18 +32,8 @@ class LoginController extends Controller
         $loginEmail = strtolower(trim($credentials['email']));
         $account = User::where('email', $loginEmail)->first();
 
-        if ($ipBlockedUntil = $this->security->ipBlockedUntil($request->ip())) {
-            FailedLoginAttempt::record($credentials['email'], $request->ip(), $request->userAgent());
-
-            return $this->errorResponse(__('auth.ip_blocked', ['time' => $ipBlockedUntil->format('d M Y, H:i')]));
-        }
-
         if (! Auth::attempt(['email' => $loginEmail, 'password' => $credentials['password']])) {
-            $result = $this->security->registerFailure($loginEmail, $account, $request->ip(), $request->userAgent());
-
-            if ($result['ip_blocked_until']) {
-                return $this->errorResponse(__('auth.ip_blocked', ['time' => $result['ip_blocked_until']->format('d M Y, H:i')]));
-            }
+            $this->security->registerFailure($loginEmail, $account, $request->ip(), $request->userAgent());
 
             return $this->errorResponse(__('auth.invalid_credentials'));
         }
