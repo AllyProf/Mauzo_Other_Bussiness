@@ -7,7 +7,6 @@ use App\Models\BlockedIp;
 use App\Models\FailedLoginAttempt;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
 
 class LoginSecurityService
 {
@@ -29,19 +28,11 @@ class LoginSecurityService
     }
 
     /**
-     * Unknown emails are tracked in the cache so the login screen behaves the same whether or not
-     * the account exists.
+     * Per-account lock after failed logins is disabled; always allows retry with correct password.
      */
     public function lockedUntil(string $email, ?User $user): ?Carbon
     {
-        if ($user) {
-            return $user->isLoginLocked() ? $user->locked_until : null;
-        }
-
-        $state = Cache::get($this->unknownKey($email));
-        $until = isset($state['locked_until']) ? Carbon::createFromTimestamp($state['locked_until'], config('app.timezone')) : null;
-
-        return $until?->isFuture() ? $until : null;
+        return null;
     }
 
     /**
@@ -51,19 +42,9 @@ class LoginSecurityService
     {
         FailedLoginAttempt::record($email, $ip, $userAgent);
 
-        if ($user) {
-            if ($user->registerFailedLogin()) {
-                AuditLog::log('ACCOUNT_LOCKED', "Account {$user->email} locked after ".User::MAX_FAILED_LOGINS.' failed login attempts', $user->business_id, $user->id);
-            }
-            $lockedUntil = $user->isLoginLocked() ? $user->locked_until : null;
-            $remaining = $user->remainingLoginAttempts();
-        } else {
-            [$lockedUntil, $remaining] = $this->registerUnknownFailure($email);
-        }
-
         return [
-            'locked_until' => $lockedUntil,
-            'remaining' => $remaining,
+            'locked_until' => null,
+            'remaining' => 0,
             'ip_blocked_until' => $this->registerIpFailure($ip),
         ];
     }
@@ -71,28 +52,6 @@ class LoginSecurityService
     public function unblockIp(BlockedIp $block): void
     {
         $block->update(['blocked_until' => null, 'cleared_at' => now(), 'failed_attempts' => 0]);
-    }
-
-    private function registerUnknownFailure(string $email): array
-    {
-        $key = $this->unknownKey($email);
-        $state = Cache::get($key, ['count' => 0, 'locked_until' => null]);
-
-        if ($state['locked_until'] && $state['locked_until'] <= now()->timestamp) {
-            $state = ['count' => 0, 'locked_until' => null];
-        }
-
-        $state['count']++;
-        if ($state['count'] >= User::MAX_FAILED_LOGINS) {
-            $state['locked_until'] = now()->addHours(User::LOGIN_LOCK_HOURS)->timestamp;
-        }
-
-        Cache::put($key, $state, now()->addHours(User::LOGIN_LOCK_HOURS));
-
-        return [
-            $state['locked_until'] ? Carbon::createFromTimestamp($state['locked_until'], config('app.timezone')) : null,
-            max(0, User::MAX_FAILED_LOGINS - $state['count']),
-        ];
     }
 
     private function registerIpFailure(?string $ip): ?Carbon
@@ -123,10 +82,5 @@ class LoginSecurityService
         AuditLog::log('IP_BLOCKED', "IP {$ip} blocked after {$failures} failed logins in ".self::IP_WINDOW_MINUTES.' minutes');
 
         return $block->blocked_until;
-    }
-
-    private function unknownKey(string $email): string
-    {
-        return 'login_lock:unknown:'.sha1(strtolower(trim($email)));
     }
 }

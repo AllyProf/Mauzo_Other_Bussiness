@@ -35,12 +35,6 @@ class AuthController extends ApiController
       return $this->error(__('auth.ip_blocked', ['time' => $ipBlockedUntil->format('d M Y, H:i')]), 429);
     }
 
-    if ($lockedUntil = $security->lockedUntil($email, $user)) {
-      FailedLoginAttempt::record($credentials['email'], $request->ip(), $request->userAgent());
-
-      return $this->error(__('auth.account_locked', ['time' => $lockedUntil->format('d M Y, H:i')]), 423);
-    }
-
     if (! $user || ! Hash::check($credentials['password'], $user->password)) {
       $result = $security->registerFailure($email, $user, $request->ip(), $request->userAgent());
 
@@ -48,11 +42,7 @@ class AuthController extends ApiController
         return $this->error(__('auth.ip_blocked', ['time' => $result['ip_blocked_until']->format('d M Y, H:i')]), 429);
       }
 
-      if ($result['locked_until']) {
-        return $this->error(__('auth.account_locked', ['time' => $result['locked_until']->format('d M Y, H:i')]), 423);
-      }
-
-      return $this->error(__('auth.attempts_remaining', ['count' => $result['remaining']]), 401);
+      return $this->error(__('auth.invalid_credentials'), 401);
     }
 
     $user->clearLoginLock();

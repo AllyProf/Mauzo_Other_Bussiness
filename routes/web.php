@@ -97,7 +97,6 @@ Route::middleware(['auth', 'check.user.active', 'check.platform.admin'])->prefix
     Route::get('/businesses/{business}/onboarding', [App\Http\Controllers\Admin\BusinessOnboardingController::class, 'show'])->name('onboarding.show');
 
     Route::get('/security/failed-logins', [App\Http\Controllers\Admin\FailedLoginController::class, 'index'])->name('security.failed-logins');
-    Route::post('/security/locked-accounts/{user}/unlock', [App\Http\Controllers\Admin\FailedLoginController::class, 'unlock'])->name('security.unlock');
     Route::post('/security/blocked-ips/{blockedIp}/unblock', [App\Http\Controllers\Admin\FailedLoginController::class, 'unblockIp'])->name('security.unblock-ip');
     Route::get('/staff', [App\Http\Controllers\Admin\PlatformStaffController::class, 'index'])->name('staff.index');
     Route::post('/staff', [App\Http\Controllers\Admin\PlatformStaffController::class, 'store'])->name('staff.store');

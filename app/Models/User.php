@@ -82,24 +82,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Returns true when this failure locks the account.
+     * @deprecated Account lock after failed logins is disabled.
      */
     public function registerFailedLogin(): bool
     {
-        if ($this->locked_until !== null && $this->locked_until->isPast()) {
-            $this->failed_login_count = 0;
-            $this->locked_until = null;
-        }
-
-        $this->failed_login_count++;
-
-        if ($this->failed_login_count >= self::MAX_FAILED_LOGINS) {
-            $this->locked_until = now()->addHours(self::LOGIN_LOCK_HOURS);
-        }
-
-        $this->saveQuietly();
-
-        return $this->isLoginLocked();
+        return false;
     }
 
     public function remainingLoginAttempts(): int
