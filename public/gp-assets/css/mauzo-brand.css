@@ -447,22 +447,15 @@ img { max-width: 100%; height: auto; }
   .hero .icon-box h3 { font-size: 13px; }
 }
 
-/* Inner pages — page title hero (matches landing hero image) */
+/* Inner pages — page title hero (CSS background, no <img> in flow) */
 .page-title.page-title--hero {
   position: relative;
   color: #fff;
   background-color: #111;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
   overflow: hidden;
-}
-
-.page-title.page-title--hero .page-title__bg {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 0;
 }
 
 .page-title.page-title--hero::before {
@@ -470,6 +463,7 @@ img { max-width: 100%; height: auto; }
   position: absolute;
   inset: 0;
   z-index: 1;
+  pointer-events: none;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.55) 55%, rgba(0, 0, 0, 0.7) 100%);
 }
 

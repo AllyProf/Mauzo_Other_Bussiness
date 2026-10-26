@@ -57,6 +57,55 @@
 
 @push('styles')
 <style>
+  /* Critical page-title hero styles inlined so layout cannot break if brand CSS is cached stale */
+  .page-title.page-title--hero {
+    position: relative;
+    color: #fff;
+    background-color: #111;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    overflow: hidden;
+  }
+  .page-title.page-title--hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.55) 55%, rgba(0, 0, 0, 0.7) 100%);
+  }
+  .page-title.page-title--hero .heading,
+  .page-title.page-title--hero .breadcrumbs {
+    position: relative;
+    z-index: 2;
+  }
+  .page-title.page-title--hero .heading {
+    padding: 140px 0 56px;
+    border-top: 0;
+  }
+  .page-title.page-title--hero .heading h1 { color: #fff; }
+  .page-title.page-title--hero .heading p {
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 12px;
+  }
+  .page-title.page-title--hero .breadcrumbs {
+    background: rgba(0, 0, 0, 0.35);
+    padding: 16px 0;
+  }
+  .page-title.page-title--hero .breadcrumbs ol li,
+  .page-title.page-title--hero .breadcrumbs ol li a,
+  .page-title.page-title--hero .breadcrumbs ol li.current {
+    color: rgba(255, 255, 255, 0.9);
+  }
+  .page-title.page-title--hero .breadcrumbs ol li+li::before {
+    color: rgba(255, 255, 255, 0.55);
+  }
+  @media (max-width: 768px) {
+    .page-title.page-title--hero .heading { padding: 112px 0 40px; }
+    .page-title.page-title--hero .heading h1 { font-size: 30px; }
+  }
+
   .privacy-policy {
     padding: 48px 0 88px;
   }
