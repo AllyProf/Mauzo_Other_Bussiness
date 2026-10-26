@@ -41,8 +41,10 @@ class LandingController extends Controller
         $supportEmail = $settings['support_email'] ?? '';
         $supportPhone = $settings['support_phone'] ?? '';
         $publicAddress = $settings['public_address'] ?? '';
-        $companyName = $settings['invoice_company_name']
-            ?? config('seo.organization.legal_name', 'EmCa Technologies');
+        $companyName = (string) ($settings['invoice_company_name']
+            ?? config('seo.organization.legal_name', 'EmCa Technologies LTD'));
+        // Correct known historical misspelling in stored platform settings.
+        $companyName = str_replace('Techonologies', 'Technologies', $companyName);
 
         $locale = app()->getLocale();
         $canonical = route('landing.privacy');

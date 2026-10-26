@@ -47,7 +47,7 @@ class PlatformSettingsService
             'auto_suspend_unpaid_days' => 14,
             'payment_instructions' => '',
 
-            'invoice_company_name' => 'EmCa Techonologies LTD',
+            'invoice_company_name' => 'EmCa Technologies LTD',
             'invoice_company_address' => "P.O.Box 20,\nMoshi Kilimanjaro.",
             'invoice_company_phone' => '+255 749 719 998',
             'invoice_company_tin' => '181-103-264',

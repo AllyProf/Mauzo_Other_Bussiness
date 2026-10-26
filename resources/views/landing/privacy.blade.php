@@ -28,27 +28,29 @@
 
   <section class="section privacy-policy">
     <div class="container" data-aos="fade-up">
-      <div class="privacy-policy__meta">
-        <span>{{ __('privacy.updated_label') }}: <time datetime="{{ $updatedAt->toDateString() }}">{{ $updatedAt->translatedFormat('d M Y') }}</time></span>
+      <div class="privacy-policy__inner">
+        <div class="privacy-policy__meta text-center">
+          <span>{{ __('privacy.updated_label') }}: <time datetime="{{ $updatedAt->toDateString() }}">{{ $updatedAt->translatedFormat('d M Y') }}</time></span>
+        </div>
+
+        <p class="privacy-policy__intro">{{ __('privacy.intro', $replace) }}</p>
+
+        @foreach(__('privacy.sections') as $section)
+          <article class="privacy-policy__section">
+            <h2>{{ $section['title'] }}</h2>
+            @foreach($section['paragraphs'] ?? [] as $paragraph)
+              <p>{{ trans($paragraph, $replace) }}</p>
+            @endforeach
+            @if(!empty($section['bullets']) && is_array($section['bullets']))
+              <ul>
+                @foreach($section['bullets'] as $bullet)
+                  <li>{{ trans($bullet, $replace) }}</li>
+                @endforeach
+              </ul>
+            @endif
+          </article>
+        @endforeach
       </div>
-
-      <p class="privacy-policy__intro">{{ __('privacy.intro', $replace) }}</p>
-
-      @foreach(__('privacy.sections') as $section)
-        <article class="privacy-policy__section">
-          <h2>{{ $section['title'] }}</h2>
-          @foreach($section['paragraphs'] ?? [] as $paragraph)
-            <p>{{ trans($paragraph, $replace) }}</p>
-          @endforeach
-          @if(!empty($section['bullets']) && is_array($section['bullets']))
-            <ul>
-              @foreach($section['bullets'] as $bullet)
-                <li>{{ trans($bullet, $replace) }}</li>
-              @endforeach
-            </ul>
-          @endif
-        </article>
-      @endforeach
     </div>
   </section>
 @endsection
@@ -56,10 +58,15 @@
 @push('styles')
 <style>
   .privacy-policy {
-    padding: 40px 0 80px;
+    padding: 48px 0 88px;
+  }
+  .privacy-policy__inner {
+    max-width: 44rem;
+    margin: 0 auto;
+    text-align: left;
   }
   .privacy-policy__meta {
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
     color: #6c757d;
     font-size: 0.95rem;
   }
@@ -68,11 +75,9 @@
     line-height: 1.75;
     color: #444;
     margin-bottom: 2rem;
-    max-width: 48rem;
   }
   .privacy-policy__section {
     margin-bottom: 2rem;
-    max-width: 48rem;
   }
   .privacy-policy__section h2 {
     font-family: 'Poppins', sans-serif;

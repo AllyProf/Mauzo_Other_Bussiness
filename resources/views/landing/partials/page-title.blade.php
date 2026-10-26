@@ -1,4 +1,8 @@
-<div class="page-title" data-aos="fade">
+@php
+  $heroBg = $pageTitleBg ?? asset('gp-assets/img/hero-bg.png');
+@endphp
+<div class="page-title page-title--hero" data-aos="fade">
+  <img class="page-title__bg" src="{{ $heroBg }}" alt="" role="presentation">
   <div class="heading">
     <div class="container">
       <div class="row d-flex justify-content-center text-center">
