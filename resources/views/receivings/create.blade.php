@@ -633,7 +633,8 @@
       return getBuyCostPerPiece(item) * qpu;
     }
 
-    function validateItemRetailPrices(item) {
+    /** Soft check only — selling below cost is allowed (promo / clearance). */
+    function belowCostRetailWarning(item) {
       const buyPrice = cleanNum(item.buying_price_per_unit);
       if (buyPrice <= 0) return null;
 
@@ -642,10 +643,10 @@
       if (packagings.length <= 1) {
         const pkg = packagings[0] || { quantity_per_unit: item.units_per_receiving_pack || 1, name: item.unit || 'Unit' };
         const retail = resolvePackagingRetailPrice(item, pkg);
-        const minRetail = getMinRetailPrice(item, pkg);
+        const costRef = getMinRetailPrice(item, pkg);
 
-        if (retail > 0 && retail + 0.009 < minRetail) {
-          return `<strong>${item.name}</strong>: sell price (${Math.round(retail).toLocaleString()} TZS) cannot be lower than buying cost (${Math.round(minRetail).toLocaleString()} TZS).`;
+        if (retail > 0 && retail + 0.009 < costRef) {
+          return `<strong>${item.name}</strong>: sell price (${Math.round(retail).toLocaleString()} TZS) is below buying cost (${Math.round(costRef).toLocaleString()} TZS).`;
         }
 
         return null;
@@ -653,10 +654,10 @@
 
       for (const pkg of packagings) {
         const retail = resolvePackagingRetailPrice(item, pkg);
-        const minRetail = getMinRetailPrice(item, pkg);
+        const costRef = getMinRetailPrice(item, pkg);
 
-        if (retail > 0 && retail + 0.009 < minRetail) {
-          return `<strong>${item.name}</strong> (${pkg.name}): sell price (${Math.round(retail).toLocaleString()} TZS) cannot be lower than buying cost (${Math.round(minRetail).toLocaleString()} TZS).`;
+        if (retail > 0 && retail + 0.009 < costRef) {
+          return `<strong>${item.name}</strong> (${pkg.name}): sell price (${Math.round(retail).toLocaleString()} TZS) is below buying cost (${Math.round(costRef).toLocaleString()} TZS).`;
         }
       }
 
@@ -756,7 +757,7 @@
         html = `<div class="form-group mb-0">
           <label class="small font-weight-bold text-uppercase text-muted">Selling price (TZS)</label>
           <input type="number" class="form-control rpm-price-input rpm-single-price" value="${price}" min="0" step="0.01" placeholder="0" autofocus>
-          <small class="text-muted d-block mt-1">Minimum allowed: ${Math.round(minRetail).toLocaleString()} TZS (based on buying cost)</small>
+          <small class="text-muted d-block mt-1">Buying cost reference: ${Math.round(minRetail).toLocaleString()} TZS (selling below this is allowed)</small>
         </div>`;
       } else {
         const costPerPiece = getBuyCostPerPiece(item);
@@ -773,7 +774,7 @@
             <td>
               <input type="number" class="form-control form-control-sm rpm-price-input rpm-pkg-price"
                      data-pkg-id="${pkg.id}" value="${storedPrice}" min="0" step="0.01" placeholder="0">
-              <small class="text-muted d-block">Min: ${Math.round(minRetail).toLocaleString()} TZS</small>
+              <small class="text-muted d-block">Cost ref: ${Math.round(minRetail).toLocaleString()} TZS</small>
           </td>
           </tr>`;
         });
@@ -1017,6 +1018,22 @@
       openRetailPriceModal($(this).data('index'));
     });
 
+    function applyRetailPriceDraft(item, draft) {
+      const packagings = item.packagings || [];
+      if (packagings.length <= 1) {
+        item.selling_price_per_unit = draft.selling_price_per_unit;
+        if (packagings[0]) {
+          item.selling_prices[packagings[0].id] = draft.selling_price_per_unit;
+        }
+      } else {
+        item.selling_prices = draft.selling_prices;
+      }
+
+      $('#retailPriceModal').modal('hide');
+      renderTable();
+      Toast.fire({ icon: 'success', title: 'Sell price saved' });
+    }
+
     $('#retailPriceModalSave').on('click', function () {
       const item = receiptItems[activeRetailIdx];
       if (!item) return;
@@ -1036,25 +1053,24 @@
       }
 
       const checkItem = { ...item, ...draft };
-      const priceError = validateItemRetailPrices(checkItem);
+      const belowCost = belowCostRetailWarning(checkItem);
 
-      if (priceError) {
-        Swal.fire({ title: 'Invalid Sell Price', html: priceError, icon: 'error', confirmButtonColor: '#940000' });
+      if (belowCost) {
+        Swal.fire({
+          title: 'Sell Below Cost?',
+          html: belowCost + '<br><br><span class="text-muted">This is allowed for promotions or clearance. Continue?</span>',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#940000',
+          confirmButtonText: 'Save anyway',
+          cancelButtonText: 'Edit price'
+        }).then(result => {
+          if (result.isConfirmed) applyRetailPriceDraft(item, draft);
+        });
         return;
       }
 
-      if (packagings.length <= 1) {
-        item.selling_price_per_unit = draft.selling_price_per_unit;
-        if (packagings[0]) {
-          item.selling_prices[packagings[0].id] = draft.selling_price_per_unit;
-        }
-      } else {
-        item.selling_prices = draft.selling_prices;
-      }
-
-      $('#retailPriceModal').modal('hide');
-      renderTable();
-      Toast.fire({ icon: 'success', title: 'Sell price saved' });
+      applyRetailPriceDraft(item, draft);
     });
 
     $(document).on('click', '.toggle-price-mode', function () {
@@ -1111,6 +1127,7 @@
       }
 
       let validationError = null;
+      let belowCostWarning = null;
       activeEntries.forEach(item => {
         if (validationError) return;
         if (cleanNum(item.buying_price_per_unit) <= 0) {
@@ -1125,8 +1142,8 @@
           if (missing) validationError = `<strong>${item.name}</strong> needs a price for <strong>${missing.name}</strong>.`;
         }
 
-        if (!validationError) {
-          validationError = validateItemRetailPrices(item);
+        if (!validationError && !belowCostWarning) {
+          belowCostWarning = belowCostRetailWarning(item);
         }
       });
 
@@ -1136,7 +1153,7 @@
       }
 
       const form = this;
-      Swal.fire({
+      const askPost = () => Swal.fire({
         title: 'Confirm Stock Reception',
         text: `Post this receipt with ${activeEntries.length} item(s) to inventory now?`,
         icon: 'question',
@@ -1183,6 +1200,27 @@
         }
         form.submit();
       });
+
+      if (belowCostWarning) {
+        Swal.fire({
+          title: 'Sell Below Cost?',
+          html: belowCostWarning + '<br><br><span class="text-muted">Selling below buying cost is allowed. Continue to post this receipt?</span>',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#940000',
+          confirmButtonText: 'Continue',
+          cancelButtonText: 'Review prices'
+        }).then(result => {
+          if (result.isConfirmed) {
+            askPost();
+          } else if (typeof window.appHidePageLoader === 'function') {
+            window.appHidePageLoader();
+          }
+        });
+        return;
+      }
+
+      askPost();
     });
 });
 </script>

@@ -178,12 +178,7 @@ class ReceivingController extends Controller
                 return redirect()->back()->with('error', 'Please enter at least one item with quantity > 0.')->withInput();
             }
 
-            foreach ($activeItems as $i) {
-                $item = Item::with('packagings.packagingType')->find($i['id']);
-                if ($priceError = $this->validateRetailAgainstBuying($item, $i)) {
-                    return redirect()->back()->with('error', $priceError)->withInput();
-                }
-            }
+            // Retail may be below buying cost (promo / clearance) — client shows a soft warning only.
 
             $total_amount = 0;
             foreach ($activeItems as $i) {
@@ -456,61 +451,6 @@ class ReceivingController extends Controller
             ->where('is_default', true)
             ->value('id')
             ?? Branch::query()->where('business_id', $businessId)->value('id');
-    }
-
-    private function validateRetailAgainstBuying(Item $item, array $line): ?string
-    {
-        $unitsPerReceiving = max(1, (int) ($item->units_per_receiving_pack ?? 1));
-        $qty = max(1, (int) ($line['qty'] ?? 0));
-        $cost = (float) ($line['cost'] ?? 0);
-        $pieces = $this->receivingPieces($item, $line);
-
-        $gross = $this->receivingLineGross($item, $line);
-        $discountAmount = 0.0;
-
-        if (! empty($line['discount_type']) && ! empty($line['discount_value'])) {
-            if ($line['discount_type'] === 'percent') {
-                $discountAmount = $gross * ((float) $line['discount_value'] / 100);
-            } else {
-                $discountAmount = (float) $line['discount_value'];
-            }
-        }
-
-        $buyPerPiece = ($pieces > 0 ? max(0, $gross - $discountAmount) / $pieces : (
-            ($line['cost_mode'] ?? 'pkg') === 'unit' ? $cost : $cost / $unitsPerReceiving
-        ));
-
-        $sellingPrices = $line['selling_prices'] ?? [];
-        $packagings = $item->packagings->sortBy('quantity_per_unit')->values();
-
-        if ($packagings->isEmpty()) {
-            $sell = (float) ($line['selling'] ?? 0);
-            if ($sell > 0 && $sell + 0.009 < $buyPerPiece) {
-                return "{$item->name}: retail price (TZS ".number_format($sell, 0).') cannot be lower than buying cost (TZS '.number_format($buyPerPiece, 0).').';
-            }
-
-            return null;
-        }
-
-        foreach ($packagings as $packaging) {
-            $qpu = max(1, (int) $packaging->quantity_per_unit);
-            $minSell = round($buyPerPiece * $qpu, 2);
-            $sell = isset($sellingPrices[$packaging->id])
-                ? (float) $sellingPrices[$packaging->id]
-                : ($packagings->count() === 1 ? (float) ($line['selling'] ?? 0) : 0);
-
-            if ($sell <= 0) {
-                continue;
-            }
-
-            if ($sell + 0.009 < $minSell) {
-                $unitName = $packaging->packagingType->name ?? 'unit';
-
-                return "{$item->name} ({$unitName}): retail price (TZS ".number_format($sell, 0).') cannot be lower than buying cost (TZS '.number_format($minSell, 0).').';
-            }
-        }
-
-        return null;
     }
 
     private function buildReversalPlan(Receiving $receiving): array
