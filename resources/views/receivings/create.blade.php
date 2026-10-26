@@ -633,31 +633,47 @@
       return getBuyCostPerPiece(item) * qpu;
     }
 
+    /**
+     * Only the sale unit that matches how this line is received.
+     * Receive-as-piece → check Piece only (ignore Dozen/Crate retail vs pack cost).
+     * Receive-as-pack → check the receiving pack size only.
+     */
+    function packagingsRelevantToReceiveMode(item) {
+      const packagings = item.packagings || [];
+      if (packagings.length <= 1) {
+        return packagings.length
+          ? packagings
+          : [{ quantity_per_unit: item.units_per_receiving_pack || 1, name: item.unit || 'Unit' }];
+      }
+
+      const sorted = [...packagings].sort(
+        (a, b) => cleanNum(a.quantity_per_unit) - cleanNum(b.quantity_per_unit)
+      );
+
+      if (item.receive_qty_mode === 'piece') {
+        const piecePkgs = sorted.filter(pkg => cleanNum(pkg.quantity_per_unit) <= 1);
+        return piecePkgs.length ? piecePkgs : [sorted[0]];
+      }
+
+      const packConv = cleanNum(item.units_per_receiving_pack) || 1;
+      const packPkgs = sorted.filter(pkg => cleanNum(pkg.quantity_per_unit) === packConv);
+      return packPkgs.length ? packPkgs : [sorted[sorted.length - 1]];
+    }
+
     /** Soft check only — selling below cost is allowed (promo / clearance). */
     function belowCostRetailWarning(item) {
       const buyPrice = cleanNum(item.buying_price_per_unit);
       if (buyPrice <= 0) return null;
 
-      const packagings = item.packagings || [];
-
-      if (packagings.length <= 1) {
-        const pkg = packagings[0] || { quantity_per_unit: item.units_per_receiving_pack || 1, name: item.unit || 'Unit' };
-        const retail = resolvePackagingRetailPrice(item, pkg);
-        const costRef = getMinRetailPrice(item, pkg);
-
-        if (retail > 0 && retail + 0.009 < costRef) {
-          return `<strong>${item.name}</strong>: sell price (${Math.round(retail).toLocaleString()} TZS) is below buying cost (${Math.round(costRef).toLocaleString()} TZS).`;
-        }
-
-        return null;
-      }
+      const packagings = packagingsRelevantToReceiveMode(item);
 
       for (const pkg of packagings) {
         const retail = resolvePackagingRetailPrice(item, pkg);
         const costRef = getMinRetailPrice(item, pkg);
 
         if (retail > 0 && retail + 0.009 < costRef) {
-          return `<strong>${item.name}</strong> (${pkg.name}): sell price (${Math.round(retail).toLocaleString()} TZS) is below buying cost (${Math.round(costRef).toLocaleString()} TZS).`;
+          const label = pkg.name ? ` (${pkg.name})` : '';
+          return `<strong>${item.name}</strong>${label}: sell price (${Math.round(retail).toLocaleString()} TZS) is below buying cost (${Math.round(costRef).toLocaleString()} TZS).`;
         }
       }
 
@@ -761,20 +777,28 @@
         </div>`;
       } else {
         const costPerPiece = getBuyCostPerPiece(item);
+        const receiveAsPiece = item.receive_qty_mode === 'piece';
+        const relevantIds = new Set(
+          packagingsRelevantToReceiveMode(item).map(pkg => String(pkg.id ?? ''))
+        );
         const costHint = costPerPiece > 0
-          ? `<p class="small text-muted mb-2">Buying cost: <strong>TZS ${Math.round(costPerPiece).toLocaleString()} / piece</strong>. Enter the sell price for each sale unit (not per piece on the Crate row — that price is for the full crate).</p>`
+          ? `<p class="small text-muted mb-2">Buying cost: <strong>TZS ${Math.round(costPerPiece).toLocaleString()} / piece</strong>${receiveAsPiece ? ' (receiving as <strong>piece</strong> — cost check applies to Piece only).' : '.'} Enter the sell price for each sale unit (pack rows are the full pack price, not per piece).</p>`
           : '<p class="small text-muted mb-2">Enter the sell price for each sale unit below.</p>';
         let rows = '';
         packagings.forEach(pkg => {
           const storedPrice = resolvePackagingRetailPrice(item, pkg) || '';
           const minRetail = getMinRetailPrice(item, pkg);
+          const isRelevant = relevantIds.has(String(pkg.id ?? ''));
+          const hint = isRelevant
+            ? `Cost ref: ${Math.round(minRetail).toLocaleString()} TZS`
+            : 'Other sale unit (not used for this receive-mode cost check)';
           rows += `<tr>
             <td><strong>${pkg.name}</strong></td>
             <td class="text-center">${pkg.quantity_per_unit}</td>
             <td>
               <input type="number" class="form-control form-control-sm rpm-price-input rpm-pkg-price"
                      data-pkg-id="${pkg.id}" value="${storedPrice}" min="0" step="0.01" placeholder="0">
-              <small class="text-muted d-block">Cost ref: ${Math.round(minRetail).toLocaleString()} TZS</small>
+              <small class="text-muted d-block">${hint}</small>
           </td>
           </tr>`;
         });
