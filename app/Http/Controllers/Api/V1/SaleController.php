@@ -476,7 +476,7 @@ class SaleController extends ApiController
       return null;
     }
 
-    $branchFilterId = $this->branchFilterId($user, $request);
+    $branchFilterId = $this->resolveSalesBranchFilterId($user, $request);
     $snap = app(ApiDashboardTodayService::class)->snapshot($user, $business, $branchFilterId);
     $net = $snap['net_profit'] ?? ['day' => 0, 'period' => 0];
 
