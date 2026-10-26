@@ -180,6 +180,8 @@ class ReceivingController extends Controller
 
             // Retail may be below buying cost (promo / clearance) — client shows a soft warning only.
 
+            $businessId = (int) Auth::user()->business_id;
+
             $total_amount = 0;
             foreach ($activeItems as $i) {
                 $itemForTotal = Item::find($i['id']);
@@ -187,7 +189,7 @@ class ReceivingController extends Controller
             }
 
             $receiving = Receiving::create([
-                'business_id' => Auth::user()->business_id,
+                'business_id' => $businessId,
                 'branch_id' => $this->resolveReceivingBranchId($request),
                 'supplier_id' => $request->supplier_id,
                 'user_id' => Auth::id(),
