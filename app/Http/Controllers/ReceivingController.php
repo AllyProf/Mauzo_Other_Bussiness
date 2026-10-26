@@ -257,6 +257,12 @@ class ReceivingController extends Controller
                         'selling_price' => round(max(0, $sellPrice), 2),
                     ]);
                 }
+
+                $item->load('packagings');
+                app(\App\Services\ItemBarcodeService::class)->assignMissingBarcodes(
+                    $businessId,
+                    $item->packagings
+                );
             }
 
             DB::commit();

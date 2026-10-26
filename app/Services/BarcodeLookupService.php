@@ -47,7 +47,10 @@ class BarcodeLookupService
         }
 
         $query = ItemPackaging::query()
-            ->whereIn('barcode', $candidates)
+            ->where(function ($q) use ($candidates) {
+                $q->whereIn('barcode', $candidates)
+                    ->orWhereIn('manufacturer_barcode', $candidates);
+            })
             ->whereHas('item', function ($q) use ($businessId, $scopeItem) {
                 $q->where('business_id', $businessId);
                 $scopeItem($q);
@@ -66,11 +69,14 @@ class BarcodeLookupService
 
         $packaging = $matches->first();
         $source = $this->detectSource($packaging, $candidates);
+        $scanned = $source === 'manufacturer'
+            ? (string) $packaging->manufacturer_barcode
+            : (string) $packaging->barcode;
 
         return [
             'packaging' => $packaging,
             'source' => $source,
-            'scanned_barcode' => (string) $packaging->barcode,
+            'scanned_barcode' => $scanned,
             'candidates' => collect(),
         ];
     }
@@ -122,6 +128,15 @@ class BarcodeLookupService
      */
     private function detectSource(ItemPackaging $packaging, array $candidates): string
     {
+        $mfr = trim((string) ($packaging->manufacturer_barcode ?? ''));
+        if ($mfr !== '') {
+            foreach ($this->normalizeCandidates($mfr) as $candidate) {
+                if (in_array($candidate, $candidates, true)) {
+                    return 'manufacturer';
+                }
+            }
+        }
+
         $barcode = (string) $packaging->barcode;
         if (strlen(preg_replace('/\D+/', '', $barcode) ?? '') >= 8) {
             return 'manufacturer';

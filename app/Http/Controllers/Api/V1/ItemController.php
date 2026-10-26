@@ -100,7 +100,7 @@ class ItemController extends ApiController
 
         $query = Item::query()
             ->where('business_id', $business->id)
-            ->with(['category', 'packagings.packagingType', 'receivingPackaging']);
+            ->with(['category', 'packagings.packagingType', 'packagings.unitBarcodes', 'receivingPackaging']);
 
         if ($branchFilterId) {
             $query->whereHas('category', fn ($q) => $q->where('branch_id', $branchFilterId));
@@ -342,7 +342,7 @@ class ItemController extends ApiController
                 'item' => $this->itemDetailPayload($item),
                 'barcodes_url' => url('/api/v1/items/'.$item->id.'/barcodes'),
                 'web_print_url' => url('/items/'.$item->id.'/barcodes/print'),
-            ], 'Item registered successfully. Barcodes generated — print labels or fetch /items/{id}/barcodes.', 201);
+            ], 'Item registered successfully. Barcodes generated ??? print labels or fetch /items/{id}/barcodes.', 201);
         } catch (ValidationException $e) {
             return $this->error('Validation failed.', 422, $e->errors());
         }
@@ -368,7 +368,7 @@ class ItemController extends ApiController
             ->where('business_id', $businessId)
             ->where('current_stock', '>', 0)
             ->whereNotNull('category_id')
-            ->with(['category', 'packagings.packagingType', 'receivingPackaging']);
+            ->with(['category', 'packagings.packagingType', 'packagings.unitBarcodes', 'receivingPackaging']);
 
         $this->scopeItemsForPos($query, $request->user());
 
@@ -377,7 +377,7 @@ class ItemController extends ApiController
                 $inner->where('name', 'like', "%{$q}%")
                     ->orWhere('sku', 'like', "%{$q}%")
                     ->orWhere('brand', 'like', "%{$q}%")
-                    ->orWhereHas('packagings', fn ($p) => $p->where('barcode', $q))
+                    ->orWhereHas('packagings', fn ($p) => $p->where('barcode', $q)->orWhere('manufacturer_barcode', $q))
                     ->orWhereHas('packagings.unitBarcodes', fn ($p) => $p->where('barcode', $q));
             });
         }
@@ -570,12 +570,14 @@ class ItemController extends ApiController
         $request->validate([
             'item_id' => 'nullable|integer|min:1',
             'item_packaging_id' => 'nullable|integer|min:1',
+            'sell_package_id' => 'nullable|integer|min:1',
+            'sell_packaging_id' => 'nullable|integer|min:1',
             'packaging_id' => 'nullable|integer|min:1',
             'barcode' => 'nullable|string|max:128',
             'code' => 'nullable|string|max:128',
             'manufacturer_barcode' => 'nullable|string|max:128',
             'quantity_per_unit' => 'nullable|integer|min:1',
-            'link_type' => 'nullable|string|in:primary,piece,case',
+            'link_type' => 'nullable|string|in:primary,piece,case,pack',
             'unit_barcode' => 'nullable|boolean',
         ]);
 
@@ -598,7 +600,12 @@ class ItemController extends ApiController
             'unit_barcode_count' => $unitCount,
             'link_mode' => $result['mode'],
             'barcode' => $result['barcode'],
+            'store_barcode' => (string) ($packaging->barcode ?? ''),
+            'manufacturer_barcode' => filled($packaging->manufacturer_barcode) ? (string) $packaging->manufacturer_barcode : null,
+            'barcode_linked' => $packaging->hasLinkedBarcode(),
+            'has_linked_barcode' => $packaging->hasLinkedBarcode(),
             'duplicate' => (bool) ($result['duplicate'] ?? false),
+            'packaging' => $this->packagingBarcodesPayload($packaging),
         ], 'Linked');
     }
 
@@ -633,16 +640,13 @@ class ItemController extends ApiController
             'labels' => $sorted->map(function ($pkg) use ($barcodeService) {
                 $code = (string) $pkg->barcode;
 
-                return [
-                    'item_packaging_id' => $pkg->id,
+                return array_merge($this->packagingBarcodesPayload($pkg), [
                     'packaging_name' => $pkg->packagingType?->name ?? 'Unit',
-                    'barcode' => $code,
-                    'selling_price' => (float) $pkg->selling_price,
-                    'unit_barcode_count' => $pkg->unitBarcodes->count(),
-                    'barcode_png_base64' => $barcodeService->pngBase64($code),
+                    'barcode_png_base64' => $code !== '' ? $barcodeService->pngBase64($code) : null,
                     'print_hint' => 'Use barcode_png_base64 as data:image/png;base64,... for label preview/print',
-                ];
+                ]);
             }),
+            'has_linked_barcode' => $sorted->contains(fn ($pkg) => $pkg->hasLinkedBarcode()),
             'web_print_url' => url('/items/'.$item->id.'/barcodes/print'),
         ]);
     }
@@ -781,6 +785,7 @@ class ItemController extends ApiController
     private function itemInventoryPayload(Item $item, ItemStockDisplayService $stockDisplay): array
     {
         $info = $stockDisplay->format($item);
+        $item->loadMissing(['packagings.unitBarcodes']);
 
         return [
             'id' => $item->id,
@@ -793,6 +798,8 @@ class ItemController extends ApiController
             'current_stock' => (float) $item->current_stock,
             'stock_display' => $info['stock_display'] ?? (string) $item->current_stock,
             'unit' => $info['unit_name'] ?? 'Unit',
+            'has_linked_barcode' => $item->packagings->contains(fn ($pkg) => $pkg->hasLinkedBarcode()),
+            'barcode_linked' => $item->packagings->contains(fn ($pkg) => $pkg->hasLinkedBarcode()),
         ];
     }
 
@@ -824,13 +831,21 @@ class ItemController extends ApiController
             'current_stock' => (float) $item->current_stock,
             'stock_display' => $info['stock_display'] ?? (string) $item->current_stock,
             'unit' => $info['unit_name'] ?? 'Unit',
+            'has_linked_barcode' => $item->packagings->contains(fn ($pkg) => $pkg->hasLinkedBarcode()),
+            'barcode_linked' => $item->packagings->contains(fn ($pkg) => $pkg->hasLinkedBarcode()),
             'packagings' => $normalized->map(function ($row) {
                 $pkg = $row['packaging'];
 
                 return array_merge($this->packagingBarcodesPayload($pkg), [
                     'id' => $pkg->id,
-                    'name' => $pkg->packagingType?->name ?? 'Unit',
-                    'selling_price' => (float) $pkg->selling_price,
+                    'cost_price' => (float) $pkg->cost_price,
+                ]);
+            })->values(),
+            'selling_packagings' => $normalized->map(function ($row) {
+                $pkg = $row['packaging'];
+
+                return array_merge($this->packagingBarcodesPayload($pkg), [
+                    'id' => $pkg->id,
                     'cost_price' => (float) $pkg->cost_price,
                 ]);
             })->values(),
@@ -851,12 +866,21 @@ class ItemController extends ApiController
             ->values()
             ->all();
 
+        $store = (string) ($pkg->barcode ?? '');
+        $manufacturer = filled($pkg->manufacturer_barcode) ? (string) $pkg->manufacturer_barcode : null;
+        $linked = $manufacturer !== null || count($unitBarcodes) > 0;
+
         return [
             'item_packaging_id' => $pkg->id,
             'packaging_id' => $pkg->packaging_id,
+            'name' => $pkg->packagingType?->name ?? 'Unit',
             'quantity_per_unit' => (int) $pkg->quantity_per_unit,
-            'barcode' => (string) ($pkg->barcode ?? ''),
-            'manufacturer_barcode' => null,
+            'selling_price' => (float) $pkg->selling_price,
+            'barcode' => $store,
+            'store_barcode' => $store,
+            'manufacturer_barcode' => $manufacturer,
+            'barcode_linked' => $linked,
+            'has_linked_barcode' => $linked,
             'unit_barcode_count' => count($unitBarcodes),
             'unit_barcodes' => $unitBarcodes,
         ];
@@ -1061,7 +1085,15 @@ class ItemController extends ApiController
 
     private function syncSellingPackagings(Item $item, array $rows, array $firstPrices = []): void
     {
-        $existing = $item->packagings()->get()->keyBy('packaging_id');
+        $existing = $item->packagings()->with('unitBarcodes')->get()->keyBy('packaging_id');
+        $savedUnitBarcodes = [];
+        foreach ($existing as $packagingId => $previous) {
+            $savedUnitBarcodes[(int) $packagingId] = $previous->unitBarcodes
+                ->map(fn ($row) => (string) $row->barcode)
+                ->filter()
+                ->values()
+                ->all();
+        }
         $item->packagings()->delete();
         $isFirst = true;
         $created = [];
@@ -1088,6 +1120,10 @@ class ItemController extends ApiController
                 ? trim((string) $row['barcode'])
                 : ($previous?->barcode);
 
+            $manufacturer = filled($row['manufacturer_barcode'] ?? null)
+                ? trim((string) $row['manufacturer_barcode'])
+                : ($previous?->manufacturer_barcode);
+
             $created[] = ItemPackaging::create([
                 'item_id' => $item->id,
                 'packaging_id' => $row['packaging_id'],
@@ -1095,6 +1131,7 @@ class ItemController extends ApiController
                 'cost_price' => $cost,
                 'selling_price' => $sell,
                 'barcode' => $barcode,
+                'manufacturer_barcode' => $manufacturer,
             ]);
 
             $isFirst = false;
@@ -1105,6 +1142,22 @@ class ItemController extends ApiController
             $created,
             $existing
         );
+
+        foreach ($created as $packaging) {
+            $codes = $savedUnitBarcodes[(int) $packaging->packaging_id] ?? [];
+            foreach ($codes as $code) {
+                \App\Models\ItemPackagingUnitBarcode::query()->firstOrCreate(
+                    [
+                        'business_id' => (int) $item->business_id,
+                        'barcode' => $code,
+                    ],
+                    [
+                        'item_id' => $item->id,
+                        'item_packaging_id' => $packaging->id,
+                    ]
+                );
+            }
+        }
     }
 
     /**
@@ -1113,9 +1166,10 @@ class ItemController extends ApiController
      */
     private function mergeManufacturerBarcodes(array $rows): array
     {
+        // Keep manufacturer_barcode separate from durable store/label barcode.
         return collect($rows)->map(function ($row) {
-            if (empty($row['barcode']) && ! empty($row['manufacturer_barcode'])) {
-                $row['barcode'] = trim((string) $row['manufacturer_barcode']);
+            if (! empty($row['manufacturer_barcode'])) {
+                $row['manufacturer_barcode'] = trim((string) $row['manufacturer_barcode']);
             }
 
             return $row;

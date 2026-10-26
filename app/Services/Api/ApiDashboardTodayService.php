@@ -71,7 +71,9 @@ class ApiDashboardTodayService
 
             $grossSales = (float) (clone $salesQuery)->sum('total_amount');
             $collected = $collected > 0 ? $collected : (float) (clone $salesQuery)->sum('amount_paid');
-            $todayProfit = (float) $profit['day'];
+            $margins = $this->liveMarginsFromSalesQuery($salesQuery);
+            $todayProfit = (float) ($margins['profit'] ?? $profit['day']);
+            $circulation = $this->resolveCirculation($margins['cogs'], $collected, $todayProfit);
 
             return [
                 'date' => $date,
@@ -85,13 +87,25 @@ class ApiDashboardTodayService
                 'profit_today' => $todayProfit,
                 'gross_profit' => $todayProfit,
                 'daily_net_profit' => $todayProfit,
+                'cost_of_goods' => $margins['cogs'],
+                'cogs' => $margins['cogs'],
+                'money_in_circulation' => $circulation,
+                'circulation' => $circulation,
+                'today_circulation' => $circulation,
+                'circulation_generated' => $circulation,
                 'net_profit' => $profit,
                 'summary' => ['net_profit' => $profit],
-                'finance' => ['daily_net_profit' => $todayProfit],
+                'finance' => [
+                    'daily_net_profit' => $todayProfit,
+                    'money_in_circulation' => $circulation,
+                    'cost_of_goods' => $margins['cogs'],
+                ],
             ];
         }
 
         $openShift = Shift::openForUser($user->id, $business->id);
+        $dayMargins = $this->liveMarginsFromSalesQuery($this->todaySalesQuery($business, $date, $branchFilterId));
+        $dayCirculation = $this->resolveCirculation($dayMargins['cogs'], 0.0, $dayMargins['profit']);
         $payload = [
             'date' => $date,
             'open_shift_id' => $openShift?->id,
@@ -103,6 +117,12 @@ class ApiDashboardTodayService
             'profit_today' => (float) $profit['day'],
             'gross_profit' => (float) $profit['day'],
             'daily_net_profit' => (float) $profit['day'],
+            'cost_of_goods' => $dayMargins['cogs'],
+            'cogs' => $dayMargins['cogs'],
+            'money_in_circulation' => $dayCirculation,
+            'circulation' => $dayCirculation,
+            'today_circulation' => $dayCirculation,
+            'circulation_generated' => $dayCirculation,
             'net_profit' => $profit,
         ];
 
@@ -113,16 +133,28 @@ class ApiDashboardTodayService
             $payload['collected'] = (float) $openShift->amount_collected;
             $payload['today_revenue'] = (float) $openShift->amount_collected;
 
-            $shiftProfit = $this->liveGrossProfitFromSalesQuery(
+            $shiftMargins = $this->liveMarginsFromSalesQuery(
                 Sale::query()
                     ->where('business_id', $business->id)
                     ->where('shift_id', $openShift->id)
                     ->where('payment_status', '!=', 'cancelled')
             );
+            $shiftProfit = $shiftMargins['profit'];
+            $shiftCirculation = $this->resolveCirculation(
+                $shiftMargins['cogs'],
+                (float) $openShift->amount_collected,
+                $shiftProfit
+            );
             $payload['today_profit'] = $shiftProfit;
             $payload['profit_today'] = $shiftProfit;
             $payload['gross_profit'] = $shiftProfit;
             $payload['daily_net_profit'] = $shiftProfit;
+            $payload['cost_of_goods'] = $shiftMargins['cogs'];
+            $payload['cogs'] = $shiftMargins['cogs'];
+            $payload['money_in_circulation'] = $shiftCirculation;
+            $payload['circulation'] = $shiftCirculation;
+            $payload['today_circulation'] = $shiftCirculation;
+            $payload['circulation_generated'] = $shiftCirculation;
             $payload['net_profit'] = [
                 'day' => $shiftProfit,
                 'period' => $profit['period'],
@@ -149,9 +181,10 @@ class ApiDashboardTodayService
         $cacheKey = 'api.live_today_profit.'.$memoryKey;
 
         $result = Cache::remember($cacheKey, 60, function () use ($business, $date, $branchFilterId, $branchKey) {
-            $dayGross = $this->liveGrossProfitFromSalesQuery(
+            $margins = $this->liveMarginsFromSalesQuery(
                 $this->todaySalesQuery($business, $date, is_numeric($branchKey) ? (int) $branchKey : $branchFilterId)
             );
+            $dayGross = $margins['profit'];
 
             if ($branchKey === 'all' || $branchFilterId === null) {
                 $periodNet = $this->periodNetProfitFromReports($business, $date, $dayGross);
@@ -183,14 +216,17 @@ class ApiDashboardTodayService
         return $query;
     }
 
-    private function liveGrossProfitFromSalesQuery(Builder $salesQuery): float
+    /**
+     * @return array{profit: float, cogs: float, revenue: float}
+     */
+    private function liveMarginsFromSalesQuery(Builder $salesQuery): array
     {
         $sales = (clone $salesQuery)
             ->with(['items.item.packagings.packagingType', 'items.itemPackaging.packagingType', 'items.service'])
             ->get(['sales.id', 'sales.total_amount']);
 
         if ($sales->isEmpty()) {
-            return 0.0;
+            return ['profit' => 0.0, 'cogs' => 0.0, 'revenue' => 0.0];
         }
 
         $costOfGoods = 0.0;
@@ -200,7 +236,23 @@ class ApiDashboardTodayService
             }
         }
 
-        return round((float) $sales->sum('total_amount') - $costOfGoods, 2);
+        $revenue = round((float) $sales->sum('total_amount'), 2);
+        $cogs = round($costOfGoods, 2);
+
+        return [
+            'revenue' => $revenue,
+            'cogs' => $cogs,
+            'profit' => round($revenue - $cogs, 2),
+        ];
+    }
+
+    private function resolveCirculation(float $cogs, float $collected, float $profit): float
+    {
+        if ($cogs > 0) {
+            return round($cogs, 2);
+        }
+
+        return round(max(0, $collected - $profit), 2);
     }
 
     private function periodNetProfitFromReports(Business $business, string $date, float $todayNet): float

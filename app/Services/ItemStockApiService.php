@@ -70,6 +70,10 @@ class ItemStockApiService
         }
 
         $items = $items->values();
+        $linkedItemIds = $this->linkedBarcodeItemIds(
+            $businessId,
+            $items->pluck('id')->map(fn ($id) => (int) $id)->all()
+        );
 
         $stats = [
             'total_items' => $items->count(),
@@ -88,7 +92,14 @@ class ItemStockApiService
         }
 
         return [
-            'items' => $items->map(fn (array $item) => $this->stockItemPayload($item, $canViewValue))->values()->all(),
+            'items' => $items->map(function (array $item) use ($canViewValue, $linkedItemIds) {
+                $payload = $this->stockItemPayload($item, $canViewValue);
+                $linked = isset($linkedItemIds[(int) ($item['id'] ?? 0)]);
+                $payload['has_linked_barcode'] = $linked;
+                $payload['barcode_linked'] = $linked;
+
+                return $payload;
+            })->values()->all(),
             'stats' => $stats,
             'totals' => $totals,
             'meta' => [
@@ -324,6 +335,38 @@ class ItemStockApiService
         ];
     }
 
+    /**
+     * @param  list<int>  $itemIds
+     * @return array<int, true>
+     */
+    private function linkedBarcodeItemIds(int $businessId, array $itemIds): array
+    {
+        $itemIds = array_values(array_filter(array_map('intval', $itemIds)));
+        if ($itemIds === []) {
+            return [];
+        }
+
+        $fromManufacturer = \App\Models\ItemPackaging::query()
+            ->whereIn('item_id', $itemIds)
+            ->whereNotNull('manufacturer_barcode')
+            ->where('manufacturer_barcode', '!=', '')
+            ->pluck('item_id')
+            ->all();
+
+        $fromUnits = \App\Models\ItemPackagingUnitBarcode::query()
+            ->where('business_id', $businessId)
+            ->whereIn('item_id', $itemIds)
+            ->pluck('item_id')
+            ->all();
+
+        $map = [];
+        foreach (array_merge($fromManufacturer, $fromUnits) as $id) {
+            $map[(int) $id] = true;
+        }
+
+        return $map;
+    }
+
     private function stockItemPayload(array $item, bool $canViewValue): array
     {
         $payload = [
@@ -352,6 +395,8 @@ class ItemStockApiService
             'is_low_stock' => (bool) ($item['is_low_stock'] ?? false),
             'status' => ($item['is_low_stock'] ?? false) ? 'low_stock' : 'in_stock',
             'status_color' => $item['status_color'] ?? 'success',
+            'has_linked_barcode' => false,
+            'barcode_linked' => false,
         ];
 
         if ($canViewValue) {

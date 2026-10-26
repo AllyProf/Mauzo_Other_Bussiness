@@ -6,7 +6,28 @@ use Illuminate\Database\Eloquent\Model;
 
 class ItemPackaging extends Model
 {
-    protected $fillable = ['item_id', 'packaging_id', 'quantity_per_unit', 'cost_price', 'selling_price', 'barcode'];
+    protected $fillable = [
+        'item_id',
+        'packaging_id',
+        'quantity_per_unit',
+        'cost_price',
+        'selling_price',
+        'barcode',
+        'manufacturer_barcode',
+    ];
+
+    public function hasLinkedBarcode(): bool
+    {
+        if (filled($this->manufacturer_barcode)) {
+            return true;
+        }
+
+        if ($this->relationLoaded('unitBarcodes')) {
+            return $this->unitBarcodes->isNotEmpty();
+        }
+
+        return $this->unitBarcodes()->exists();
+    }
 
     public function item()
     {

@@ -329,6 +329,12 @@ class ReceivingApiService
                         'selling_price' => round(max(0, $sellPrice), 2),
                     ]);
                 }
+
+                $item->load('packagings');
+                app(ItemBarcodeService::class)->assignMissingBarcodes(
+                    $businessId,
+                    $item->packagings
+                );
             }
 
             DB::commit();
