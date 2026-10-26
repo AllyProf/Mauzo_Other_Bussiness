@@ -476,8 +476,12 @@ class ItemController extends ApiController
         }
 
         $businessId = $this->apiBusinessId();
+        if ($scanCode === '') {
+            return $this->error('Barcode code is required.', 422);
+        }
+
         $lookup = app(\App\Services\BarcodeLookupService::class)->resolve(
-            $data['code'],
+            $scanCode,
             $businessId,
             fn ($q) => $this->scopeItemsForPos($q, $request->user())
         );
@@ -504,10 +508,6 @@ class ItemController extends ApiController
         $stockDisplay = app(ItemStockDisplayService::class);
         $info = $stockDisplay->format($item);
 
-        return $this->success([
-            'barcode' => $packaging->barcode,
-            'source' => $lookup['source'] ?? 'internal',
-            'item' => [
         $resolvedBarcode = $lookup['scanned_barcode'] ?? $packaging->barcode;
 
         return $this->success([
@@ -600,6 +600,10 @@ class ItemController extends ApiController
             'barcode' => $result['barcode'],
             'duplicate' => (bool) ($result['duplicate'] ?? false),
         ], 'Linked');
+    }
+
+    public function barcodes(Request $request, Item $item): JsonResponse
+    {
         if ($deny = $this->authorizeApiAny(['view_inventory', 'add_items', 'edit_items', 'process_sales'])) {
             return $deny;
         }
@@ -608,10 +612,6 @@ class ItemController extends ApiController
             return $this->forbidden();
         }
 
-        $item->load(['packagings.packagingType']);
-        $barcodeService = app(\App\Services\ItemBarcodeService::class);
-
-        foreach ($item->packagings as $packaging) {
         $item->load(['packagings.packagingType', 'packagings.unitBarcodes']);
         $barcodeService = app(\App\Services\ItemBarcodeService::class);
 
@@ -663,6 +663,10 @@ class ItemController extends ApiController
         }
 
         $item->load(['category', 'packagings.packagingType', 'packagings.unitBarcodes', 'receivingPackaging']);
+
+        return $this->success([
+            'item' => $this->itemDetailPayload($item),
+        ]);
     }
 
     public function update(Request $request, Item $item): JsonResponse
@@ -823,10 +827,6 @@ class ItemController extends ApiController
             'packagings' => $normalized->map(function ($row) {
                 $pkg = $row['packaging'];
 
-                return [
-                    'id' => $pkg->id,
-                    'packaging_id' => $pkg->packaging_id,
-
                 return array_merge($this->packagingBarcodesPayload($pkg), [
                     'id' => $pkg->id,
                     'name' => $pkg->packagingType?->name ?? 'Unit',
@@ -859,6 +859,10 @@ class ItemController extends ApiController
             'manufacturer_barcode' => null,
             'unit_barcode_count' => count($unitBarcodes),
             'unit_barcodes' => $unitBarcodes,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function itemFormContext(Business $business, $user, ?Item $item = null): array
