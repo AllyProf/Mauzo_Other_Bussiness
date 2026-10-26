@@ -166,6 +166,7 @@ return [
         'social_lead' => 'Tufuate kwa vidokezo, habari na vipengele vipya.',
         'sign_in' => 'Ingia',
         'register_business' => 'Sajili biashara',
+        'privacy' => 'Sera ya Faragha',
         'rights' => 'Haki zote zimehifadhiwa —',
         'powered' => 'Imetengenezwa na',
         'links' => [

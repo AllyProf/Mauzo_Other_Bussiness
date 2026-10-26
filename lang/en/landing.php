@@ -166,6 +166,7 @@ return [
         'social_lead' => 'Follow us for tips, updates and new features.',
         'sign_in' => 'Sign In',
         'register_business' => 'Register Business',
+        'privacy' => 'Privacy Policy',
         'rights' => 'All Rights Reserved By',
         'powered' => 'Powered by',
         'links' => [

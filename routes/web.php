@@ -10,7 +10,9 @@ Route::match(['get', 'post'], '/locale/{locale}', [App\Http\Controllers\LocaleCo
 Route::get('/sitemap.xml', [App\Http\Controllers\SeoController::class, 'sitemap'])->name('seo.sitemap');
 Route::get('/robots.txt', [App\Http\Controllers\SeoController::class, 'robots'])->name('seo.robots');
 
-Route::get('/', [LandingController::class, 'index'])->name('landing.index');Route::post('/request-demo', [App\Http\Controllers\LandingLeadController::class, 'store'])->name('landing.lead.store');
+Route::get('/', [LandingController::class, 'index'])->name('landing.index');
+Route::get('/privacy-policy', [LandingController::class, 'privacy'])->name('landing.privacy');
+Route::post('/request-demo', [App\Http\Controllers\LandingLeadController::class, 'store'])->name('landing.lead.store');
 
 Route::get('/site/{slug}', [App\Http\Controllers\PublicBusinessSiteController::class, 'home'])->name('public.site.home');
 Route::get('/site/{slug}/{page}', [App\Http\Controllers\PublicBusinessSiteController::class, 'page'])

@@ -66,6 +66,7 @@
           @if($registrationOpen ?? true)
             <li><i class="bi bi-check-circle-fill"></i><a href="{{ route('register.business') }}">{{ __('landing.footer.register_business') }}</a></li>
           @endif
+          <li><i class="bi bi-check-circle-fill"></i><a href="{{ route('landing.privacy') }}">{{ __('landing.footer.privacy') }}</a></li>
         </ul>
       </div>
 
@@ -87,6 +88,8 @@
     <div class="site-footer__bottom">
       <p>
         &copy; {{ date('Y') }} {{ __('landing.footer.rights') }} <a href="{{ $home }}">{{ $footerName }}</a>
+        <span class="site-footer__sep">|</span>
+        <a href="{{ route('landing.privacy') }}">{{ __('landing.footer.privacy') }}</a>
         <span class="site-footer__sep">|</span>
         <span class="site-footer__powered">{{ __('landing.footer.powered') }} <strong>EmCa Tech</strong></span>
       </p>

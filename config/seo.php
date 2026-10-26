@@ -16,6 +16,7 @@ return [
     'sitemap' => [
         ['route' => 'landing.index', 'changefreq' => 'weekly', 'priority' => '1.0'],
         ['route' => 'register.business', 'changefreq' => 'monthly', 'priority' => '0.8'],
+        ['route' => 'landing.privacy', 'changefreq' => 'yearly', 'priority' => '0.4'],
     ],
 
     'robots_disallow' => [

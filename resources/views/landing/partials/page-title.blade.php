@@ -14,7 +14,7 @@
   <nav class="breadcrumbs">
     <div class="container">
       <ol>
-        <li><a href="{{ route('landing.index') }}">Home</a></li>
+        <li><a href="{{ route('landing.index') }}">{{ __('landing.nav.home') }}</a></li>
         @foreach($breadcrumbs ?? [] as $crumb)
           @if($loop->last)
             <li class="current">{{ $crumb['label'] }}</li>
