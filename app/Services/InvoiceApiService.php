@@ -274,11 +274,15 @@ class InvoiceApiService
             foreach ($activeItems as $i) {
                 $subtotal = (float) $i['qty'] * (float) $i['price'];
                 $item = Item::with('packagings')->find($i['id']);
-                $unitCost = (float) (optional($item?->packagings?->first())->cost_price ?? 0);
+                $packaging = $item?->packagings->sortBy('quantity_per_unit')->first();
+                $unitCost = $item
+                    ? app(SaleItemCostService::class)->resolvePackagingUnitCost($item, $packaging)
+                    : 0.0;
 
                 SaleItem::create([
                     'sale_id' => $sale->id,
                     'item_id' => $i['id'],
+                    'item_packaging_id' => $packaging?->id,
                     'quantity' => $i['qty'],
                     'unit_price' => $i['price'],
                     'list_unit_price' => $i['price'],

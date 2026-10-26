@@ -207,11 +207,14 @@ class LiveSalesPulseService
                 'total_revenue' => (float) $snapshot['total_revenue'],
                 'cash_revenue' => (float) $snapshot['today_cash'],
                 'digital_revenue' => (float) $snapshot['today_digital'],
-                'gross_profit' => (float) $snapshot['shift_profit'],
+                'gross_profit' => (float) ($snapshot['today_profit'] ?? $snapshot['shift_profit']),
+                'today_profit' => (float) ($snapshot['today_profit'] ?? $snapshot['shift_profit']),
+                'profit_today' => (float) ($snapshot['today_profit'] ?? $snapshot['shift_profit']),
                 'net_profit' => $snapshot['net_profit'] ?? [
-                    'day' => (float) $snapshot['shift_profit'],
+                    'day' => (float) ($snapshot['today_profit'] ?? $snapshot['shift_profit']),
                     'period' => (float) ($snapshot['period_net_profit'] ?? 0),
                 ],
+                'daily_net_profit' => (float) (($snapshot['net_profit']['day'] ?? null) ?? $snapshot['today_profit'] ?? $snapshot['shift_profit']),
                 'money_in_circulation' => (float) $snapshot['money_in_circulation'],
                 'margin_percent' => (float) $snapshot['margin_percent'],
                 'total_orders' => (int) $snapshot['total_orders'],
@@ -367,28 +370,25 @@ class LiveSalesPulseService
 
     private function grossProfitFromQuery(Builder $activeSalesQuery): float
     {
-        $saleIds = (clone $activeSalesQuery)->select('sales.id');
+        $sales = (clone $activeSalesQuery)
+            ->with(['items.item.packagings.packagingType', 'items.itemPackaging.packagingType', 'items.service'])
+            ->get(['sales.id', 'sales.total_amount']);
 
-        $totals = SaleItem::query()
-            ->whereIn('sale_id', $saleIds)
-            ->selectRaw('COALESCE(SUM(COALESCE(subtotal, unit_price * quantity)), 0) as revenue, COALESCE(SUM(COALESCE(cost_price, 0) * quantity), 0) as cost_of_goods')
-            ->first();
-
-        return (float) ($totals->revenue ?? 0) - (float) ($totals->cost_of_goods ?? 0);
+        return $this->grossProfitFromSales($sales);
     }
 
     private function grossProfitFromSales(Collection $sales): float
     {
         $costOfGoods = 0.0;
+        $lineCost = app(SaleItemCostService::class);
 
         foreach ($sales as $sale) {
             foreach ($sale->items as $line) {
-                $unitCost = (float) ($line->cost_price ?? optional($line->item?->packagings?->first())->cost_price ?? 0);
-                $costOfGoods += $unitCost * (float) $line->quantity;
+                $costOfGoods += $lineCost->lineCostOfGoods($line);
             }
         }
 
-        return (float) $sales->sum('total_amount') - $costOfGoods;
+        return round((float) $sales->sum('total_amount') - $costOfGoods, 2);
     }
 
     /**

@@ -10,8 +10,9 @@ use App\Models\Shift;
 use App\Models\User;
 use App\Services\ActiveBranchService;
 use App\Services\ActiveBusinessService;
-use App\Services\OwnerDailyReportService;
+use App\Services\SaleItemCostService;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -21,9 +22,9 @@ class ApiDashboardTodayService
     private array $profitBlockMemory = [];
 
     public function __construct(
-        private OwnerDailyReportService $ownerReports,
         private ActiveBusinessService $activeBusiness,
         private ActiveBranchService $activeBranch,
+        private SaleItemCostService $saleItemCost,
     ) {
     }
 
@@ -49,21 +50,15 @@ class ApiDashboardTodayService
         $this->applyBranchContext($user, $business, $branchFilterId);
 
         $date = $date ?? now()->toDateString();
-        $profit = $this->profitBlock($business, $date);
+        $profit = $this->profitBlock($business, $date, $branchFilterId, $user);
 
         if ($user->role === 'owner' || $user->can('view_reports')) {
-            $salesQuery = Sale::query()
-                ->where('business_id', $business->id)
-                ->whereDate('sale_date', $date)
-                ->where('payment_status', '!=', 'cancelled');
-            $this->scopeSalesToBranch($salesQuery, $user, $business);
+            $salesQuery = $this->todaySalesQuery($business, $date, $branchFilterId);
+
+            $saleIds = (clone $salesQuery)->select('sales.id');
 
             $collected = (float) SalePayment::query()
-                ->whereHas('sale', function ($q) use ($business, $date) {
-                    $q->where('business_id', $business->id)
-                        ->whereDate('sale_date', $date)
-                        ->where('payment_status', '!=', 'cancelled');
-                })
+                ->whereIn('sale_id', $saleIds)
                 ->whereDate('created_at', $date)
                 ->sum('amount');
 
@@ -71,10 +66,12 @@ class ApiDashboardTodayService
                 ->where('business_id', $business->id)
                 ->whereNotIn('payment_status', ['paid', 'cancelled'])
                 ->whereColumn('total_amount', '>', 'amount_paid')
+                ->when($branchFilterId, fn (Builder $q) => $this->scopeSalesToBranchCatalog($q, $branchFilterId))
                 ->sum(DB::raw('total_amount - amount_paid'));
 
             $grossSales = (float) (clone $salesQuery)->sum('total_amount');
             $collected = $collected > 0 ? $collected : (float) (clone $salesQuery)->sum('amount_paid');
+            $todayProfit = (float) $profit['day'];
 
             return [
                 'date' => $date,
@@ -84,10 +81,13 @@ class ApiDashboardTodayService
                 'outstanding' => $outstanding,
                 'open_shifts' => Shift::query()->where('business_id', $business->id)->where('status', 'open')->count(),
                 'today_revenue' => $collected,
-                'today_profit' => $profit['day'],
+                'today_profit' => $todayProfit,
+                'profit_today' => $todayProfit,
+                'gross_profit' => $todayProfit,
+                'daily_net_profit' => $todayProfit,
                 'net_profit' => $profit,
                 'summary' => ['net_profit' => $profit],
-                'finance' => ['daily_net_profit' => $profit['day']],
+                'finance' => ['daily_net_profit' => $todayProfit],
             ];
         }
 
@@ -98,6 +98,12 @@ class ApiDashboardTodayService
             'orders' => 0,
             'gross_sales' => 0.0,
             'collected' => 0.0,
+            'today_revenue' => 0.0,
+            'today_profit' => (float) $profit['day'],
+            'profit_today' => (float) $profit['day'],
+            'gross_profit' => (float) $profit['day'],
+            'daily_net_profit' => (float) $profit['day'],
+            'net_profit' => $profit,
         ];
 
         if ($openShift) {
@@ -105,50 +111,96 @@ class ApiDashboardTodayService
             $payload['orders'] = (int) $openShift->sales_count;
             $payload['gross_sales'] = (float) $openShift->gross_sales;
             $payload['collected'] = (float) $openShift->amount_collected;
-        }
+            $payload['today_revenue'] = (float) $openShift->amount_collected;
 
-        if ($user->can('view_reports') || $user->role === 'owner') {
-            $payload['today_profit'] = $profit['day'];
-            $payload['net_profit'] = $profit;
+            $shiftProfit = $this->liveGrossProfitFromSalesQuery(
+                Sale::query()
+                    ->where('business_id', $business->id)
+                    ->where('shift_id', $openShift->id)
+                    ->where('payment_status', '!=', 'cancelled')
+            );
+            $payload['today_profit'] = $shiftProfit;
+            $payload['profit_today'] = $shiftProfit;
+            $payload['gross_profit'] = $shiftProfit;
+            $payload['daily_net_profit'] = $shiftProfit;
+            $payload['net_profit'] = [
+                'day' => $shiftProfit,
+                'period' => $profit['period'],
+            ];
         }
 
         return $payload;
     }
 
     /**
+     * Live day margin from sale lines (not gated on day close / Master Sheet).
+     *
      * @return array{day: float, period: float}
      */
-    public function profitBlock(Business $business, string $date): array
+    public function profitBlock(Business $business, string $date, ?int $branchFilterId = null, ?User $user = null): array
     {
-        $branchKey = $this->activeBranch->activeBranchId() ?? 'all';
-        $memoryKey = $business->id.'|'.$branchKey.'|'.$date;
+        $branchKey = $branchFilterId ?? $this->activeBranch->activeBranchId() ?? 'all';
+        $memoryKey = $business->id.'|'.$branchKey.'|'.$date.'|live';
 
         if (isset($this->profitBlockMemory[$memoryKey])) {
             return $this->profitBlockMemory[$memoryKey];
         }
 
-        $cacheKey = 'api.net_profit.'.$memoryKey;
+        $cacheKey = 'api.live_today_profit.'.$memoryKey;
 
-        $result = Cache::remember($cacheKey, 60, function () use ($business, $date, $branchKey) {
-            $dayTotals = $this->ownerReports->buildDayEndTotals($business, $date);
-            $dayNet = (float) ($dayTotals['net_profit'] ?? 0);
+        $result = Cache::remember($cacheKey, 60, function () use ($business, $date, $branchFilterId, $branchKey) {
+            $dayGross = $this->liveGrossProfitFromSalesQuery(
+                $this->todaySalesQuery($business, $date, is_numeric($branchKey) ? (int) $branchKey : $branchFilterId)
+            );
 
-            if ($branchKey === 'all') {
-                $periodNet = $this->periodNetProfitFromReports($business, $date, $dayNet);
+            if ($branchKey === 'all' || $branchFilterId === null) {
+                $periodNet = $this->periodNetProfitFromReports($business, $date, $dayGross);
 
                 return [
-                    'day' => round($dayNet, 2),
+                    'day' => round($dayGross, 2),
                     'period' => round($periodNet, 2),
                 ];
             }
 
             return [
-                'day' => round($dayNet, 2),
-                'period' => round($dayNet, 2),
+                'day' => round($dayGross, 2),
+                'period' => round($dayGross, 2),
             ];
         });
 
         return $this->profitBlockMemory[$memoryKey] = $result;
+    }
+
+    private function todaySalesQuery(Business $business, string $date, ?int $branchFilterId): Builder
+    {
+        $query = Sale::query()
+            ->where('business_id', $business->id)
+            ->whereDate('sale_date', $date)
+            ->where('payment_status', '!=', 'cancelled');
+
+        $this->scopeSalesToBranchCatalog($query, $branchFilterId);
+
+        return $query;
+    }
+
+    private function liveGrossProfitFromSalesQuery(Builder $salesQuery): float
+    {
+        $sales = (clone $salesQuery)
+            ->with(['items.item.packagings.packagingType', 'items.itemPackaging.packagingType', 'items.service'])
+            ->get(['sales.id', 'sales.total_amount']);
+
+        if ($sales->isEmpty()) {
+            return 0.0;
+        }
+
+        $costOfGoods = 0.0;
+        foreach ($sales as $sale) {
+            foreach ($sale->items as $line) {
+                $costOfGoods += $this->saleItemCost->lineCostOfGoods($line);
+            }
+        }
+
+        return round((float) $sales->sum('total_amount') - $costOfGoods, 2);
     }
 
     private function periodNetProfitFromReports(Business $business, string $date, float $todayNet): float
@@ -168,18 +220,18 @@ class ApiDashboardTodayService
         return $priorSum + $todayNet;
     }
 
-    private function scopeSalesToBranch($query, User $user, Business $business): void
+    private function scopeSalesToBranchCatalog(Builder $query, ?int $branchId): void
     {
-        $branchId = $this->activeBranch->activeBranchId();
-        if (! $branchId || $user->role !== 'owner') {
+        if (! $branchId) {
             return;
         }
 
-        $query->whereIn('user_id', User::query()
-            ->where('business_id', $business->id)
-            ->where(function ($q) use ($branchId) {
-                $q->where('branch_id', $branchId)->orWhereNull('branch_id');
-            })
-            ->pluck('id'));
+        $query->where(function (Builder $scoped) use ($branchId) {
+            $scoped->whereHas('items.item.category', function (Builder $categoryQuery) use ($branchId) {
+                $categoryQuery->where('branch_id', $branchId);
+            })->orWhereHas('items.service', function (Builder $serviceQuery) use ($branchId) {
+                $serviceQuery->where('branch_id', $branchId);
+            });
+        });
     }
 }

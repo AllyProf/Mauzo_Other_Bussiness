@@ -197,11 +197,16 @@ Pass `branch_id: null` or omit to view **all branches**.
   "collected": 420000,
   "outstanding": 80000,
   "open_shifts": 2,
-  "today_revenue": 420000
+  "today_revenue": 420000,
+  "today_profit": 85000,
+  "gross_profit": 85000,
+  "daily_net_profit": 85000
 }
 ```
 
-**Cashier** — current shift only if open.
+`today_profit` is **live** sale-line margin for the day (`Σ sale.total − COGS`), same branch scope as orders/collected. It is **not** gated on day close / Master Sheet.
+
+**Cashier** — current shift orders/collected if open; `today_profit` is shift margin.
 
 ---
 

@@ -59,10 +59,13 @@ class LiveSalesController extends ApiController
 
             $profit = app(ApiDashboardTodayService::class)->profitBlock(
                 $business,
-                now()->toDateString()
+                now()->toDateString(),
+                $branchFilterId,
+                $user,
             );
             $snapshot['net_profit'] = $profit;
             $snapshot['period_net_profit'] = $profit['period'];
+            $snapshot['today_profit'] = (float) ($profit['day'] ?? $snapshot['shift_profit'] ?? 0);
 
             return $this->success([
                 'filters' => $filterContext,

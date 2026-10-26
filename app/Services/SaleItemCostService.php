@@ -3,14 +3,15 @@
 namespace App\Services;
 
 use App\Models\Item;
+use App\Models\ItemPackaging;
 use App\Models\SaleItem;
 
 class SaleItemCostService
 {
     /**
-     * Normalized cost per base stock piece for a packaging row (stock reports, valuations).
+     * Cost to store on a sale line for one packaging unit sold (packaging-aware fallbacks).
      */
-    public function costPerPiece(Item $item, ?\App\Models\ItemPackaging $packaging = null, float $sellValueHint = 0): float
+    public function resolvePackagingUnitCost(Item $item, ?ItemPackaging $packaging = null): float
     {
         $item->loadMissing(['packagings.packagingType']);
 
@@ -21,6 +22,37 @@ class SaleItemCostService
 
         $qpu = max(1, (int) $packaging->quantity_per_unit);
         $packCost = (float) ($packaging->cost_price ?? 0);
+        if ($packCost > 0) {
+            return round($packCost, 2);
+        }
+
+        foreach ($item->packagings->sortBy('quantity_per_unit') as $other) {
+            $otherCost = (float) ($other->cost_price ?? 0);
+            $otherQpu = max(1, (int) $other->quantity_per_unit);
+            if ($otherCost <= 0) {
+                continue;
+            }
+
+            return round(($otherCost / $otherQpu) * $qpu, 2);
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Normalized cost per base stock piece for a packaging row (stock reports, valuations).
+     */
+    public function costPerPiece(Item $item, ?ItemPackaging $packaging = null, float $sellValueHint = 0): float
+    {
+        $item->loadMissing(['packagings.packagingType']);
+
+        $packaging = $packaging ?? $item->packagings->sortBy('quantity_per_unit')->first();
+        if (! $packaging) {
+            return 0.0;
+        }
+
+        $qpu = max(1, (int) $packaging->quantity_per_unit);
+        $packCost = $this->resolvePackagingUnitCost($item, $packaging);
         if ($packCost <= 0) {
             return 0.0;
         }

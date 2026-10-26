@@ -175,7 +175,8 @@ class SaleController extends ApiController
           ? $item->packagings->firstWhere('id', (int) $i['item_packaging_id'])
           : $item->packagings->sortBy('quantity_per_unit')->first();
         $subtotal = (float) $i['qty'] * (float) $i['price'];
-        $unitCost = (float) (optional($packaging)->cost_price ?? 0);
+        $unitCost = app(\App\Services\SaleItemCostService::class)
+          ->resolvePackagingUnitCost($item, $packaging);
 
         SaleItem::create([
           'sale_id' => $sale->id,
