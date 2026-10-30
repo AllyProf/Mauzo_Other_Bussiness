@@ -479,11 +479,13 @@
         @media (max-width: 991.98px) {
             .page-manual-modal__left { border-right: none !important; border-bottom: 1px solid #dee2e6; }
         }
+        /* Only blank the page when printing the System Guide modal — never for invoices/receipts */
         @media print {
-            body * { visibility: hidden; }
-            .page-manual-printable, .page-manual-printable * { visibility: visible; }
-            .page-manual-printable { position: absolute; left: 0; top: 0; width: 100%; }
-            .page-manual-modal__footer { display: none !important; }
+            body.is-printing-page-manual * { visibility: hidden; }
+            body.is-printing-page-manual .page-manual-printable,
+            body.is-printing-page-manual .page-manual-printable * { visibility: visible; }
+            body.is-printing-page-manual .page-manual-printable { position: absolute; left: 0; top: 0; width: 100%; }
+            body.is-printing-page-manual .page-manual-modal__footer { display: none !important; }
         }
         @media (max-width: 480px) {
             .app-content:has(> .subscription-renewal-banner) .app-title {
@@ -1457,7 +1459,15 @@
       });
 
       $(document).on('click', '#pageManualDownloadBtn', function () {
+        document.body.classList.add('is-printing-page-manual');
+        var clearPrintMode = function () {
+          document.body.classList.remove('is-printing-page-manual');
+          window.removeEventListener('afterprint', clearPrintMode);
+        };
+        window.addEventListener('afterprint', clearPrintMode);
         window.print();
+        // Fallback if afterprint does not fire (some mobile browsers)
+        setTimeout(clearPrintMode, 2000);
       });
     })(window.jQuery);
     </script>
