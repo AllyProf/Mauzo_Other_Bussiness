@@ -23,6 +23,8 @@ class BusinessWebsiteMediaController extends Controller
         $allowedPrefixes = [
             'business-website-heroes/',
             'business-website-gallery/',
+            'heroes/',
+            'gallery/',
         ];
 
         $ok = false;

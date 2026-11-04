@@ -102,8 +102,8 @@ class BusinessWebsite extends Model
 
     /**
      * Public URL for an uploaded business-website file.
-     * Uses /site-media/... so images work even when public/storage is not linked
-     * (common when the domain document root is public_html).
+     * Prefers files written into public_html/uploads (cPanel), then /site-media/...
+     * for legacy storage/app/public files.
      */
     public function uploadedMediaUrl(?string $path): ?string
     {
@@ -112,13 +112,23 @@ class BusinessWebsite extends Model
         }
 
         $path = ltrim(str_replace('\\', '/', $path), '/');
-        if ($path === '' || str_contains($path, '..') || ! Storage::disk('public')->exists($path)) {
+        if ($path === '' || str_contains($path, '..')) {
             return null;
         }
 
-        $version = @filemtime(Storage::disk('public')->path($path)) ?: time();
+        if (Storage::disk('website_media')->exists($path)) {
+            $version = @filemtime(Storage::disk('website_media')->path($path)) ?: time();
 
-        return url('/site-media/'.$path).'?v='.$version;
+            return Storage::disk('website_media')->url($path).'?v='.$version;
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            $version = @filemtime(Storage::disk('public')->path($path)) ?: time();
+
+            return url('/site-media/'.$path).'?v='.$version;
+        }
+
+        return null;
     }
 
     /**

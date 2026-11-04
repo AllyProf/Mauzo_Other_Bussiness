@@ -47,6 +47,24 @@ return [
             'report' => false,
         ],
 
+        /*
+        | Business website uploads. On cPanel hosts the domain often serves
+        | ~/public_html (sibling of the Laravel app), so we write there when
+        | that folder exists. Locally this falls back to public/uploads/...
+        */
+        'website_media' => [
+            'driver' => 'local',
+            'root' => env('WEBSITE_MEDIA_ROOT') ?: (
+                is_dir(dirname(base_path()).DIRECTORY_SEPARATOR.'public_html')
+                    ? dirname(base_path()).DIRECTORY_SEPARATOR.'public_html'.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.'business-website'
+                    : public_path('uploads'.DIRECTORY_SEPARATOR.'business-website')
+            ),
+            'url' => rtrim(env('WEBSITE_MEDIA_URL') ?: (rtrim(env('APP_URL', 'http://localhost'), '/').'/uploads/business-website'), '/'),
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

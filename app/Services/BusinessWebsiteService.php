@@ -351,16 +351,16 @@ class BusinessWebsiteService
         if ($updateHero) {
             if (filter_var($input['remove_hero_image'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
                 if ($heroPath) {
-                    Storage::disk('public')->delete($heroPath);
+                    $this->deleteWebsiteMedia($heroPath);
                 }
                 $heroPath = null;
             }
 
             if ($heroImage) {
                 if ($heroPath) {
-                    Storage::disk('public')->delete($heroPath);
+                    $this->deleteWebsiteMedia($heroPath);
                 }
-                $heroPath = $heroImage->store('business-website-heroes', 'public');
+                $heroPath = $this->storeWebsiteMedia($heroImage, 'heroes');
             }
 
             $base['hero_title'] = trim((string) ($input['hero_title'] ?? ''));
@@ -392,7 +392,7 @@ class BusinessWebsiteService
                 $kept = [];
                 foreach ($galleryPaths as $path) {
                     if (in_array($path, $removeGallery, true)) {
-                        Storage::disk('public')->delete($path);
+                        $this->deleteWebsiteMedia($path);
                     } else {
                         $kept[] = $path;
                     }
@@ -402,7 +402,7 @@ class BusinessWebsiteService
 
             foreach ($galleryImages as $file) {
                 if ($file instanceof UploadedFile && count($galleryPaths) < 8) {
-                    $galleryPaths[] = $file->store('business-website-gallery', 'public');
+                    $galleryPaths[] = $this->storeWebsiteMedia($file, 'gallery');
                 }
             }
 
@@ -410,6 +410,31 @@ class BusinessWebsiteService
         }
 
         return $base;
+    }
+
+    private function storeWebsiteMedia(UploadedFile $file, string $folder): string
+    {
+        $disk = Storage::disk('website_media');
+        if (! $disk->exists($folder)) {
+            $disk->makeDirectory($folder);
+        }
+
+        return $file->store($folder, 'website_media');
+    }
+
+    private function deleteWebsiteMedia(string $path): void
+    {
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+        if ($path === '' || str_contains($path, '..')) {
+            return;
+        }
+
+        foreach (['website_media', 'public'] as $diskName) {
+            $disk = Storage::disk($diskName);
+            if ($disk->exists($path)) {
+                $disk->delete($path);
+            }
+        }
     }
 
     private function normalizeTime(mixed $value): ?string

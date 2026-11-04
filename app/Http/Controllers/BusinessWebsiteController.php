@@ -193,8 +193,13 @@ class BusinessWebsiteController extends Controller
 
         if ($page === 'home' && in_array($section, ['hero', 'home', null], true)) {
             $request->validate([
-                'hero_image' => 'nullable|image|max:4096',
+                'hero_image' => 'nullable|image|max:8192',
             ]);
+            if ($request->hasFile('hero_image') && ! $request->file('hero_image')->isValid()) {
+                return back()
+                    ->withErrors(['hero_image' => 'Hero image upload failed. Try a smaller JPG/PNG (max 8MB).'])
+                    ->withInput();
+            }
         }
 
         if ($page === 'home' && in_array($section, ['gallery', 'home', null], true)) {
