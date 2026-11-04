@@ -26,6 +26,16 @@
 @if(session('success'))
   <div class="alert alert-success">{{ session('success') }}</div>
 @endif
+@if($errors->any())
+  <div class="alert alert-danger">
+    <strong>Could not save:</strong>
+    <ul class="mb-0 pl-3">
+      @foreach($errors->all() as $error)
+        <li>{{ $error }}</li>
+      @endforeach
+    </ul>
+  </div>
+@endif
 
 <div class="tile">
   <div class="tile-body">
@@ -51,13 +61,16 @@
             <div class="mb-2 site-upload-preview site-upload-preview--hero">
               <img src="{{ $heroPreview }}" alt="Current hero">
             </div>
+            <p class="small text-muted mb-2">Preview URL: <a href="{{ $heroPreview }}" target="_blank" rel="noopener">open image</a></p>
             <div class="custom-control custom-checkbox mb-2">
               <input type="checkbox" class="custom-control-input" id="remove_hero_image" name="remove_hero_image" value="1">
               <label class="custom-control-label" for="remove_hero_image">Remove current image (use default)</label>
             </div>
+          @else
+            <p class="small text-warning mb-2">No custom hero uploaded yet — the default shop image is used.</p>
           @endif
-          <input type="file" name="hero_image" class="form-control-file" accept="image/*">
-          <small class="text-muted d-block mt-1">JPG, PNG or WebP · max 4MB. Shown behind the welcome text.</small>
+          <input type="file" name="hero_image" class="form-control-file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp">
+          <small class="text-muted d-block mt-1">JPG/PNG/WebP up to 20MB (large phone photos are resized automatically). Avoid HEIC files — export as JPG first.</small>
           @error('hero_image')<small class="text-danger d-block">{{ $message }}</small>@enderror
         </div>
         <div class="row">

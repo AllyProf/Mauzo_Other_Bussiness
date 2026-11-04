@@ -419,7 +419,72 @@ class BusinessWebsiteService
             $disk->makeDirectory($folder);
         }
 
-        return $file->store($folder, 'website_media');
+        $filename = Str::lower(Str::random(40)).'.jpg';
+        $relative = trim($folder, '/').'/'.$filename;
+        $binary = $this->prepareWebsiteJpeg($file, $folder === 'heroes' ? 1920 : 1400);
+
+        if ($binary === null || ! $disk->put($relative, $binary)) {
+            // Fallback: store original if GD resize fails.
+            $stored = $file->store($folder, 'website_media');
+            if (! is_string($stored) || $stored === '' || ! $disk->exists($stored)) {
+                throw ValidationException::withMessages([
+                    $folder === 'heroes' ? 'hero_image' : 'gallery_images' => 'Could not save the image. Check folder permissions on uploads/business-website.',
+                ]);
+            }
+
+            return $stored;
+        }
+
+        return $relative;
+    }
+
+    /**
+     * Resize/compress phone/HDR photos so they fit the hero and stay under host upload limits.
+     */
+    private function prepareWebsiteJpeg(UploadedFile $file, int $maxWidth = 1920): ?string
+    {
+        if (! function_exists('imagecreatefromstring') || ! function_exists('imagejpeg')) {
+            return null;
+        }
+
+        $raw = @file_get_contents($file->getRealPath());
+        if ($raw === false || $raw === '') {
+            return null;
+        }
+
+        $source = @imagecreatefromstring($raw);
+        if ($source === false) {
+            return null;
+        }
+
+        $width = imagesx($source);
+        $height = imagesy($source);
+        if ($width < 1 || $height < 1) {
+            imagedestroy($source);
+
+            return null;
+        }
+
+        if ($width > $maxWidth) {
+            $newWidth = $maxWidth;
+            $newHeight = (int) max(1, round($height * ($maxWidth / $width)));
+            $canvas = imagecreatetruecolor($newWidth, $newHeight);
+            if ($canvas === false) {
+                imagedestroy($source);
+
+                return null;
+            }
+            imagecopyresampled($canvas, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+            imagedestroy($source);
+            $source = $canvas;
+        }
+
+        ob_start();
+        imagejpeg($source, null, 82);
+        imagedestroy($source);
+        $jpeg = ob_get_clean();
+
+        return is_string($jpeg) && $jpeg !== '' ? $jpeg : null;
     }
 
     private function deleteWebsiteMedia(string $path): void

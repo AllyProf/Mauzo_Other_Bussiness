@@ -119,7 +119,8 @@ class BusinessWebsite extends Model
         if (Storage::disk('website_media')->exists($path)) {
             $version = @filemtime(Storage::disk('website_media')->path($path)) ?: time();
 
-            return Storage::disk('website_media')->url($path).'?v='.$version;
+            // Use request host (not APP_URL) so previews work on live even if APP_URL is wrong.
+            return url('uploads/business-website/'.$path).'?v='.$version;
         }
 
         if (Storage::disk('public')->exists($path)) {

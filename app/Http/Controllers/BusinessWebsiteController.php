@@ -193,11 +193,14 @@ class BusinessWebsiteController extends Controller
 
         if ($page === 'home' && in_array($section, ['hero', 'home', null], true)) {
             $request->validate([
-                'hero_image' => 'nullable|image|max:8192',
+                // Accept large phone/HDR photos; we compress them on save.
+                'hero_image' => 'nullable|mimes:jpg,jpeg,png,webp|max:20480',
             ]);
             if ($request->hasFile('hero_image') && ! $request->file('hero_image')->isValid()) {
+                $err = $request->file('hero_image')->getErrorMessage() ?: 'Hero image upload failed.';
+
                 return back()
-                    ->withErrors(['hero_image' => 'Hero image upload failed. Try a smaller JPG/PNG (max 8MB).'])
+                    ->withErrors(['hero_image' => $err.' Try a JPG under 20MB.'])
                     ->withInput();
             }
         }
@@ -241,22 +244,39 @@ class BusinessWebsiteController extends Controller
             $galleryImages = array_values(array_filter($uploaded));
         }
 
+        $heroFile = $request->file('hero_image');
+
         try {
-            $this->websites->updatePage(
+            $website = $this->websites->updatePage(
                 $website,
                 $page,
                 $request->all(),
-                $request->file('hero_image'),
+                $heroFile,
                 $galleryImages,
                 $section
             );
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()
+                ->withErrors(['hero_image' => 'Could not save the image. '.$e->getMessage()])
+                ->withInput();
+        }
+
+        $message = $this->sectionLabel($page, $section).' saved.';
+        if ($page === 'home' && $heroFile && $website->uploadedMediaUrl($website->page('home')['hero_image_path'] ?? null)) {
+            $message .= ' Hero image updated.';
+        } elseif ($page === 'home' && $heroFile) {
+            return back()
+                ->withErrors(['hero_image' => 'Upload finished but the image file is not readable yet. Check public_html/uploads/business-website permissions.'])
+                ->withInput();
         }
 
         return redirect()
             ->route('business-website.edit-page', array_filter(['page' => $page, 'section' => $section]))
-            ->with('success', $this->sectionLabel($page, $section).' saved.');
+            ->with('success', $message);
     }
 
     private function resolveEditSection(string $page, mixed $section): ?string
