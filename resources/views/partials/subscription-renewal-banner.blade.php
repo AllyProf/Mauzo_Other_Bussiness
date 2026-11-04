@@ -15,7 +15,7 @@
 @endphp
 <div class="alert alert-danger border-danger d-flex flex-wrap justify-content-between align-items-center mb-4 subscription-renewal-banner" role="alert">
   <img
-    src="{{ asset('gp-assets/img/Alert Icon Exclamation.gif') }}"
+    src="{{ asset('gp-assets/img/alert-icon-exclamation.gif') }}"
     alt=""
     width="52"
     height="52"
