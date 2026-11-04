@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class BusinessWebsite extends Model
 {
@@ -37,13 +38,31 @@ class BusinessWebsite extends Model
         return is_array($pages[$key] ?? null) ? $pages[$key] : [];
     }
 
+    /**
+     * One-page site: section links are home URL + hash anchors.
+     */
     public function publicUrl(?string $page = null): string
     {
         $base = url('/site/'.$this->slug);
-        if ($page && $page !== 'home' && in_array($page, self::PAGE_KEYS, true)) {
-            return $base.'/'.$page;
+        if (! $page || $page === 'home') {
+            return $base;
+        }
+
+        if (in_array($page, self::PAGE_KEYS, true)) {
+            return $base.'#'.$page;
         }
 
         return $base;
+    }
+
+    public function heroImageUrl(): string
+    {
+        $path = $this->page('home')['hero_image_path'] ?? null;
+        if (is_string($path) && $path !== '' && Storage::disk('public')->exists($path)) {
+            // Prefer asset()/storage path so local & production hosts stay correct.
+            return asset('storage/'.ltrim($path, '/'));
+        }
+
+        return asset('gp-assets/img/hero-bg.jpg');
     }
 }

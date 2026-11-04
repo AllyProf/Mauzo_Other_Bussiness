@@ -3,27 +3,50 @@
 @section('title', ($content['title'] ?? ucfirst($page)).' — '.$business->name)
 
 @section('content')
-<section class="section" style="padding-top: 120px;">
-  <div class="container section-title" data-aos="fade-up">
-    <h2>{{ $content['title'] ?? ucfirst($page) }}</h2>
-    @if(!empty($content['body']) && $page !== 'contact')
-      <p>{{ \Illuminate\Support\Str::limit(strip_tags($content['body']), 160) }}</p>
-    @endif
-  </div>
+@php
+  $title = $content['title'] ?? ucfirst($page);
+  $rawBody = trim((string) ($content['body'] ?? ''));
+  $simpleCaption = match ($page) {
+      'about' => 'Who we are.',
+      'contact' => 'Call, WhatsApp, or send a message.',
+      'order' => 'Order by WhatsApp or phone.',
+      default => '',
+  };
+  // Prefer short captions; fall back when stored copy is the long default boilerplate.
+  $caption = $rawBody;
+  if ($caption === '' || strlen($caption) > 90 || str_contains(strtolower($caption), 'edit it in mauzo')) {
+      $caption = $simpleCaption;
+  }
+  $heroImage = match ($page) {
+      'about' => asset('gp-assets/img/about.jpg'),
+      'contact' => asset('gp-assets/img/services.jpg'),
+      'order' => asset('gp-assets/img/cta-bg.jpg'),
+      default => asset('gp-assets/img/hero-bg.jpg'),
+  };
+@endphp
 
-  <div class="container" data-aos="fade-up" data-aos-delay="100">
+@include('public-site.partials.page-hero', [
+  'heroTitle' => $title,
+  'heroSubtitle' => $caption,
+  'heroImage' => $heroImage,
+])
+
+<section class="section site-page-body">
+  <div class="container" data-aos="fade-up">
 
     @if($page === 'about')
-      <div class="row justify-content-center mb-4">
-        <div class="col-lg-8 content text-center">
-          <p style="white-space:pre-line;" class="mb-0">{{ $content['body'] ?? '' }}</p>
+      @if($rawBody !== '' && $rawBody !== $caption)
+        <div class="row justify-content-center mb-4">
+          <div class="col-lg-8 content text-center">
+            <p style="white-space:pre-line;" class="mb-0">{{ $rawBody }}</p>
+          </div>
         </div>
-      </div>
+      @endif
       <div class="row gy-4">
         @for($i = 1; $i <= 3; $i++)
           @if(!empty($content['highlight_'.$i.'_title']))
             <div class="col-md-4">
-              <div class="features-item text-center p-4 h-100" style="background:#f8f9fa;border-radius:8px;">
+              <div class="features-item text-center p-4 h-100 site-highlight-card">
                 <i class="bi bi-star-fill d-block mb-3" style="font-size:1.75rem;color:var(--accent-color);"></i>
                 <h4 class="fs-6 fw-bold">{{ $content['highlight_'.$i.'_title'] }}</h4>
                 <p class="small text-muted mb-0">{{ $content['highlight_'.$i.'_body'] ?? '' }}</p>
@@ -35,9 +58,6 @@
     @endif
 
     @if($page === 'contact')
-      @if(!empty($content['body']))
-        <p class="text-center text-muted mb-4">{{ $content['body'] }}</p>
-      @endif
       <div class="contact-clean-grid">
         @if(filled($business->address))
           <div class="contact-clean-item">
@@ -107,13 +127,13 @@
     @endif
 
     @if($page === 'order')
-      @if(!empty($content['body']))
-        <p class="lead text-center">{{ $content['body'] }}</p>
+      @if($rawBody !== '' && $rawBody !== $caption)
+        <p class="lead text-center">{{ $rawBody }}</p>
       @endif
       @if(!empty($content['steps']))
         <div class="row justify-content-center">
           <div class="col-lg-8">
-            <div class="p-4 rounded" style="background:#f8f9fa;white-space:pre-line;">{{ $content['steps'] }}</div>
+            <div class="p-4 rounded site-highlight-card" style="white-space:pre-line;">{{ $content['steps'] }}</div>
           </div>
         </div>
       @endif

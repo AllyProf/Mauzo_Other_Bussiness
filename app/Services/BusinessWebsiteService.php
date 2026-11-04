@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Business;
 use App\Models\BusinessWebsite;
 use App\Models\Item;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -75,22 +77,19 @@ class BusinessWebsiteService
     /**
      * @param  array<string, mixed>  $input
      */
-    public function updatePage(BusinessWebsite $website, string $pageKey, array $input): BusinessWebsite
-    {
+    public function updatePage(
+        BusinessWebsite $website,
+        string $pageKey,
+        array $input,
+        ?UploadedFile $heroImage = null
+    ): BusinessWebsite {
         if (! in_array($pageKey, BusinessWebsite::PAGE_KEYS, true)) {
             throw ValidationException::withMessages(['page' => 'Unknown page.']);
         }
 
         $pages = $website->pages ?? [];
         $pages[$pageKey] = match ($pageKey) {
-            'home' => [
-                'hero_title' => trim((string) ($input['hero_title'] ?? '')),
-                'hero_subtitle' => trim((string) ($input['hero_subtitle'] ?? '')),
-                'hero_button_label' => trim((string) ($input['hero_button_label'] ?? '')),
-                'hero_button_url' => trim((string) ($input['hero_button_url'] ?? '')),
-                'intro_title' => trim((string) ($input['intro_title'] ?? '')),
-                'intro_body' => trim((string) ($input['intro_body'] ?? '')),
-            ],
+            'home' => $this->buildHomePageContent($website, $input, $heroImage),
             'about' => [
                 'title' => trim((string) ($input['title'] ?? '')),
                 'body' => trim((string) ($input['body'] ?? '')),
@@ -128,6 +127,40 @@ class BusinessWebsiteService
     }
 
     /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    private function buildHomePageContent(BusinessWebsite $website, array $input, ?UploadedFile $heroImage): array
+    {
+        $existingPath = $website->page('home')['hero_image_path'] ?? null;
+        $heroPath = is_string($existingPath) ? $existingPath : null;
+
+        if (filter_var($input['remove_hero_image'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            if ($heroPath) {
+                Storage::disk('public')->delete($heroPath);
+            }
+            $heroPath = null;
+        }
+
+        if ($heroImage) {
+            if ($heroPath) {
+                Storage::disk('public')->delete($heroPath);
+            }
+            $heroPath = $heroImage->store('business-website-heroes', 'public');
+        }
+
+        return [
+            'hero_title' => trim((string) ($input['hero_title'] ?? '')),
+            'hero_subtitle' => trim((string) ($input['hero_subtitle'] ?? '')),
+            'hero_button_label' => trim((string) ($input['hero_button_label'] ?? '')),
+            'hero_button_url' => trim((string) ($input['hero_button_url'] ?? '')),
+            'hero_image_path' => $heroPath,
+            'intro_title' => trim((string) ($input['intro_title'] ?? '')),
+            'intro_body' => trim((string) ($input['intro_body'] ?? '')),
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function defaultPages(Business $business): array
@@ -137,38 +170,38 @@ class BusinessWebsiteService
         return [
             'home' => [
                 'hero_title' => 'Welcome to '.$name,
-                'hero_subtitle' => 'Quality products and service you can trust.',
+                'hero_subtitle' => 'Quality products. Fair prices.',
                 'hero_button_label' => 'Order now',
                 'hero_button_url' => '/order',
-                'intro_title' => 'Products we offer',
-                'intro_body' => '',
+                'intro_title' => 'Products',
+                'intro_body' => 'In stock with prices.',
             ],
             'products' => [
                 'title' => 'Products',
-                'body' => 'Browse our current range. Prices and availability match what we sell in store.',
+                'body' => 'In stock with prices.',
                 'show_prices' => true,
                 'show_out_of_stock' => false,
             ],
             'about' => [
-                'title' => 'About '.$name,
-                'body' => $name.' serves customers with care and transparency. This page tells your story — edit it in Mauzo Link under Business Website.',
+                'title' => 'Why choose us',
+                'body' => 'Who we are.',
                 'highlight_1_title' => 'Our mission',
                 'highlight_1_body' => 'Deliver value every day.',
                 'highlight_2_title' => 'Our team',
                 'highlight_2_body' => 'Friendly staff ready to help.',
                 'highlight_3_title' => 'Our location',
-                'highlight_3_body' => $business->address ?: 'Add your address in business settings.',
+                'highlight_3_body' => $business->address ?: 'Visit us in store.',
             ],
             'contact' => [
-                'title' => 'Contact us',
-                'body' => 'Reach us by phone, WhatsApp, or the form below.',
+                'title' => 'Contact',
+                'body' => 'Call or WhatsApp us.',
                 'hours' => 'Mon – Sat: 8:00 – 20:00',
-                'show_contact_form' => true,
+                'show_contact_form' => false,
             ],
             'order' => [
                 'title' => 'Place an order',
-                'body' => 'Tell us what you need. We confirm availability and delivery or pickup.',
-                'steps' => "1. Send your list on WhatsApp or call us.\n2. We confirm price and stock.\n3. Pay and collect or receive delivery.",
+                'body' => 'Order by WhatsApp or phone.',
+                'steps' => "Send your list on WhatsApp or call us.\nWe confirm price and stock.\nPay and collect or receive delivery.",
                 'whatsapp_message' => 'Hello '.$name.', I would like to order: ',
             ],
         ];

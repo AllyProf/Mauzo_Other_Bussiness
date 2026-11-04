@@ -6,7 +6,7 @@
 <div class="app-title">
   <div>
     <h1><i class="fa fa-globe"></i> Business Website</h1>
-    <p>Configure your public site — Home, About, Contact, and Order pages.</p>
+    <p>One-page public site — edit each section (Hero, Products, About, Contact, Order).</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     @include('layouts.partials._breadcrumb_manual')
@@ -71,11 +71,11 @@
 
   <div class="col-lg-7">
     <div class="tile">
-      <h3 class="tile-title">Pages</h3>
+      <h3 class="tile-title">Sections (one page)</h3>
       <div class="tile-body">
         @php
           $pages = [
-            'home' => ['label' => 'Home', 'icon' => 'fa-home', 'desc' => 'Hero welcome and introduction'],
+            'home' => ['label' => 'Hero / Home', 'icon' => 'fa-home', 'desc' => 'Welcome text, button, and hero image'],
             'products' => ['label' => 'Products', 'icon' => 'fa-tags', 'desc' => 'Catalog from your Mauzo Link items'],
             'about' => ['label' => 'About', 'icon' => 'fa-info-circle', 'desc' => 'Story and highlights'],
             'contact' => ['label' => 'Contact', 'icon' => 'fa-envelope', 'desc' => 'Location, hours, contact form'],
@@ -96,17 +96,78 @@
         </div>
 
         <hr>
-        <p class="mb-2 font-weight-bold">Live link</p>
+        <p class="mb-2 font-weight-bold">Website URL</p>
+        @php $publicSiteUrl = $website->publicUrl(); @endphp
+        <div class="input-group mb-2">
+          <input type="text"
+                 id="businessWebsiteUrl"
+                 class="form-control"
+                 value="{{ $publicSiteUrl }}"
+                 readonly
+                 aria-label="Public website URL"
+                 onclick="this.select()">
+          <div class="input-group-append">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    id="copyBusinessWebsiteUrl"
+                    title="Copy URL"
+                    data-url="{{ $publicSiteUrl }}">
+              <i class="fa fa-copy"></i> Copy
+            </button>
+            <a href="{{ $publicSiteUrl }}"
+               target="_blank"
+               rel="noopener"
+               class="btn btn-{{ $website->is_published ? 'success' : 'outline-primary' }}"
+               title="Open website">
+              <i class="fa fa-external-link"></i> Open
+            </a>
+          </div>
+        </div>
         @if($website->is_published)
-          <a href="{{ $website->publicUrl() }}" target="_blank" rel="noopener" class="btn btn-success btn-sm">
-            <i class="fa fa-external-link"></i> {{ $website->publicUrl() }}
-          </a>
+          <p class="text-muted small mb-0">Published — share this link with customers.</p>
         @else
-          <p class="text-muted small mb-0">Turn on <strong>Publish website</strong> to make {{ url('/site/'.$website->slug) }} public.</p>
+          <p class="text-muted small mb-0">Not published yet. Turn on <strong>Publish website</strong> so visitors can open this URL.</p>
         @endif
         <p class="text-muted small mt-3 mb-0">Logo, phone, email, and address come from <a href="{{ route('settings.index') }}">Business settings</a>.</p>
       </div>
     </div>
   </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+(function () {
+  var btn = document.getElementById('copyBusinessWebsiteUrl');
+  var input = document.getElementById('businessWebsiteUrl');
+  if (!btn || !input) return;
+
+  function flashCopied() {
+    var original = btn.innerHTML;
+    btn.innerHTML = '<i class="fa fa-check"></i> Copied';
+    btn.classList.add('btn-success');
+    btn.classList.remove('btn-outline-secondary');
+    setTimeout(function () {
+      btn.innerHTML = original;
+      btn.classList.remove('btn-success');
+      btn.classList.add('btn-outline-secondary');
+    }, 1600);
+  }
+
+  btn.addEventListener('click', function () {
+    var url = btn.getAttribute('data-url') || input.value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(flashCopied).catch(function () {
+        input.select();
+        document.execCommand('copy');
+        flashCopied();
+      });
+      return;
+    }
+    input.select();
+    document.execCommand('copy');
+    flashCopied();
+  });
+})();
+</script>
 @endsection

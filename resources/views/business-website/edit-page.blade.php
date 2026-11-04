@@ -6,7 +6,7 @@
 <div class="app-title">
   <div>
     <h1><i class="fa fa-globe"></i> {{ $pageLabel }} page</h1>
-    <p>Content shown on your public site.</p>
+    <p>This section appears on your one-page public website.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     @include('layouts.partials._breadcrumb_manual')
@@ -21,7 +21,7 @@
 
 <div class="tile">
   <div class="tile-body">
-    <form method="POST" action="{{ route('business-website.update-page', $page) }}">
+    <form method="POST" action="{{ route('business-website.update-page', $page) }}" enctype="multipart/form-data">
       @csrf
       @method('PUT')
 
@@ -30,17 +30,38 @@
           <input type="text" name="hero_title" class="form-control" value="{{ old('hero_title', $content['hero_title'] ?? '') }}" required></div>
         <div class="form-group"><label class="font-weight-bold">Hero subtitle</label>
           <textarea name="hero_subtitle" class="form-control" rows="2">{{ old('hero_subtitle', $content['hero_subtitle'] ?? '') }}</textarea></div>
+        <div class="form-group">
+          <label class="font-weight-bold">Hero image</label>
+          @php
+            $heroPath = $content['hero_image_path'] ?? null;
+            $heroPreview = ($heroPath && \Illuminate\Support\Facades\Storage::disk('public')->exists($heroPath))
+              ? asset('storage/'.ltrim($heroPath, '/'))
+              : null;
+          @endphp
+          @if($heroPreview)
+            <div class="mb-2">
+              <img src="{{ $heroPreview }}" alt="Current hero" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:cover;">
+            </div>
+            <div class="custom-control custom-checkbox mb-2">
+              <input type="checkbox" class="custom-control-input" id="remove_hero_image" name="remove_hero_image" value="1">
+              <label class="custom-control-label" for="remove_hero_image">Remove current image (use default)</label>
+            </div>
+          @endif
+          <input type="file" name="hero_image" class="form-control-file" accept="image/*">
+          <small class="text-muted d-block mt-1">JPG, PNG or WebP · max 4MB. Shown behind the welcome text.</small>
+          @error('hero_image')<small class="text-danger d-block">{{ $message }}</small>@enderror
+        </div>
         <div class="row">
           <div class="col-md-6 form-group"><label class="font-weight-bold">Button label</label>
             <input type="text" name="hero_button_label" class="form-control" value="{{ old('hero_button_label', $content['hero_button_label'] ?? '') }}"></div>
           <div class="col-md-6 form-group"><label class="font-weight-bold">Button link</label>
-            <input type="text" name="hero_button_url" class="form-control" value="{{ old('hero_button_url', $content['hero_button_url'] ?? 'order') }}" placeholder="order or full URL">
-            <small class="text-muted">Use <code>order</code> for your Order page.</small></div>
+            <input type="text" name="hero_button_url" class="form-control" value="{{ old('hero_button_url', $content['hero_button_url'] ?? 'order') }}" placeholder="order or #products">
+            <small class="text-muted">Use <code>order</code> or <code>products</code> for on-page sections.</small></div>
         </div>
-        <div class="form-group"><label class="font-weight-bold">Section title</label>
+        <div class="form-group"><label class="font-weight-bold">Products section title (optional fallback)</label>
           <input type="text" name="intro_title" class="form-control" value="{{ old('intro_title', $content['intro_title'] ?? '') }}"></div>
-        <div class="form-group"><label class="font-weight-bold">Section body</label>
-          <textarea name="intro_body" class="form-control" rows="4">{{ old('intro_body', $content['intro_body'] ?? '') }}</textarea></div>
+        <div class="form-group"><label class="font-weight-bold">Products section caption (optional fallback)</label>
+          <textarea name="intro_body" class="form-control" rows="2">{{ old('intro_body', $content['intro_body'] ?? '') }}</textarea></div>
       @endif
 
       @if($page === 'products')
@@ -80,10 +101,8 @@
           <textarea name="body" class="form-control" rows="3">{{ old('body', $content['body'] ?? '') }}</textarea></div>
         <div class="form-group"><label class="font-weight-bold">Opening hours</label>
           <input type="text" name="hours" class="form-control" value="{{ old('hours', $content['hours'] ?? '') }}"></div>
-        <div class="custom-control custom-checkbox mb-3">
-          <input type="checkbox" class="custom-control-input" id="show_contact_form" name="show_contact_form" value="1" {{ old('show_contact_form', $content['show_contact_form'] ?? true) ? 'checked' : '' }}>
-          <label class="custom-control-label" for="show_contact_form">Show contact form</label>
-        </div>
+        <p class="text-muted small mb-0">Contact details (phone, WhatsApp, email, address) come from Business settings. The public site shows them in the Contact section — no message form.</p>
+        <input type="hidden" name="show_contact_form" value="0">
       @endif
 
       @if($page === 'order')

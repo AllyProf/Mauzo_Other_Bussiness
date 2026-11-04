@@ -28,6 +28,60 @@
       display: block; font-size: .72rem; font-weight: 500; color: rgba(255,255,255,.65);
       letter-spacing: 0; font-family: var(--default-font);
     }
+
+    /* Page heroes */
+    .site-page-hero {
+      position: relative;
+      min-height: 320px;
+      display: flex;
+      align-items: center;
+      padding: 140px 0 72px;
+      background: #111 center / cover no-repeat;
+      background-image: linear-gradient(180deg, rgba(0,0,0,.72), rgba(0,0,0,.55)), var(--hero-image);
+      color: #fff;
+      overflow: hidden;
+    }
+    .site-page-hero__overlay { display: none; }
+    .site-page-hero__title {
+      font-size: clamp(1.85rem, 4vw, 2.75rem);
+      font-weight: 800;
+      margin: 0 0 .65rem;
+      font-family: 'Raleway', sans-serif;
+    }
+    .site-page-hero__sub {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,.82);
+      max-width: 36rem;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Dark restaurant-style menu board */
+    .menu-section {
+      background: #0c0b09;
+      color: #fff;
+      padding-top: 70px;
+      padding-bottom: 80px;
+    }
+    .menu-section .section-title--light h2,
+    .menu-section .section-title h2 { color: #fff; }
+    .menu-section .section-title--light p,
+    .menu-section .section-title p { color: rgba(255,255,255,.7); }
+    .menu-section .section-title h2::after { background: var(--accent-color); }
+
+    .site-page-body { padding-top: 60px; padding-bottom: 70px; }
+    .site-highlight-card {
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    #hero, #products, #about, #contact, #order {
+      scroll-margin-top: 80px;
+    }
+
+    @media (max-width: 767px) {
+      .site-page-hero { min-height: 260px; padding: 120px 0 48px; }
+      .business-hero { min-height: 380px; }
+    }
   </style>
   @stack('styles')
 </head>

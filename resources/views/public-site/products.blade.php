@@ -3,18 +3,22 @@
 @section('title', ($content['title'] ?? 'Products').' — '.$business->name)
 
 @section('content')
-<section class="section offerings-section" style="padding-top: 120px;">
-  <div class="container section-title" data-aos="fade-up">
-    <h2>{{ $content['title'] ?? 'Products' }}</h2>
-    @if(!empty($content['body']))
-      <p>{{ $content['body'] }}</p>
-    @elseif(!$catalog->isEmpty())
-      <p>In-stock items and prices from our store.</p>
-    @endif
-  </div>
+@php
+  $caption = trim((string) ($content['body'] ?? ''));
+  if ($caption === '' || str_contains(strtolower($caption), 'updated live from') || str_contains(strtolower($caption), 'browse our current')) {
+      $caption = $catalog->isEmpty() ? 'Check back soon.' : 'In stock with prices.';
+  }
+@endphp
 
-  <div class="container" data-aos="fade-up" data-aos-delay="100">
-    @include('public-site.partials.catalog-offerings', ['catalog' => $catalog])
+@include('public-site.partials.page-hero', [
+  'heroTitle' => $content['title'] ?? 'Products',
+  'heroSubtitle' => $caption,
+  'heroImage' => asset('gp-assets/img/about-pos.png'),
+])
+
+<section class="section menu-section">
+  <div class="container" data-aos="fade-up">
+    @include('public-site.partials.catalog-offerings', ['catalog' => $catalog, 'business' => $business])
 
     @if(!$catalog->isEmpty())
       <div class="text-center mt-5 pt-3">
@@ -24,9 +28,3 @@
   </div>
 </section>
 @endsection
-
-@push('styles')
-<style>
-  .offerings-section { background: linear-gradient(180deg, #f4f6f8 0%, #fff 160px); }
-</style>
-@endpush

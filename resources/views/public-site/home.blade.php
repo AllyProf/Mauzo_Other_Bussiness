@@ -4,75 +4,387 @@
 
 @section('content')
 @php
+  $products = $sections['products'] ?? [];
+  $about = $sections['about'] ?? [];
+  $contact = $sections['contact'] ?? [];
+  $order = $sections['order'] ?? [];
+
   $cta = trim((string) ($content['hero_button_url'] ?? ''));
   if ($cta === '' || $cta === '/order' || $cta === 'order') {
       $cta = $website->publicUrl('order');
   } elseif ($cta === 'products' || $cta === '/products') {
       $cta = $website->publicUrl('products');
-  } elseif (! str_starts_with($cta, 'http')) {
+  } elseif (! str_starts_with($cta, 'http') && ! str_starts_with($cta, '#')) {
       $cta = $website->publicUrl(ltrim($cta, '/'));
   }
+
   $totalInStock = $catalog->flatten(1)->count();
+  $productsCaption = trim((string) ($products['body'] ?? $content['intro_body'] ?? ''));
+  if ($productsCaption === '' || str_contains(strtolower($productsCaption), 'updated live from') || str_contains(strtolower($productsCaption), 'browse our current')) {
+      $productsCaption = $totalInStock > 0 ? 'In stock with prices.' : 'Visit us to see what is available.';
+  }
+
+  $isBoilerplate = function (?string $text): bool {
+      $t = strtolower(trim((string) $text));
+      if ($t === '') {
+          return true;
+      }
+      return str_contains($t, 'edit it in mauzo')
+          || str_contains($t, 'serves customers with care')
+          || str_contains($t, 'this page tells your story')
+          || str_contains($t, 'updated live from');
+  };
+
+  $aboutTitle = $about['title'] ?? 'Why choose us';
+  $aboutEyebrow = 'Why us';
+  $aboutHighlights = [];
+  for ($i = 1; $i <= 3; $i++) {
+      $ht = trim((string) ($about['highlight_'.$i.'_title'] ?? ''));
+      $hb = trim((string) ($about['highlight_'.$i.'_body'] ?? ''));
+      if ($ht !== '') {
+          $aboutHighlights[] = ['title' => $ht, 'body' => $hb];
+      }
+  }
+  if ($aboutHighlights === []) {
+      $aboutHighlights = [
+          ['title' => 'Quality products', 'body' => 'Carefully selected items for everyday needs.'],
+          ['title' => 'Fair prices', 'body' => 'Clear pricing that matches what we sell in store.'],
+          ['title' => 'Friendly service', 'body' => 'A team ready to help you quickly.'],
+      ];
+  }
+
+  $contactTitle = $contact['title'] ?? 'Contact';
+  $contactCaption = trim((string) ($contact['body'] ?? ''));
+  if ($isBoilerplate($contactCaption) || strlen($contactCaption) > 90) {
+      $contactCaption = 'Call or WhatsApp us.';
+  }
+
+  $orderTitle = $order['title'] ?? 'Place an order';
+  $orderCaption = trim((string) ($order['body'] ?? ''));
+  if ($isBoilerplate($orderCaption) || strlen($orderCaption) > 90) {
+      $orderCaption = 'Order by WhatsApp or phone.';
+  }
+  $orderSteps = collect(preg_split('/\r\n|\r|\n/', (string) ($order['steps'] ?? '')))
+      ->map(fn ($s) => trim(preg_replace('/^\d+[\.\)]\s*/', '', $s)))
+      ->filter()
+      ->values()
+      ->all();
+  if ($orderSteps === []) {
+      $orderSteps = [
+          'Send your list on WhatsApp or call us.',
+          'We confirm price and stock.',
+          'Pay and collect or receive delivery.',
+      ];
+  }
+
+  $heroImage = $website->heroImageUrl();
+  $contactFeatureImage = asset('gp-assets/img/business-site/contact-photo.jpg');
+  $orderFeatureImage = asset('gp-assets/img/business-site/order-photo.jpg');
 @endphp
 
-<section id="hero" class="hero section dark-background business-hero-plain">
+<section id="hero" class="hero section dark-background business-hero" style="background-image: url('{{ $heroImage }}');">
+  <div class="business-hero__shade" aria-hidden="true"></div>
   <div class="container">
     <div class="row justify-content-center text-center" data-aos="fade-up">
       <div class="col-xl-9 col-lg-10">
-        <h2>{{ $content['hero_title'] ?? $business->name }}<span>.</span></h2>
-        <p class="text-white-50 lead mt-3 mb-0">{{ $content['hero_subtitle'] ?? $website->tagline ?? '' }}</p>
+        <h2 class="business-hero__title">{{ $content['hero_title'] ?? $business->name }}</h2>
+        <p class="business-hero__sub lead mt-3 mb-0">{{ $content['hero_subtitle'] ?? $website->tagline ?? '' }}</p>
         <div class="d-flex flex-wrap justify-content-center gap-3 mt-4">
           @if(!empty($content['hero_button_label']))
             <a href="{{ $cta }}" class="btn-getstarted px-4 py-2">{{ $content['hero_button_label'] }}</a>
           @endif
-          <a href="#products-we-offer" class="cta-btn px-4 py-2">View products</a>
+          <a href="#products" class="cta-btn px-4 py-2">View products</a>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<section id="products-we-offer" class="section offerings-section">
-  <div class="container section-title" data-aos="fade-up">
-    <h2>{{ $content['intro_title'] ?? 'Products we offer' }}</h2>
-    @if(!empty($content['intro_body']))
-      <p>{{ $content['intro_body'] }}</p>
-    @elseif($totalInStock > 0)
-      <p>All items currently in stock with prices — updated live from {{ $business->name }} inventory.</p>
-    @else
-      <p>Visit us or get in touch to see what is in stock today.</p>
-    @endif
+<section id="products" class="section menu-section">
+  <div class="container section-title section-title--light" data-aos="fade-up">
+    <h2>{{ $products['title'] ?? ($content['intro_title'] ?? 'Products') }}</h2>
+    <p>{{ $productsCaption }}</p>
   </div>
-
   <div class="container" data-aos="fade-up" data-aos-delay="100">
-    @include('public-site.partials.catalog-offerings', ['catalog' => $catalog])
-
+    @include('public-site.partials.catalog-offerings', ['catalog' => $catalog, 'business' => $business])
     @if($totalInStock > 0)
       <div class="text-center mt-5 pt-2">
-        <a href="{{ $website->publicUrl('order') }}" class="btn-getstarted px-4 py-2 me-2"><i class="bi bi-cart-check"></i> Order now</a>
-        <a href="{{ $website->publicUrl('contact') }}" class="cta-btn px-4 py-2">Contact us</a>
+        <a href="#order" class="btn-getstarted px-4 py-2 me-2"><i class="bi bi-cart-check"></i> Order now</a>
+        <a href="#contact" class="cta-btn px-4 py-2">Contact us</a>
       </div>
     @endif
+  </div>
+</section>
+
+<section id="about" class="section why-section">
+  <div class="container" data-aos="fade-up">
+    <div class="why-head">
+      <span class="why-eyebrow">{{ $aboutEyebrow }}</span>
+      <h2 class="why-title">{{ $aboutTitle }}</h2>
+    </div>
+    <div class="row g-4 why-cards">
+      @foreach($aboutHighlights as $idx => $card)
+        <div class="col-md-4">
+          <article class="why-card h-100">
+            <div class="why-card__num">{{ str_pad((string) ($idx + 1), 2, '0', STR_PAD_LEFT) }}</div>
+            <h3 class="why-card__title">{{ $card['title'] }}</h3>
+            <p class="why-card__body mb-0">{{ $card['body'] }}</p>
+          </article>
+        </div>
+      @endforeach
+    </div>
+  </div>
+</section>
+
+<section id="contact" class="section feature-split-section">
+  <div class="container" data-aos="fade-up">
+    <div class="row align-items-stretch g-4 g-lg-5">
+      <div class="col-lg-6">
+        <div class="feature-split__media">
+          <img src="{{ $contactFeatureImage }}" alt="">
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="feature-split__content">
+          <span class="why-eyebrow">Get in touch</span>
+          <h2 class="feature-split__title">{{ $contactTitle }}</h2>
+          <p class="feature-split__lead">{{ $contactCaption }}</p>
+          <ul class="feature-split__list">
+            @if(filled($business->address))
+              <li><i class="bi bi-check-circle-fill"></i> <span>{{ $business->address }}</span></li>
+            @endif
+            @if(filled($business->phone))
+              <li><i class="bi bi-check-circle-fill"></i> <span><a href="tel:{{ $business->phone }}">{{ $business->phone }}</a></span></li>
+            @endif
+            @if($whatsappDigits)
+              <li><i class="bi bi-check-circle-fill"></i> <span><a href="https://wa.me/{{ $whatsappDigits }}" target="_blank" rel="noopener">WhatsApp us</a></span></li>
+            @endif
+            @if(filled($business->email))
+              <li><i class="bi bi-check-circle-fill"></i> <span><a href="mailto:{{ $business->email }}">{{ $business->email }}</a></span></li>
+            @endif
+            @if(!empty($contact['hours']))
+              <li><i class="bi bi-check-circle-fill"></i> <span>{{ $contact['hours'] }}</span></li>
+            @endif
+          </ul>
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            @if($whatsappDigits)
+              <a href="https://wa.me/{{ $whatsappDigits }}" target="_blank" rel="noopener" class="btn-getstarted px-4 py-2"><i class="bi bi-whatsapp"></i> WhatsApp</a>
+            @endif
+            @if($business->phone)
+              <a href="tel:{{ $business->phone }}" class="cta-btn px-4 py-2"><i class="bi bi-telephone"></i> Call</a>
+            @endif
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="order" class="section feature-split-section feature-split-section--alt">
+  <div class="container" data-aos="fade-up">
+    <div class="row align-items-stretch g-4 g-lg-5 flex-lg-row-reverse">
+      <div class="col-lg-6">
+        <div class="feature-split__media">
+          <img src="{{ $orderFeatureImage }}" alt="">
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="feature-split__content">
+          <span class="why-eyebrow">Ordering</span>
+          <h2 class="feature-split__title">{{ $orderTitle }}</h2>
+          <p class="feature-split__lead">{{ $orderCaption }}</p>
+          <ul class="feature-split__list">
+            @foreach($orderSteps as $step)
+              <li><i class="bi bi-check-circle-fill"></i> <span>{{ $step }}</span></li>
+            @endforeach
+          </ul>
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            @if($whatsappDigits)
+              @php $waMsg = urlencode($order['whatsapp_message'] ?? ('Hello '.$business->name.', I would like to order: ')); @endphp
+              <a href="https://wa.me/{{ $whatsappDigits }}?text={{ $waMsg }}" target="_blank" rel="noopener" class="btn-getstarted px-4 py-2">
+                <i class="bi bi-whatsapp"></i> Order on WhatsApp
+              </a>
+            @endif
+            @if($business->phone)
+              <a href="tel:{{ $business->phone }}" class="cta-btn px-4 py-2"><i class="bi bi-telephone"></i> Call to order</a>
+            @endif
+            <a href="#products" class="cta-btn px-4 py-2">View products</a>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 @endsection
 
 @push('styles')
 <style>
-  .business-hero-plain {
-    background: linear-gradient(145deg, var(--accent-color) 0%, #2b2b2b 55%, #111 100%);
-    min-height: 420px;
+  /* Hero: uploaded image + readable white title (GP .hero h2 defaults to dark text) */
+  .business-site .business-hero.hero {
+    background-color: #1a1510;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    min-height: 460px;
+    max-height: none;
+    height: auto;
     display: flex;
     align-items: center;
+    position: relative;
+    overflow: hidden;
+    padding: 140px 0 90px;
   }
-  .business-hero-plain::before {
-    content: "";
+  .business-site .business-hero.hero::before { display: none !important; }
+  .business-site .business-hero .business-hero__shade {
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 20% 30%, rgba(255,255,255,.08), transparent 45%);
+    z-index: 1;
     pointer-events: none;
+    background: linear-gradient(160deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,.3) 50%, rgba(0,0,0,.5) 100%);
   }
-  .business-hero-plain > .container { position: relative; z-index: 1; }
-  .offerings-section { background: linear-gradient(180deg, #f4f6f8 0%, #fff 120px); }
+  .business-site .business-hero > .container { position: relative; z-index: 2; }
+  .business-site .business-hero__title {
+    color: #fff !important;
+    font-size: clamp(1.55rem, 4.2vw, 2.85rem) !important;
+    line-height: 1.2 !important;
+    font-weight: 800 !important;
+    margin: 0 !important;
+    text-shadow: 0 2px 18px rgba(0,0,0,.45);
+    word-break: break-word;
+  }
+  .business-site .business-hero__sub {
+    color: rgba(255,255,255,.9) !important;
+    font-size: clamp(1rem, 2vw, 1.25rem) !important;
+    line-height: 1.45 !important;
+    text-shadow: 0 1px 10px rgba(0,0,0,.4);
+  }
+
+  /* About — Why Us numbered cards */
+  .why-section {
+    background: #0c0b09;
+    color: #fff;
+    padding: 80px 0;
+  }
+  .why-head { margin-bottom: 2.5rem; }
+  .why-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: .75rem;
+    color: color-mix(in srgb, var(--accent-color) 70%, #e0c08a);
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    margin-bottom: .85rem;
+  }
+  .why-eyebrow::after {
+    content: "";
+    width: 56px;
+    height: 1px;
+    background: color-mix(in srgb, var(--accent-color) 70%, #e0c08a);
+  }
+  .why-title {
+    color: color-mix(in srgb, var(--accent-color) 55%, #f0d9a8);
+    font-family: 'Raleway', Georgia, serif;
+    font-size: clamp(1.75rem, 3.5vw, 2.4rem);
+    font-weight: 700;
+    margin: 0;
+  }
+  .why-card {
+    background: #1a1814;
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 4px;
+    padding: 1.75rem 1.5rem 1.6rem;
+    transition: transform .25s ease, border-color .25s ease;
+  }
+  .why-card:hover {
+    transform: translateY(-4px);
+    border-color: color-mix(in srgb, var(--accent-color) 45%, transparent);
+  }
+  .why-card__num {
+    font-family: 'Raleway', Georgia, serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: color-mix(in srgb, var(--accent-color) 55%, #f0d9a8);
+    line-height: 1;
+    margin-bottom: .85rem;
+  }
+  .why-card__title {
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: .65rem;
+  }
+  .why-card__body {
+    color: rgba(255,255,255,.65);
+    font-size: .95rem;
+    line-height: 1.65;
+  }
+
+  /* Contact / Order — split feature blocks (solid dark bg; photo only in media box) */
+  .feature-split-section {
+    position: relative;
+    background: #0c0b09;
+    color: #fff;
+    padding: 80px 0;
+    overflow: hidden;
+  }
+  .feature-split-section--alt {
+    background: #11100e;
+  }
+  .feature-split__media {
+    height: 100%;
+    min-height: 280px;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,.35);
+    background: #1a1814;
+  }
+  .feature-split__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    min-height: 280px;
+  }
+  .feature-split__title {
+    color: #fff;
+    font-family: 'Raleway', Georgia, serif;
+    font-size: clamp(1.6rem, 3vw, 2.1rem);
+    font-weight: 700;
+    margin: .35rem 0 1rem;
+  }
+  .feature-split__lead {
+    color: rgba(255,255,255,.7);
+    font-style: italic;
+    margin-bottom: 1.25rem;
+  }
+  .feature-split__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .feature-split__list li {
+    display: flex;
+    gap: .75rem;
+    align-items: flex-start;
+    margin-bottom: .85rem;
+    color: rgba(255,255,255,.88);
+  }
+  .feature-split__list i {
+    color: color-mix(in srgb, var(--accent-color) 55%, #f0d9a8);
+    margin-top: .15rem;
+  }
+  .feature-split__list a {
+    color: #fff;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255,255,255,.25);
+  }
+  .feature-split__list a:hover { color: color-mix(in srgb, var(--accent-color) 55%, #f0d9a8); }
+
+  @media (max-width: 767px) {
+    .business-site .business-hero.hero { min-height: 380px; }
+    .feature-split__media { min-height: 220px; }
+  }
 </style>
 @endpush

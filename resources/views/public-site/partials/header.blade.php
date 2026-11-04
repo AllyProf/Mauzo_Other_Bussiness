@@ -35,6 +35,7 @@
         <a class="d-none d-md-inline text-white small fw-semibold" href="tel:{{ $business->phone }}">{{ $business->phone }}</a>
       @endif
       <a class="btn-getstarted d-none d-md-inline-block" href="{{ $website->publicUrl('order') }}">Order now</a>
+      {{-- Order now scrolls to #order on the one-page site --}}
     </div>
 
   </div>

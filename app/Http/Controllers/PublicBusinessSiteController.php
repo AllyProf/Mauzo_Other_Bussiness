@@ -23,7 +23,13 @@ class PublicBusinessSiteController extends Controller
             abort(404);
         }
 
-        return $this->render($slug, $page);
+        $website = $this->websites->findPublishedBySlug($slug);
+        if (! $website) {
+            abort(404);
+        }
+
+        // One-page site: old /site/{slug}/about URLs land on the home section.
+        return redirect()->to($website->publicUrl($page), 301);
     }
 
     public function submitContact(Request $request, string $slug)
@@ -56,7 +62,9 @@ class PublicBusinessSiteController extends Controller
             }
         }
 
-        return back()->with('success', 'Thank you — we received your message and will respond soon.');
+        return redirect()
+            ->to($website->publicUrl('contact'))
+            ->with('success', 'Thank you — we received your message and will respond soon.');
     }
 
     private function render(string $slug, string $page)
@@ -67,41 +75,33 @@ class PublicBusinessSiteController extends Controller
         }
 
         $business = $website->business;
-        $content = $website->page($page);
+        $defaults = $this->websites->defaultPages($business);
+
+        $content = $website->page('home');
         if ($content === []) {
-            $content = $this->websites->defaultPages($business)[$page] ?? [];
+            $content = $defaults['home'] ?? [];
+        }
+
+        $sections = [];
+        foreach (['products', 'about', 'contact', 'order'] as $key) {
+            $section = $website->page($key);
+            $sections[$key] = $section !== [] ? $section : ($defaults[$key] ?? []);
         }
 
         $social = $website->social_links ?? [];
         $whatsapp = $social['whatsapp'] ?? $business->phone ?? '';
         $whatsappDigits = preg_replace('/\D+/', '', (string) $whatsapp);
 
-        $view = match ($page) {
-            'home' => 'public-site.home',
-            'products' => 'public-site.products',
-            default => 'public-site.page',
-        };
+        $catalog = $this->websites->productCatalog($business, $sections['products']);
 
-        $catalogSettings = $content;
-        if ($page === 'home') {
-            $productsContent = $website->page('products');
-            if ($productsContent === []) {
-                $productsContent = $this->websites->defaultPages($business)['products'] ?? [];
-            }
-            $catalogSettings = $productsContent;
-        }
-
-        $catalog = in_array($page, ['home', 'products'], true)
-            ? $this->websites->productCatalog($business, $catalogSettings)
-            : collect();
-
-        return view($view, [
+        return view('public-site.home', [
             'website' => $website,
             'business' => $business,
-            'page' => $page,
+            'page' => 'home',
             'content' => $content,
+            'sections' => $sections,
             'catalog' => $catalog,
-            'nav' => $this->navItems($website, $page),
+            'nav' => $this->navItems($website),
             'whatsappDigits' => $whatsappDigits,
             'whatsappDisplay' => $whatsapp,
         ]);
@@ -110,15 +110,15 @@ class PublicBusinessSiteController extends Controller
     /**
      * @return list<array{key: string, label: string, url: string, active: bool}>
      */
-    private function navItems($website, string $currentPage): array
+    private function navItems($website): array
     {
         $items = [];
         foreach (['home' => 'Home', 'products' => 'Products', 'about' => 'About', 'contact' => 'Contact', 'order' => 'Order'] as $key => $label) {
             $items[] = [
                 'key' => $key,
                 'label' => $label,
-                'url' => $website->publicUrl($key),
-                'active' => $key === $currentPage,
+                'url' => $key === 'home' ? $website->publicUrl().'#hero' : $website->publicUrl($key),
+                'active' => false,
             ];
         }
 

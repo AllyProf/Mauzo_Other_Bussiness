@@ -88,15 +88,26 @@ class BusinessWebsiteController extends Controller
         $business = Auth::user()->business;
         $website = $this->websites->forBusiness($business);
 
+        if ($page === 'home') {
+            $request->validate([
+                'hero_image' => 'nullable|image|max:4096',
+            ]);
+        }
+
         try {
-            $this->websites->updatePage($website, $page, $request->all());
+            $this->websites->updatePage(
+                $website,
+                $page,
+                $request->all(),
+                $request->file('hero_image')
+            );
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         }
 
         return redirect()
             ->route('business-website.edit-page', $page)
-            ->with('success', $this->pageLabel($page).' page saved.');
+            ->with('success', $this->pageLabel($page).' section saved.');
     }
 
     private function authorizeOwner(): void
@@ -109,7 +120,7 @@ class BusinessWebsiteController extends Controller
     private function pageLabel(string $page): string
     {
         return match ($page) {
-            'home' => 'Home',
+            'home' => 'Hero / Home',
             'products' => 'Products',
             'about' => 'About',
             'contact' => 'Contact',
