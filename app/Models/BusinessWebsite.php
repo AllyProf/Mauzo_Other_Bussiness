@@ -63,6 +63,16 @@ class BusinessWebsite extends Model
             return asset('storage/'.ltrim($path, '/'));
         }
 
+        foreach ([
+            'gp-assets/img/business-site/default-hero.jpg',
+            'gp-assets/img/default-hero.jpg',
+            'gp-assets/img/hero-bg.jpg',
+        ] as $fallback) {
+            if (is_file(public_path($fallback))) {
+                return asset($fallback).'?v='.@filemtime(public_path($fallback));
+            }
+        }
+
         return asset('gp-assets/img/hero-bg.jpg');
     }
 
