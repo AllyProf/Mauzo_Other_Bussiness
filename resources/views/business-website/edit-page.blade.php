@@ -241,8 +241,36 @@
           <input type="text" name="title" class="form-control" value="{{ old('title', $content['title'] ?? '') }}" required></div>
         <div class="form-group"><label class="font-weight-bold">Intro text</label>
           <textarea name="body" class="form-control" rows="3">{{ old('body', $content['body'] ?? '') }}</textarea></div>
-        <p class="text-muted small mb-0">Contact details (phone, WhatsApp, email, address) come from Business settings.</p>
+        <p class="text-muted small">Contact details (phone, WhatsApp, email, address) come from Business settings.</p>
         <input type="hidden" name="show_contact_form" value="0">
+
+        <hr class="my-4">
+        <h5 class="mb-3">Map</h5>
+        <div class="custom-control custom-checkbox mb-3">
+          <input type="checkbox" class="custom-control-input" id="show_map" name="show_map" value="1" {{ old('show_map', $content['show_map'] ?? true) ? 'checked' : '' }}>
+          <label class="custom-control-label font-weight-bold" for="show_map">Show map on the public contact section</label>
+        </div>
+        <div class="form-group">
+          <label class="font-weight-bold">Map location</label>
+          <input type="text"
+                 name="map_query"
+                 class="form-control"
+                 value="{{ old('map_query', $content['map_query'] ?? '') }}"
+                 placeholder="{{ $business->address ?: ($business->name.' Tanzania') }}">
+          <small class="text-muted">Search text for Google Maps. Leave blank to use the business address from settings.</small>
+        </div>
+        <div class="form-group mb-0">
+          <label class="font-weight-bold">Google Maps embed URL <span class="text-muted font-weight-normal">(optional)</span></label>
+          <textarea name="map_embed_url"
+                    class="form-control"
+                    rows="3"
+                    placeholder="https://maps.google.com/maps?q=...&output=embed">{{ old('map_embed_url', $content['map_embed_url'] ?? '') }}</textarea>
+          <small class="text-muted d-block mt-1">
+            Paste a Google Maps embed link, or the whole iframe code from Google Maps → Share → Embed a map.
+            If set, this overrides the location text above.
+          </small>
+          @error('map_embed_url')<small class="text-danger d-block">{{ $message }}</small>@enderror
+        </div>
       @endif
 
       @if($showHours)

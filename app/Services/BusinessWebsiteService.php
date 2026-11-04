@@ -248,6 +248,9 @@ class BusinessWebsiteService
             'open_time' => $existing['open_time'] ?? '08:00',
             'close_time' => $existing['close_time'] ?? '20:00',
             'show_contact_form' => filter_var($existing['show_contact_form'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'show_map' => filter_var($existing['show_map'] ?? true, FILTER_VALIDATE_BOOLEAN),
+            'map_query' => (string) ($existing['map_query'] ?? ''),
+            'map_embed_url' => (string) ($existing['map_embed_url'] ?? ''),
         ];
 
         if ($section === 'hours') {
@@ -265,7 +268,39 @@ class BusinessWebsiteService
             'open_time' => $this->normalizeTime($input['open_time'] ?? $base['open_time']),
             'close_time' => $this->normalizeTime($input['close_time'] ?? $base['close_time']),
             'show_contact_form' => filter_var($input['show_contact_form'] ?? $base['show_contact_form'], FILTER_VALIDATE_BOOLEAN),
+            'show_map' => filter_var($input['show_map'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'map_query' => trim((string) ($input['map_query'] ?? '')),
+            'map_embed_url' => $this->normalizeMapEmbedUrl((string) ($input['map_embed_url'] ?? '')),
         ];
+    }
+
+    private function normalizeMapEmbedUrl(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        // Allow pasting a full iframe snippet and extract the src.
+        if (preg_match('/src=["\']([^"\']+)["\']/i', $value, $m)) {
+            $value = html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5);
+        }
+
+        if (! filter_var($value, FILTER_VALIDATE_URL)) {
+            return '';
+        }
+
+        $host = strtolower((string) parse_url($value, PHP_URL_HOST));
+        $allowed = ['google.com', 'www.google.com', 'maps.google.com', 'maps.google.co.tz', 'www.google.co.tz'];
+        $ok = false;
+        foreach ($allowed as $allowedHost) {
+            if ($host === $allowedHost || str_ends_with($host, '.'.$allowedHost)) {
+                $ok = true;
+                break;
+            }
+        }
+
+        return $ok ? $value : '';
     }
 
     /**
@@ -434,6 +469,9 @@ class BusinessWebsiteService
                 'open_time' => '08:00',
                 'close_time' => '20:00',
                 'show_contact_form' => false,
+                'show_map' => true,
+                'map_query' => '',
+                'map_embed_url' => '',
             ],
             'order' => [
                 'title' => 'Place an order',

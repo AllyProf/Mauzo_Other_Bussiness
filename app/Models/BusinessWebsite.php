@@ -127,6 +127,34 @@ class BusinessWebsite extends Model
     }
 
     /**
+     * @return array{show: bool, embed: string, open: string, query: string}
+     */
+    public function contactMap(): array
+    {
+        $contact = $this->page('contact');
+        $show = filter_var($contact['show_map'] ?? true, FILTER_VALIDATE_BOOLEAN);
+        $customEmbed = trim((string) ($contact['map_embed_url'] ?? ''));
+        $query = trim((string) ($contact['map_query'] ?? ''));
+        if ($query === '') {
+            $query = trim((string) ($this->business?->address ?? ''));
+        }
+        if ($query === '') {
+            $query = trim((string) ($this->business?->name ?? 'Tanzania'));
+        }
+
+        $openUrl = 'https://www.google.com/maps/search/?api=1&query='.rawurlencode($query);
+
+        return [
+            'show' => $show,
+            'embed' => $customEmbed !== ''
+                ? $customEmbed
+                : 'https://maps.google.com/maps?q='.rawurlencode($query).'&z=15&output=embed',
+            'open' => $openUrl,
+            'query' => $query,
+        ];
+    }
+
+    /**
      * @return array{sections: array<string, bool>, payment: array<string, mixed>}
      */
     public function siteConfig(): array

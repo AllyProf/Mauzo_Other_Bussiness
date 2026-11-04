@@ -56,12 +56,10 @@
 
   $heroImage = $website->heroImageUrl();
   $orderFeatureImage = asset('gp-assets/img/business-site/order-image.jpg');
-  $mapQuery = trim((string) ($business->address ?? ''));
-  if ($mapQuery === '') {
-      $mapQuery = (string) ($business->name ?? 'Tanzania');
-  }
-  $mapEmbedSrc = 'https://maps.google.com/maps?q='.rawurlencode($mapQuery).'&z=15&output=embed';
-  $mapOpenUrl = 'https://www.google.com/maps/search/?api=1&query='.rawurlencode($mapQuery);
+  $contactMap = $website->contactMap();
+  $showMap = ! empty($contactMap['show']);
+  $mapEmbedSrc = $contactMap['embed'];
+  $mapOpenUrl = $contactMap['open'];
 
   $showPromo = $website->sectionEnabled('promo');
   $showProducts = $website->sectionEnabled('products');
@@ -226,6 +224,7 @@
 <section id="contact" class="section feature-split-section">
   <div class="container" data-aos="fade-up">
     <div class="row align-items-stretch g-4 g-lg-5">
+      @if($showMap)
       <div class="col-lg-6 d-flex">
         <div class="feature-split__media feature-split__media--map w-100">
           <iframe
@@ -239,7 +238,8 @@
           </a>
         </div>
       </div>
-      <div class="col-lg-6 d-flex">
+      @endif
+      <div class="{{ $showMap ? 'col-lg-6' : 'col-lg-8 mx-auto' }} d-flex">
         <div class="feature-split__content w-100">
           <span class="why-eyebrow">{{ __('public_site.contact.eyebrow') }}</span>
           <h2 class="feature-split__title">{{ $contactTitle }}</h2>
