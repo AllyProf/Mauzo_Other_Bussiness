@@ -91,6 +91,7 @@ return [
         'title' => 'Wasiliana',
         'caption' => 'Tupigie simu au WhatsApp.',
         'map_title' => 'Ramani — :name',
+        'inquiry' => 'Kwa maulizo zaidi',
     ],
     'footer' => [
         'contact' => 'Wasiliana',

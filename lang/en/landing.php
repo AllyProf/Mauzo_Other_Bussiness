@@ -157,6 +157,7 @@ return [
         'phone_title' => 'Call Us Now',
         'mail_title' => 'Mail Us Now',
         'mail_note' => 'We reply within 24 hours on business days',
+        'inquiry' => 'For more inquiry',
     ],
     'footer' => [
         'about' => 'Modern POS and business management for Tanzanian shops — sales, stock, shift closing and owner reports in one place, on web and mobile.',

@@ -91,6 +91,7 @@ return [
         'title' => 'Contact',
         'caption' => 'Call or WhatsApp us.',
         'map_title' => 'Map — :name',
+        'inquiry' => 'For more inquiry',
     ],
     'footer' => [
         'contact' => 'Contact',

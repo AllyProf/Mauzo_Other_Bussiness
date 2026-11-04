@@ -157,6 +157,7 @@ return [
         'phone_title' => 'Simu',
         'mail_title' => 'Barua pepe',
         'mail_note' => 'Tunajibu ndani ya masaa 24 siku za kazi',
+        'inquiry' => 'Kwa maulizo zaidi',
     ],
     'footer' => [
         'about' => 'Mfumo wa mauzo na usimamizi wa biashara kwa maduka nchini Tanzania — mauzo, bidhaa ghala, kufunga zamu na ripoti kwa mmiliki, kwenye kompyuta na simu.',
