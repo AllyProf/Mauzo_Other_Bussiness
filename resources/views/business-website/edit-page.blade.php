@@ -45,9 +45,7 @@
           <label class="font-weight-bold">Hero image</label>
           @php
             $heroPath = $content['hero_image_path'] ?? null;
-            $heroPreview = ($heroPath && \Illuminate\Support\Facades\Storage::disk('public')->exists($heroPath))
-              ? asset('storage/'.ltrim($heroPath, '/'))
-              : null;
+            $heroPreview = $website->uploadedMediaUrl(is_string($heroPath) ? $heroPath : null);
           @endphp
           @if($heroPreview)
             <div class="mb-2 site-upload-preview site-upload-preview--hero">
@@ -92,9 +90,7 @@
           <div class="row mb-3">
             @foreach($galleryPaths as $gPath)
               @php
-                $gUrl = \Illuminate\Support\Facades\Storage::disk('public')->exists($gPath)
-                  ? asset('storage/'.ltrim($gPath, '/'))
-                  : null;
+                $gUrl = $website->uploadedMediaUrl(is_string($gPath) ? $gPath : null);
               @endphp
               @if($gUrl)
                 <div class="col-6 col-md-3 mb-2">

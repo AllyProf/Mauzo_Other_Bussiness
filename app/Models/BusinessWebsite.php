@@ -58,9 +58,9 @@ class BusinessWebsite extends Model
     public function heroImageUrl(): string
     {
         $path = $this->page('home')['hero_image_path'] ?? null;
-        if (is_string($path) && $path !== '' && Storage::disk('public')->exists($path)) {
-            // Prefer asset()/storage path so local & production hosts stay correct.
-            return asset('storage/'.ltrim($path, '/'));
+        $uploaded = is_string($path) ? $this->uploadedMediaUrl($path) : null;
+        if ($uploaded) {
+            return $uploaded;
         }
 
         foreach ([
@@ -91,12 +91,34 @@ class BusinessWebsite extends Model
             if (! is_string($path) || $path === '') {
                 continue;
             }
-            if (Storage::disk('public')->exists($path)) {
-                $urls[] = asset('storage/'.ltrim($path, '/'));
+            $url = $this->uploadedMediaUrl($path);
+            if ($url) {
+                $urls[] = $url;
             }
         }
 
         return $urls;
+    }
+
+    /**
+     * Public URL for an uploaded business-website file.
+     * Uses /site-media/... so images work even when public/storage is not linked
+     * (common when the domain document root is public_html).
+     */
+    public function uploadedMediaUrl(?string $path): ?string
+    {
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        $path = ltrim(str_replace('\\', '/', $path), '/');
+        if ($path === '' || str_contains($path, '..') || ! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        $version = @filemtime(Storage::disk('public')->path($path)) ?: time();
+
+        return url('/site-media/'.$path).'?v='.$version;
     }
 
     /**
@@ -214,10 +236,7 @@ class BusinessWebsite extends Model
     public function paymentQrImageUrl(): ?string
     {
         $path = $this->siteConfig()['payment']['qr_image_path'] ?? null;
-        if (! is_string($path) || $path === '' || ! Storage::disk('public')->exists($path)) {
-            return null;
-        }
 
-        return asset('storage/'.ltrim($path, '/'));
+        return $this->uploadedMediaUrl(is_string($path) ? $path : null);
     }
 }

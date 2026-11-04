@@ -19,6 +19,9 @@ Route::get('/site/{slug}/{page}', [App\Http\Controllers\PublicBusinessSiteContro
     ->where('page', 'about|contact|order|products')
     ->name('public.site.page');
 Route::post('/site/{slug}/contact', [App\Http\Controllers\PublicBusinessSiteController::class, 'submitContact'])->name('public.site.contact.submit');
+Route::get('/site-media/{path}', [App\Http\Controllers\BusinessWebsiteMediaController::class, 'show'])
+    ->where('path', '.*')
+    ->name('public.site.media');
 
 // Authentication Routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
