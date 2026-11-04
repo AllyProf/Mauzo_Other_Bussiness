@@ -27,7 +27,7 @@
       </div>
 
       <div class="col-lg-4 col-md-6 site-footer__col">
-        <h4 class="site-footer__heading">Contact</h4>
+        <h4 class="site-footer__heading">{{ __('public_site.footer.contact') }}</h4>
         <ul class="site-footer__list">
           @if(filled($business->address))
             <li><i class="bi bi-geo-alt-fill"></i><span>{{ $business->address }}</span></li>
@@ -42,7 +42,7 @@
       </div>
 
       <div class="col-lg-4 col-md-6 site-footer__col">
-        <h4 class="site-footer__heading">Quick links</h4>
+        <h4 class="site-footer__heading">{{ __('public_site.footer.quick_links') }}</h4>
         <ul class="site-footer__list site-footer__links">
           @foreach($footerLinks as [$label, $url])
             <li><i class="bi bi-check-circle-fill"></i><a href="{{ $url }}">{{ $label }}</a></li>
@@ -68,7 +68,11 @@
       <p>
         &copy; {{ date('Y') }} {{ $business->name }}
         <span class="site-footer__sep">|</span>
-        <span class="site-footer__powered">Store site powered by <a href="{{ route('landing.index') }}">Mauzo Link</a></span>
+        <span class="site-footer__powered">
+          {{ __('public_site.footer.powered') }} <a href="{{ route('landing.index') }}">Mauzo Link</a>
+          &amp; {{ __('public_site.footer.developed') }}
+          <a href="https://www.emca.tech" target="_blank" rel="noopener">EmCa Techonologies LTD</a>
+        </span>
       </p>
     </div>
   </div>

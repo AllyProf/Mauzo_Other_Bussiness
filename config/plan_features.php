@@ -15,6 +15,7 @@ return [
         ],
         'Operations' => [
             'branches' => 'Branches',
+            'business_website' => 'Business Website',
             'notes_reminders' => 'Notes & Reminders',
             'automation_reminders' => 'Automated Reminders (Settings)',
         ],
@@ -47,6 +48,7 @@ return [
         'petty_cash' => ['petty-cash.*'],
         'sales_targets' => ['sales-targets.*'],
         'branches' => ['branches.*'],
+        'business_website' => ['business-website.*'],
         'reports_daily' => ['reports.daily-sales', 'reports.daily-report', 'reports.payment-channels', 'reports.daily-items-sold', 'owner-reports.show', 'owner-reports.expenses.*'],
         'reports_expenses' => ['reports.expenses'],
         'reports_sales' => ['reports.sales-analytics', 'reports.cashiers'],

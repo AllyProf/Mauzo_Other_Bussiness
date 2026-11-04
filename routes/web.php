@@ -299,6 +299,9 @@ Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(fu
     // Business Settings (Owner)
     Route::get('/business-website', [App\Http\Controllers\BusinessWebsiteController::class, 'index'])->name('business-website.index');
     Route::put('/business-website/settings', [App\Http\Controllers\BusinessWebsiteController::class, 'updateSettings'])->name('business-website.settings.update');
+    Route::put('/business-website/sections', [App\Http\Controllers\BusinessWebsiteController::class, 'updateSections'])->name('business-website.sections.update');
+    Route::put('/business-website/payment-qr', [App\Http\Controllers\BusinessWebsiteController::class, 'updatePaymentQr'])->name('business-website.payment-qr.update');
+    Route::get('/business-website/payment-qr/print', [App\Http\Controllers\BusinessWebsiteController::class, 'printPaymentQr'])->name('business-website.payment-qr.print');
     Route::get('/business-website/pages/{page}', [App\Http\Controllers\BusinessWebsiteController::class, 'editPage'])
         ->where('page', 'home|products|about|contact|order')
         ->name('business-website.edit-page');

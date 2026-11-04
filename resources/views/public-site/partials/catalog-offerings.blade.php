@@ -5,11 +5,11 @@
 @endphp
 
 @if($catalog->isEmpty())
-  <p class="menu-empty text-center mb-0 py-5">No products in stock right now.</p>
+  <p class="menu-empty text-center mb-0 py-5">{{ __('public_site.products.empty') }}</p>
 @else
   <div class="menu-board" data-menu-board>
-    <nav class="menu-tabs" role="tablist" aria-label="Product categories">
-      <button type="button" class="menu-tab is-active" data-menu-filter="all" role="tab" aria-selected="true">All</button>
+    <nav class="menu-tabs" role="tablist" aria-label="{{ __('public_site.products.categories_label') }}">
+      <button type="button" class="menu-tab is-active" data-menu-filter="all" role="tab" aria-selected="true">{{ __('public_site.products.all') }}</button>
       @foreach($categories as $categoryName)
         <button type="button"
                 class="menu-tab"
@@ -22,7 +22,7 @@
     @if($totalListed > 8)
       <div class="menu-search-wrap mx-auto mb-4">
         <i class="bi bi-search"></i>
-        <input type="search" class="form-control menu-search" placeholder="Search…" autocomplete="off" aria-label="Search products">
+        <input type="search" class="form-control menu-search" placeholder="{{ __('public_site.products.search') }}" autocomplete="off" aria-label="{{ __('public_site.products.search_label') }}">
       </div>
     @endif
 
@@ -62,12 +62,12 @@
               <div class="menu-item__topline">
                 <h3 class="menu-item__name">{{ $product['name'] }}</h3>
                 <span class="menu-item__dots" aria-hidden="true"></span>
-                <span class="menu-item__price">{{ $priceLabel ?: 'Ask' }}</span>
+                <span class="menu-item__price">{{ $priceLabel ?: __('public_site.products.ask') }}</span>
               </div>
               @if($desc !== '')
                 <p class="menu-item__desc">{{ $desc }}</p>
               @elseif(! $priceLabel)
-                <p class="menu-item__desc">Ask in store for price</p>
+                <p class="menu-item__desc">{{ __('public_site.products.ask_price') }}</p>
               @endif
             </div>
           </article>
@@ -75,19 +75,31 @@
       @endforeach
     </div>
 
-    <p class="text-center menu-empty d-none menu-no-results mb-0 mt-4">No products match.</p>
+    <p class="text-center menu-empty d-none menu-no-results mb-0 mt-4">{{ __('public_site.products.no_match') }}</p>
   </div>
 @endif
 
 @once
-  @push('styles')
   <style>
     .menu-board {
       --menu-ink: #fff;
       --menu-muted: rgba(255, 255, 255, .62);
       --menu-line: rgba(255, 255, 255, .22);
       --menu-accent: var(--accent-color, #cda45e);
+      --menu-search-bg: rgba(255,255,255,.06);
+      --menu-search-bg-focus: rgba(255,255,255,.1);
+      --menu-thumb-border: rgba(255,255,255,.18);
+      --menu-thumb-bg: rgba(255,255,255,.08);
       color: var(--menu-ink);
+    }
+    html[data-site-theme="light"] .menu-board {
+      --menu-ink: #1a1814;
+      --menu-muted: rgba(26, 24, 20, .62);
+      --menu-line: rgba(26, 24, 20, .18);
+      --menu-search-bg: rgba(26,24,20,.04);
+      --menu-search-bg-focus: #fff;
+      --menu-thumb-border: rgba(26,24,20,.12);
+      --menu-thumb-bg: rgba(26,24,20,.05);
     }
     .menu-tabs {
       display: flex;
@@ -132,18 +144,18 @@
       color: var(--menu-muted); pointer-events: none;
     }
     .menu-search-wrap .form-control {
-      background: rgba(255,255,255,.06);
+      background: var(--menu-search-bg);
       border: 1px solid var(--menu-line);
-      color: #fff;
+      color: var(--menu-ink);
       border-radius: 999px;
       padding-left: 2.5rem;
     }
     .menu-search-wrap .form-control::placeholder { color: var(--menu-muted); }
     .menu-search-wrap .form-control:focus {
-      background: rgba(255,255,255,.1);
+      background: var(--menu-search-bg-focus);
       border-color: var(--menu-accent);
       box-shadow: none;
-      color: #fff;
+      color: var(--menu-ink);
     }
 
     .menu-grid {
@@ -173,8 +185,8 @@
       height: 70px;
       border-radius: 50%;
       overflow: hidden;
-      border: 3px solid rgba(255,255,255,.18);
-      background: rgba(255,255,255,.08);
+      border: 3px solid var(--menu-thumb-border);
+      background: var(--menu-thumb-bg);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -202,7 +214,7 @@
       margin: 0;
       font-size: 1.05rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--menu-ink);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -211,7 +223,7 @@
     .menu-item__dots {
       flex: 1 1 auto;
       min-width: 1.5rem;
-      border-bottom: 2px dotted rgba(255,255,255,.35);
+      border-bottom: 2px dotted var(--menu-line);
       transform: translateY(-4px);
     }
     .menu-item__price {
@@ -240,9 +252,7 @@
       .menu-item__name { font-size: .98rem; max-width: 42%; }
     }
   </style>
-  @endpush
 
-  @push('scripts')
   <script>
     (function () {
       var board = document.querySelector('[data-menu-board]');
@@ -305,7 +315,6 @@
             el.classList.remove('is-hidden');
             el.classList.add('is-hiding');
           });
-          // next frame: fade in
           requestAnimationFrame(function () {
             requestAnimationFrame(function () {
               toShow.forEach(function (el) { el.classList.remove('is-hiding'); });
@@ -332,5 +341,4 @@
       }
     })();
   </script>
-  @endpush
 @endonce

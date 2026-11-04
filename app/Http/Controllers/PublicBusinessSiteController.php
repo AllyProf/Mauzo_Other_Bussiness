@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Services\BusinessWebsiteService;
+use App\Services\LocaleService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Mail;
 
 class PublicBusinessSiteController extends Controller
@@ -23,7 +25,7 @@ class PublicBusinessSiteController extends Controller
             abort(404);
         }
 
-        $website = $this->websites->findPublishedBySlug($slug);
+        $website = $this->websites->findBySlug($slug);
         if (! $website) {
             abort(404);
         }
@@ -35,7 +37,7 @@ class PublicBusinessSiteController extends Controller
     public function submitContact(Request $request, string $slug)
     {
         $website = $this->websites->findPublishedBySlug($slug);
-        if (! $website || ! $website->page('contact')['show_contact_form']) {
+        if (! $website || ! ($website->page('contact')['show_contact_form'] ?? false)) {
             abort(404);
         }
 
@@ -69,12 +71,32 @@ class PublicBusinessSiteController extends Controller
 
     private function render(string $slug, string $page)
     {
-        $website = $this->websites->findPublishedBySlug($slug);
+        $website = $this->websites->findBySlug($slug);
         if (! $website) {
             abort(404);
         }
 
+        // Public storefront defaults to Kiswahili until the visitor picks a language.
+        if (! session('locale') && ! request()->cookie('locale')) {
+            App::setLocale('sw');
+        } else {
+            app(LocaleService::class)->apply();
+        }
+
         $business = $website->business;
+
+        if (! $website->is_published || ! $business->hasPlanFeature('business_website')) {
+            return response()->view('public-site.inactive', [
+                'website' => $website,
+                'business' => $business,
+                'page' => 'home',
+                'content' => [],
+                'nav' => [],
+                'whatsappDigits' => '',
+                'whatsappDisplay' => '',
+            ], 503);
+        }
+
         $defaults = $this->websites->defaultPages($business);
 
         $content = $website->page('home');
@@ -113,11 +135,29 @@ class PublicBusinessSiteController extends Controller
     private function navItems($website): array
     {
         $items = [];
-        foreach (['home' => 'Home', 'products' => 'Products', 'order' => 'Order', 'contact' => 'Contact'] as $key => $label) {
+        $keys = ['home'];
+        if ($website->sectionEnabled('products')) {
+            $keys[] = 'products';
+        }
+        if ($website->sectionEnabled('order')) {
+            $keys[] = 'order';
+        }
+        if ($website->sectionEnabled('gallery') && $website->galleryImageUrls() !== []) {
+            $keys[] = 'gallery';
+        }
+        if ($website->sectionEnabled('contact')) {
+            $keys[] = 'contact';
+        }
+
+        foreach ($keys as $key) {
             $items[] = [
                 'key' => $key,
-                'label' => $label,
-                'url' => $key === 'home' ? $website->publicUrl().'#hero' : $website->publicUrl($key),
+                'label' => __('public_site.nav.'.$key),
+                'url' => match ($key) {
+                    'home' => $website->publicUrl().'#hero',
+                    'gallery' => $website->publicUrl().'#gallery',
+                    default => $website->publicUrl($key),
+                },
                 'active' => false,
             ];
         }

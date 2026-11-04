@@ -1,3 +1,6 @@
+@php
+  $openNow = $website->sectionEnabled('open_badge') ? $website->isOpenNow() : null;
+@endphp
 <header id="header" class="header d-flex align-items-center fixed-top">
   <div class="container-fluid container-xl position-relative d-flex align-items-center justify-content-between">
 
@@ -27,15 +30,36 @@
     </nav>
 
     <div class="header-actions d-flex align-items-center gap-2 ms-2">
+      @if($openNow !== null)
+        <span class="site-open-badge {{ $openNow ? 'is-open' : 'is-closed' }} d-none d-md-inline-flex">
+          <span class="site-open-badge__dot"></span>
+          {{ $openNow ? __('public_site.status.open_now') : __('public_site.status.closed') }}
+        </span>
+      @endif
+      @include('public-site.partials.site-controls')
+      @if($website->sectionEnabled('share'))
+      <button type="button"
+              class="site-share-btn"
+              data-site-share
+              data-share-url="{{ $website->publicUrl() }}"
+              data-share-title="{{ $business->name }}"
+              data-share-text="{{ $website->tagline ?: $business->name }}"
+              data-copied-label="{{ __('public_site.actions.share_copied') }}"
+              aria-label="{{ __('public_site.actions.share') }}"
+              title="{{ __('public_site.actions.share') }}">
+        <i class="bi bi-share-fill"></i>
+      </button>
+      @endif
       @if($whatsappDigits ?? false)
-        <a class="d-none d-md-inline text-white small fw-semibold" href="https://wa.me/{{ $whatsappDigits }}" target="_blank" rel="noopener">
+        <a class="d-none d-lg-inline text-white small fw-semibold" href="https://wa.me/{{ $whatsappDigits }}" target="_blank" rel="noopener">
           <i class="bi bi-whatsapp"></i> WhatsApp
         </a>
       @elseif($business->phone)
-        <a class="d-none d-md-inline text-white small fw-semibold" href="tel:{{ $business->phone }}">{{ $business->phone }}</a>
+        <a class="d-none d-lg-inline text-white small fw-semibold" href="tel:{{ $business->phone }}">{{ $business->phone }}</a>
       @endif
-      <a class="btn-getstarted d-none d-md-inline-block" href="{{ $website->publicUrl('order') }}">Order now</a>
-      {{-- Order now scrolls to #order on the one-page site --}}
+      @if($website->sectionEnabled('order'))
+        <a class="btn-getstarted d-none d-md-inline-block" href="{{ $website->publicUrl('order') }}">{{ __('public_site.actions.order_now') }}</a>
+      @endif
     </div>
 
   </div>

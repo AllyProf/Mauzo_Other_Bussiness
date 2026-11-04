@@ -1,0 +1,101 @@
+<?php
+
+return [
+    'lang' => [
+        'switcher_label' => 'Chagua lugha',
+    ],
+    'theme' => [
+        'switcher_label' => 'Rangi ya tovuti',
+        'to_light' => 'Badili kuwa mwanga',
+        'to_dark' => 'Badili kuwa giza',
+        'light' => 'Mwanga',
+        'dark' => 'Giza',
+    ],
+    'nav' => [
+        'home' => 'Nyumbani',
+        'products' => 'Bidhaa',
+        'order' => 'Agiza',
+        'contact' => 'Wasiliana',
+        'gallery' => 'Picha',
+    ],
+    'actions' => [
+        'order_now' => 'Agiza sasa',
+        'view_products' => 'Angalia bidhaa',
+        'contact_us' => 'Wasiliana nasi',
+        'order_whatsapp' => 'Agiza kwa WhatsApp',
+        'call_to_order' => 'Piga simu kuagiza',
+        'call' => 'Piga',
+        'whatsapp' => 'WhatsApp',
+        'whatsapp_us' => 'Tuandikie WhatsApp',
+        'open_maps' => 'Fungua kwenye Google Maps',
+        'share' => 'Shiriki',
+        'share_copied' => 'Kiungo kimenakiliwa',
+        'chat_whatsapp' => 'Ongea kwa WhatsApp',
+    ],
+    'status' => [
+        'open_now' => 'Tuko wazi',
+        'closed' => 'Tumefunga',
+    ],
+    'inactive' => [
+        'title' => ':name — Duka halipo mtandaoni',
+        'badge' => 'Halipo hai',
+        'heading' => 'Duka hili limfungwa mtandaoni kwa sasa',
+        'message' => 'Tovuti ya umma haijachapishwa kwa sasa. Tafadhali rudi baadaye au wasiliana na duka moja kwa moja.',
+    ],
+    'promo' => [
+        'title' => 'Special za leo',
+    ],
+    'gallery' => [
+        'eyebrow' => 'Duka letu',
+        'title' => 'Picha',
+        'caption' => 'Angalia ndani ya duka letu.',
+    ],
+    'share' => [
+        'title' => 'Shiriki duka hili',
+        'hint' => 'Nakili kiungo au scan QR code.',
+        'copy' => 'Nakili kiungo',
+        'qr' => 'QR code ya duka',
+        'scan' => 'Scan kufungua duka mtandaoni',
+    ],
+    'notes' => [
+        'delivery' => 'Delivery',
+        'payment' => 'Malipo',
+    ],
+    'products' => [
+        'title' => 'Bidhaa',
+        'in_stock' => 'Zinapatikana kwa bei.',
+        'visit_us' => 'Tembelea ili kuona kinachopatikana.',
+        'empty' => 'Hakuna bidhaa zinazopatikana sasa.',
+        'all' => 'Zote',
+        'categories_label' => 'Makundi ya bidhaa',
+        'search' => 'Tafuta…',
+        'search_label' => 'Tafuta bidhaa',
+        'ask' => 'Uliza',
+        'ask_price' => 'Uliza bei dukani',
+        'no_match' => 'Hakuna bidhaa zinazolingana.',
+    ],
+    'order' => [
+        'eyebrow' => 'Kuagiza',
+        'title' => 'Weka agizo',
+        'caption' => 'Agiza kupitia WhatsApp au simu.',
+        'how_to' => 'Jinsi ya kuagiza',
+        'wa_message' => 'Habari :name, ningependa kuagiza: ',
+        'steps' => [
+            'Tuma orodha yako kwa WhatsApp au tupigie simu.',
+            'Tunathibitisha bei na stock.',
+            'Lipia kisha chukua au pokea delivery.',
+        ],
+    ],
+    'contact' => [
+        'eyebrow' => 'Wasiliana nasi',
+        'title' => 'Wasiliana',
+        'caption' => 'Tupigie simu au WhatsApp.',
+        'map_title' => 'Ramani — :name',
+    ],
+    'footer' => [
+        'contact' => 'Wasiliana',
+        'quick_links' => 'Viungo vya haraka',
+        'powered' => 'Tovuti inasimamiwa na',
+        'developed' => 'Imetengenezwa na',
+    ],
+];

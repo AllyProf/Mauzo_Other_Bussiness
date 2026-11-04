@@ -3,10 +3,25 @@
 @section('title', 'Business Website')
 
 @section('content')
+@php
+  $sections = $siteConfig['sections'] ?? [];
+  $payment = $siteConfig['payment'] ?? [];
+  $sectionMeta = [
+    'promo' => ['label' => 'Promo / specials', 'edit' => 'home', 'section' => 'promo', 'hint' => 'Featured deals strip'],
+    'products' => ['label' => 'Products', 'edit' => 'products', 'section' => null, 'hint' => 'Live catalog from Mauzo'],
+    'order' => ['label' => 'Order', 'edit' => 'order', 'section' => null, 'hint' => 'How to order + delivery/payment notes'],
+    'gallery' => ['label' => 'Gallery', 'edit' => 'home', 'section' => 'gallery', 'hint' => 'Shop photos'],
+    'contact' => ['label' => 'Contact', 'edit' => 'contact', 'section' => null, 'hint' => 'Map, phone, intro'],
+    'share' => ['label' => 'Share / QR scan', 'edit' => null, 'section' => null, 'hint' => 'Share link + QR animation'],
+    'open_badge' => ['label' => 'Open now badge', 'edit' => 'contact', 'section' => 'hours', 'hint' => 'Uses open/close times'],
+    'whatsapp_float' => ['label' => 'Floating WhatsApp', 'edit' => null, 'section' => null, 'hint' => 'Green chat button'],
+  ];
+@endphp
+
 <div class="app-title">
   <div>
     <h1><i class="fa fa-globe"></i> Business Website</h1>
-    <p>One-page public site — edit each section (Hero, Products, About, Contact, Order).</p>
+    <p>Customize your public storefront — sections, content, and printable payment QR.</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     @include('layouts.partials._breadcrumb_manual')
@@ -67,35 +82,10 @@
         </form>
       </div>
     </div>
-  </div>
 
-  <div class="col-lg-7">
     <div class="tile">
-      <h3 class="tile-title">Sections (one page)</h3>
+      <h3 class="tile-title">Website URL</h3>
       <div class="tile-body">
-        @php
-          $pages = [
-            'home' => ['label' => 'Hero / Home', 'icon' => 'fa-home', 'desc' => 'Welcome text, button, and hero image'],
-            'products' => ['label' => 'Products', 'icon' => 'fa-tags', 'desc' => 'Catalog from your Mauzo Link items'],
-            'contact' => ['label' => 'Contact', 'icon' => 'fa-envelope', 'desc' => 'Location, hours, WhatsApp / call'],
-            'order' => ['label' => 'Order', 'icon' => 'fa-shopping-bag', 'desc' => 'How customers place orders'],
-          ];
-        @endphp
-        <div class="list-group">
-          @foreach($pages as $key => $meta)
-            <div class="list-group-item d-flex align-items-center justify-content-between">
-              <div>
-                <i class="fa {{ $meta['icon'] }} text-danger mr-2"></i>
-                <strong>{{ $meta['label'] }}</strong>
-                <div class="small text-muted">{{ $meta['desc'] }}</div>
-              </div>
-              <a href="{{ route('business-website.edit-page', $key) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-            </div>
-          @endforeach
-        </div>
-
-        <hr>
-        <p class="mb-2 font-weight-bold">Website URL</p>
         @php $publicSiteUrl = $website->publicUrl(); @endphp
         <div class="input-group mb-2">
           <input type="text"
@@ -125,9 +115,101 @@
         @if($website->is_published)
           <p class="text-muted small mb-0">Published — share this link with customers.</p>
         @else
-          <p class="text-muted small mb-0">Not published yet. Turn on <strong>Publish website</strong> so visitors can open this URL.</p>
+          <p class="text-muted small mb-0">Not published yet. Turn on <strong>Publish website</strong>.</p>
         @endif
         <p class="text-muted small mt-3 mb-0">Logo, phone, email, and address come from <a href="{{ route('settings.index') }}">Business settings</a>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="tile">
+      <h3 class="tile-title">Sections — enable / disable</h3>
+      <div class="tile-body">
+        <form method="POST" action="{{ route('business-website.sections.update') }}">
+          @csrf
+          @method('PUT')
+          <div class="list-group mb-3">
+            @foreach($sectionMeta as $key => $meta)
+              <div class="list-group-item d-flex align-items-center justify-content-between">
+                <div class="pr-3">
+                  <div class="custom-control custom-switch">
+                    <input type="checkbox"
+                           class="custom-control-input"
+                           id="section_{{ $key }}"
+                           name="section_{{ $key }}"
+                           value="1"
+                           {{ !empty($sections[$key]) ? 'checked' : '' }}>
+                    <label class="custom-control-label font-weight-bold" for="section_{{ $key }}">{{ $meta['label'] }}</label>
+                  </div>
+                  <div class="small text-muted ml-4 pl-1">{{ $meta['hint'] }}</div>
+                </div>
+                @if($meta['edit'])
+                  <a href="{{ route('business-website.edit-page', array_filter(['page' => $meta['edit'], 'section' => $meta['section'] ?? null])) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                @endif
+              </div>
+            @endforeach
+          </div>
+          <div class="d-flex align-items-center justify-content-between flex-wrap">
+            <a href="{{ route('business-website.edit-page', ['page' => 'home', 'section' => 'hero']) }}" class="btn btn-sm btn-outline-secondary mb-2"><i class="fa fa-home"></i> Edit Hero</a>
+            <button type="submit" class="btn btn-primary mb-2"><i class="fa fa-save"></i> Save sections</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="tile">
+      <h3 class="tile-title">Shop website QR (print standee)</h3>
+      <div class="tile-body">
+        <p class="text-muted small mb-2">
+          The QR opens your <strong>website URL</strong>
+          <code class="small">{{ $website->publicUrl() }}</code>.
+          Print a counter standee so customers can scan and open your shop site.
+        </p>
+        <div class="mb-3 d-flex align-items-center p-2 border rounded bg-light">
+          <img src="{{ $website->qrCodeUrl(120) }}" alt="Website QR" width="96" height="96" class="mr-3" style="background:#fff;padding:6px;border-radius:6px;">
+          <div class="small text-muted">Preview of the website QR that will be printed.</div>
+        </div>
+        <form method="POST" action="{{ route('business-website.payment-qr.update') }}">
+          @csrf
+          @method('PUT')
+          <div class="row">
+            <div class="col-md-6 form-group">
+              <label class="font-weight-bold">Shop name on standee</label>
+              <input type="text" name="merchant_name" class="form-control text-uppercase" value="{{ old('merchant_name', $payment['merchant_name'] ?? $business->name) }}" placeholder="ALLY ENGINEER">
+            </div>
+            <div class="col-md-6 form-group">
+              <label class="font-weight-bold">Code / phone (optional)</label>
+              <input type="text" name="merchant_id" class="form-control" value="{{ old('merchant_id', $payment['merchant_id'] ?? '') }}" placeholder="e.g. phone or short code">
+            </div>
+          </div>
+          @php
+            $savedTitle = old('payment_title', $payment['title'] ?? '');
+            $savedFooter = old('payment_footer_text', $payment['footer_text'] ?? '');
+            if ($savedTitle === '' || str_contains(strtolower($savedTitle), 'lipa')) {
+                $savedTitle = 'Visit our website';
+            }
+            if ($savedFooter === '' || str_contains(strtolower((string) $savedFooter), 'lipa') || str_contains(strtolower((string) $savedFooter), 'benki') || str_contains(strtolower((string) $savedFooter), 'products')) {
+                $savedFooter = 'Scan to open';
+            }
+          @endphp
+          <div class="form-group">
+            <label class="font-weight-bold">Headline</label>
+            <input type="text" name="payment_title" class="form-control" value="{{ $savedTitle }}" placeholder="Visit our website">
+            <small class="text-muted">Top line under the circle (like “SCAN AND ORDER”).</small>
+          </div>
+          <div class="form-group">
+            <label class="font-weight-bold">Big line</label>
+            <input type="text" name="payment_footer_text" class="form-control" value="{{ $savedFooter }}" placeholder="Scan to open">
+            <small class="text-muted">Large bottom line (like “OUR MENU”).</small>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary mr-2 mb-2"><i class="fa fa-save"></i> Save standee text</button>
+            <a href="{{ route('business-website.payment-qr.print') }}" target="_blank" rel="noopener" class="btn btn-success mb-2">
+              <i class="fa fa-print"></i> Preview &amp; print standee
+            </a>
+          </div>
+        </form>
       </div>
     </div>
   </div>

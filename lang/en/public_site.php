@@ -1,0 +1,101 @@
+<?php
+
+return [
+    'lang' => [
+        'switcher_label' => 'Choose language',
+    ],
+    'theme' => [
+        'switcher_label' => 'Colour mode',
+        'to_light' => 'Switch to light mode',
+        'to_dark' => 'Switch to dark mode',
+        'light' => 'Light',
+        'dark' => 'Dark',
+    ],
+    'nav' => [
+        'home' => 'Home',
+        'products' => 'Products',
+        'order' => 'Order',
+        'contact' => 'Contact',
+        'gallery' => 'Gallery',
+    ],
+    'actions' => [
+        'order_now' => 'Order now',
+        'view_products' => 'View products',
+        'contact_us' => 'Contact us',
+        'order_whatsapp' => 'Order on WhatsApp',
+        'call_to_order' => 'Call to order',
+        'call' => 'Call',
+        'whatsapp' => 'WhatsApp',
+        'whatsapp_us' => 'WhatsApp us',
+        'open_maps' => 'Open in Google Maps',
+        'share' => 'Share',
+        'share_copied' => 'Link copied',
+        'chat_whatsapp' => 'Chat on WhatsApp',
+    ],
+    'status' => [
+        'open_now' => 'Open now',
+        'closed' => 'Closed',
+    ],
+    'inactive' => [
+        'title' => ':name — Shop not active',
+        'badge' => 'Not active',
+        'heading' => 'This shop is currently closed online',
+        'message' => 'The public website is not published right now. Please check back later or contact the shop directly.',
+    ],
+    'promo' => [
+        'title' => 'Today’s specials',
+    ],
+    'gallery' => [
+        'eyebrow' => 'Our shop',
+        'title' => 'Gallery',
+        'caption' => 'A look inside our store.',
+    ],
+    'share' => [
+        'title' => 'Share this shop',
+        'hint' => 'Copy the link or scan the QR code.',
+        'copy' => 'Copy link',
+        'qr' => 'Shop QR code',
+        'scan' => 'Scan to open this shop online',
+    ],
+    'notes' => [
+        'delivery' => 'Delivery',
+        'payment' => 'Payment',
+    ],
+    'products' => [
+        'title' => 'Products',
+        'in_stock' => 'In stock with prices.',
+        'visit_us' => 'Visit us to see what is available.',
+        'empty' => 'No products in stock right now.',
+        'all' => 'All',
+        'categories_label' => 'Product categories',
+        'search' => 'Search…',
+        'search_label' => 'Search products',
+        'ask' => 'Ask',
+        'ask_price' => 'Ask in store for price',
+        'no_match' => 'No products match.',
+    ],
+    'order' => [
+        'eyebrow' => 'Ordering',
+        'title' => 'Place an order',
+        'caption' => 'Order by WhatsApp or phone.',
+        'how_to' => 'How to order',
+        'wa_message' => 'Hello :name, I would like to order: ',
+        'steps' => [
+            'Send your list on WhatsApp or call us.',
+            'We confirm price and stock.',
+            'Pay and collect or receive delivery.',
+        ],
+    ],
+    'contact' => [
+        'eyebrow' => 'Get in touch',
+        'title' => 'Contact',
+        'caption' => 'Call or WhatsApp us.',
+        'map_title' => 'Map — :name',
+    ],
+    'footer' => [
+        'contact' => 'Contact',
+        'quick_links' => 'Quick links',
+        'powered' => 'Store site powered by',
+        'developed' => 'Developed by',
+    ],
+];

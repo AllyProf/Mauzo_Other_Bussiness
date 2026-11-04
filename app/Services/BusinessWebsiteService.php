@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Business;
 use App\Models\BusinessWebsite;
+use App\Models\Category;
 use App\Models\Item;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -33,6 +34,13 @@ class BusinessWebsiteService
 
     public function findPublishedBySlug(string $slug): ?BusinessWebsite
     {
+        $website = $this->findBySlug($slug);
+
+        return $website && $website->is_published ? $website : null;
+    }
+
+    public function findBySlug(string $slug): ?BusinessWebsite
+    {
         $slug = Str::slug($slug);
         if ($slug === '') {
             return null;
@@ -40,7 +48,6 @@ class BusinessWebsiteService
 
         return BusinessWebsite::query()
             ->where('slug', $slug)
-            ->where('is_published', true)
             ->with('business')
             ->first();
     }
@@ -77,11 +84,68 @@ class BusinessWebsiteService
     /**
      * @param  array<string, mixed>  $input
      */
+    public function updateSections(BusinessWebsite $website, array $input): BusinessWebsite
+    {
+        $pages = $website->pages ?? [];
+        $site = is_array($pages['site'] ?? null) ? $pages['site'] : [];
+        $defaults = BusinessWebsite::defaultSiteConfig($website->business?->name);
+        $sections = [];
+        foreach (array_keys($defaults['sections']) as $key) {
+            $sections[$key] = filter_var($input['section_'.$key] ?? false, FILTER_VALIDATE_BOOLEAN);
+        }
+        $site['sections'] = $sections;
+        $site['payment'] = array_merge($defaults['payment'], is_array($site['payment'] ?? null) ? $site['payment'] : []);
+        $pages['site'] = $site;
+        $website->update(['pages' => $pages]);
+
+        return $website->fresh();
+    }
+
+    /**
+     * Standee text labels only — QR always encodes the public website URL.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    public function updatePaymentStandee(BusinessWebsite $website, array $input): BusinessWebsite
+    {
+        $pages = $website->pages ?? [];
+        $site = is_array($pages['site'] ?? null) ? $pages['site'] : [];
+        $defaults = BusinessWebsite::defaultSiteConfig($website->business?->name);
+        $payment = array_merge($defaults['payment'], is_array($site['payment'] ?? null) ? $site['payment'] : []);
+
+        $payment['merchant_name'] = strtoupper(trim((string) ($input['merchant_name'] ?? '')));
+        $payment['merchant_id'] = trim((string) ($input['merchant_id'] ?? ''));
+        $payment['title'] = trim((string) ($input['payment_title'] ?? $defaults['payment']['title']));
+        $payment['footer_text'] = trim((string) ($input['payment_footer_text'] ?? $defaults['payment']['footer_text']));
+        // Keep any legacy uploaded path but do not require/use it for the standee QR.
+        $payment['qr_image_path'] = is_string($payment['qr_image_path'] ?? null) ? $payment['qr_image_path'] : null;
+
+        if ($payment['title'] === '') {
+            $payment['title'] = $defaults['payment']['title'];
+        }
+        if ($payment['footer_text'] === '') {
+            $payment['footer_text'] = $defaults['payment']['footer_text'];
+        }
+
+        $site['payment'] = $payment;
+        $site['sections'] = array_merge($defaults['sections'], is_array($site['sections'] ?? null) ? $site['sections'] : []);
+        $pages['site'] = $site;
+        $website->update(['pages' => $pages]);
+
+        return $website->fresh();
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @param  list<UploadedFile>  $galleryImages
+     */
     public function updatePage(
         BusinessWebsite $website,
         string $pageKey,
         array $input,
-        ?UploadedFile $heroImage = null
+        ?UploadedFile $heroImage = null,
+        array $galleryImages = [],
+        ?string $section = null
     ): BusinessWebsite {
         if (! in_array($pageKey, BusinessWebsite::PAGE_KEYS, true)) {
             throw ValidationException::withMessages(['page' => 'Unknown page.']);
@@ -89,7 +153,7 @@ class BusinessWebsiteService
 
         $pages = $website->pages ?? [];
         $pages[$pageKey] = match ($pageKey) {
-            'home' => $this->buildHomePageContent($website, $input, $heroImage),
+            'home' => $this->buildHomePageContent($website, $input, $heroImage, $galleryImages, $section),
             'about' => [
                 'title' => trim((string) ($input['title'] ?? '')),
                 'body' => trim((string) ($input['body'] ?? '')),
@@ -100,24 +164,16 @@ class BusinessWebsiteService
                 'highlight_3_title' => trim((string) ($input['highlight_3_title'] ?? '')),
                 'highlight_3_body' => trim((string) ($input['highlight_3_body'] ?? '')),
             ],
-            'contact' => [
-                'title' => trim((string) ($input['title'] ?? '')),
-                'body' => trim((string) ($input['body'] ?? '')),
-                'hours' => trim((string) ($input['hours'] ?? '')),
-                'show_contact_form' => filter_var($input['show_contact_form'] ?? true, FILTER_VALIDATE_BOOLEAN),
-            ],
+            'contact' => $this->buildContactPageContent($website, $input, $section),
             'order' => [
                 'title' => trim((string) ($input['title'] ?? '')),
                 'body' => trim((string) ($input['body'] ?? '')),
                 'steps' => trim((string) ($input['steps'] ?? '')),
                 'whatsapp_message' => trim((string) ($input['whatsapp_message'] ?? '')),
+                'delivery_notes' => trim((string) ($input['delivery_notes'] ?? '')),
+                'payment_notes' => trim((string) ($input['payment_notes'] ?? '')),
             ],
-            'products' => [
-                'title' => trim((string) ($input['title'] ?? '')),
-                'body' => trim((string) ($input['body'] ?? '')),
-                'show_prices' => filter_var($input['show_prices'] ?? true, FILTER_VALIDATE_BOOLEAN),
-                'show_out_of_stock' => filter_var($input['show_out_of_stock'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            ],
+            'products' => $this->buildProductsPageContent($website, $input),
             default => [],
         };
 
@@ -130,34 +186,208 @@ class BusinessWebsiteService
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
      */
-    private function buildHomePageContent(BusinessWebsite $website, array $input, ?UploadedFile $heroImage): array
+    private function buildProductsPageContent(BusinessWebsite $website, array $input): array
     {
-        $existingPath = $website->page('home')['hero_image_path'] ?? null;
-        $heroPath = is_string($existingPath) ? $existingPath : null;
+        $businessId = (int) $website->business_id;
 
-        if (filter_var($input['remove_hero_image'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-            if ($heroPath) {
-                Storage::disk('public')->delete($heroPath);
-            }
-            $heroPath = null;
+        $hiddenCategoryIds = collect($input['hidden_category_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($hiddenCategoryIds !== []) {
+            $hiddenCategoryIds = Category::query()
+                ->where('business_id', $businessId)
+                ->whereIn('id', $hiddenCategoryIds)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
         }
 
-        if ($heroImage) {
-            if ($heroPath) {
-                Storage::disk('public')->delete($heroPath);
-            }
-            $heroPath = $heroImage->store('business-website-heroes', 'public');
+        $hiddenItemIds = collect($input['hidden_item_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($hiddenItemIds !== []) {
+            $hiddenItemIds = Item::query()
+                ->where('business_id', $businessId)
+                ->whereIn('id', $hiddenItemIds)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
         }
 
         return [
-            'hero_title' => trim((string) ($input['hero_title'] ?? '')),
-            'hero_subtitle' => trim((string) ($input['hero_subtitle'] ?? '')),
-            'hero_button_label' => trim((string) ($input['hero_button_label'] ?? '')),
-            'hero_button_url' => trim((string) ($input['hero_button_url'] ?? '')),
-            'hero_image_path' => $heroPath,
-            'intro_title' => trim((string) ($input['intro_title'] ?? '')),
-            'intro_body' => trim((string) ($input['intro_body'] ?? '')),
+            'title' => trim((string) ($input['title'] ?? '')),
+            'body' => trim((string) ($input['body'] ?? '')),
+            'show_prices' => filter_var($input['show_prices'] ?? true, FILTER_VALIDATE_BOOLEAN),
+            'show_out_of_stock' => filter_var($input['show_out_of_stock'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'hidden_category_ids' => $hiddenCategoryIds,
+            'hidden_item_ids' => $hiddenItemIds,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    private function buildContactPageContent(BusinessWebsite $website, array $input, ?string $section = null): array
+    {
+        $existing = $website->page('contact');
+        $base = [
+            'title' => (string) ($existing['title'] ?? 'Contact'),
+            'body' => (string) ($existing['body'] ?? ''),
+            'hours' => (string) ($existing['hours'] ?? ''),
+            'open_time' => $existing['open_time'] ?? '08:00',
+            'close_time' => $existing['close_time'] ?? '20:00',
+            'show_contact_form' => filter_var($existing['show_contact_form'] ?? false, FILTER_VALIDATE_BOOLEAN),
+        ];
+
+        if ($section === 'hours') {
+            return array_merge($base, [
+                'hours' => trim((string) ($input['hours'] ?? '')),
+                'open_time' => $this->normalizeTime($input['open_time'] ?? ''),
+                'close_time' => $this->normalizeTime($input['close_time'] ?? ''),
+            ]);
+        }
+
+        return [
+            'title' => trim((string) ($input['title'] ?? '')),
+            'body' => trim((string) ($input['body'] ?? '')),
+            'hours' => trim((string) ($input['hours'] ?? $base['hours'])),
+            'open_time' => $this->normalizeTime($input['open_time'] ?? $base['open_time']),
+            'close_time' => $this->normalizeTime($input['close_time'] ?? $base['close_time']),
+            'show_contact_form' => filter_var($input['show_contact_form'] ?? $base['show_contact_form'], FILTER_VALIDATE_BOOLEAN),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @param  list<UploadedFile>  $galleryImages
+     * @return array<string, mixed>
+     */
+    private function buildHomePageContent(
+        BusinessWebsite $website,
+        array $input,
+        ?UploadedFile $heroImage,
+        array $galleryImages = [],
+        ?string $section = null
+    ): array {
+        $existingHome = $website->page('home');
+        $existingPath = $existingHome['hero_image_path'] ?? null;
+        $heroPath = is_string($existingPath) ? $existingPath : null;
+
+        $galleryPaths = collect($existingHome['gallery_paths'] ?? [])
+            ->filter(fn ($p) => is_string($p) && $p !== '')
+            ->values()
+            ->all();
+
+        $promoItems = collect($existingHome['promo_items'] ?? [])
+            ->map(fn ($line) => trim((string) $line))
+            ->filter()
+            ->take(5)
+            ->values()
+            ->all();
+
+        $base = [
+            'hero_title' => (string) ($existingHome['hero_title'] ?? ''),
+            'hero_subtitle' => (string) ($existingHome['hero_subtitle'] ?? ''),
+            'hero_button_label' => (string) ($existingHome['hero_button_label'] ?? ''),
+            'hero_button_url' => (string) ($existingHome['hero_button_url'] ?? ''),
+            'hero_image_path' => $heroPath,
+            'intro_title' => (string) ($existingHome['intro_title'] ?? ''),
+            'intro_body' => (string) ($existingHome['intro_body'] ?? ''),
+            'promo_title' => (string) ($existingHome['promo_title'] ?? ''),
+            'promo_items' => $promoItems,
+            'gallery_paths' => $galleryPaths,
+        ];
+
+        $updateHero = $section === null || $section === 'hero' || $section === 'home';
+        $updatePromo = $section === null || $section === 'promo' || $section === 'home';
+        $updateGallery = $section === null || $section === 'gallery' || $section === 'home';
+
+        if ($updateHero) {
+            if (filter_var($input['remove_hero_image'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                if ($heroPath) {
+                    Storage::disk('public')->delete($heroPath);
+                }
+                $heroPath = null;
+            }
+
+            if ($heroImage) {
+                if ($heroPath) {
+                    Storage::disk('public')->delete($heroPath);
+                }
+                $heroPath = $heroImage->store('business-website-heroes', 'public');
+            }
+
+            $base['hero_title'] = trim((string) ($input['hero_title'] ?? ''));
+            $base['hero_subtitle'] = trim((string) ($input['hero_subtitle'] ?? ''));
+            $base['hero_button_label'] = trim((string) ($input['hero_button_label'] ?? ''));
+            $base['hero_button_url'] = trim((string) ($input['hero_button_url'] ?? ''));
+            $base['hero_image_path'] = $heroPath;
+            $base['intro_title'] = trim((string) ($input['intro_title'] ?? ''));
+            $base['intro_body'] = trim((string) ($input['intro_body'] ?? ''));
+        }
+
+        if ($updatePromo) {
+            $base['promo_title'] = trim((string) ($input['promo_title'] ?? ''));
+            $base['promo_items'] = collect(preg_split('/\r\n|\r|\n/', (string) ($input['promo_items'] ?? '')))
+                ->map(fn ($line) => trim($line))
+                ->filter()
+                ->take(5)
+                ->values()
+                ->all();
+        }
+
+        if ($updateGallery) {
+            $removeGallery = collect($input['remove_gallery'] ?? [])
+                ->map(fn ($p) => (string) $p)
+                ->filter()
+                ->all();
+
+            if ($removeGallery !== []) {
+                $kept = [];
+                foreach ($galleryPaths as $path) {
+                    if (in_array($path, $removeGallery, true)) {
+                        Storage::disk('public')->delete($path);
+                    } else {
+                        $kept[] = $path;
+                    }
+                }
+                $galleryPaths = $kept;
+            }
+
+            foreach ($galleryImages as $file) {
+                if ($file instanceof UploadedFile && count($galleryPaths) < 8) {
+                    $galleryPaths[] = $file->store('business-website-gallery', 'public');
+                }
+            }
+
+            $base['gallery_paths'] = $galleryPaths;
+        }
+
+        return $base;
+    }
+
+    private function normalizeTime(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+        if (preg_match('/^([01]?\d|2[0-3]):([0-5]\d)$/', $value, $m)) {
+            return sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
+        }
+
+        return null;
     }
 
     /**
@@ -175,12 +405,17 @@ class BusinessWebsiteService
                 'hero_button_url' => '/order',
                 'intro_title' => 'Products',
                 'intro_body' => 'In stock with prices.',
+                'promo_title' => '',
+                'promo_items' => [],
+                'gallery_paths' => [],
             ],
             'products' => [
                 'title' => 'Products',
                 'body' => 'In stock with prices.',
                 'show_prices' => true,
                 'show_out_of_stock' => false,
+                'hidden_category_ids' => [],
+                'hidden_item_ids' => [],
             ],
             'about' => [
                 'title' => '',
@@ -196,6 +431,8 @@ class BusinessWebsiteService
                 'title' => 'Contact',
                 'body' => 'Call or WhatsApp us.',
                 'hours' => 'Mon – Sat: 8:00 – 20:00',
+                'open_time' => '08:00',
+                'close_time' => '20:00',
                 'show_contact_form' => false,
             ],
             'order' => [
@@ -203,7 +440,10 @@ class BusinessWebsiteService
                 'body' => 'Order by WhatsApp or phone.',
                 'steps' => "Send your list on WhatsApp or call us.\nWe confirm price and stock.\nPay and collect or receive delivery.",
                 'whatsapp_message' => 'Hello '.$name.', I would like to order: ',
+                'delivery_notes' => '',
+                'payment_notes' => '',
             ],
+            'site' => BusinessWebsite::defaultSiteConfig($name),
         ];
     }
 
@@ -250,12 +490,32 @@ class BusinessWebsiteService
     {
         $showPrices = filter_var($pageSettings['show_prices'] ?? true, FILTER_VALIDATE_BOOLEAN);
         $showOutOfStock = filter_var($pageSettings['show_out_of_stock'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $hiddenCategoryIds = collect($pageSettings['hidden_category_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->all();
+        $hiddenItemIds = collect($pageSettings['hidden_item_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->all();
 
-        $items = Item::query()
+        $itemsQuery = Item::query()
             ->where('business_id', $business->id)
             ->with(['category', 'packagings.packagingType'])
-            ->orderBy('name')
-            ->get();
+            ->orderBy('name');
+
+        if ($hiddenCategoryIds !== []) {
+            $itemsQuery->where(function ($q) use ($hiddenCategoryIds) {
+                $q->whereNull('category_id')
+                    ->orWhereNotIn('category_id', $hiddenCategoryIds);
+            });
+        }
+
+        if ($hiddenItemIds !== []) {
+            $itemsQuery->whereNotIn('id', $hiddenItemIds);
+        }
+
+        $items = $itemsQuery->get();
 
         $latestReceivingPrices = app(ItemSellingPriceResolver::class)
             ->latestReceivingPricesByItemId((int) $business->id);
