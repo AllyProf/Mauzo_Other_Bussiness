@@ -77,8 +77,7 @@
           $pages = [
             'home' => ['label' => 'Hero / Home', 'icon' => 'fa-home', 'desc' => 'Welcome text, button, and hero image'],
             'products' => ['label' => 'Products', 'icon' => 'fa-tags', 'desc' => 'Catalog from your Mauzo Link items'],
-            'about' => ['label' => 'About', 'icon' => 'fa-info-circle', 'desc' => 'Story and highlights'],
-            'contact' => ['label' => 'Contact', 'icon' => 'fa-envelope', 'desc' => 'Location, hours, contact form'],
+            'contact' => ['label' => 'Contact', 'icon' => 'fa-envelope', 'desc' => 'Location, hours, WhatsApp / call'],
             'order' => ['label' => 'Order', 'icon' => 'fa-shopping-bag', 'desc' => 'How customers place orders'],
           ];
         @endphp

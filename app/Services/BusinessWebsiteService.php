@@ -185,12 +185,12 @@ class BusinessWebsiteService
             'about' => [
                 'title' => '',
                 'body' => '',
-                'highlight_1_title' => 'Our mission',
-                'highlight_1_body' => 'Deliver value every day.',
-                'highlight_2_title' => 'Our team',
-                'highlight_2_body' => 'Friendly staff ready to help.',
-                'highlight_3_title' => 'Our location',
-                'highlight_3_body' => $business->address ?: 'Visit us in store.',
+                'highlight_1_title' => '',
+                'highlight_1_body' => '',
+                'highlight_2_title' => '',
+                'highlight_2_body' => '',
+                'highlight_3_title' => '',
+                'highlight_3_body' => '',
             ],
             'contact' => [
                 'title' => 'Contact',

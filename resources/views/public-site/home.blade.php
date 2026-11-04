@@ -5,7 +5,6 @@
 @section('content')
 @php
   $products = $sections['products'] ?? [];
-  $about = $sections['about'] ?? [];
   $contact = $sections['contact'] ?? [];
   $order = $sections['order'] ?? [];
 
@@ -34,22 +33,6 @@
           || str_contains($t, 'this page tells your story')
           || str_contains($t, 'updated live from');
   };
-
-  $aboutHighlights = [];
-  for ($i = 1; $i <= 3; $i++) {
-      $ht = trim((string) ($about['highlight_'.$i.'_title'] ?? ''));
-      $hb = trim((string) ($about['highlight_'.$i.'_body'] ?? ''));
-      if ($ht !== '') {
-          $aboutHighlights[] = ['title' => $ht, 'body' => $hb];
-      }
-  }
-  if ($aboutHighlights === []) {
-      $aboutHighlights = [
-          ['title' => 'Quality products', 'body' => 'Carefully selected items for everyday needs.'],
-          ['title' => 'Fair prices', 'body' => 'Clear pricing that matches what we sell in store.'],
-          ['title' => 'Friendly service', 'body' => 'A team ready to help you quickly.'],
-      ];
-  }
 
   $contactTitle = $contact['title'] ?? 'Contact';
   $contactCaption = trim((string) ($contact['body'] ?? ''));
@@ -111,22 +94,6 @@
         <a href="#contact" class="cta-btn px-4 py-2">Contact us</a>
       </div>
     @endif
-  </div>
-</section>
-
-<section id="about" class="section why-section">
-  <div class="container" data-aos="fade-up">
-    <div class="row g-4 why-cards">
-      @foreach($aboutHighlights as $idx => $card)
-        <div class="col-md-4">
-          <article class="why-card h-100">
-            <div class="why-card__num">{{ str_pad((string) ($idx + 1), 2, '0', STR_PAD_LEFT) }}</div>
-            <h3 class="why-card__title">{{ $card['title'] }}</h3>
-            <p class="why-card__body mb-0">{{ $card['body'] }}</p>
-          </article>
-        </div>
-      @endforeach
-    </div>
   </div>
 </section>
 
