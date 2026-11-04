@@ -102,11 +102,47 @@
   </div>
 </section>
 
+<section id="order" class="section feature-split-section feature-split-section--alt">
+  <div class="container" data-aos="fade-up">
+    <div class="row align-items-stretch g-4 g-lg-5 order-split-row">
+      <div class="col-lg-6 d-flex">
+        <div class="feature-split__content w-100">
+          <span class="why-eyebrow">Ordering</span>
+          <h2 class="feature-split__title">{{ $orderTitle }}</h2>
+          <p class="feature-split__lead">{{ $orderCaption }}</p>
+          <ul class="feature-split__list">
+            @foreach($orderSteps as $step)
+              <li><i class="bi bi-check-circle-fill"></i> <span>{{ $step }}</span></li>
+            @endforeach
+          </ul>
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            @if($whatsappDigits)
+              @php $waMsg = urlencode($order['whatsapp_message'] ?? ('Hello '.$business->name.', I would like to order: ')); @endphp
+              <a href="https://wa.me/{{ $whatsappDigits }}?text={{ $waMsg }}" target="_blank" rel="noopener" class="btn-getstarted px-4 py-2">
+                <i class="bi bi-whatsapp"></i> Order on WhatsApp
+              </a>
+            @endif
+            @if($business->phone)
+              <a href="tel:{{ $business->phone }}" class="cta-btn px-4 py-2"><i class="bi bi-telephone"></i> Call to order</a>
+            @endif
+            <a href="#products" class="cta-btn px-4 py-2">View products</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6 d-flex">
+        <div class="feature-split__media feature-split__media--steps w-100">
+          <img src="{{ $orderFeatureImage }}" alt="How to place an order — three steps">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="contact" class="section feature-split-section">
   <div class="container" data-aos="fade-up">
     <div class="row align-items-stretch g-4 g-lg-5">
-      <div class="col-lg-6">
-        <div class="feature-split__media feature-split__media--map">
+      <div class="col-lg-6 d-flex">
+        <div class="feature-split__media feature-split__media--map w-100">
           <iframe
             title="Map — {{ $business->name }}"
             src="{{ $mapEmbedSrc }}"
@@ -118,8 +154,8 @@
           </a>
         </div>
       </div>
-      <div class="col-lg-6">
-        <div class="feature-split__content">
+      <div class="col-lg-6 d-flex">
+        <div class="feature-split__content w-100">
           <span class="why-eyebrow">Get in touch</span>
           <h2 class="feature-split__title">{{ $contactTitle }}</h2>
           <p class="feature-split__lead">{{ $contactCaption }}</p>
@@ -147,42 +183,6 @@
             @if($business->phone)
               <a href="tel:{{ $business->phone }}" class="cta-btn px-4 py-2"><i class="bi bi-telephone"></i> Call</a>
             @endif
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="order" class="section feature-split-section feature-split-section--alt">
-  <div class="container" data-aos="fade-up">
-    <div class="row align-items-stretch g-4 g-lg-5 flex-lg-row-reverse order-split-row">
-      <div class="col-lg-6 d-flex">
-        <div class="feature-split__media feature-split__media--steps w-100">
-          <img src="{{ $orderFeatureImage }}" alt="How to place an order — three steps">
-        </div>
-      </div>
-      <div class="col-lg-6 d-flex">
-        <div class="feature-split__content w-100">
-          <span class="why-eyebrow">Ordering</span>
-          <h2 class="feature-split__title">{{ $orderTitle }}</h2>
-          <p class="feature-split__lead">{{ $orderCaption }}</p>
-          <ul class="feature-split__list">
-            @foreach($orderSteps as $step)
-              <li><i class="bi bi-check-circle-fill"></i> <span>{{ $step }}</span></li>
-            @endforeach
-          </ul>
-          <div class="d-flex flex-wrap gap-2 mt-4">
-            @if($whatsappDigits)
-              @php $waMsg = urlencode($order['whatsapp_message'] ?? ('Hello '.$business->name.', I would like to order: ')); @endphp
-              <a href="https://wa.me/{{ $whatsappDigits }}?text={{ $waMsg }}" target="_blank" rel="noopener" class="btn-getstarted px-4 py-2">
-                <i class="bi bi-whatsapp"></i> Order on WhatsApp
-              </a>
-            @endif
-            @if($business->phone)
-              <a href="tel:{{ $business->phone }}" class="cta-btn px-4 py-2"><i class="bi bi-telephone"></i> Call to order</a>
-            @endif
-            <a href="#products" class="cta-btn px-4 py-2">View products</a>
           </div>
         </div>
       </div>
@@ -322,7 +322,7 @@
     display: block;
     min-height: 320px;
   }
-  /* Keep order text + steps image the same panel size */
+  /* Equal columns: text and steps image share the same width & height */
   #order .order-split-row > [class*="col-"] {
     display: flex;
   }
@@ -330,32 +330,39 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
+    min-height: 420px;
   }
   #order .feature-split__media--steps {
-    min-height: 0;
+    width: 100%;
     height: 100%;
-    max-height: 420px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    min-height: 420px;
+    max-height: none;
     background: #0c0b09;
   }
   #order .feature-split__media--steps img {
-    position: static;
-    width: auto;
-    max-width: 100%;
-    height: auto;
-    max-height: 100%;
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none;
+    max-height: none;
     min-height: 0 !important;
-    object-fit: contain;
-    padding: .75rem;
-    background: transparent;
+    object-fit: cover;
+    object-position: center;
+    padding: 0;
+    background: #0c0b09;
+  }
+  #contact .feature-split__media--map,
+  #contact .feature-split__content {
+    min-height: 420px;
+    width: 100%;
   }
   @media (max-width: 991.98px) {
-    #order .feature-split__media--steps {
-      max-height: 360px;
-      min-height: 260px;
-      width: 100%;
+    #order .feature-split__content,
+    #order .feature-split__media--steps,
+    #contact .feature-split__media--map,
+    #contact .feature-split__content {
+      min-height: 300px;
     }
   }
   .feature-split__media--map iframe {

@@ -113,7 +113,7 @@ class PublicBusinessSiteController extends Controller
     private function navItems($website): array
     {
         $items = [];
-        foreach (['home' => 'Home', 'products' => 'Products', 'contact' => 'Contact', 'order' => 'Order'] as $key => $label) {
+        foreach (['home' => 'Home', 'products' => 'Products', 'order' => 'Order', 'contact' => 'Contact'] as $key => $label) {
             $items[] = [
                 'key' => $key,
                 'label' => $label,
