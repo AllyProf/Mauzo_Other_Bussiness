@@ -183,8 +183,8 @@ class BusinessWebsiteService
                 'show_out_of_stock' => false,
             ],
             'about' => [
-                'title' => 'Why choose us',
-                'body' => 'Who we are.',
+                'title' => '',
+                'body' => '',
                 'highlight_1_title' => 'Our mission',
                 'highlight_1_body' => 'Deliver value every day.',
                 'highlight_2_title' => 'Our team',

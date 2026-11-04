@@ -35,8 +35,6 @@
           || str_contains($t, 'updated live from');
   };
 
-  $aboutTitle = $about['title'] ?? 'Why choose us';
-  $aboutEyebrow = 'Why us';
   $aboutHighlights = [];
   for ($i = 1; $i <= 3; $i++) {
       $ht = trim((string) ($about['highlight_'.$i.'_title'] ?? ''));
@@ -118,10 +116,6 @@
 
 <section id="about" class="section why-section">
   <div class="container" data-aos="fade-up">
-    <div class="why-head">
-      <span class="why-eyebrow">{{ $aboutEyebrow }}</span>
-      <h2 class="why-title">{{ $aboutTitle }}</h2>
-    </div>
     <div class="row g-4 why-cards">
       @foreach($aboutHighlights as $idx => $card)
         <div class="col-md-4">
@@ -265,7 +259,7 @@
     color: #fff;
     padding: 80px 0;
   }
-  .why-head { margin-bottom: 2.5rem; }
+  .why-cards { margin-top: .5rem; }
   .why-eyebrow {
     display: inline-flex;
     align-items: center;
