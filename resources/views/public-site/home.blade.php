@@ -156,14 +156,14 @@
 
 <section id="order" class="section feature-split-section feature-split-section--alt">
   <div class="container" data-aos="fade-up">
-    <div class="row align-items-stretch g-4 g-lg-5 flex-lg-row-reverse">
-      <div class="col-lg-6">
-        <div class="feature-split__media feature-split__media--steps">
+    <div class="row align-items-stretch g-4 g-lg-5 flex-lg-row-reverse order-split-row">
+      <div class="col-lg-6 d-flex">
+        <div class="feature-split__media feature-split__media--steps w-100">
           <img src="{{ $orderFeatureImage }}" alt="How to place an order — three steps">
         </div>
       </div>
-      <div class="col-lg-6">
-        <div class="feature-split__content">
+      <div class="col-lg-6 d-flex">
+        <div class="feature-split__content w-100">
           <span class="why-eyebrow">Ordering</span>
           <h2 class="feature-split__title">{{ $orderTitle }}</h2>
           <p class="feature-split__lead">{{ $orderCaption }}</p>
@@ -322,10 +322,41 @@
     display: block;
     min-height: 320px;
   }
-  .feature-split__media--steps img {
-    object-fit: contain;
+  /* Keep order text + steps image the same panel size */
+  #order .order-split-row > [class*="col-"] {
+    display: flex;
+  }
+  #order .feature-split__content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  #order .feature-split__media--steps {
+    min-height: 0;
+    height: 100%;
+    max-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: #0c0b09;
-    padding: .5rem;
+  }
+  #order .feature-split__media--steps img {
+    position: static;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 100%;
+    min-height: 0 !important;
+    object-fit: contain;
+    padding: .75rem;
+    background: transparent;
+  }
+  @media (max-width: 991.98px) {
+    #order .feature-split__media--steps {
+      max-height: 360px;
+      min-height: 260px;
+      width: 100%;
+    }
   }
   .feature-split__media--map iframe {
     position: absolute;
