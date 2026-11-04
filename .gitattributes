@@ -6,6 +6,21 @@
 *.md diff=markdown
 *.php diff=php
 
+# Keep image/binary assets untouched on checkout (avoids corrupt/missing public assets).
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.mp4 binary
+*.webm binary
+
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore

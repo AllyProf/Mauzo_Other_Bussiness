@@ -56,16 +56,24 @@
 
   $heroImage = $website->heroImageUrl();
   $orderFeatureImage = null;
-  foreach (['order-image.jpg', 'order-steps.jpg', 'order-photo.jpg'] as $orderImg) {
-      $orderRel = 'gp-assets/img/business-site/'.$orderImg;
+  foreach ([
+      'gp-assets/img/order-image.jpg',
+      'gp-assets/img/business-site/order-image.jpg',
+      'gp-assets/img/business-site/order-steps.jpg',
+      'gp-assets/img/business-site/order-photo.jpg',
+  ] as $orderRel) {
       if (is_file(public_path($orderRel))) {
           $orderFeatureImage = asset($orderRel).'?v='.@filemtime(public_path($orderRel));
           break;
       }
   }
   $scanMenuImage = null;
-  foreach (['qr-code-animation.gif', 'scan-menu.gif'] as $scanImg) {
-      $scanRel = 'gp-assets/img/business-site/'.$scanImg;
+  foreach ([
+      'gp-assets/img/qr-code-animation.gif',
+      'gp-assets/img/scan-menu.gif',
+      'gp-assets/img/business-site/qr-code-animation.gif',
+      'gp-assets/img/business-site/scan-menu.gif',
+  ] as $scanRel) {
       if (is_file(public_path($scanRel))) {
           $scanMenuImage = asset($scanRel).'?v='.@filemtime(public_path($scanRel));
           break;
