@@ -59,8 +59,13 @@
   }
 
   $heroImage = $website->heroImageUrl();
-  $contactFeatureImage = asset('gp-assets/img/business-site/contact-photo.jpg');
-  $orderFeatureImage = asset('gp-assets/img/business-site/order-photo.jpg');
+  $orderFeatureImage = asset('gp-assets/img/business-site/order-steps.jpg');
+  $mapQuery = trim((string) ($business->address ?? ''));
+  if ($mapQuery === '') {
+      $mapQuery = (string) ($business->name ?? 'Tanzania');
+  }
+  $mapEmbedSrc = 'https://maps.google.com/maps?q='.rawurlencode($mapQuery).'&z=15&output=embed';
+  $mapOpenUrl = 'https://www.google.com/maps/search/?api=1&query='.rawurlencode($mapQuery);
 @endphp
 
 <section id="hero" class="hero section dark-background business-hero" style="background-image: url('{{ $heroImage }}');">
@@ -101,8 +106,16 @@
   <div class="container" data-aos="fade-up">
     <div class="row align-items-stretch g-4 g-lg-5">
       <div class="col-lg-6">
-        <div class="feature-split__media">
-          <img src="{{ $contactFeatureImage }}" alt="">
+        <div class="feature-split__media feature-split__media--map">
+          <iframe
+            title="Map — {{ $business->name }}"
+            src="{{ $mapEmbedSrc }}"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            allowfullscreen></iframe>
+          <a class="feature-split__map-link" href="{{ $mapOpenUrl }}" target="_blank" rel="noopener">
+            <i class="bi bi-geo-alt-fill"></i> Open in Google Maps
+          </a>
         </div>
       </div>
       <div class="col-lg-6">
@@ -145,8 +158,8 @@
   <div class="container" data-aos="fade-up">
     <div class="row align-items-stretch g-4 g-lg-5 flex-lg-row-reverse">
       <div class="col-lg-6">
-        <div class="feature-split__media">
-          <img src="{{ $orderFeatureImage }}" alt="">
+        <div class="feature-split__media feature-split__media--steps">
+          <img src="{{ $orderFeatureImage }}" alt="How to place an order — three steps">
         </div>
       </div>
       <div class="col-lg-6">
@@ -294,8 +307,9 @@
     background: #11100e;
   }
   .feature-split__media {
+    position: relative;
     height: 100%;
-    min-height: 280px;
+    min-height: 320px;
     border-radius: 6px;
     overflow: hidden;
     box-shadow: 0 12px 40px rgba(0,0,0,.35);
@@ -306,7 +320,41 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    min-height: 280px;
+    min-height: 320px;
+  }
+  .feature-split__media--steps img {
+    object-fit: contain;
+    background: #0c0b09;
+    padding: .5rem;
+  }
+  .feature-split__media--map iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    filter: grayscale(.15) contrast(1.05);
+  }
+  .feature-split__map-link {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .45rem .85rem;
+    border-radius: 999px;
+    background: rgba(12, 11, 9, .88);
+    color: #fff !important;
+    font-size: .85rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,.15);
+  }
+  .feature-split__map-link:hover {
+    background: var(--accent-color);
+    color: #fff !important;
   }
   .feature-split__title {
     color: #fff;
