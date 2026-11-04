@@ -55,7 +55,22 @@
   }
 
   $heroImage = $website->heroImageUrl();
-  $orderFeatureImage = asset('gp-assets/img/business-site/order-image.jpg');
+  $orderFeatureImage = null;
+  foreach (['order-image.jpg', 'order-steps.jpg', 'order-photo.jpg'] as $orderImg) {
+      $orderRel = 'gp-assets/img/business-site/'.$orderImg;
+      if (is_file(public_path($orderRel))) {
+          $orderFeatureImage = asset($orderRel).'?v='.@filemtime(public_path($orderRel));
+          break;
+      }
+  }
+  $scanMenuImage = null;
+  foreach (['qr-code-animation.gif', 'scan-menu.gif'] as $scanImg) {
+      $scanRel = 'gp-assets/img/business-site/'.$scanImg;
+      if (is_file(public_path($scanRel))) {
+          $scanMenuImage = asset($scanRel).'?v='.@filemtime(public_path($scanRel));
+          break;
+      }
+  }
   $contactMap = $website->contactMap();
   $showMap = ! empty($contactMap['show']);
   $mapEmbedSrc = $contactMap['embed'];
@@ -81,7 +96,6 @@
   $galleryUrls = $website->galleryImageUrls();
   $deliveryNotes = trim((string) ($order['delivery_notes'] ?? ''));
   $paymentNotes = trim((string) ($order['payment_notes'] ?? ''));
-  $scanMenuImage = asset('gp-assets/img/business-site/qr-code-animation.gif');
   $hoursText = trim((string) ($contact['hours'] ?? ''));
 @endphp
 
@@ -191,11 +205,13 @@
           </div>
         </div>
       </div>
+      @if($orderFeatureImage)
       <div class="col-lg-6 d-flex">
         <div class="feature-split__media feature-split__media--steps w-100">
-          <img src="{{ $orderFeatureImage }}" alt="{{ __('public_site.order.how_to') }}">
+          <img src="{{ $orderFeatureImage }}" alt="{{ __('public_site.order.how_to') }}" width="800" height="800" loading="lazy" decoding="async">
         </div>
       </div>
+      @endif
     </div>
   </div>
 </section>
@@ -303,13 +319,15 @@
           @endif
         </div>
       </div>
+      @if($scanMenuImage)
       <div class="site-share-box__qr">
-        <img src="{{ $scanMenuImage }}" alt="{{ __('public_site.share.qr') }}" class="site-scan-menu-gif" loading="lazy">
+        <img src="{{ $scanMenuImage }}" alt="{{ __('public_site.share.qr') }}" class="site-scan-menu-gif" loading="lazy" width="220" height="220">
         <span>{{ __('public_site.share.scan') }}</span>
         <a href="{{ $website->qrCodeUrl(400) }}" class="site-share-box__qr-link" target="_blank" rel="noopener">
           {{ __('public_site.share.qr') }}
         </a>
       </div>
+      @endif
     </div>
   </div>
 </section>
@@ -474,14 +492,17 @@
     min-height: 420px;
     max-height: none;
     background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   #order .feature-split__media--steps img {
-    position: absolute;
-    inset: 0;
+    position: relative;
+    inset: auto;
     width: 100% !important;
-    height: 100% !important;
-    max-width: none;
-    max-height: none;
+    height: auto !important;
+    max-width: 100%;
+    max-height: 100%;
     min-height: 0 !important;
     object-fit: contain;
     object-position: center;
