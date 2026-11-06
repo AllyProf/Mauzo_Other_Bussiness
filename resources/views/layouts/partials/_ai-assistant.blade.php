@@ -4,6 +4,7 @@
   && Auth::user()->business_id
   && config('services.groq.key')
   && Auth::user()->can('use_ai_assistant')
+  && plan_feature('ai_assistant')
   && !request()->routeIs('ai.*')
 )
 @php

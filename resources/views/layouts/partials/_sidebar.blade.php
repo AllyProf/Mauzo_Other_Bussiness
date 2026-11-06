@@ -359,7 +359,7 @@
         @endif
 
         @can('use_ai_assistant')
-        @if(config('services.groq.key'))
+        @if(plan_feature('ai_assistant') && config('services.groq.key'))
         <li>
           <a class="app-menu__item {{ Request::routeIs('ai.*') ? 'active' : '' }}" href="{{ route('ai.index') }}" data-tour="menu-ai">
             <i class="app-menu__icon fa fa-magic"></i>

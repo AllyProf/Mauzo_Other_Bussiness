@@ -256,5 +256,9 @@ class AiAssistantController extends Controller
         if (! $user->can('use_ai_assistant')) {
             abort(403, 'You do not have permission to use the AI assistant.');
         }
+
+        if (! plan_feature('ai_assistant')) {
+            abort(403, 'MauzoLink AI is not included in your subscription plan.');
+        }
     }
 }

@@ -18,6 +18,7 @@ return [
             'business_website' => 'Business Website',
             'notes_reminders' => 'Notes & Reminders',
             'automation_reminders' => 'Automated Reminders (Settings)',
+            'ai_assistant' => 'MauzoLink AI Assistant',
         ],
         'Reports' => [
             'reports_daily' => 'Daily Reports',
@@ -59,15 +60,17 @@ return [
         'master_sheet' => ['owner-reports.index', 'owner-reports.finalize', 'services.master-sheet'],
         'automation_reminders' => ['settings.automation.update'],
         'customer_communication' => ['customer-communications.*'],
+        'ai_assistant' => [
+            'ai.index',
+            'ai.assistant.ask',
+            'ai.transcribe',
+            'ai.conversations.destroy',
+        ],
     ],
 
     'exempt_routes' => [
         'home',
         'tickets.*',
-        'ai.index',
-        'ai.assistant.ask',
-        'ai.transcribe',
-        'ai.conversations.destroy',
         'subscription.upgrade',
         'subscription.expired',
         'settings.index',
