@@ -1330,6 +1330,7 @@
       @yield('content')
     </main>
 
+    @include('layouts.partials._ai-assistant')
     @include('layouts.partials._support-fab')
 
     @if(tenant_system_guide_visible())

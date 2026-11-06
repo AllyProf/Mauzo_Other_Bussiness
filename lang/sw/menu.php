@@ -84,6 +84,7 @@ return [
     'upgrade_plan' => 'Boresha Kifurushi',
     'activity_log' => 'Rekodi ya Shughuli',
     'system_guide' => 'Mwongozo wa Mfumo',
+    'ai_assistant' => 'MauzoLink AI',
     'my_support' => 'Msaada Wangu',
     'group_inventory' => 'Stoki na Bidhaa',
     'group_sales' => 'Mauzo',

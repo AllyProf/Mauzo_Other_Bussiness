@@ -154,6 +154,17 @@ Route::middleware(['auth', 'check.user.active', 'check.platform.admin'])->prefix
 Route::middleware(['auth', 'check.user.active', 'check.subscription'])->group(function () {
     Route::get('/subscription/upgrade', [App\Http\Controllers\SubscriptionController::class, 'upgrade'])->name('subscription.upgrade');
 
+    Route::get('/ai', [App\Http\Controllers\AiAssistantController::class, 'index'])
+        ->name('ai.index');
+    Route::post('/ai/assistant/ask', [App\Http\Controllers\AiAssistantController::class, 'ask'])
+        ->middleware('throttle:20,1')
+        ->name('ai.assistant.ask');
+    Route::post('/ai/transcribe', [App\Http\Controllers\AiAssistantController::class, 'transcribe'])
+        ->middleware('throttle:20,1')
+        ->name('ai.transcribe');
+    Route::delete('/ai/conversations/{conversation}', [App\Http\Controllers\AiAssistantController::class, 'destroy'])
+        ->name('ai.conversations.destroy');
+
     Route::middleware('check.plan.feature')->group(function () {
     Route::get('/support', [App\Http\Controllers\SupportTicketController::class, 'index'])->name('tickets.index');
     Route::get('/support/create', [App\Http\Controllers\SupportTicketController::class, 'create'])->name('tickets.create');

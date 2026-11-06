@@ -358,6 +358,17 @@
         </li>
         @endif
 
+        @can('use_ai_assistant')
+        @if(config('services.groq.key'))
+        <li>
+          <a class="app-menu__item {{ Request::routeIs('ai.*') ? 'active' : '' }}" href="{{ route('ai.index') }}" data-tour="menu-ai">
+            <i class="app-menu__icon fa fa-magic"></i>
+            <span class="app-menu__label">{{ __('menu.ai_assistant') }}</span>
+          </a>
+        </li>
+        @endif
+        @endcan
+
         <li><a class="app-menu__item {{ Request::routeIs('help.getting-started') ? 'active' : '' }}" href="{{ route('help.getting-started') }}" data-tour="menu-guide"><i class="app-menu__icon fa fa-book"></i><span class="app-menu__label">{{ __('menu.system_guide') }}</span></a></li>
 
         @canany(['adjust_stock', 'view_stock_adjustments'])

@@ -37,7 +37,7 @@
 
   <div class="row small text-muted font-weight-bold mb-1 d-none d-md-flex">
     <div class="{{ $editablePrices ? 'col-4' : 'col-7' }}">Sale unit</div>
-    <div class="{{ $editablePrices ? 'col-3' : 'col-4' }}">Pieces per sale unit</div>
+    <div class="{{ $editablePrices ? 'col-3' : 'col-4' }}" data-base-qty-header>Units per sale unit</div>
     @if($editablePrices)
       <div class="col-4">Selling price (TZS)</div>
     @endif
@@ -62,12 +62,12 @@
           </select>
         </div>
         <div class="{{ $editablePrices ? 'col-3' : 'col-4' }} sell-pkg-contains mb-2 mb-md-0">
-          <label class="control-label small sell-pkg-qty-label d-md-none mb-1">Pieces per sale unit</label>
-          <span class="small text-muted sell-pkg-qty-label d-none d-md-block mb-1">Pieces per sale unit</span>
+          <label class="control-label small sell-pkg-qty-label d-md-none mb-1">Units per sale unit</label>
+          <span class="small text-muted sell-pkg-qty-label d-none d-md-block mb-1">Units per sale unit</span>
           <input type="number" class="form-control sell-pkg-qty text-center"
                  name="selling_packagings[{{ $index }}][quantity_per_unit]"
                  value="{{ $row['quantity_per_unit'] ?? 1 }}" min="1" step="1"
-                 placeholder="e.g. 12" title="How many pieces leave stock when you sell 1 of this unit">
+                 placeholder="e.g. 12" title="How many stock units leave when you sell 1 of this unit">
         </div>
         @if($editablePrices)
         <div class="col-4 sell-pkg-price mb-2 mb-md-0">
@@ -108,8 +108,8 @@
         </select>
       </div>
       <div class="{{ $editablePrices ? 'col-3' : 'col-4' }} sell-pkg-contains mb-2 mb-md-0">
-        <label class="control-label small sell-pkg-qty-label d-md-none mb-1">Pieces per sale unit</label>
-        <span class="small text-muted sell-pkg-qty-label d-none d-md-block mb-1">Pieces per sale unit</span>
+        <label class="control-label small sell-pkg-qty-label d-md-none mb-1">Units per sale unit</label>
+        <span class="small text-muted sell-pkg-qty-label d-none d-md-block mb-1">Units per sale unit</span>
         <input type="number" class="form-control sell-pkg-qty text-center" value="1" min="1" step="1" placeholder="e.g. 12">
       </div>
       @if($editablePrices)

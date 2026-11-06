@@ -35,4 +35,17 @@ return [
         ],
     ],
 
+    /*
+    | GroqCloud — OpenAI-compatible LLM API
+    | Docs: https://console.groq.com/docs/overview
+    | Base: https://api.groq.com/openai/v1
+    */
+    'groq' => [
+        'key' => env('GROQ_API_KEY'),
+        'base_url' => env('GROQ_BASE_URL', 'https://api.groq.com/openai/v1'),
+        'model' => env('GROQ_MODEL', 'openai/gpt-oss-20b'),
+        'whisper_model' => env('GROQ_WHISPER_MODEL', 'whisper-large-v3-turbo'),
+        'timeout' => (int) env('GROQ_TIMEOUT', 60),
+    ],
+
 ];

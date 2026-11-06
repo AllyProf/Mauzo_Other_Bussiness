@@ -84,8 +84,8 @@
             '<select class="form-control sell-pkg-select" required>' + packagingOptionsHtml(typeKey) + '</select>' +
           '</div>' +
           '<div class="' + qtyCol + ' sell-pkg-contains mb-2 mb-md-0">' +
-            '<label class="control-label small sell-pkg-qty-label d-md-none mb-1">Pieces per sale unit</label>' +
-            '<span class="small text-muted sell-pkg-qty-label d-none d-md-block mb-1">Pieces per sale unit</span>' +
+            '<label class="control-label small sell-pkg-qty-label d-md-none mb-1">Units per sale unit</label>' +
+            '<span class="small text-muted sell-pkg-qty-label d-none d-md-block mb-1">Units per sale unit</span>' +
             '<input type="number" class="form-control sell-pkg-qty text-center" value="1" min="1" step="1" placeholder="e.g. 12">' +
           '</div>' +
           priceColHtml +
@@ -136,17 +136,22 @@
       $catSelect.val('');
     }
 
+    repopulatePackagingSelect('#itemBasePackagingSelect', typeKey);
     repopulatePackagingSelect('#itemReceivingPackagingSelect', typeKey);
     $('#sellingPackagesList .sell-pkg-select').each(function () {
       repopulatePackagingSelect(this, typeKey);
     });
     updateSellingPackageTemplate(typeKey);
 
-    if (typeof refreshReceivingQtyField === 'function') {
-      refreshReceivingQtyField();
-    }
-    if (typeof refreshAllSellingPackageQtyRows === 'function') {
-      refreshAllSellingPackageQtyRows();
+    if (typeof refreshBaseUnitLabels === 'function') {
+      refreshBaseUnitLabels();
+    } else {
+      if (typeof refreshReceivingQtyField === 'function') {
+        refreshReceivingQtyField();
+      }
+      if (typeof refreshAllSellingPackageQtyRows === 'function') {
+        refreshAllSellingPackageQtyRows();
+      }
     }
   };
 

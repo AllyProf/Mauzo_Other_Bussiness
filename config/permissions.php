@@ -87,6 +87,7 @@ return [
             'manage_support' => 'Access support center',
             'manage_notes' => 'Manage notes & reminders',
             'view_audit_logs' => 'View business audit logs',
+            'use_ai_assistant' => 'Use MauzoLink AI assistant & trainer',
         ],
     ],
 
@@ -100,6 +101,7 @@ return [
             'submit_day_closing',
             'manage_support',
             'manage_notes',
+            'use_ai_assistant',
         ],
         'Sales Officer' => [
             'open_shift',
@@ -114,6 +116,7 @@ return [
             'submit_day_closing',
             'manage_support',
             'manage_notes',
+            'use_ai_assistant',
         ],
         'Store Manager' => [
             'view_inventory',
@@ -150,6 +153,7 @@ return [
             'manage_sales_targets',
             'manage_support',
             'manage_notes',
+            'use_ai_assistant',
         ],
         'Supervisor' => [
             'view_inventory',
@@ -168,6 +172,7 @@ return [
             'verify_stock_shortages',
             'manage_support',
             'manage_notes',
+            'use_ai_assistant',
         ],
     ],
 ];

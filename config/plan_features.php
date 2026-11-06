@@ -64,6 +64,10 @@ return [
     'exempt_routes' => [
         'home',
         'tickets.*',
+        'ai.index',
+        'ai.assistant.ask',
+        'ai.transcribe',
+        'ai.conversations.destroy',
         'subscription.upgrade',
         'subscription.expired',
         'settings.index',

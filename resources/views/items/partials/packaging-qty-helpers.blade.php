@@ -17,23 +17,51 @@
   window.selectedBaseUnitName = function () {
     const $select = $('#itemBasePackagingSelect');
     if (!$select.length) {
-      return 'piece';
+      return 'unit';
     }
 
     const name = packagingOptionName($select).trim();
-    return name || 'piece';
+    return name || 'unit';
   };
 
   window.isBasePackagingSelected = function ($select) {
-    const baseId = selectedBasePackagingId();
     const selectedId = String($select.val() || '');
+    const hasBaseSelect = $('#itemBasePackagingSelect').length > 0;
+    const baseId = selectedBasePackagingId();
 
-    if (baseId && selectedId && baseId === selectedId) {
-      return true;
+    if (hasBaseSelect) {
+      return !!(baseId && selectedId && baseId === selectedId);
     }
 
     // Fallback when base select is missing: treat classic piece names as base.
     return isPiecePackagingName(packagingOptionName($select));
+  };
+
+  window.ensureBaseUnitInSellingPackages = function () {
+    const baseId = selectedBasePackagingId();
+    if (!baseId) {
+      return;
+    }
+
+    const $rows = $('#sellingPackagesList .selling-package-row');
+    if (!$rows.length) {
+      return;
+    }
+
+    const alreadyPresent = $rows.toArray().some(function (row) {
+      return String($(row).find('.sell-pkg-select').val() || '') === baseId;
+    });
+
+    if (alreadyPresent) {
+      return;
+    }
+
+    const $first = $rows.first();
+    const $firstSelect = $first.find('.sell-pkg-select');
+    if ($firstSelect.find('option[value="' + baseId + '"]').length) {
+      $firstSelect.val(baseId);
+      $first.find('.sell-pkg-qty').data('userEdited', 0);
+    }
   };
 
   window.refreshBaseUnitLabels = function () {
@@ -42,6 +70,8 @@
 
     $('#sellingPackagesWrap [data-base-qty-header]').text(header);
     $('#sellingPackageRowTemplate .sell-pkg-qty-label').text(header);
+
+    ensureBaseUnitInSellingPackages();
 
     if (typeof refreshReceivingQtyField === 'function') {
       refreshReceivingQtyField();

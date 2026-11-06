@@ -84,6 +84,7 @@ return [
     'upgrade_plan' => 'Upgrade Plan',
     'activity_log' => 'Activity Log',
     'system_guide' => 'System Guide',
+    'ai_assistant' => 'MauzoLink AI',
     'my_support' => 'My Support',
     'group_inventory' => 'Inventory',
     'group_sales' => 'Sales',
