@@ -20,7 +20,7 @@
         </div>
       </div>
       <div class="col-lg-5 order-1 order-lg-2" data-aos="fade-up" data-aos-delay="100">
-        <img src="{{ asset('gp-assets/img/faq.png') }}" class="img-fluid rounded shadow" alt="{{ __('landing.faq.image_alt') }}">
+        <img src="{{ asset('gp-assets/img/customer_support.png') }}" class="img-fluid rounded shadow" alt="{{ __('landing.faq.image_alt') }}">
       </div>
     </div>
   </div>

@@ -11,7 +11,6 @@
   @include('landing.partials.faq')
   @include('landing.partials.stats')
   @include('landing.partials.testimonials')
-  @include('landing.partials.cta')
   @include('landing.partials.contact')
 @endsection
 

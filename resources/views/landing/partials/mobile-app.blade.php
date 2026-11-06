@@ -11,10 +11,6 @@
   <div class="container">
     <div class="row gy-5 align-items-center">
       <div class="col-lg-5" data-aos="fade-up" data-aos-delay="100">
-        <div class="mobile-app__platforms">
-          <span class="mobile-app__badge"><i class="bi bi-android2"></i> Android</span>
-          <span class="mobile-app__badge"><i class="bi bi-apple"></i> iOS</span>
-        </div>
         <h3 class="mobile-app__title">{{ __('landing.mobile.title', ['app' => $appName]) }}</h3>
         <p class="mobile-app__lead">{{ __('landing.mobile.lead') }}</p>
 
@@ -23,17 +19,6 @@
           <li><i class="bi {{ $row['icon'] }}"></i><div><strong>{{ $row['title'] }}</strong><span>{{ $row['text'] }}</span></div></li>
           @endforeach
         </ul>
-
-        <div class="mobile-app__actions">
-          @if($registrationOpen ?? true)
-            <a href="{{ route('register.business') }}" class="mobile-app__btn mobile-app__btn--primary">
-              <i class="bi bi-rocket-takeoff"></i> {{ __('landing.mobile.get_started') }}
-            </a>
-          @endif
-          <a href="{{ route('landing.index') }}#contact" class="mobile-app__btn mobile-app__btn--outline">
-            <i class="bi bi-phone"></i> {{ __('landing.mobile.request_app') }}
-          </a>
-        </div>
 
         <div class="mobile-app__stores">
           <div class="mobile-app__store">
@@ -51,16 +36,6 @@
         @php
           $screenImages = ['gp-assets/img/mobile_img2.png', 'gp-assets/img/mobile_img.png'];
         @endphp
-        <div class="mobile-app__tabs" role="tablist">
-          @foreach($screens as $i => $screen)
-            <button type="button" class="mobile-app__tab {{ $i === 0 ? 'active' : '' }}"
-                    data-bs-target="#mobileAppCarousel" data-bs-slide-to="{{ $i }}"
-                    @if($i === 0) aria-current="true" @endif aria-label="{{ $screen['tab'] }}">
-              {{ $screen['tab'] }}
-            </button>
-          @endforeach
-        </div>
-
         <div id="mobileAppCarousel" class="carousel slide carousel-fade mobile-app__carousel" data-bs-ride="carousel" data-bs-interval="6000">
           <div class="carousel-inner">
             @foreach($screens as $i => $screen)
@@ -96,7 +71,7 @@
   .mobile-app__store i { font-size: 24px; }
   .mobile-app__store small { display: block; font-size: 10px; line-height: 1.1; opacity: .8; }
   .mobile-app__store strong { display: block; font-size: 16px; line-height: 1.2; }
-  .mobile-app__title { margin: 14px 0 10px; font-weight: 700; font-size: 28px; }
+  .mobile-app__title { margin: 0 0 10px; font-weight: 700; font-size: 28px; }
   .mobile-app__lead { color: #555; margin-bottom: 22px; }
   .mobile-app__list { list-style: none; padding: 0; margin: 0 0 26px; }
   .mobile-app__list li { display: flex; gap: 14px; margin-bottom: 16px; }
@@ -121,18 +96,3 @@
 </style>
 @endpush
 
-@push('scripts')
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    var carousel = document.getElementById('mobileAppCarousel');
-    if (!carousel) return;
-    var tabs = document.querySelectorAll('.mobile-app__tab');
-    carousel.addEventListener('slide.bs.carousel', function (e) {
-      tabs.forEach(function (tab, i) {
-        tab.classList.toggle('active', i === e.to);
-        if (i === e.to) tab.setAttribute('aria-current', 'true'); else tab.removeAttribute('aria-current');
-      });
-    });
-  });
-</script>
-@endpush
