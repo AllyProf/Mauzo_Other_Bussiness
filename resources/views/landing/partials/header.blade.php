@@ -29,6 +29,7 @@
         <ul>
           <li><a href="{{ route('landing.index') }}#hero" @if(request()->routeIs('landing.index')) class="active" @endif>{{ __('landing.nav.home') }}</a></li>
           <li><a href="{{ route('landing.index') }}#about">{{ __('landing.nav.about') }}</a></li>
+          <li><a href="{{ route('landing.index') }}#modules">{{ __('landing.nav.modules') }}</a></li>
           <li><a href="{{ route('landing.index') }}#mobile-app">{{ __('landing.nav.mobile_app') }}</a></li>
           <li><a href="{{ route('landing.index') }}#pricing">{{ __('landing.nav.pricing') }}</a></li>
           <li><a href="{{ route('landing.index') }}#contact">{{ __('landing.nav.contact') }}</a></li>
