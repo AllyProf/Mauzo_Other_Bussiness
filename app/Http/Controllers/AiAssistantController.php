@@ -55,7 +55,7 @@ class AiAssistantController extends Controller
             'activeConversation' => $active,
             'messages' => $messages,
             'firstName' => $firstName,
-            'aiIcon' => asset('gp-assets/img/ai-assistant.gif'),
+            'aiIcon' => mauzo_ai_icon_url(),
             'aiLogo' => asset('gp-assets/img/logo.png'),
         ]);
     }

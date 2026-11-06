@@ -747,6 +747,28 @@ if (! function_exists('page_manual_for_current_route')) {
     }
 }
 
+if (! function_exists('mauzo_ai_icon_url')) {
+    /**
+     * Public URL for MauzoLink AI icon (gif preferred, jpg fallbacks).
+     */
+    function mauzo_ai_icon_url(): string
+    {
+        foreach ([
+            'gp-assets/img/ai-assistant.gif',
+            'gp-assets/img/mauzolink-ai-icon.jpg',
+            'gp-assets/img/mauzolink-ai-brand.jpg',
+            'gp-assets/img/logo.png',
+        ] as $rel) {
+            $absolute = public_path($rel);
+            if (is_file($absolute)) {
+                return asset($rel).'?v='.@filemtime($absolute);
+            }
+        }
+
+        return asset('gp-assets/img/logo.png');
+    }
+}
+
 if (! function_exists('system_guide_setup_steps_for_manual')) {
     /**
      * @return array<int, array{number: int, title: string, menu: string, url: string|null}>

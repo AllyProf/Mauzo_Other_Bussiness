@@ -8,7 +8,7 @@
   && !request()->routeIs('ai.*')
 )
 @php
-  $aiIcon = asset('gp-assets/img/ai-assistant.gif');
+  $aiIcon = mauzo_ai_icon_url();
   $aiFirst = \Illuminate\Support\Str::title(\Illuminate\Support\Str::lower(
       \Illuminate\Support\Str::of(Auth::user()->name ?? 'there')->trim()->explode(' ')->first() ?: 'there'
   ));
