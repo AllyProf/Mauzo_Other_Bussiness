@@ -21,13 +21,21 @@
         </ul>
 
         <div class="mobile-app__stores">
-          <div class="mobile-app__store">
-            <i class="bi bi-google-play"></i>
-            <div><small>{{ __('landing.mobile.store_google') }}</small><strong>{{ __('landing.mobile.google_play') }}</strong></div>
-          </div>
-          <div class="mobile-app__store">
-            <i class="bi bi-apple"></i>
-            <div><small>{{ __('landing.mobile.store_apple') }}</small><strong>{{ __('landing.mobile.app_store') }}</strong></div>
+          <div class="mobile-app__store-logo-wrap">
+            <img
+              src="{{ asset('gp-assets/img/google_and_app_store_logo.png') }}"
+              alt="{{ __('landing.mobile.google_play') }} & {{ __('landing.mobile.app_store') }}"
+              class="mobile-app__store-logo"
+              loading="lazy"
+              decoding="async"
+            >
+            <a
+              class="mobile-app__store-hit mobile-app__store-hit--google"
+              href="https://play.google.com/store/apps/details?id=com.mauzolink.mauzolink_pos&pcampaignid=web_share"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="{{ __('landing.mobile.google_play') }}"
+            ></a>
           </div>
         </div>
       </div>
@@ -66,11 +74,11 @@
   .mobile-app { background: linear-gradient(180deg, #fff 0%, #fbf3f3 100%); }
   .mobile-app__badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; background: rgba(148, 0, 0, .08); color: #940000; font-size: 13px; font-weight: 600; }
   .mobile-app__platforms { display: flex; gap: 8px; flex-wrap: wrap; }
-  .mobile-app__stores { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
-  .mobile-app__store { display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: 10px; background: #111; color: #fff; min-width: 170px; }
-  .mobile-app__store i { font-size: 24px; }
-  .mobile-app__store small { display: block; font-size: 10px; line-height: 1.1; opacity: .8; }
-  .mobile-app__store strong { display: block; font-size: 16px; line-height: 1.2; }
+  .mobile-app__stores { margin-top: 18px; }
+  .mobile-app__store-logo-wrap { position: relative; display: inline-block; width: min(100%, 360px); }
+  .mobile-app__store-logo { display: block; width: 100%; height: auto; }
+  .mobile-app__store-hit { position: absolute; top: 0; bottom: 0; width: 50%; }
+  .mobile-app__store-hit--google { right: 0; }
   .mobile-app__title { margin: 0 0 10px; font-weight: 700; font-size: 28px; }
   .mobile-app__lead { color: #555; margin-bottom: 22px; }
   .mobile-app__list { list-style: none; padding: 0; margin: 0 0 26px; }
