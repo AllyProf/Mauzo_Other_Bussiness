@@ -33,9 +33,9 @@ return [
         'book_demo' => 'Book a Demo',
         'highlights' => [
             ['icon' => 'bi-buildings', 'label' => 'Open more than one shop', 'hash' => '#about'],
-            ['icon' => 'bi-cash-stack', 'label' => 'Profit & cash circulation', 'hash' => '#features'],
-            ['icon' => 'bi-box-seam', 'label' => 'Stock on hand', 'hash' => '#features'],
-            ['icon' => 'bi-person-lines-fill', 'label' => 'Track debts', 'hash' => '#features'],
+            ['icon' => 'bi-cash-stack', 'label' => 'Profit & cash circulation', 'hash' => '#modules'],
+            ['icon' => 'bi-box-seam', 'label' => 'Stock on hand', 'hash' => '#modules'],
+            ['icon' => 'bi-person-lines-fill', 'label' => 'Track debts', 'hash' => '#modules'],
         ],
     ],
     'about' => [
@@ -150,17 +150,23 @@ return [
     'regions' => [
         'kicker' => 'Coverage',
         'title' => 'Regions using MauzoLink',
-        'lead' => 'Shops across Tanzania trust MauzoLink for daily sales, stock, and owner control — and we keep expanding.',
-        'image_alt' => 'Map of Tanzania regions using MauzoLink',
+        'image_alt' => 'Interactive map of Tanzania regions using MauzoLink',
+        'hint' => 'Hover or tap a pulse to see the region',
         'pins' => [
-            'Dar es Salaam', 'Arusha', 'Kilimanjaro', 'Mwanza', 'Dodoma',
-            'Mbeya', 'Morogoro', 'Tanga', 'Zanzibar',
+            ['id' => 'dar', 'name' => 'Dar es Salaam', 'x' => 78, 'y' => 48],
+            ['id' => 'arusha', 'name' => 'Arusha', 'x' => 48, 'y' => 16],
+            ['id' => 'kilimanjaro', 'name' => 'Kilimanjaro', 'x' => 56, 'y' => 14],
+            ['id' => 'mwanza', 'name' => 'Mwanza', 'x' => 28, 'y' => 20],
+            ['id' => 'dodoma', 'name' => 'Dodoma', 'x' => 48, 'y' => 42],
+            ['id' => 'mbeya', 'name' => 'Mbeya', 'x' => 34, 'y' => 68],
+            ['id' => 'morogoro', 'name' => 'Morogoro', 'x' => 64, 'y' => 46],
+            ['id' => 'tanga', 'name' => 'Tanga', 'x' => 72, 'y' => 28],
+            ['id' => 'zanzibar', 'name' => 'Zanzibar', 'x' => 88, 'y' => 36],
         ],
     ],
     'modules' => [
         'kicker' => 'Platform',
-        'title' => 'Modules in MauzoLink — all-in-one shop system',
-        'lead' => 'Everything you need to run retail, spare parts, or services — connected from counter to owner reports.',
+        'title' => 'MauzoLink — all-in-one shop system',
         'image_alt' => 'Diagram showing how MauzoLink modules work together',
         'list_title' => 'MauzoLink modules:',
         'items' => [

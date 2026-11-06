@@ -33,9 +33,9 @@ return [
         'book_demo' => 'Omba Demo',
         'highlights' => [
             ['icon' => 'bi-buildings', 'label' => 'Fungua duka zaidi ya moja', 'hash' => '#about'],
-            ['icon' => 'bi-cash-stack', 'label' => 'Jua pesa ya faida na mzunguko', 'hash' => '#features'],
-            ['icon' => 'bi-box-seam', 'label' => 'Jua stock iliyopo', 'hash' => '#features'],
-            ['icon' => 'bi-person-lines-fill', 'label' => 'Fuatilia madeni', 'hash' => '#features'],
+            ['icon' => 'bi-cash-stack', 'label' => 'Jua pesa ya faida na mzunguko', 'hash' => '#modules'],
+            ['icon' => 'bi-box-seam', 'label' => 'Jua stock iliyopo', 'hash' => '#modules'],
+            ['icon' => 'bi-person-lines-fill', 'label' => 'Fuatilia madeni', 'hash' => '#modules'],
         ],
     ],
     'about' => [
@@ -150,17 +150,23 @@ return [
     'regions' => [
         'kicker' => 'Eneo',
         'title' => 'Mikoa inayotumia MauzoLink',
-        'lead' => 'Maduka kote Tanzania yanatumia MauzoLink kwa mauzo, stoki, na udhibiti wa mmiliki — na tunaendelea kupanuka.',
-        'image_alt' => 'Ramani ya mikoa ya Tanzania inayotumia MauzoLink',
+        'image_alt' => 'Ramani shirikishi ya mikoa ya Tanzania inayotumia MauzoLink',
+        'hint' => 'Elekeza au gusa pulse kuona mkoa',
         'pins' => [
-            'Dar es Salaam', 'Arusha', 'Kilimanjaro', 'Mwanza', 'Dodoma',
-            'Mbeya', 'Morogoro', 'Tanga', 'Zanzibar',
+            ['id' => 'dar', 'name' => 'Dar es Salaam', 'x' => 78, 'y' => 48],
+            ['id' => 'arusha', 'name' => 'Arusha', 'x' => 48, 'y' => 16],
+            ['id' => 'kilimanjaro', 'name' => 'Kilimanjaro', 'x' => 56, 'y' => 14],
+            ['id' => 'mwanza', 'name' => 'Mwanza', 'x' => 28, 'y' => 20],
+            ['id' => 'dodoma', 'name' => 'Dodoma', 'x' => 48, 'y' => 42],
+            ['id' => 'mbeya', 'name' => 'Mbeya', 'x' => 34, 'y' => 68],
+            ['id' => 'morogoro', 'name' => 'Morogoro', 'x' => 64, 'y' => 46],
+            ['id' => 'tanga', 'name' => 'Tanga', 'x' => 72, 'y' => 28],
+            ['id' => 'zanzibar', 'name' => 'Zanzibar', 'x' => 88, 'y' => 36],
         ],
     ],
     'modules' => [
         'kicker' => 'Mfumo',
-        'title' => 'Moduli za MauzoLink — mfumo wa duka kamili',
-        'lead' => 'Kila unachohitaji kuendesha rejareja, vipuri, au huduma — kuanzia kaunta hadi ripoti za mmiliki.',
+        'title' => 'MauzoLink — mfumo wa duka kamili',
         'image_alt' => 'Chati inayoonyesha jinsi moduli za MauzoLink zinavyofanya kazi',
         'list_title' => 'Moduli za MauzoLink:',
         'items' => [

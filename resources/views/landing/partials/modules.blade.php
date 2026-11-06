@@ -4,7 +4,6 @@
       <h2>{{ __('landing.modules.kicker') }}</h2>
       <p>{{ __('landing.modules.title') }}</p>
     </div>
-    <p class="text-center text-muted mb-4 mx-auto" style="max-width: 720px;">{{ __('landing.modules.lead') }}</p>
 
     <div class="row gy-4 align-items-center">
       <div class="col-lg-7" data-aos="fade-right" data-aos-delay="100">

@@ -3,7 +3,6 @@
 @section('content')
   @include('landing.partials.hero')
   @include('landing.partials.about')
-  @include('landing.partials.features')
   @include('landing.partials.modules')
   @include('landing.partials.regions')
   @include('landing.partials.mobile-app')
