@@ -2,7 +2,7 @@
   <div class="container" data-aos="fade-up" data-aos-delay="100">
     <div class="row gy-4">
       <div class="col-lg-6 order-1 order-lg-2">
-        <img src="{{ asset('gp-assets/img/about-pos.png') }}" class="img-fluid rounded shadow" style="width: 100%; aspect-ratio: 4/3; object-fit: cover;" alt="{{ __('landing.about.image_alt') }}">
+        <img src="{{ asset('gp-assets/img/mauzolink_img.png') }}?v={{ @filemtime(public_path('gp-assets/img/mauzolink_img.png')) }}" class="img-fluid rounded shadow" style="width: 100%; aspect-ratio: 4/3; object-fit: cover;" alt="{{ __('landing.about.image_alt') }}">
       </div>
       <div class="col-lg-6 order-2 order-lg-1 content">
         <h2>{{ __('landing.about.title') }}</h2>

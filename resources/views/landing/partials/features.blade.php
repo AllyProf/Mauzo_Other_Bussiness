@@ -2,7 +2,7 @@
   <div class="container">
     <div class="row gy-4">
       <div class="features-image col-lg-6" data-aos="fade-up" data-aos-delay="100">
-        <img src="{{ asset('gp-assets/img/mauzolink_img.png') }}?v={{ @filemtime(public_path('gp-assets/img/mauzolink_img.png')) }}" class="img-fluid rounded" alt="{{ __('landing.features.image_alt') }}">
+        <img src="{{ asset('gp-assets/img/features-analytics.png') }}" class="img-fluid rounded" alt="{{ __('landing.features.image_alt') }}">
       </div>
       <div class="col-lg-6">
         @foreach(__('landing.features.items') as $i => $feature)

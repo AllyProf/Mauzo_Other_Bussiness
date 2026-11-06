@@ -38,15 +38,15 @@ return [
         ],
     ],
     'about' => [
-        'title' => 'Mfumo mmoja kwa mauzo, bidhaa ghala na udhibiti wa kila siku',
-        'lead' => 'Mauzo Link ni mfumo wa biashara unaoharakisha kazi kwenye kaunta na kuleta uwazi ofisini. Tunapunguza makisio katika usimamizi wa duka.',
+        'title' => 'Kuhusu Mauzo Link',
+        'lead' => 'Mauzo Link inajengwa na kuendeshwa na EmCa Technologies LTD huko Moshi, Kilimanjaro — Tanzania. Tunatengeneza programu za vitendo kwa maduka halisi, ili wamiliki na wauzaji wasimamie mauzo, stoki, na kazi za kila siku kwa uhakika.',
         'points' => [
-            ['title' => 'Malipo ya haraka:', 'text' => 'Uza kwa urahisi kwa kusoma msimbo wa bidhaa, kutumia vitengo sahihi vya kipimo, na kupokea malipo mbalimbali pamoja na madeni.'],
-            ['title' => 'Udhibiti wa zamu:', 'text' => 'Wafanyakazi wanafungua zamu, wakagua bidhaa ghala, na wanakabidhi pesa kwa ripoti wazi mwisho wa siku.'],
-            ['title' => 'Matawi yote mahali pamoja:', 'text' => 'Simamia maduka, duka la vipuri na biashara za huduma kutoka skrini moja ya mmiliki.'],
+            ['title' => 'Sisi ni nani:', 'text' => 'Timu ya teknolojia ya Kitanzania inayolenga zana za ICT na cloud zinazofaa biashara za rejareja, vipuri, na huduma.'],
+            ['title' => 'Lengwa letu:', 'text' => 'Tunaamini kila duka linastahili namba wazi, zamu zenye uwajibikaji, na mifumo rahisi — bila gharama kubwa za vifaa au karatasi nyingi.'],
+            ['title' => 'Jinsi tunavyokusaidia:', 'text' => 'Kuanzia usanidi na mafunzo hadi msaada wa kudumu, tunakuwa karibu na wateja wetu kwenye tovuti na simu ili biashara iendelee.'],
         ],
-        'closing' => 'Kuanzia mauzo ya kwanza asubuhi hadi hesabu ya pesa jioni, Mauzo Link inawapa wauzaji zana sahihi — na inakupa utulivu wa akili.',
-        'image_alt' => 'Mfumo wa mauzo kwenye duka',
+        'closing' => 'Iwe una kaunta moja au matawi mengi, tuko hapa kukusaidia uuze haraka, udhibiti vizuri, na ukue kwa teknolojia iliyotengenezwa kwa Tanzania.',
+        'image_alt' => 'Timu ya EmCa Technologies — Mauzo Link',
     ],
     'features' => [
         'image_alt' => 'Muhtasari wa biashara',

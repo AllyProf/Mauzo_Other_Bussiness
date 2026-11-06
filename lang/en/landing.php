@@ -38,15 +38,15 @@ return [
         ],
     ],
     'about' => [
-        'title' => 'One platform for sales, stock, and daily control',
-        'lead' => 'Mauzo Link is the all-in-one business engine designed to bring speed to your counter and clarity to your back office. We eliminate the guesswork from retail management.',
+        'title' => 'About Mauzo Link',
+        'lead' => 'Mauzo Link is built and operated by EmCa Technologies LTD in Moshi, Kilimanjaro — Tanzania. We create practical software for real shops, so owners and cashiers can run sales, stock, and daily control with confidence.',
         'points' => [
-            ['title' => 'Lightning-Fast Checkout:', 'text' => 'Process sales smoothly with barcode scanning, packaging unit support, and flexible payment options including debt tracking.'],
-            ['title' => 'Bulletproof Shift Control:', 'text' => 'Keep staff accountable with strict shift openings, blind stock checks, and crystal-clear handover reports at closing.'],
-            ['title' => 'Unified Multi-Branch Management:', 'text' => 'Oversee retail shops, spare parts stores, and service businesses from a single, powerful owner dashboard.'],
+            ['title' => 'Who we are:', 'text' => 'A Tanzanian technology team focused on affordable ICT and cloud tools that work for local retail, spare parts, and service businesses.'],
+            ['title' => 'What drives us:', 'text' => 'We believe every shop deserves clear numbers, accountable shifts, and simple systems — without expensive hardware or spreadsheet chaos.'],
+            ['title' => 'How we support you:', 'text' => 'From onboarding and training to ongoing help, we stay close to our customers across web and mobile so your business keeps moving.'],
         ],
-        'closing' => 'From the first sale of the morning to the final cash count at night, Mauzo Link gives your cashiers the right tools—and gives you the peace of mind you deserve.',
-        'image_alt' => 'Retail business using POS',
+        'closing' => 'Whether you run one counter or many branches, we are here to help you sell faster, stay in control, and grow with technology made for Tanzania.',
+        'image_alt' => 'EmCa Technologies team — Mauzo Link',
     ],
     'features' => [
         'image_alt' => 'Business analytics',
